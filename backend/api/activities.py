@@ -1,0 +1,302 @@
+import math
+
+from fastapi import APIRouter, Query, HTTPException
+from backend.database import get_connection
+
+
+def _haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    R = 6371
+    lat1_r, lat2_r = math.radians(lat1), math.radians(lat2)
+    dlat = math.radians(lat2 - lat1)
+    dlon = math.radians(lon2 - lon1)
+    a = math.sin(dlat / 2) ** 2 + math.cos(lat1_r) * math.cos(lat2_r) * math.sin(dlon / 2) ** 2
+    return R * 2 * math.asin(math.sqrt(a))
+
+router = APIRouter(prefix="/activities", tags=["activities"])
+
+
+SORTABLE = {
+    "start_date", "distance_m", "moving_time_s", "elevation_gain_m",
+    "avg_speed_ms", "avg_hr", "avg_power_w", "calories",
+}
+
+
+@router.get("")
+def list_activities(
+    limit: int = Query(50, ge=1, le=500),
+    offset: int = Query(0, ge=0),
+    year: int | None = None,
+    bike_id: str | None = None,
+    has_track: bool | None = None,
+    sort_by: str = Query("start_date", description="Sortierfeld"),
+    sort_dir: str = Query("desc", pattern="^(asc|desc)$"),
+):
+    if sort_by not in SORTABLE:
+        sort_by = "start_date"
+
+    filters = []
+    params: list = []
+
+    if year is not None:
+        filters.append("strftime('%Y', start_date) = ?")
+        params.append(str(year))
+    if bike_id is not None:
+        filters.append("bike_id = ?")
+        params.append(bike_id)
+    if has_track is not None:
+        filters.append("has_track = ?")
+        params.append(1 if has_track else 0)
+
+    # NULL-Werte beim Sortieren nach hinten schieben
+    null_last = f"{sort_by} IS NULL, {sort_by} {sort_dir.upper()}"
+    where = ("WHERE " + " AND ".join(filters)) if filters else ""
+
+    conn = get_connection()
+    rows = conn.execute(
+        f"""
+        SELECT id, name, activity_type, start_date, distance_m, moving_time_s,
+               elevation_gain_m, avg_speed_ms, avg_hr, avg_power_w, avg_cadence,
+               calories, bike_id, has_track
+        FROM activities
+        {where}
+        ORDER BY {null_last}
+        LIMIT ? OFFSET ?
+        """,
+        params + [limit, offset],
+    ).fetchall()
+
+    total = conn.execute(f"SELECT COUNT(*) FROM activities {where}", params).fetchone()[0]
+    conn.close()
+
+    return {"total": total, "limit": limit, "offset": offset, "items": [dict(r) for r in rows]}
+
+
+@router.get("/stats")
+def overall_stats(year: int | None = None):
+    """Gesamtstatistiken über alle (oder jahresgefilterten) Rides."""
+    filters = []
+    params: list = []
+    if year is not None:
+        filters.append("strftime('%Y', start_date) = ?")
+        params.append(str(year))
+    where = ("WHERE " + " AND ".join(filters)) if filters else ""
+
+    conn = get_connection()
+    row = conn.execute(
+        f"""
+        SELECT
+            COUNT(*)                        AS total_rides,
+            SUM(distance_m) / 1000.0        AS total_km,
+            SUM(moving_time_s)              AS total_moving_s,
+            SUM(elevation_gain_m)           AS total_elevation_m,
+            AVG(distance_m) / 1000.0        AS avg_km,
+            MAX(distance_m) / 1000.0        AS max_km,
+            AVG(avg_speed_ms) * 3.6         AS avg_speed_kmh,
+            AVG(avg_hr)                     AS avg_hr,
+            AVG(avg_power_w)                AS avg_power_w,
+            SUM(calories)                   AS total_calories
+        FROM activities
+        {where}
+        """,
+        params,
+    ).fetchone()
+
+    years = conn.execute(
+        "SELECT DISTINCT strftime('%Y', start_date) AS y FROM activities ORDER BY y DESC"
+    ).fetchall()
+
+    conn.close()
+    return {**dict(row), "available_years": [r["y"] for r in years]}
+
+
+@router.get("/weekly")
+def weekly_stats(weeks: int = Query(8, ge=1, le=52)):
+    """Aggregierte Wochendaten der letzten N Wochen."""
+    conn = get_connection()
+    rows = conn.execute(
+        """
+        SELECT
+            CAST((julianday('now') - julianday(start_date)) / 7 AS INTEGER) AS weeks_ago,
+            COUNT(*)                        AS count,
+            SUM(distance_m) / 1000.0        AS distance_km,
+            SUM(moving_time_s)              AS moving_s,
+            COALESCE(SUM(elevation_gain_m), 0) AS elevation_m
+        FROM activities
+        WHERE start_date >= date('now', ? || ' days')
+        GROUP BY weeks_ago
+        ORDER BY weeks_ago ASC
+        """,
+        (f"-{weeks * 7}",),
+    ).fetchall()
+    conn.close()
+
+    by_week: dict[int, dict] = {r["weeks_ago"]: dict(r) for r in rows}
+    result = []
+    for w in range(weeks - 1, -1, -1):
+        result.append(by_week.get(w, {"weeks_ago": w, "count": 0, "distance_km": 0.0, "moving_s": 0, "elevation_m": 0.0}))
+    return result
+
+
+@router.get("/monthly-all")
+def monthly_all():
+    """Monatliche km über den gesamten Zeitraum, chronologisch sortiert."""
+    conn = get_connection()
+    rows = conn.execute(
+        """
+        SELECT
+            CAST(strftime('%Y', start_date) AS INTEGER) AS year,
+            CAST(strftime('%m', start_date) AS INTEGER) AS month,
+            SUM(distance_m) / 1000.0 AS distance_km,
+            COUNT(*) AS count
+        FROM activities
+        GROUP BY year, month
+        ORDER BY year, month
+        """
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+@router.get("/monthly")
+def monthly_stats(year: int = Query(..., description="Jahr")):
+    """Monatliche Aggregation für ein bestimmtes Jahr (12 Monate, fehlende = 0)."""
+    conn = get_connection()
+    rows = conn.execute(
+        """
+        SELECT
+            CAST(strftime('%m', start_date) AS INTEGER) AS month,
+            COUNT(*)                        AS count,
+            SUM(distance_m) / 1000.0        AS distance_km,
+            SUM(moving_time_s)              AS moving_s,
+            COALESCE(SUM(elevation_gain_m), 0) AS elevation_m
+        FROM activities
+        WHERE strftime('%Y', start_date) = ?
+        GROUP BY month
+        ORDER BY month
+        """,
+        (str(year),),
+    ).fetchall()
+    conn.close()
+
+    by_month: dict[int, dict] = {r["month"]: dict(r) for r in rows}
+    return [
+        by_month.get(m, {"month": m, "count": 0, "distance_km": 0.0, "moving_s": 0, "elevation_m": 0.0})
+        for m in range(1, 13)
+    ]
+
+
+@router.get("/{activity_id}")
+def get_activity(activity_id: int):
+    conn = get_connection()
+    row = conn.execute(
+        "SELECT * FROM activities WHERE id = ?", (activity_id,)
+    ).fetchone()
+    conn.close()
+    if row is None:
+        raise HTTPException(status_code=404, detail="Activity not found")
+    return dict(row)
+
+
+@router.get("/{activity_id}/laps")
+def get_laps(activity_id: int):
+    conn = get_connection()
+    rows = conn.execute(
+        "SELECT * FROM laps WHERE activity_id = ? ORDER BY lap_number",
+        (activity_id,),
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+@router.get("/{activity_id}/media")
+def get_activity_media(activity_id: int):
+    conn = get_connection()
+    rows = conn.execute(
+        "SELECT filename FROM media WHERE activity_id = ? ORDER BY id",
+        (activity_id,),
+    ).fetchall()
+    conn.close()
+    return {"files": [r["filename"] for r in rows]}
+
+
+@router.get("/{activity_id}/similar")
+def get_similar_activities(
+    activity_id: int,
+    max_distance_diff_pct: float = Query(20, ge=0, le=100),
+    start_radius_km: float = Query(2, ge=0.1, le=50),
+    limit: int = Query(10, ge=1, le=50),
+):
+    """Findet Aktivitäten mit ähnlichem Startpunkt (±start_radius_km) und ähnlicher Distanz (±max_distance_diff_pct)."""
+    conn = get_connection()
+
+    ref = conn.execute(
+        "SELECT id, distance_m FROM activities WHERE id = ? AND has_track = 1",
+        (activity_id,),
+    ).fetchone()
+    if ref is None:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Activity not found or has no track")
+
+    ref_start = conn.execute(
+        "SELECT lat, lon FROM track_points WHERE activity_id = ? AND lat IS NOT NULL AND lon IS NOT NULL ORDER BY id LIMIT 1",
+        (activity_id,),
+    ).fetchone()
+    if ref_start is None:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Reference activity has no GPS track points")
+
+    ref_lat = ref_start["lat"]
+    ref_lon = ref_start["lon"]
+    ref_dist = ref["distance_m"]
+    min_dist = ref_dist * (1 - max_distance_diff_pct / 100)
+    max_dist = ref_dist * (1 + max_distance_diff_pct / 100)
+
+    candidates = conn.execute(
+        """
+        SELECT id, name, start_date, distance_m, moving_time_s,
+               avg_speed_ms, avg_hr, elevation_gain_m
+        FROM activities
+        WHERE id != ? AND has_track = 1 AND distance_m BETWEEN ? AND ?
+        ORDER BY start_date DESC
+        """,
+        (activity_id, min_dist, max_dist),
+    ).fetchall()
+
+    if not candidates:
+        conn.close()
+        return {"reference_id": activity_id, "similar": []}
+
+    # Ersten Track-Punkt jeder Kandidaten-Aktivität in einer Query holen
+    cand_ids = [c["id"] for c in candidates]
+    placeholders = ",".join("?" * len(cand_ids))
+    start_pts = conn.execute(
+        f"""
+        SELECT tp.activity_id, tp.lat, tp.lon
+        FROM track_points tp
+        WHERE tp.id IN (
+            SELECT MIN(id) FROM track_points
+            WHERE activity_id IN ({placeholders})
+            GROUP BY activity_id
+        )
+        """,
+        cand_ids,
+    ).fetchall()
+    conn.close()
+
+    start_map = {
+        r["activity_id"]: (r["lat"], r["lon"])
+        for r in start_pts
+        if r["lat"] is not None and r["lon"] is not None
+    }
+
+    result = []
+    for c in candidates:
+        pt = start_map.get(c["id"])
+        if pt is None:
+            continue
+        dist_km = _haversine_km(ref_lat, ref_lon, pt[0], pt[1])
+        if dist_km <= start_radius_km:
+            result.append({**dict(c), "start_distance_km": round(dist_km, 2)})
+
+    result.sort(key=lambda x: x["start_distance_km"])
+    return {"reference_id": activity_id, "similar": result[:limit]}

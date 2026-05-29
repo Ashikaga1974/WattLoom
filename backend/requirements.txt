@@ -1,0 +1,4 @@
+fastapi>=0.111
+uvicorn[standard]>=0.29
+fitparse>=1.2
+lxml>=5.2

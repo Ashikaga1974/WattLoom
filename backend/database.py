@@ -1,0 +1,166 @@
+"""
+SQLite-Schema für MyBiking.
+Alle Tabellen werden hier angelegt; keine Migrations-Library – simples CREATE IF NOT EXISTS.
+"""
+
+import sqlite3
+from pathlib import Path
+
+DB_PATH = Path(__file__).parent.parent / "data" / "mybiking.db"
+
+
+def get_connection() -> sqlite3.Connection:
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA foreign_keys=ON")
+    return conn
+
+
+def init_db() -> None:
+    with get_connection() as conn:
+        conn.executescript("""
+            CREATE TABLE IF NOT EXISTS activities (
+                id                  INTEGER PRIMARY KEY,  -- Strava Activity-ID
+                name                TEXT,
+                activity_type       TEXT,
+                sport_type          TEXT,
+                start_date          TEXT,                 -- ISO8601
+                start_date_local    TEXT,
+                timezone            TEXT,
+                distance_m          REAL,
+                moving_time_s       INTEGER,
+                elapsed_time_s      INTEGER,
+                elevation_gain_m    REAL,
+                elevation_loss_m    REAL,
+                avg_speed_ms        REAL,
+                max_speed_ms        REAL,
+                avg_hr              REAL,
+                max_hr              INTEGER,
+                avg_power_w         REAL,
+                max_power_w         INTEGER,
+                avg_cadence         REAL,
+                avg_temp_c          REAL,
+                calories            REAL,
+                bike_id             TEXT,
+                commute             INTEGER,              -- 0/1
+                trainer             INTEGER,
+                manual              INTEGER,
+                track_file          TEXT,                 -- relativer Pfad in ZIP
+                has_track           INTEGER DEFAULT 0,
+                imported_at         TEXT                  -- ISO8601
+            );
+
+            CREATE TABLE IF NOT EXISTS track_points (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                activity_id INTEGER NOT NULL REFERENCES activities(id),
+                timestamp   TEXT,
+                lat         REAL,
+                lon         REAL,
+                altitude_m  REAL,
+                distance_m  REAL,
+                speed_ms    REAL,
+                hr          INTEGER,
+                power_w     INTEGER,
+                cadence     INTEGER,
+                temp_c      REAL
+            );
+            CREATE INDEX IF NOT EXISTS idx_tp_activity ON track_points(activity_id);
+
+            CREATE TABLE IF NOT EXISTS laps (
+                id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                activity_id     INTEGER NOT NULL REFERENCES activities(id),
+                lap_number      INTEGER,
+                start_time      TEXT,
+                total_time_s    REAL,
+                distance_m      REAL,
+                avg_speed_ms    REAL,
+                max_speed_ms    REAL,
+                avg_hr          REAL,
+                max_hr          INTEGER,
+                avg_power_w     REAL,
+                max_power_w     INTEGER,
+                avg_cadence     REAL,
+                elevation_gain_m REAL
+            );
+            CREATE INDEX IF NOT EXISTS idx_laps_activity ON laps(activity_id);
+
+            CREATE TABLE IF NOT EXISTS segment_efforts (
+                id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                activity_id     INTEGER NOT NULL REFERENCES activities(id),
+                name            TEXT,
+                start_time      TEXT,
+                elapsed_time_s  REAL,
+                distance_m      REAL,
+                avg_speed_ms    REAL,
+                max_speed_ms    REAL,
+                avg_hr          REAL,
+                max_hr          INTEGER,
+                avg_power_w     REAL,
+                max_power_w     INTEGER,
+                avg_cadence     REAL,
+                total_ascent_m  REAL,
+                rank            INTEGER,
+                pr_rank         INTEGER
+            );
+            CREATE INDEX IF NOT EXISTS idx_seg_activity ON segment_efforts(activity_id);
+
+            CREATE TABLE IF NOT EXISTS bikes (
+                id              TEXT PRIMARY KEY,         -- Strava Gear-ID (z.B. "b12345")
+                name            TEXT,
+                brand           TEXT,
+                model           TEXT,
+                description     TEXT,
+                distance_m      REAL,
+                retired         INTEGER DEFAULT 0
+            );
+
+            CREATE TABLE IF NOT EXISTS bike_components (
+                id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                bike_id         TEXT REFERENCES bikes(id),
+                type            TEXT,
+                brand           TEXT,
+                model           TEXT,
+                description     TEXT,
+                distance_m      REAL,
+                added_at        TEXT,
+                retired_at      TEXT
+            );
+
+            CREATE TABLE IF NOT EXISTS routes (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                name        TEXT,
+                description TEXT,
+                distance_m  REAL,
+                source_file TEXT
+            );
+
+            CREATE TABLE IF NOT EXISTS route_points (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                route_id    INTEGER NOT NULL REFERENCES routes(id),
+                seq         INTEGER,
+                lat         REAL,
+                lon         REAL,
+                altitude_m  REAL
+            );
+            CREATE INDEX IF NOT EXISTS idx_rp_route ON route_points(route_id);
+
+            CREATE TABLE IF NOT EXISTS media (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                activity_id INTEGER REFERENCES activities(id),
+                filename    TEXT,
+                taken_at    TEXT,
+                lat         REAL,
+                lon         REAL
+            );
+
+            CREATE TABLE IF NOT EXISTS config (
+                key   TEXT PRIMARY KEY,
+                value TEXT
+            );
+        """)
+    print(f"DB initialisiert: {DB_PATH}")
+
+
+if __name__ == "__main__":
+    init_db()

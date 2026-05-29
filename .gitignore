@@ -1,0 +1,32 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Datenbank & persönliche Daten
+data/mybiking.db
+data/media/*
+!data/media/.gitkeep
+
+# Strava-Export
+download/*
+!download/.gitkeep
+
+# Node
+frontend/node_modules/
+frontend/.svelte-kit/
+frontend/.output/
+frontend/build/
+
+# Claude
+.claude/
+
+# Dokumentation
+*.md
+
+# OS
+.DS_Store
+Thumbs.db
