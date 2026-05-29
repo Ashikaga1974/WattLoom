@@ -127,6 +127,22 @@ export interface ActivityZones {
 	has_power: boolean;
 }
 
+export interface PmcDay {
+	date: string;
+	tss: number;
+	ctl: number;
+	atl: number;
+	tsb: number;
+}
+
+export interface PmcResponse {
+	days: PmcDay[];
+	peak_ctl: { value: number; date: string } | null;
+	current: PmcDay | null;
+	max_hr: number;
+	threshold_hr: number;
+}
+
 export interface SimilarActivity {
 	id: number;
 	name: string;
@@ -238,6 +254,9 @@ export const api = {
 			current_ftp: number | null;
 			best_ever:   { w: number; date: string } | null;
 		}>('/analytics/ftp'),
+
+	pmc: () =>
+		get<PmcResponse>('/analytics/pmc'),
 
 	startImport: () =>
 		fetch(`${BASE}/import/start`, { method: 'POST' })

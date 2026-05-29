@@ -227,6 +227,101 @@ def ftp_analysis():
         "method": "hr_corrected" if global_max_hr else "fallback",
     }
 
+@router.get("/pmc")
+def performance_management_chart():
+    """
+    Performance Management Chart: CTL/ATL/TSB auf Basis von hrTSS.
+    hrTSS = (moving_time_s / 3600) × (avg_hr / threshold_hr)² × 100
+    threshold_hr = 0.85 × global_max_hr (Schwellen-HR ≈ 85 % HRmax)
+    Fallback ohne HR-Daten: duration_h × 50 (moderate Intensität).
+    """
+    from collections import defaultdict
+    from datetime import date as Date, timedelta
+
+    conn = get_connection()
+
+    max_hr_row = conn.execute(
+        "SELECT MAX(max_hr) AS v FROM activities WHERE max_hr > 0"
+    ).fetchone()
+    global_max_hr = float(max_hr_row["v"]) if max_hr_row and max_hr_row["v"] else 185.0
+    threshold_hr = 0.85 * global_max_hr
+
+    rows = conn.execute("""
+        SELECT
+            strftime('%Y-%m-%d', start_date_local) AS date,
+            moving_time_s,
+            elapsed_time_s,
+            avg_hr
+        FROM activities
+        WHERE strftime('%Y', start_date_local) >= '2000'
+        ORDER BY start_date_local
+    """).fetchall()
+    conn.close()
+
+    daily_tss: dict[str, float] = defaultdict(float)
+    for r in rows:
+        duration_s = r["moving_time_s"] or r["elapsed_time_s"] or 0
+        if duration_s <= 0:
+            continue
+        hr = r["avg_hr"]
+        if hr and hr > 0:
+            if_hr = hr / threshold_hr
+            tss = (duration_s / 3600.0) * (if_hr ** 2) * 100.0
+        else:
+            tss = (duration_s / 3600.0) * 50.0
+        daily_tss[r["date"]] += tss
+
+    if not daily_tss:
+        return {
+            "days": [],
+            "peak_ctl": None,
+            "current": None,
+            "max_hr": global_max_hr,
+            "threshold_hr": round(threshold_hr, 1),
+        }
+
+    start = Date.fromisoformat(sorted(daily_tss.keys())[0])
+    today = Date.today()
+
+    # EMA-Faktoren: k = 2 / (N + 1)
+    K_CTL = 2.0 / 43.0
+    K_ATL = 2.0 / 8.0
+
+    ctl = atl = 0.0
+    peak_ctl = 0.0
+    peak_ctl_date: str | None = None
+    result: list[dict] = []
+
+    cursor = start
+    while cursor <= today:
+        d = cursor.isoformat()
+        tss = daily_tss.get(d, 0.0)
+        ctl = ctl + K_CTL * (tss - ctl)
+        atl = atl + K_ATL * (tss - atl)
+        tsb = ctl - atl
+
+        if ctl > peak_ctl:
+            peak_ctl = ctl
+            peak_ctl_date = d
+
+        result.append({
+            "date": d,
+            "tss": round(tss, 1),
+            "ctl": round(ctl, 1),
+            "atl": round(atl, 1),
+            "tsb": round(tsb, 1),
+        })
+        cursor += timedelta(days=1)
+
+    return {
+        "days": result,
+        "peak_ctl": {"value": round(peak_ctl, 1), "date": peak_ctl_date},
+        "current": result[-1] if result else None,
+        "max_hr": global_max_hr,
+        "threshold_hr": round(threshold_hr, 1),
+    }
+
+
 DURATIONS = [60, 300, 600, 1200, 3600]  # 1min, 5min, 10min, 20min, 60min
 
 

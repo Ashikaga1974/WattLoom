@@ -1,62 +1,20 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { api } from '$lib/api';
+	import { api, type PmcDay, type PmcResponse } from '$lib/api';
 
-	interface DayEntry {
-		date: string;
-		load: number;   // km an diesem Tag
-		ctl: number;    // 42-Tage-EMA (Fitness)
-		atl: number;    // 7-Tage-EMA (Fatigue)
-		form: number;   // CTL - ATL
-	}
-
-	let allDays = $state<DayEntry[]>([]);
-	let viewDays = $state<DayEntry[]>([]);
+	let data = $state<PmcResponse | null>(null);
 	let loading = $state(true);
 	let error = $state<string | null>(null);
-	let showAll = $state(false);
+	let viewMode = $state<'90' | '180' | 'all'>('90');
+	let viewDays = $state<PmcDay[]>([]);
+	let hoverIdx = $state<number | null>(null);
+	let tooltipX = $state(0);
+	let tooltipY = $state(0);
+	let svgWrapper = $state<HTMLDivElement | null>(null);
 
 	onMount(async () => {
 		try {
-			// Alle Aktivitäten auf einmal (kein Jahresfilter)
-			const res = await api.activities({ limit: 500 });
-
-			// Aktivitäten nach Datum summieren (Ausreißer < 2000 weg)
-			const byDate = new Map<string, number>();
-			for (const act of res.items) {
-				if (new Date(act.start_date).getFullYear() < 2000) continue;
-				const d = act.start_date.slice(0, 10);
-				byDate.set(d, (byDate.get(d) ?? 0) + act.distance_m / 1000);
-			}
-
-			// Frühestes Datum ermitteln
-			const dates = [...byDate.keys()].sort();
-			if (!dates.length) { loading = false; return; }
-
-			// Lückenlosen Datumsbereich aufbauen
-			const start = new Date(dates[0]);
-			const today = new Date();
-			today.setHours(0, 0, 0, 0);
-
-			// EMA-Konstanten (klassische Formel: k = 2/(N+1))
-			const K_CTL = 2 / (42 + 1);
-			const K_ATL = 2 / (7 + 1);
-
-			let ctl = 0, atl = 0;
-			const entries: DayEntry[] = [];
-			const cursor = new Date(start);
-
-			while (cursor <= today) {
-				const d = cursor.toISOString().slice(0, 10);
-				const load = byDate.get(d) ?? 0;
-				ctl = ctl + K_CTL * (load - ctl);
-				atl = atl + K_ATL * (load - atl);
-				entries.push({ date: d, load, ctl, atl, form: ctl - atl });
-				cursor.setDate(cursor.getDate() + 1);
-			}
-
-			allDays = entries;
-			updateView();
+			data = await api.pmc();
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'Fehler';
 		} finally {
@@ -64,93 +22,148 @@
 		}
 	});
 
-	function updateView() {
-		viewDays = showAll ? allDays : allDays.slice(-180); // ~6 Monate
-	}
-	$effect(() => { if (allDays.length) updateView(); });
+	$effect(() => {
+		if (!data?.days.length) { viewDays = []; return; }
+		const all = data.days;
+		viewDays = viewMode === '90'  ? all.slice(-90)
+		         : viewMode === '180' ? all.slice(-180)
+		         : [...all];
+	});
 
-	// SVG-Setup
-	const W = 1000, H = 260;
-	const PAD = { top: 16, right: 16, bottom: 32, left: 44 };
+	// TSB-Zone → Farbe + Label (hex für SVG-Elemente)
+	function tsbZone(tsb: number) {
+		if (tsb > 25)  return { label: 'Sehr frisch',    text: 'text-sky-300',    hex: '#7dd3fc', bg: 'bg-sky-900/20',    border: 'border-sky-700/40'    };
+		if (tsb > 5)   return { label: 'Wettkampfform',  text: 'text-green-400',  hex: '#4ade80', bg: 'bg-green-900/20',  border: 'border-green-700/40'  };
+		if (tsb > -10) return { label: 'Normal',         text: 'text-yellow-400', hex: '#facc15', bg: 'bg-yellow-900/20', border: 'border-yellow-700/40' };
+		if (tsb > -25) return { label: 'Trainingsblock', text: 'text-orange-400', hex: '#fb923c', bg: 'bg-orange-900/20', border: 'border-orange-700/40' };
+		return               { label: 'Überbelastet',   text: 'text-red-400',    hex: '#f87171', bg: 'bg-red-900/20',    border: 'border-red-700/40'    };
+	}
+
+	// Ramp Rate: Ø CTL-Anstieg pro Woche über die letzten 4 Wochen
+	const rampRate = $derived(
+		data?.days && data.days.length >= 29
+			? (data.days[data.days.length - 1].ctl - data.days[data.days.length - 29].ctl) / 4
+			: null
+	);
+
+	function rampZone(r: number) {
+		const abs = Math.abs(r);
+		if (abs < 5)  return { text: 'text-green-400',  bg: 'bg-green-900/20',  border: 'border-green-700/40',  suffix: 'moderat'        };
+		if (abs < 10) return { text: 'text-yellow-400', bg: 'bg-yellow-900/20', border: 'border-yellow-700/40', suffix: 'Aufbauphase'    };
+		return               { text: 'text-red-400',    bg: 'bg-red-900/20',    border: 'border-red-700/40',    suffix: '⚠ zu schnell'   };
+	}
+
+	// Chart-Dimensionen
+	const W = 1000, H = 280;
+	const PAD = { top: 20, right: 24, bottom: 36, left: 48 };
 	const cW = W - PAD.left - PAD.right;
 	const cH = H - PAD.top - PAD.bottom;
 
-	// Y-Achse: symmetrisch um 0 für Form, mit etwas Puffer für CTL/ATL
 	const maxVal = $derived(
 		viewDays.length
-			? Math.ceil(Math.max(...viewDays.map(d => d.ctl), ...viewDays.map(d => d.atl)) / 5 + 1) * 5
-			: 50
+			? Math.ceil(viewDays.reduce((m, d) => Math.max(m, d.ctl, d.atl, data?.peak_ctl?.value ?? 0), 0) / 10 + 1) * 10
+			: 100
 	);
 	const minVal = $derived(
 		viewDays.length
-			? Math.floor(Math.min(...viewDays.map(d => d.form)) / 5 - 1) * 5
-			: -20
+			? Math.floor(viewDays.reduce((m, d) => Math.min(m, d.tsb), 0) / 10 - 1) * 10
+			: -30
 	);
 	const yRange = $derived(maxVal - minVal);
 
 	function xOf(i: number) { return PAD.left + (i / Math.max(viewDays.length - 1, 1)) * cW; }
 	function yOf(v: number) { return PAD.top + cH - ((v - minVal) / yRange) * cH; }
-	function y0() { return yOf(0); }
 
-	// Polyline-String für eine Kurve
-	function line(key: 'ctl' | 'atl' | 'form'): string {
+	// SVG-Pfade
+	const tsbAreaPos = $derived(() => {
+		if (!viewDays.length) return '';
+		const z = yOf(0), n = viewDays.length;
+		return `M${xOf(0).toFixed(1)},${z.toFixed(1)}`
+			+ viewDays.map((d, i) => `L${xOf(i).toFixed(1)},${yOf(Math.max(d.tsb, 0)).toFixed(1)}`).join('')
+			+ `L${xOf(n - 1).toFixed(1)},${z.toFixed(1)}Z`;
+	});
+
+	const tsbAreaNeg = $derived(() => {
+		if (!viewDays.length) return '';
+		const z = yOf(0), n = viewDays.length;
+		return `M${xOf(0).toFixed(1)},${z.toFixed(1)}`
+			+ viewDays.map((d, i) => `L${xOf(i).toFixed(1)},${yOf(Math.min(d.tsb, 0)).toFixed(1)}`).join('')
+			+ `L${xOf(n - 1).toFixed(1)},${z.toFixed(1)}Z`;
+	});
+
+	function polyPts(key: 'ctl' | 'atl') {
 		return viewDays.map((d, i) => `${xOf(i).toFixed(1)},${yOf(d[key]).toFixed(1)}`).join(' ');
 	}
 
-	// Form-Fläche: positiv = grün, negativ = rot – als zwei getrennte Pfade
-	const formAreaPos = $derived(() => {
-		if (!viewDays.length) return '';
-		const zero = y0();
-		const pts = viewDays.map((d, i) => ({
-			x: xOf(i),
-			y: yOf(Math.max(d.form, 0)),
-		}));
-		return `M${pts[0].x},${zero}` +
-			pts.map(p => `L${p.x.toFixed(1)},${p.y.toFixed(1)}`).join('') +
-			`L${pts[pts.length - 1].x},${zero}Z`;
-	});
-	const formAreaNeg = $derived(() => {
-		if (!viewDays.length) return '';
-		const zero = y0();
-		const pts = viewDays.map((d, i) => ({
-			x: xOf(i),
-			y: yOf(Math.min(d.form, 0)),
-		}));
-		return `M${pts[0].x},${zero}` +
-			pts.map(p => `L${p.x.toFixed(1)},${p.y.toFixed(1)}`).join('') +
-			`L${pts[pts.length - 1].x},${zero}Z`;
+	// Trainingspausen: ≥5 aufeinanderfolgende Tage mit TSS = 0
+	const pauses = $derived(() => {
+		const result: { x1: number; x2: number }[] = [];
+		let start: number | null = null;
+		viewDays.forEach((d, i) => {
+			if (d.tss === 0) {
+				if (start === null) start = i;
+			} else {
+				if (start !== null && i - start >= 5) result.push({ x1: xOf(start), x2: xOf(i - 1) });
+				start = null;
+			}
+		});
+		if (start !== null && viewDays.length - start >= 5)
+			result.push({ x1: xOf(start), x2: xOf(viewDays.length - 1) });
+		return result;
 	});
 
 	// Y-Achse Ticks
 	const yTicks = $derived(() => {
+		const range = yRange;
+		const step = range > 200 ? 40 : range > 100 ? 20 : 10;
 		const ticks: number[] = [];
-		const step = yRange > 100 ? 20 : 10;
-		for (let v = Math.ceil(minVal / step) * step; v <= maxVal; v += step) {
-			ticks.push(v);
-		}
+		for (let v = Math.ceil(minVal / step) * step; v <= maxVal; v += step) ticks.push(v);
 		return ticks;
 	});
 
-	// X-Achse: Monatslabels
+	// X-Achse Monats-Labels
 	const MONTHS = ['Jan','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'];
 	const xLabels = $derived(() => {
 		const labels: { x: number; label: string }[] = [];
-		let lastMonth = -1;
+		let lastMo = -1;
+		const n = viewDays.length;
 		viewDays.forEach((d, i) => {
 			const mo = new Date(d.date).getMonth();
 			const yr = new Date(d.date).getFullYear();
-			if (mo !== lastMonth) {
-				// Bei mehr als 1 Jahr: nur jeden 2. Monat
-				if (viewDays.length > 365 && mo % 2 !== 0) { lastMonth = mo; return; }
+			if (mo !== lastMo) {
+				if (n > 365 && mo % 2 !== 0) { lastMo = mo; return; }
 				labels.push({ x: xOf(i), label: mo === 0 ? `${MONTHS[mo]} ${yr}` : MONTHS[mo] });
-				lastMonth = mo;
+				lastMo = mo;
 			}
 		});
 		return labels;
 	});
 
-	// Aktuelle Werte
-	const current = $derived(viewDays[viewDays.length - 1]);
+	// Hover
+	function onMouseMove(e: MouseEvent) {
+		if (!svgWrapper || !viewDays.length) return;
+		tooltipX = e.clientX;
+		tooltipY = e.clientY;
+		const rect = svgWrapper.getBoundingClientRect();
+		const svgX = (e.clientX - rect.left) / rect.width * W;
+		const raw = (svgX - PAD.left) / cW * (viewDays.length - 1);
+		hoverIdx = Math.max(0, Math.min(viewDays.length - 1, Math.round(raw)));
+	}
+
+	const hoverDay = $derived(() =>
+		hoverIdx !== null && viewDays.length ? viewDays[hoverIdx] : null
+	);
+	const hoverXPx = $derived(() =>
+		hoverIdx !== null ? xOf(hoverIdx) : 0
+	);
+
+	// Datum formatieren
+	function fmtDate(iso: string) {
+		return new Date(iso).toLocaleDateString('de-DE', { day: '2-digit', month: 'short', year: 'numeric' });
+	}
+	function fmtDateLong(iso: string) {
+		return new Date(iso).toLocaleDateString('de-DE', { day: '2-digit', month: 'long', year: 'numeric' });
+	}
 </script>
 
 <svelte:head>
@@ -158,21 +171,31 @@
 </svelte:head>
 
 <div class="space-y-6">
-	<div class="flex flex-wrap items-center justify-between gap-4">
+	<!-- Header -->
+	<div class="flex flex-wrap items-start justify-between gap-4">
 		<div>
 			<h1 class="text-2xl font-bold">Form & Fitness</h1>
-			<p class="text-xs text-gray-500 mt-0.5">CTL/ATL-Modell · Trainingsbelastung = km/Tag</p>
+			<p class="text-xs text-gray-500 mt-0.5">
+				PMC · hrTSS = Dauer × (avg_HR / Schwellen-HR)² × 100
+				{#if data}
+					· HRmax {data.max_hr.toFixed(0)} bpm · Schwelle {data.threshold_hr.toFixed(0)} bpm
+				{/if}
+			</p>
 		</div>
-		<button
-			onclick={() => { showAll = !showAll; }}
-			class="px-3 py-1.5 rounded-full text-sm border transition-colors"
-			class:border-orange-500={showAll}
-			class:text-orange-400={showAll}
-			class:border-gray-700={!showAll}
-			class:text-gray-400={!showAll}
-		>
-			{showAll ? 'Letzte 6 Monate' : 'Alle Jahre'}
-		</button>
+		<!-- Zeitraum-Toggle -->
+		<div class="flex rounded-lg overflow-hidden border border-gray-700 text-sm">
+			{#each [['90', '90 Tage'], ['180', '6 Monate'], ['all', 'Alles']] as [mode, label]}
+				<button
+					onclick={() => viewMode = mode as '90' | '180' | 'all'}
+					class="px-3 py-1.5 transition-colors"
+					class:bg-orange-600={viewMode === mode}
+					class:text-white={viewMode === mode}
+					class:text-gray-400={viewMode !== mode}
+				>
+					{label}
+				</button>
+			{/each}
+		</div>
 	</div>
 
 	{#if error}
@@ -180,89 +203,292 @@
 	{/if}
 
 	{#if loading}
-		<div class="h-64 bg-gray-800/50 animate-pulse rounded-xl"></div>
-	{:else if current}
-		<!-- Aktuelle Werte -->
-		<div class="grid grid-cols-3 gap-4">
+		<div class="h-72 bg-gray-800/50 animate-pulse rounded-xl"></div>
+	{:else if data?.current}
+		{@const cur = data.current}
+		{@const zone = tsbZone(cur.tsb)}
+
+		<!-- Stat-Cards -->
+		<div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+			<!-- CTL -->
 			<div class="rounded-xl bg-gray-800/60 p-4 border border-blue-900/40">
 				<p class="text-xs text-blue-400 uppercase tracking-wider">Fitness (CTL)</p>
-				<p class="text-2xl font-bold mt-1 text-blue-300">{current.ctl.toFixed(1)}</p>
-				<p class="text-xs text-gray-500 mt-0.5">42-Tage-Schnitt</p>
+				<p class="text-3xl font-bold mt-1 text-blue-300">{cur.ctl.toFixed(1)}</p>
+				<p class="text-xs text-gray-500 mt-0.5">42-Tage-EMA · hrTSS</p>
 			</div>
+			<!-- ATL -->
 			<div class="rounded-xl bg-gray-800/60 p-4 border border-orange-900/40">
-				<p class="text-xs text-orange-400 uppercase tracking-wider">Fatigue (ATL)</p>
-				<p class="text-2xl font-bold mt-1 text-orange-300">{current.atl.toFixed(1)}</p>
-				<p class="text-xs text-gray-500 mt-0.5">7-Tage-Schnitt</p>
+				<p class="text-xs text-orange-400 uppercase tracking-wider">Müdigkeit (ATL)</p>
+				<p class="text-3xl font-bold mt-1 text-orange-300">{cur.atl.toFixed(1)}</p>
+				<p class="text-xs text-gray-500 mt-0.5">7-Tage-EMA · hrTSS</p>
 			</div>
-			<div class="rounded-xl p-4 border {current.form >= 0 ? 'bg-green-900/20 border-green-900/40' : 'bg-red-900/20 border-red-900/40'}">
-				<p class="text-xs uppercase tracking-wider {current.form >= 0 ? 'text-green-400' : 'text-red-400'}">Form (TSB)</p>
-				<p class="text-2xl font-bold mt-1 {current.form >= 0 ? 'text-green-300' : 'text-red-300'}">
-					{current.form >= 0 ? '+' : ''}{current.form.toFixed(1)}
+			<!-- TSB / Form -->
+			<div class="rounded-xl p-4 border {zone.bg} {zone.border}">
+				<p class="text-xs uppercase tracking-wider {zone.text}">Form (TSB)</p>
+				<p class="text-3xl font-bold mt-1 {zone.text}">
+					{cur.tsb >= 0 ? '+' : ''}{cur.tsb.toFixed(1)}
 				</p>
-				<p class="text-xs text-gray-500 mt-0.5">{current.form >= 0 ? 'Frisch' : 'Müde'}</p>
+				<p class="text-xs text-gray-400 mt-0.5">{zone.label}</p>
 			</div>
+			<!-- Ramp Rate -->
+			{#if rampRate !== null}
+				{@const rz = rampZone(rampRate)}
+				<div class="rounded-xl p-4 border {rz.bg} {rz.border}">
+					<p class="text-xs uppercase tracking-wider {rz.text}">Aufbau / Woche</p>
+					<p class="text-3xl font-bold mt-1 {rz.text}">
+						{rampRate >= 0 ? '+' : ''}{rampRate.toFixed(1)}
+					</p>
+					<p class="text-xs text-gray-400 mt-0.5">{rz.suffix}</p>
+				</div>
+			{/if}
 		</div>
 
-		<!-- Chart -->
+		<!-- Peak CTL Info -->
+		{#if data.peak_ctl}
+			<p class="text-sm text-gray-500">
+				Peak Fitness:
+				<span class="text-blue-400 font-medium">{data.peak_ctl.value.toFixed(1)} CTL</span>
+				am {fmtDateLong(data.peak_ctl.date)}
+			</p>
+		{/if}
+
+		<!-- PMC-Chart -->
 		<div class="rounded-xl bg-gray-800/40 border border-gray-800 p-4">
 			<!-- Legende -->
-			<div class="flex items-center gap-5 mb-3 text-xs">
-				<span class="flex items-center gap-1.5"><span class="inline-block w-6 h-0.5 bg-blue-400"></span> Fitness (CTL)</span>
-				<span class="flex items-center gap-1.5"><span class="inline-block w-6 h-0.5 bg-orange-400"></span> Fatigue (ATL)</span>
+			<div class="flex flex-wrap items-center gap-x-5 gap-y-1 mb-3 text-xs text-gray-400">
 				<span class="flex items-center gap-1.5">
-					<span class="inline-block w-3 h-3 bg-green-500/40 rounded-sm"></span>
-					<span class="inline-block w-3 h-3 bg-red-500/40 rounded-sm"></span>
-					Form
+					<span class="inline-block w-6 h-0.5 rounded" style="background:#60a5fa"></span> Fitness (CTL)
+				</span>
+				<span class="flex items-center gap-1.5">
+					<span class="inline-block w-6 h-0.5 rounded" style="background:#fb923c"></span> Müdigkeit (ATL)
+				</span>
+				<span class="flex items-center gap-1.5">
+					<span class="inline-block w-3 h-3 rounded-sm bg-green-500/40"></span>
+					<span class="inline-block w-3 h-3 rounded-sm bg-red-500/40"></span> Form (TSB)
+				</span>
+				{#if data.peak_ctl}
+					<span class="flex items-center gap-1.5">
+						<svg width="24" height="8"><line x1="0" y1="4" x2="24" y2="4" stroke="#93c5fd" stroke-width="1.5" stroke-dasharray="4 3"/></svg>
+						Peak CTL
+					</span>
+				{/if}
+				<span class="flex items-center gap-1.5">
+					<span class="inline-block w-5 h-3 rounded-sm bg-white/5 border border-white/10"></span> Pause ≥5 Tage
 				</span>
 			</div>
 
-			<svg viewBox="0 0 {W} {H}" class="w-full" style="height: 260px">
-				<!-- Gitternetz & Y-Labels -->
-				{#each yTicks() as v}
-					<line
-						x1={PAD.left} y1={yOf(v).toFixed(1)}
-						x2={W - PAD.right} y2={yOf(v).toFixed(1)}
-						stroke="var(--chart-line)"
-						stroke-width={v === 0 ? 1.5 : 0.8}
-					/>
-					<text x={PAD.left - 6} y={yOf(v) + 4} font-size="11" fill="var(--chart-text)" text-anchor="end">{v}</text>
-				{/each}
+			<div
+				bind:this={svgWrapper}
+				class="relative"
+				onmousemove={onMouseMove}
+				onmouseleave={() => hoverIdx = null}
+			>
+				<svg viewBox="0 0 {W} {H}" class="w-full" style="height: 280px">
+					<!-- Trainingspausen-Bänder -->
+					{#each pauses() as p}
+						<rect x={p.x1} y={PAD.top} width={Math.max(p.x2 - p.x1, 1)} height={cH}
+							fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.06)" stroke-width="0.5"/>
+					{/each}
 
-				<!-- X-Labels -->
-				{#each xLabels() as { x, label }}
-					<text x={x} y={H - 8} font-size="10" fill="var(--chart-text)" text-anchor="middle">{label}</text>
-					<line x1={x} y1={PAD.top} x2={x} y2={PAD.top + cH} stroke="var(--chart-line)" stroke-width="0.5"/>
-				{/each}
+					<!-- Y-Gitternetz + Labels -->
+					{#each yTicks() as v}
+						<line
+							x1={PAD.left} y1={yOf(v).toFixed(1)}
+							x2={W - PAD.right} y2={yOf(v).toFixed(1)}
+							stroke="var(--chart-line)"
+							stroke-width={v === 0 ? 1.5 : 0.7}
+						/>
+						<text x={PAD.left - 6} y={yOf(v) + 4} font-size="11" fill="var(--chart-text)" text-anchor="end">{v}</text>
+					{/each}
 
-				<!-- Form-Flächen -->
-				<path d={formAreaPos()} fill="#22c55e" opacity="0.25"/>
-				<path d={formAreaNeg()} fill="#ef4444" opacity="0.25"/>
+					<!-- X-Achse Monats-Labels -->
+					{#each xLabels() as { x, label }}
+						<line x1={x} y1={PAD.top} x2={x} y2={PAD.top + cH} stroke="var(--chart-line)" stroke-width="0.5"/>
+						<text x={x} y={H - 8} font-size="10" fill="var(--chart-text)" text-anchor="middle">{label}</text>
+					{/each}
 
-				<!-- ATL-Linie (unter CTL) -->
-				<polyline points={line('atl')} fill="none" stroke="#fc4c02" stroke-width="1.5" stroke-linejoin="round"/>
+					<!-- TSB-Flächen (positiv grün, negativ rot) -->
+					<path d={tsbAreaPos()} fill="#22c55e" opacity="0.18"/>
+					<path d={tsbAreaNeg()} fill="#ef4444" opacity="0.18"/>
 
-				<!-- CTL-Linie (Hauptlinie, oben) -->
-				<polyline points={line('ctl')} fill="none" stroke="#60a5fa" stroke-width="2" stroke-linejoin="round"/>
+					<!-- ATL-Linie -->
+					<polyline points={polyPts('atl')} fill="none" stroke="#fb923c" stroke-width="1.5" stroke-linejoin="round"/>
+					<!-- CTL-Linie (obendrüber) -->
+					<polyline points={polyPts('ctl')} fill="none" stroke="#60a5fa" stroke-width="2.5" stroke-linejoin="round"/>
 
-				<!-- Form-Linie -->
-				<polyline points={line('form')} fill="none" stroke="#ffffff" stroke-width="1" stroke-linejoin="round" opacity="0.4"/>
-			</svg>
+					<!-- Peak-CTL Linie (gestrichelt) -->
+					{#if data.peak_ctl}
+						<line
+							x1={PAD.left} y1={yOf(data.peak_ctl.value).toFixed(1)}
+							x2={W - PAD.right} y2={yOf(data.peak_ctl.value).toFixed(1)}
+							stroke="#93c5fd" stroke-width="1" stroke-dasharray="5 3" opacity="0.45"
+						/>
+						<text
+							x={W - PAD.right - 3}
+							y={yOf(data.peak_ctl.value) - 4}
+							font-size="9" fill="#93c5fd" text-anchor="end" opacity="0.55"
+						>Peak {data.peak_ctl.value.toFixed(0)}</text>
+					{/if}
+
+					<!-- Hover: vertikale Linie + Datenpunkte -->
+					{#if hoverIdx !== null && hoverDay()}
+						{@const hd = hoverDay()!}
+						{@const hz = tsbZone(hd.tsb)}
+						<line
+							x1={hoverXPx()} y1={PAD.top}
+							x2={hoverXPx()} y2={PAD.top + cH}
+							stroke="white" stroke-width="1" opacity="0.25"
+						/>
+						<circle cx={hoverXPx()} cy={yOf(hd.ctl)} r="4" fill="#60a5fa" stroke="var(--bg-card,#1f2937)" stroke-width="1.5"/>
+						<circle cx={hoverXPx()} cy={yOf(hd.atl)} r="4" fill="#fb923c" stroke="var(--bg-card,#1f2937)" stroke-width="1.5"/>
+						<circle cx={hoverXPx()} cy={yOf(hd.tsb)} r="4" fill={hz.hex}  stroke="var(--bg-card,#1f2937)" stroke-width="1.5"/>
+					{/if}
+
+					<!-- Transparentes Rect für Maus-Events (muss zuletzt kommen) -->
+					<rect x={PAD.left} y={PAD.top} width={cW} height={cH} fill="transparent"/>
+				</svg>
+			</div>
 		</div>
 
-		<!-- Interpretation -->
-		<div class="grid md:grid-cols-3 gap-3 text-sm text-gray-400">
-			<div class="rounded-lg bg-gray-800/40 p-3">
-				<p class="text-blue-400 font-medium mb-1">CTL steigt</p>
-				<p>Trainingsvolumen baut sich auf → Fitness wächst</p>
-			</div>
-			<div class="rounded-lg bg-gray-800/40 p-3">
-				<p class="text-orange-400 font-medium mb-1">ATL &gt; CTL</p>
-				<p>Akute Belastung übersteigt Fitness → Form negativ</p>
-			</div>
-			<div class="rounded-lg bg-gray-800/40 p-3">
-				<p class="text-green-400 font-medium mb-1">Form positiv</p>
-				<p>Tapering oder Pause → frisch für Rennen/Tour</p>
-			</div>
+		<!-- TSB-Zonen-Erklärung -->
+		<div class="grid grid-cols-2 md:grid-cols-5 gap-2 text-xs">
+			{#each [
+				{ range: 'TSB > +25',     label: 'Sehr frisch',    sub: 'Evtl. zu wenig Training',  color: 'text-sky-300'    },
+				{ range: '+5 – +25',      label: 'Wettkampfform',  sub: 'Optimal für Rennen/Tour',  color: 'text-green-400'  },
+				{ range: '−10 – +5',      label: 'Normal',         sub: 'Ruhige Trainingsphase',    color: 'text-yellow-400' },
+				{ range: '−25 – −10',     label: 'Trainingsblock', sub: 'Belastung akkumuliert',    color: 'text-orange-400' },
+				{ range: 'TSB < −25',     label: 'Überbelastet',   sub: 'Verletzungsrisiko',        color: 'text-red-400'    },
+			] as z}
+				<div class="rounded-lg bg-gray-800/40 p-2.5">
+					<p class="font-mono text-gray-500">{z.range}</p>
+					<p class="font-medium {z.color} mt-0.5">{z.label}</p>
+					<p class="text-gray-500 mt-0.5">{z.sub}</p>
+				</div>
+			{/each}
 		</div>
+		<!-- Lesehilfe -->
+		<div class="rounded-xl bg-gray-800/30 border border-gray-700/50 p-5 space-y-4 text-sm">
+			<h2 class="font-semibold text-gray-200">Was sagen mir diese Zahlen?</h2>
+
+			<!-- Analogie -->
+			<div class="grid md:grid-cols-3 gap-3">
+				<div class="rounded-lg bg-blue-900/20 border border-blue-800/30 p-3">
+					<p class="text-blue-400 font-medium mb-1">Fitness (CTL) = Konditionskonto</p>
+					<p class="text-gray-400">
+						Stell dir CTL wie ein Sparguthaben vor: Regelmäßiges Training zahlt ein,
+						Pausen heben ab. Der Wert steigt langsam (Wochen) und fällt auch langsam.
+						Dein aktueller Stand: <span class="text-blue-300 font-mono">{cur.ctl.toFixed(1)}</span>
+						{#if data?.peak_ctl}
+							– dein Höchststand war
+							<span class="text-blue-300 font-mono">{data.peak_ctl.value.toFixed(1)}</span>
+							({fmtDateLong(data.peak_ctl.date)}).
+						{/if}
+					</p>
+				</div>
+				<div class="rounded-lg bg-orange-900/20 border border-orange-800/30 p-3">
+					<p class="text-orange-400 font-medium mb-1">Müdigkeit (ATL) = kurzfristige Schulden</p>
+					<p class="text-gray-400">
+						ATL zeigt, wie viel du in den letzten 7 Tagen gefordert hast.
+						Intensives Training treibt ihn hoch, Ruhetage senken ihn schnell.
+						Dein aktueller Stand: <span class="text-orange-300 font-mono">{cur.atl.toFixed(1)}</span>.
+						{#if cur.atl < cur.ctl * 0.6}
+							Du bist gerade deutlich ausgeruht.
+						{:else if cur.atl > cur.ctl * 1.2}
+							Du hast zuletzt mehr trainiert als dein Langzeitschnitt – der Körper ist gefordert.
+						{:else}
+							Das liegt im normalen Bereich.
+						{/if}
+					</p>
+				</div>
+				<div class="rounded-lg {zone.bg} border {zone.border} p-3">
+					<p class="{zone.text} font-medium mb-1">Form (TSB) = verfügbares Guthaben</p>
+					<p class="text-gray-400">
+						TSB = Fitness minus Müdigkeit. Positiv heißt frisch, negativ heißt müde.
+						Dein Wert heute:
+						<span class="{zone.text} font-mono font-bold">{cur.tsb >= 0 ? '+' : ''}{cur.tsb.toFixed(1)}</span>
+						→ <span class="{zone.text}">{zone.label}</span>.
+					</p>
+				</div>
+			</div>
+
+			<!-- Personalisierter Tipp -->
+			<div class="rounded-lg bg-gray-700/30 border border-gray-600/30 p-4">
+				<p class="text-gray-300 font-medium mb-1">Was bedeutet das konkret für dich heute?</p>
+				<p class="text-gray-400">
+					{#if cur.tsb > 25}
+						Du bist sehr frisch – fast zu ausgeruht. Ein langer oder intensiver Ride wäre jetzt ideal,
+						um deine Fitness wieder aufzubauen. Danach steigt ATL und TSB sinkt in den grünen Bereich.
+					{:else if cur.tsb > 5}
+						Gute Tagesform. Heute wäre ein guter Moment für einen harten Intervall-Tag,
+						einen längeren Ride oder sogar einen Wettkampf. Dein Körper ist erholt und bereit.
+					{:else if cur.tsb > -10}
+						Du bist im normalen Trainingszustand – leicht müde, aber nicht überlastet.
+						Genau hier passiert die Anpassung: Weitermachen lohnt sich, aber ein Ruhetag pro Woche ist wichtig.
+					{:else if cur.tsb > -25}
+						Du steckst in einem Trainingsblock und bist entsprechend müde. Das ist in Ordnung
+						– aber plane in den nächsten 1–2 Wochen bewusst eine Erholungswoche ein,
+						damit sich die Fitness auch festigt.
+					{:else}
+						Du bist deutlich überbelastet. Weitere intensive Einheiten bringen jetzt weniger als Ruhe.
+						2–3 lockere oder freie Tage sind aktuell sinnvoller als hartes Training.
+					{/if}
+					{#if data?.peak_ctl && cur.ctl < data.peak_ctl.value * 0.75}
+						{' '}Deine Fitness liegt noch deutlich unter deinem Bestwert von {data.peak_ctl.value.toFixed(0)} CTL –
+						mit regelmäßigem Aufbau ist das erreichbar.
+					{:else if data?.peak_ctl && cur.ctl >= data.peak_ctl.value * 0.95}
+						{' '}Du bist fast auf deiner bisher besten Fitness – top!
+					{/if}
+				</p>
+			</div>
+
+			<!-- Mini-Glossar -->
+			<details class="text-xs text-gray-500 cursor-pointer">
+				<summary class="hover:text-gray-300 transition-colors">Abkürzungen erklärt</summary>
+				<dl class="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1">
+					<div><dt class="inline font-mono text-gray-400">CTL </dt><dd class="inline">Chronic Training Load – 42-Tage-Durchschnitt des täglichen Trainingsstresses</dd></div>
+					<div><dt class="inline font-mono text-gray-400">ATL </dt><dd class="inline">Acute Training Load – 7-Tage-Durchschnitt, reagiert schnell auf Belastung und Ruhe</dd></div>
+					<div><dt class="inline font-mono text-gray-400">TSB </dt><dd class="inline">Training Stress Balance – CTL minus ATL, zeigt ob du frisch oder müde bist</dd></div>
+					<div><dt class="inline font-mono text-gray-400">TSS </dt><dd class="inline">Training Stress Score – Belastungspunkte einer einzelnen Einheit (hier HR-basiert berechnet)</dd></div>
+					<div><dt class="inline font-mono text-gray-400">hrTSS </dt><dd class="inline">HR-basiertes TSS: Dauer × (Ø-Herzfrequenz / Schwellen-HR)² × 100</dd></div>
+					<div><dt class="inline font-mono text-gray-400">EMA </dt><dd class="inline">Exponentieller Gleitender Mittelwert – neuere Tage zählen mehr als ältere</dd></div>
+				</dl>
+			</details>
+		</div>
+
+	{:else if !loading}
+		<p class="text-gray-500 text-sm">Keine Daten. Erst importieren.</p>
 	{/if}
 </div>
+
+<!-- Hover-Tooltip (fixed, außerhalb SVG) -->
+{#if hoverDay()}
+	{@const hd = hoverDay()!}
+	{@const z = tsbZone(hd.tsb)}
+	<div
+		class="fixed z-50 pointer-events-none rounded-lg bg-gray-900/95 border border-gray-700 p-3 text-xs shadow-xl"
+		style="left: {tooltipX + 14}px; top: {tooltipY - 70}px; min-width: 148px"
+	>
+		<p class="font-medium text-gray-200 mb-2">{fmtDate(hd.date)}</p>
+		<div class="space-y-1">
+			<div class="flex justify-between gap-4">
+				<span style="color: #60a5fa">CTL</span>
+				<span class="font-mono" style="color: #60a5fa">{hd.ctl.toFixed(1)}</span>
+			</div>
+			<div class="flex justify-between gap-4">
+				<span style="color: #fb923c">ATL</span>
+				<span class="font-mono" style="color: #fb923c">{hd.atl.toFixed(1)}</span>
+			</div>
+			<div class="flex justify-between gap-4">
+				<span class={z.text}>TSB</span>
+				<span class="font-mono {z.text}">{hd.tsb >= 0 ? '+' : ''}{hd.tsb.toFixed(1)}</span>
+			</div>
+			{#if hd.tss > 0}
+				<div class="flex justify-between gap-4 pt-1.5 border-t border-gray-700/60">
+					<span class="text-gray-500">TSS</span>
+					<span class="text-gray-300 font-mono">{hd.tss.toFixed(0)}</span>
+				</div>
+			{/if}
+		</div>
+		<p class="mt-2 text-gray-500 text-[10px]">{z.label}</p>
+	</div>
+{/if}
