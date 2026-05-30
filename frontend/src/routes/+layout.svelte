@@ -17,10 +17,16 @@
 		['/training', '/compare', '/form', '/stats', '/hrcurve', '/timeheatmap', '/speedhr', '/progress', '/ftp', '/tempcorr', '/berechnungen']
 			.some(r => p.startsWith(r))
 	);
-	const isKarte   = $derived(p === '/heatmap');
+	const isKarte    = $derived(p === '/heatmap' || p.startsWith('/strecken'));
 	const isBikes    = $derived(p.startsWith('/bikes'));
-	const isStrecken = $derived(p.startsWith('/strecken'));
 	const isDash     = $derived(p === '/');
+
+	// Analyse-Gruppen
+	const isVolumen    = $derived(['/progress', '/training', '/compare'].some(r => p.startsWith(r)));
+	const isLeistung   = $derived(['/ftp', '/hrcurve'].some(r => p.startsWith(r)));
+	const isForm       = $derived(p.startsWith('/form'));
+	const isAnalysen   = $derived(['/speedhr', '/tempcorr', '/timeheatmap'].some(r => p.startsWith(r)));
+	const isStatistiken = $derived(['/stats', '/berechnungen'].some(r => p.startsWith(r)));
 
 	onMount(() => {
 		themeStore.init();
@@ -68,12 +74,6 @@
 				class:text-gray-400={!isBikes}
 			>Bikes</a>
 
-			<a href="/strecken"
-				class="text-sm transition-colors hover:text-orange-400"
-				class:text-orange-400={isStrecken}
-				class:text-gray-400={!isStrecken}
-			>Strecken</a>
-
 			<div class="ml-auto flex items-center gap-3">
 			<ThemeSwitcher />
 
@@ -108,22 +108,31 @@
 		</div>
 	{/if}
 
-	<!-- Sub-Navigation: Analyse -->
-	{#if isAnalyse}
+	<!-- Sub-Navigation: Bikes -->
+	{#if isBikes}
 		<div class="border-b border-gray-700 bg-gray-800">
 			<div class="mx-auto max-w-6xl px-4 flex items-center gap-5 h-9">
 				{#each [
-					{ href: '/progress',    label: 'Jahresfortschritt' },
-					{ href: '/ftp',         label: 'FTP' },
-					{ href: '/tempcorr',    label: 'Temperatur' },
-					{ href: '/training',    label: 'Training' },
-					{ href: '/compare',     label: 'Vergleich' },
-					{ href: '/form',        label: 'Form' },
-					{ href: '/stats',       label: 'Verteilungen' },
-					{ href: '/hrcurve',     label: 'HR-Kurve' },
-					{ href: '/timeheatmap', label: 'Tageszeit' },
-					{ href: '/speedhr',      label: 'Speed–HR' },
-					{ href: '/berechnungen', label: 'Berechnungen' },
+					{ href: '/bikes',         label: 'Übersicht' },
+					{ href: '/bikes/compare', label: 'Bike-Vergleich' },
+				] as item}
+					<a href={item.href}
+						class="text-xs transition-colors hover:text-orange-300"
+						class:text-orange-300={p === item.href}
+						class:text-gray-500={p !== item.href}
+					>{item.label}</a>
+				{/each}
+			</div>
+		</div>
+	{/if}
+
+	<!-- Sub-Navigation: Karte -->
+	{#if isKarte}
+		<div class="border-b border-gray-700 bg-gray-800">
+			<div class="mx-auto max-w-6xl px-4 flex items-center gap-5 h-9">
+				{#each [
+					{ href: '/heatmap',  label: 'Heatmap' },
+					{ href: '/strecken', label: 'Streckenvergleich' },
 				] as item}
 					<a href={item.href}
 						class="text-xs transition-colors hover:text-orange-300"
@@ -133,6 +142,97 @@
 				{/each}
 			</div>
 		</div>
+	{/if}
+
+	<!-- Sub-Navigation: Analyse (5 Gruppen) -->
+	{#if isAnalyse}
+		<div class="border-b border-gray-700 bg-gray-800">
+			<div class="mx-auto max-w-6xl px-4 flex items-center gap-5 h-9">
+				{#each [
+					{ href: '/progress',   label: 'Volumen',     active: isVolumen },
+					{ href: '/ftp',        label: 'Leistung',    active: isLeistung },
+					{ href: '/form',       label: 'Form',        active: isForm },
+					{ href: '/speedhr',    label: 'Analysen',    active: isAnalysen },
+					{ href: '/stats',      label: 'Statistiken', active: isStatistiken },
+				] as item}
+					<a href={item.href}
+						class="text-xs transition-colors hover:text-orange-300"
+						class:text-orange-300={item.active}
+						class:text-gray-500={!item.active}
+					>{item.label}</a>
+				{/each}
+			</div>
+		</div>
+		<!-- Sub-Sub-Navigation: Volumen -->
+		{#if isVolumen}
+			<div class="border-b border-gray-600 bg-gray-850" style="background:#1a2230">
+				<div class="mx-auto max-w-6xl px-4 flex items-center gap-5 h-8">
+					{#each [
+						{ href: '/progress', label: 'Jahresfortschritt' },
+						{ href: '/training', label: 'Training' },
+						{ href: '/compare',  label: 'Jahresvergleich' },
+					] as item}
+						<a href={item.href}
+							class="text-xs transition-colors hover:text-orange-200"
+							class:text-orange-200={p.startsWith(item.href)}
+							class:text-gray-600={!p.startsWith(item.href)}
+						>{item.label}</a>
+					{/each}
+				</div>
+			</div>
+		{/if}
+		<!-- Sub-Sub-Navigation: Leistung -->
+		{#if isLeistung}
+			<div class="border-b border-gray-600 bg-gray-850" style="background:#1a2230">
+				<div class="mx-auto max-w-6xl px-4 flex items-center gap-5 h-8">
+					{#each [
+						{ href: '/ftp',     label: 'FTP' },
+						{ href: '/hrcurve', label: 'HR-Kurve' },
+					] as item}
+						<a href={item.href}
+							class="text-xs transition-colors hover:text-orange-200"
+							class:text-orange-200={p.startsWith(item.href)}
+							class:text-gray-600={!p.startsWith(item.href)}
+						>{item.label}</a>
+					{/each}
+				</div>
+			</div>
+		{/if}
+		<!-- Sub-Sub-Navigation: Analysen -->
+		{#if isAnalysen}
+			<div class="border-b border-gray-600 bg-gray-850" style="background:#1a2230">
+				<div class="mx-auto max-w-6xl px-4 flex items-center gap-5 h-8">
+					{#each [
+						{ href: '/speedhr',     label: 'Speed–HR' },
+						{ href: '/tempcorr',    label: 'Temperatur' },
+						{ href: '/timeheatmap', label: 'Tageszeit' },
+					] as item}
+						<a href={item.href}
+							class="text-xs transition-colors hover:text-orange-200"
+							class:text-orange-200={p.startsWith(item.href)}
+							class:text-gray-600={!p.startsWith(item.href)}
+						>{item.label}</a>
+					{/each}
+				</div>
+			</div>
+		{/if}
+		<!-- Sub-Sub-Navigation: Statistiken -->
+		{#if isStatistiken}
+			<div class="border-b border-gray-600 bg-gray-850" style="background:#1a2230">
+				<div class="mx-auto max-w-6xl px-4 flex items-center gap-5 h-8">
+					{#each [
+						{ href: '/stats',       label: 'Verteilungen' },
+						{ href: '/berechnungen', label: 'Berechnungen' },
+					] as item}
+						<a href={item.href}
+							class="text-xs transition-colors hover:text-orange-200"
+							class:text-orange-200={p.startsWith(item.href)}
+							class:text-gray-600={!p.startsWith(item.href)}
+						>{item.label}</a>
+					{/each}
+				</div>
+			</div>
+		{/if}
 	{/if}
 
 	<main class="mx-auto max-w-6xl px-4 py-6">

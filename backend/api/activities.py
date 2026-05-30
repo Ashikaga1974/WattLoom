@@ -185,6 +185,28 @@ def monthly_stats(year: int = Query(..., description="Jahr")):
     ]
 
 
+@router.get("/other")
+def list_other_activities(year: int = Query(None)):
+    """Alle other_activities (Workout, Weight Training), optional nach Jahr gefiltert."""
+    conn = get_connection()
+    params = []
+    where = "WHERE strftime('%Y', start_date_local) >= '2000'"
+    if year:
+        where += " AND strftime('%Y', start_date_local) = ?"
+        params.append(str(year))
+    rows = conn.execute(f"""
+        SELECT
+            strftime('%Y-%m-%d', start_date_local) AS date,
+            sport_type,
+            moving_time_s
+        FROM other_activities
+        {where}
+        ORDER BY start_date_local
+    """, params).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
 @router.get("/{activity_id}")
 def get_activity(activity_id: int):
     conn = get_connection()

@@ -127,12 +127,32 @@ export interface ActivityZones {
 	has_power: boolean;
 }
 
+export interface PmcOtherActivity {
+	sport_type: string;
+	moving_time_s: number;
+}
+
 export interface PmcDay {
 	date: string;
 	tss: number;
 	ctl: number;
 	atl: number;
 	tsb: number;
+	other?: PmcOtherActivity[];
+}
+
+export interface WeeklyVolume {
+	week_start: string;
+	weeks_ago: number;
+	ride_minutes: number;
+	workout_minutes: number;
+	weight_training_minutes: number;
+}
+
+export interface OtherActivity {
+	date: string;
+	sport_type: string;
+	moving_time_s: number;
 }
 
 export interface PmcResponse {
@@ -158,6 +178,29 @@ export interface SimilarActivity {
 export interface SimilarActivitiesResponse {
 	reference_id: number;
 	similar: SimilarActivity[];
+}
+
+export interface BikeCompareSummary {
+	id: string;
+	name: string;
+	rides: number;
+	total_km: number;
+	total_elevation_m: number;
+	total_hours: number;
+	avg_dist_km: number;
+	avg_speed_kmh: number;
+	avg_elevation_m: number;
+}
+
+export interface BikeCompareYearly {
+	year: string;
+	bikes: Record<string, { rides: number; avg_speed_kmh: number }>;
+}
+
+export interface BikeCompareData {
+	summary: BikeCompareSummary[];
+	yearly: BikeCompareYearly[];
+	distances: Record<string, number[]>;
 }
 
 async function get<T>(path: string): Promise<T> {
@@ -268,4 +311,12 @@ export const api = {
 	resetDb: () =>
 		fetch(`${BASE}/import/reset`, { method: 'POST' })
 			.then(r => { if (!r.ok) throw new Error(`API /import/reset → ${r.status}`); return r.json() as Promise<{ ok: boolean; message?: string }>; }),
+
+	bikeCompare: (): Promise<BikeCompareData> => get('/bikes/compare'),
+
+	weeklyVolume: (weeks = 52): Promise<WeeklyVolume[]> =>
+		get(`/analytics/weekly-volume${buildQuery({ weeks })}`),
+
+	otherActivities: (year?: number): Promise<OtherActivity[]> =>
+		get(`/activities/other${buildQuery({ year })}`),
 };

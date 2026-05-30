@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { api, type ActivityStats, type Bike, type Activity, type WeeklyStats, type MonthlyStats } from '$lib/api';
+	import { api, type ActivityStats, type Bike, type Activity, type WeeklyStats, type MonthlyStats, type WeeklyVolume } from '$lib/api';
 	import Sparkline from '$lib/Sparkline.svelte';
 	import { SPARKLINE_WEEKS } from '$lib/config';
 
@@ -12,8 +12,12 @@
 	let selectedYear = $state<string | undefined>(undefined);
 	let loading = $state(true);
 	let error = $state<string | null>(null);
+	let weeklyVol = $state<WeeklyVolume[]>([]);
 
 	const MONTHS = ['Jan','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'];
+
+	// Anzahl Wochen für den Trainingsvolumen-Block (immer 8, unabhängig vom Jahresfilter)
+	const VOL_WEEKS = 8;
 
 	async function load() {
 		loading = true;
@@ -23,16 +27,18 @@
 				? api.monthlyStats(Number(selectedYear))
 				: api.weeklyStats(SPARKLINE_WEEKS);
 
-			const [s, b, ar, sp] = await Promise.all([
+			const [s, b, ar, sp, vol] = await Promise.all([
 				api.activityStats(selectedYear ? Number(selectedYear) : undefined),
 				api.bikes(),
 				api.activities({ limit: 5, year: selectedYear ? Number(selectedYear) : undefined }),
 				sparkPromise,
+				api.weeklyVolume(VOL_WEEKS),
 			]);
 			stats = s;
 			bikes = b;
 			recentActivities = ar.items;
 			sparkData = sp;
+			weeklyVol = vol;
 
 			if (selectedYear) {
 				sparkLabels = MONTHS;
@@ -63,6 +69,29 @@
 	}
 	function date(iso: string) {
 		return new Date(iso).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+	}
+
+	// Maximale Gesamtminuten pro Woche für die Höhenskalierung
+	const maxVolMinutes = $derived(
+		weeklyVol.reduce((mx, w) => {
+			const total = w.ride_minutes + w.workout_minutes + w.weight_training_minutes;
+			return total > mx ? total : mx;
+		}, 1)
+	);
+
+	// Ob überhaupt Daten vorhanden sind
+	const hasVolData = $derived(
+		weeklyVol.some(w => w.ride_minutes + w.workout_minutes + w.weight_training_minutes > 0)
+	);
+
+	function volLabel(w: WeeklyVolume): string {
+		return w.weeks_ago === 0 ? 'Akt. W.' : `vor ${w.weeks_ago}W`;
+	}
+
+	// Balken-Höhe in Prozent relativ zum Maximum (max = 100% = 64px)
+	const BAR_MAX_PX = 64;
+	function barPx(minutes: number): number {
+		return Math.round((minutes / maxVolMinutes) * BAR_MAX_PX);
 	}
 </script>
 
@@ -168,6 +197,59 @@
 				</div>
 			{/if}
 		</div>
+
+		<!-- Gesamttraining letzte 8 Wochen -->
+		{#if hasVolData}
+			<div class="mt-6 rounded-xl bg-gray-800/60 p-4">
+				<div class="flex items-center justify-between mb-3">
+					<p class="text-xs text-gray-400 uppercase tracking-wider">Gesamttraining (letzte 8 Wochen)</p>
+					<!-- Legende -->
+					<div class="flex items-center gap-3 text-xs text-gray-400">
+						<span class="flex items-center gap-1">
+							<span class="inline-block w-2.5 h-2.5 rounded-full" style="background:#3b82f6"></span>
+							Radfahren
+						</span>
+						<span class="flex items-center gap-1">
+							<span class="inline-block w-2.5 h-2.5 rounded-full" style="background:#a78bfa"></span>
+							Workout
+						</span>
+						<span class="flex items-center gap-1">
+							<span class="inline-block w-2.5 h-2.5 rounded-full" style="background:#f59e0b"></span>
+							Kraft
+						</span>
+					</div>
+				</div>
+				<!-- Balkendiagramm -->
+				<div class="flex items-end gap-1" style="height: {BAR_MAX_PX + 20}px">
+					{#each weeklyVol as w}
+						{@const ridePx = barPx(w.ride_minutes)}
+						{@const workoutPx = barPx(w.workout_minutes)}
+						{@const weightPx = barPx(w.weight_training_minutes)}
+						{@const total = w.ride_minutes + w.workout_minutes + w.weight_training_minutes}
+						<div class="flex flex-col items-center flex-1 min-w-0">
+							<!-- Gestapelter Balken -->
+							<div
+								class="w-full flex flex-col-reverse rounded-sm overflow-hidden"
+								style="height: {barPx(total)}px"
+								title="{volLabel(w)}: {Math.round(total)} min gesamt"
+							>
+								{#if w.weight_training_minutes > 0}
+									<div style="height:{weightPx}px; background:#f59e0b; flex-shrink:0"></div>
+								{/if}
+								{#if w.workout_minutes > 0}
+									<div style="height:{workoutPx}px; background:#a78bfa; flex-shrink:0"></div>
+								{/if}
+								{#if w.ride_minutes > 0}
+									<div style="height:{ridePx}px; background:#3b82f6; flex-shrink:0"></div>
+								{/if}
+							</div>
+							<!-- Label -->
+							<p class="text-[10px] text-gray-500 mt-1 truncate w-full text-center">{volLabel(w)}</p>
+						</div>
+					{/each}
+				</div>
+			</div>
+		{/if}
 	{/if}
 
 	<div class="grid md:grid-cols-2 gap-6">

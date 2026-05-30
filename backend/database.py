@@ -154,6 +154,19 @@ def init_db() -> None:
                 lon         REAL
             );
 
+            CREATE TABLE IF NOT EXISTS other_activities (
+                id              INTEGER PRIMARY KEY,  -- Strava Activity-ID
+                name            TEXT,
+                sport_type      TEXT,
+                start_date_local TEXT,               -- ISO8601
+                moving_time_s   INTEGER,
+                elapsed_time_s  INTEGER,
+                avg_hr          REAL,
+                max_hr          INTEGER,
+                calories        REAL,
+                imported_at     TEXT
+            );
+
             CREATE TABLE IF NOT EXISTS config (
                 key   TEXT PRIMARY KEY,
                 value TEXT

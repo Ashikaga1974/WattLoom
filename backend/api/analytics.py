@@ -234,6 +234,7 @@ def performance_management_chart():
     hrTSS = (moving_time_s / 3600) × (avg_hr / threshold_hr)² × 100
     threshold_hr = 0.85 × global_max_hr (Schwellen-HR ≈ 85 % HRmax)
     Fallback ohne HR-Daten: duration_h × 50 (moderate Intensität).
+    other_activities (Workout, Weight Training) fließen ebenfalls mit hrTSS ein.
     """
     from collections import defaultdict
     from datetime import date as Date, timedelta
@@ -256,20 +257,44 @@ def performance_management_chart():
         WHERE strftime('%Y', start_date_local) >= '2000'
         ORDER BY start_date_local
     """).fetchall()
+
+    # other_activities ebenfalls laden (Workout, Weight Training)
+    other_rows = conn.execute("""
+        SELECT
+            strftime('%Y-%m-%d', start_date_local) AS date,
+            moving_time_s,
+            elapsed_time_s,
+            avg_hr,
+            sport_type
+        FROM other_activities
+        WHERE strftime('%Y', start_date_local) >= '2000'
+        ORDER BY start_date_local
+    """).fetchall()
+
     conn.close()
+
+    # Hilfsfunktion: hrTSS aus Duration und HR berechnen
+    def calc_tss(duration_s, elapsed_s, hr) -> float:
+        dur = duration_s or elapsed_s or 0
+        if dur <= 0:
+            return 0.0
+        if hr and hr > 0:
+            if_hr = hr / threshold_hr
+            return (dur / 3600.0) * (if_hr ** 2) * 100.0
+        return (dur / 3600.0) * 50.0
 
     daily_tss: dict[str, float] = defaultdict(float)
     for r in rows:
-        duration_s = r["moving_time_s"] or r["elapsed_time_s"] or 0
-        if duration_s <= 0:
-            continue
-        hr = r["avg_hr"]
-        if hr and hr > 0:
-            if_hr = hr / threshold_hr
-            tss = (duration_s / 3600.0) * (if_hr ** 2) * 100.0
-        else:
-            tss = (duration_s / 3600.0) * 50.0
-        daily_tss[r["date"]] += tss
+        daily_tss[r["date"]] += calc_tss(r["moving_time_s"], r["elapsed_time_s"], r["avg_hr"])
+
+    # TSS aus other_activities addieren + pro Tag merken für das other-Feld
+    daily_other: dict[str, list[dict]] = defaultdict(list)
+    for r in other_rows:
+        daily_tss[r["date"]] += calc_tss(r["moving_time_s"], r["elapsed_time_s"], r["avg_hr"])
+        daily_other[r["date"]].append({
+            "sport_type": r["sport_type"],
+            "moving_time_s": r["moving_time_s"] or 0,
+        })
 
     if not daily_tss:
         return {
@@ -310,6 +335,7 @@ def performance_management_chart():
             "ctl": round(ctl, 1),
             "atl": round(atl, 1),
             "tsb": round(tsb, 1),
+            "other": daily_other.get(d, []),
         })
         cursor += timedelta(days=1)
 
@@ -320,6 +346,52 @@ def performance_management_chart():
         "max_hr": global_max_hr,
         "threshold_hr": round(threshold_hr, 1),
     }
+
+
+@router.get("/weekly-volume")
+def weekly_volume(weeks: int = Query(52)):
+    """
+    Trainingsminuten je Woche, aufgeschlüsselt nach Aktivitätstyp.
+    Wochenbeginn = Montag; aktuelle Woche = weeks_ago=0.
+    """
+    from datetime import date as Date, timedelta
+
+    conn = get_connection()
+    today = Date.today()
+    # Montag der aktuellen Woche
+    monday = today - timedelta(days=today.weekday())
+    result = []
+
+    for i in range(weeks - 1, -1, -1):
+        week_start = monday - timedelta(weeks=i)
+        week_end = week_start + timedelta(days=6)
+        ws = week_start.isoformat()
+        we = week_end.isoformat()
+
+        ride_s = conn.execute("""
+            SELECT COALESCE(SUM(moving_time_s), 0)
+            FROM activities
+            WHERE date(start_date_local) BETWEEN ? AND ?
+        """, (ws, we)).fetchone()[0]
+
+        other = conn.execute("""
+            SELECT sport_type, COALESCE(SUM(moving_time_s), 0) AS total_s
+            FROM other_activities
+            WHERE date(start_date_local) BETWEEN ? AND ?
+            GROUP BY sport_type
+        """, (ws, we)).fetchall()
+
+        other_map = {r["sport_type"]: r["total_s"] for r in other}
+        result.append({
+            "week_start": ws,
+            "weeks_ago": i,
+            "ride_minutes": round(ride_s / 60),
+            "workout_minutes": round(other_map.get("Workout", 0) / 60),
+            "weight_training_minutes": round(other_map.get("Weight Training", 0) / 60),
+        })
+
+    conn.close()
+    return result
 
 
 DURATIONS = [60, 300, 600, 1200, 3600]  # 1min, 5min, 10min, 20min, 60min

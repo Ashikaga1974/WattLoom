@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { api, type PmcDay, type PmcResponse } from '$lib/api';
+	import { api, type PmcDay, type PmcResponse, type WeeklyVolume } from '$lib/api';
 
 	let data = $state<PmcResponse | null>(null);
 	let loading = $state(true);
@@ -12,9 +12,15 @@
 	let tooltipY = $state(0);
 	let svgWrapper = $state<HTMLDivElement | null>(null);
 
+	// Wöchentliches Volumen
+	let weeklyVolumeData = $state<WeeklyVolume[]>([]);
+	let volMode = $state<'12' | '26' | '52'>('26');
+
 	onMount(async () => {
 		try {
-			data = await api.pmc();
+			const [pmcRes, volRes] = await Promise.all([api.pmc(), api.weeklyVolume(52)]);
+			data = pmcRes;
+			weeklyVolumeData = volRes;
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'Fehler';
 		} finally {
@@ -164,6 +170,78 @@
 	function fmtDateLong(iso: string) {
 		return new Date(iso).toLocaleDateString('de-DE', { day: '2-digit', month: 'long', year: 'numeric' });
 	}
+
+	// Wöchentliches Volumen – gefilterte Daten je nach volMode
+	const volWeeks = $derived(() => {
+		const n = volMode === '12' ? 12 : volMode === '26' ? 26 : 52;
+		// API liefert älteste Woche zuerst – slice(-n) holt die neuesten n Wochen
+		return [...weeklyVolumeData].slice(-n);
+	});
+
+	// Volumen-Chart-Dimensionen
+	const VW = 1000, VH = 180;
+	const VPAD = { top: 16, right: 16, bottom: 32, left: 52 };
+	const vcW = VW - VPAD.left - VPAD.right;
+	const vcH = VH - VPAD.top - VPAD.bottom;
+
+	const volMaxMin = $derived(() => {
+		const weeks = volWeeks();
+		if (!weeks.length) return { maxMin: 120, step: 30 };
+		const maxMin = weeks.reduce((m, w) =>
+			Math.max(m, w.ride_minutes + w.workout_minutes + w.weight_training_minutes), 0);
+		const rounded = Math.ceil(maxMin / 30 + 1) * 30;
+		return { maxMin: rounded, step: rounded > 300 ? 60 : rounded > 150 ? 30 : 30 };
+	});
+
+	// X-Position für einen Balken im Volumen-Chart
+	// Wir verteilen die Balken gleichmäßig über die gesamte Breite
+	function volXOf(i: number, total: number) {
+		return VPAD.left + (i / Math.max(total - 1, 1)) * vcW;
+	}
+
+	// Y-Position im Volumen-Chart
+	function volYOf(minutes: number) {
+		const { maxMin } = volMaxMin();
+		return VPAD.top + vcH - (minutes / maxMin) * vcH;
+	}
+
+	// Balkenbreite: Abstand zwischen zwei Balken × 0.7
+	function volBarW(total: number) {
+		if (total <= 1) return vcW * 0.7;
+		return (vcW / Math.max(total - 1, 1)) * 0.7;
+	}
+
+	// X-Achse Labels für Volumen-Chart: jeden 4. Monatswechsel beschriften
+	const volXLabels = $derived(() => {
+		const weeks = volWeeks();
+		if (!weeks.length) return [];
+		const labels: { x: number; label: string }[] = [];
+		let lastMo = -1;
+		let moCount = 0;
+		weeks.forEach((w, i) => {
+			const mo = new Date(w.week_start).getMonth();
+			const yr = new Date(w.week_start).getFullYear();
+			if (mo !== lastMo) {
+				moCount++;
+				// Jeden Monat beschriften, aber bei vielen Wochen nur jeden 2./4.
+				const skip = weeks.length > 40 ? 2 : 1;
+				if (moCount % skip === 0) {
+					const x = volXOf(i, weeks.length);
+					labels.push({ x, label: mo === 0 ? `${MONTHS[mo]} ${yr}` : MONTHS[mo] });
+				}
+				lastMo = mo;
+			}
+		});
+		return labels;
+	});
+
+	// Y-Achse Ticks für Volumen-Chart
+	const volYTicks = $derived(() => {
+		const { maxMin, step } = volMaxMin();
+		const ticks: number[] = [];
+		for (let v = 0; v <= maxMin; v += step) ticks.push(v);
+		return ticks;
+	});
 </script>
 
 <svelte:head>
@@ -275,6 +353,12 @@
 				<span class="flex items-center gap-1.5">
 					<span class="inline-block w-5 h-3 rounded-sm bg-white/5 border border-white/10"></span> Pause ≥5 Tage
 				</span>
+				<span class="flex items-center gap-1.5">
+					<svg width="8" height="8"><circle cx="4" cy="4" r="3" fill="#a78bfa"/></svg> Workout
+				</span>
+				<span class="flex items-center gap-1.5">
+					<svg width="8" height="8"><circle cx="4" cy="4" r="3" fill="#f59e0b"/></svg> Krafttraining
+				</span>
 			</div>
 
 			<div
@@ -344,11 +428,125 @@
 						<circle cx={hoverXPx()} cy={yOf(hd.tsb)} r="4" fill={hz.hex}  stroke="var(--bg-card,#1f2937)" stroke-width="1.5"/>
 					{/if}
 
+					<!-- Aktivitätstyp-Marker: Non-Ride-Tage als farbige Punkte am unteren Rand -->
+					{#each viewDays as day, i}
+						{#if day.other?.length}
+							{#each day.other as o, j}
+								<circle
+									cx={xOf(i) + (day.other.length > 1 ? (j - (day.other.length - 1) / 2) * 5 : 0)}
+									cy={PAD.top + cH + 10}
+									r="3"
+									fill={o.sport_type === 'Workout' ? '#a78bfa' : '#f59e0b'}
+									opacity="0.85"
+								/>
+							{/each}
+						{/if}
+					{/each}
+
 					<!-- Transparentes Rect für Maus-Events (muss zuletzt kommen) -->
 					<rect x={PAD.left} y={PAD.top} width={cW} height={cH} fill="transparent"/>
 				</svg>
 			</div>
 		</div>
+
+		<!-- Wöchentliche Trainings-Zusammensetzung -->
+		<section class="rounded-xl bg-gray-800/40 border border-gray-800 p-4">
+			<div class="flex flex-wrap items-center justify-between gap-3 mb-3">
+				<h2 class="text-sm font-semibold text-gray-300">Wöchentliche Trainings-Zusammensetzung</h2>
+				<!-- Zeitraum-Toggle für Volumen -->
+				<div class="flex rounded-lg overflow-hidden border border-gray-700 text-xs">
+					{#each [['12', '12 Wo.'], ['26', '26 Wo.'], ['52', '52 Wo.']] as [mode, label]}
+						<button
+							onclick={() => volMode = mode as '12' | '26' | '52'}
+							class="px-3 py-1.5 transition-colors"
+							class:bg-orange-600={volMode === mode}
+							class:text-white={volMode === mode}
+							class:text-gray-400={volMode !== mode}
+						>
+							{label}
+						</button>
+					{/each}
+				</div>
+			</div>
+
+			<!-- Legende -->
+			<div class="flex flex-wrap items-center gap-x-5 gap-y-1 mb-3 text-xs text-gray-400">
+				<span class="flex items-center gap-1.5">
+					<span class="inline-block w-3 h-3 rounded-sm" style="background:#60a5fa"></span> Radfahren
+				</span>
+				<span class="flex items-center gap-1.5">
+					<span class="inline-block w-3 h-3 rounded-sm" style="background:#a78bfa"></span> Workout
+				</span>
+				<span class="flex items-center gap-1.5">
+					<span class="inline-block w-3 h-3 rounded-sm" style="background:#f59e0b"></span> Krafttraining
+				</span>
+			</div>
+
+			{#if weeklyVolumeData.length}
+				{@const weeks = volWeeks()}
+				{@const total = weeks.length}
+				{@const bW = total > 1 ? Math.max(2, (vcW / (total - 1)) * 0.65) : vcW * 0.65}
+				<svg viewBox="0 0 {VW} {VH}" class="w-full" style="height: 180px">
+					<!-- Y-Gitternetz + Labels -->
+					{#each volYTicks() as v}
+						<line
+							x1={VPAD.left} y1={volYOf(v).toFixed(1)}
+							x2={VW - VPAD.right} y2={volYOf(v).toFixed(1)}
+							stroke="var(--chart-line)" stroke-width="0.7"
+						/>
+						<text x={VPAD.left - 4} y={volYOf(v) + 4} font-size="10" fill="var(--chart-text)" text-anchor="end">{v}</text>
+					{/each}
+
+					<!-- X-Achse Labels -->
+					{#each volXLabels() as { x, label }}
+						<line x1={x} y1={VPAD.top} x2={x} y2={VPAD.top + vcH} stroke="var(--chart-line)" stroke-width="0.5"/>
+						<text x={x} y={VH - 6} font-size="10" fill="var(--chart-text)" text-anchor="middle">{label}</text>
+					{/each}
+
+					<!-- Gestapelte Balken -->
+					{#each weeks as w, i}
+						{@const totalMin = w.ride_minutes + w.workout_minutes + w.weight_training_minutes}
+						{#if totalMin > 0}
+							{@const cx = volXOf(i, total)}
+							{@const x0 = cx - bW / 2}
+							{@const baseY = VPAD.top + vcH}
+							<!-- Radfahren (blau) -->
+							{#if w.ride_minutes > 0}
+								{@const barH = (w.ride_minutes / volMaxMin().maxMin) * vcH}
+								<rect
+									x={x0} y={baseY - barH}
+									width={bW} height={barH}
+									fill="#60a5fa" opacity="0.75" rx="1"
+								/>
+							{/if}
+							<!-- Workout (lila, obendrauf) -->
+							{#if w.workout_minutes > 0}
+								{@const rideH = (w.ride_minutes / volMaxMin().maxMin) * vcH}
+								{@const barH = (w.workout_minutes / volMaxMin().maxMin) * vcH}
+								<rect
+									x={x0} y={baseY - rideH - barH}
+									width={bW} height={barH}
+									fill="#a78bfa" opacity="0.75" rx="1"
+								/>
+							{/if}
+							<!-- Krafttraining (grau, ganz oben) -->
+							{#if w.weight_training_minutes > 0}
+								{@const rideH = (w.ride_minutes / volMaxMin().maxMin) * vcH}
+								{@const wkH = (w.workout_minutes / volMaxMin().maxMin) * vcH}
+								{@const barH = (w.weight_training_minutes / volMaxMin().maxMin) * vcH}
+								<rect
+									x={x0} y={baseY - rideH - wkH - barH}
+									width={bW} height={barH}
+									fill="#f59e0b" opacity="0.75" rx="1"
+								/>
+							{/if}
+						{/if}
+					{/each}
+				</svg>
+			{:else}
+				<p class="text-xs text-gray-500">Keine Daten.</p>
+			{/if}
+		</section>
 
 		<!-- TSB-Zonen-Erklärung -->
 		<div class="grid grid-cols-2 md:grid-cols-5 gap-2 text-xs">
@@ -486,6 +684,18 @@
 				<div class="flex justify-between gap-4 pt-1.5 border-t border-gray-700/60">
 					<span class="text-gray-500">TSS</span>
 					<span class="text-gray-300 font-mono">{hd.tss.toFixed(0)}</span>
+				</div>
+			{/if}
+			{#if hd.other?.length}
+				<div class="pt-1.5 border-t border-gray-700/60 space-y-0.5">
+					{#each hd.other as o}
+						<div class="flex justify-between gap-4">
+							<span style="color: {o.sport_type === 'Workout' ? '#a78bfa' : '#f59e0b'}">
+								{o.sport_type === 'Weight Training' ? 'Kraft' : o.sport_type}
+							</span>
+							<span class="text-gray-300 font-mono">{Math.round(o.moving_time_s / 60)} min</span>
+						</div>
+					{/each}
 				</div>
 			{/if}
 		</div>

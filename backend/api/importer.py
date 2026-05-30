@@ -95,6 +95,7 @@ def reset_db():
             DELETE FROM routes;
             DELETE FROM bike_components;
             DELETE FROM activities;
+            DELETE FROM other_activities;
             DELETE FROM bikes;
         """)
     conn.close()

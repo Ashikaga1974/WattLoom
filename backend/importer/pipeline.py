@@ -111,6 +111,7 @@ def import_bikes(zf: zipfile.ZipFile) -> dict[str, str]:
 # ---------------------------------------------------------------------------
 
 RIDE_TYPES = {"Ride", "VirtualRide", "EBikeRide", "GravelRide", "MountainBikeRide"}
+OTHER_TYPES = {"Workout", "Weight Training"}
 
 
 def import_activities_csv(
@@ -193,6 +194,45 @@ def import_activities_csv(
     conn.close()
     print(f"  Activities importiert: {imported} Rides (von {len(rows)} gesamt)")
     return rides, media_map
+
+
+# ---------------------------------------------------------------------------
+# Other Activities (Workout, Weight Training)
+# ---------------------------------------------------------------------------
+
+def import_other_activities_csv(zf: zipfile.ZipFile) -> None:
+    with zf.open("activities.csv") as f:
+        reader = csv.DictReader(io.TextIOWrapper(f, encoding="utf-8"))
+        rows = [r for r in reader if r.get("Activity Type") in OTHER_TYPES]
+
+    conn = get_connection()
+    imported = 0
+    with conn:
+        for r in rows:
+            activity_id = _to_int(r.get("Activity ID"))
+            if activity_id is None:
+                continue
+            conn.execute("""
+                INSERT OR REPLACE INTO other_activities (
+                    id, name, sport_type, start_date_local,
+                    moving_time_s, elapsed_time_s,
+                    avg_hr, max_hr, calories, imported_at
+                ) VALUES (?,?,?,?,?,?,?,?,?,?)
+            """, (
+                activity_id,
+                r.get("Activity Name"),
+                r.get("Activity Type"),
+                _parse_date(r.get("Activity Date")),
+                _to_int(r.get("Moving Time")),
+                _to_int(r.get("Elapsed Time")),
+                _to_float(r.get("Average Heart Rate")),
+                _to_int(r.get("Max Heart Rate")),
+                _to_float(r.get("Calories")),
+                _now_iso(),
+            ))
+            imported += 1
+    conn.close()
+    print(f"  Other Activities importiert: {imported} (Workout/Weight Training)")
 
 
 # ---------------------------------------------------------------------------
@@ -318,6 +358,9 @@ def run_import(zip_path: Path | None = None) -> None:
 
         print("→ Activities (CSV) …")
         rides, media_map = import_activities_csv(zf, bike_map)
+
+        print("→ Other Activities (CSV) …")
+        import_other_activities_csv(zf)
 
         print("→ Track-Dateien …")
         import_tracks(zf, rides)
