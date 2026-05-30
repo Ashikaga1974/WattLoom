@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
 	import { api, type Activity, type Bike } from '$lib/api';
+	import { tzStore, fmtDate } from '$lib/tz.svelte';
 
 	const PAGE_SIZE = 25;
 
@@ -68,9 +69,7 @@
 		const m = Math.floor((s % 3600) / 60);
 		return h > 0 ? `${h}h ${m}m` : `${m}m`;
 	}
-	function date(iso: string) {
-		return new Date(iso).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
-	}
+	function date(iso: string) { return fmtDate(iso, tzStore.offset); }
 </script>
 
 <div class="space-y-4">

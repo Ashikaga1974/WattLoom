@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { api, type Activity, type OtherActivity } from '$lib/api';
+	import { tzStore, dateKey } from '$lib/tz.svelte';
 
 	// Standardjahr = laufendes Jahr
 	const currentYear = new Date().getFullYear();
@@ -58,7 +59,7 @@
 		// Aktivitäten nach YYYY-MM-DD gruppieren
 		const byDate = new Map<string, Activity[]>();
 		for (const act of activities) {
-			const d = act.start_date.slice(0, 10);
+			const d = dateKey(act.start_date, tzStore.offset);
 			if (!byDate.has(d)) byDate.set(d, []);
 			byDate.get(d)!.push(act);
 		}

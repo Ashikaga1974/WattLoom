@@ -9,6 +9,7 @@ class SettingsUpdate(BaseModel):
     weight_kg: float | None = None
     birth_year: int | None = None
     ftp_manual: int | None = None
+    tz_offset: int | None = None
 
 
 def _load_settings(conn):
@@ -18,6 +19,7 @@ def _load_settings(conn):
         "weight_kg":  float(data["weight_kg"])  if "weight_kg"  in data else None,
         "birth_year": int(data["birth_year"])    if "birth_year" in data else None,
         "ftp_manual": int(data["ftp_manual"])    if "ftp_manual" in data else None,
+        "tz_offset":  int(data["tz_offset"])     if "tz_offset"  in data else None,
     }
 
 
@@ -36,6 +38,7 @@ def update_settings(body: SettingsUpdate):
         "weight_kg":  str(body.weight_kg)  if body.weight_kg  is not None else None,
         "birth_year": str(body.birth_year) if body.birth_year is not None else None,
         "ftp_manual": str(body.ftp_manual) if body.ftp_manual is not None else None,
+        "tz_offset":  str(body.tz_offset)  if body.tz_offset  is not None else None,
     }
     for key, val in fields.items():
         if val is not None:

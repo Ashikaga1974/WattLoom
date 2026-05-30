@@ -1,11 +1,13 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 	import { api } from '$lib/api';
+	import { tzStore } from '$lib/tz.svelte';
 
 	let weightInput    = $state<string>('');
 	let birthYearInput = $state<string>('');
 	let ftpManualInput = $state<string>('');
-	let saved          = $state<{ weight_kg: number | null; birth_year: number | null; ftp_manual: number | null } | null>(null);
+	let tzOffsetInput  = $state<string>('auto');
+	let saved          = $state<{ weight_kg: number | null; birth_year: number | null; ftp_manual: number | null; tz_offset: number | null } | null>(null);
 	let saving         = $state(false);
 	let saveSuccess    = $state(false);
 	let saveError      = $state<string | null>(null);
@@ -29,6 +31,7 @@
 			if (res.weight_kg   != null) weightInput    = String(res.weight_kg);
 			if (res.birth_year  != null) birthYearInput = String(res.birth_year);
 			if (res.ftp_manual  != null) ftpManualInput = String(res.ftp_manual);
+			tzOffsetInput = res.tz_offset != null ? String(res.tz_offset) : 'auto';
 		} catch { /* ignore */ }
 
 		await refreshImportStatus();
@@ -109,14 +112,17 @@
 		saving    = true;
 		saveError = null;
 		try {
-			const res = await api.saveSettings({
+			const tz = tzOffsetInput === 'auto' ? null : parseInt(tzOffsetInput);
+		const res = await api.saveSettings({
 				weight_kg:  weightInput    ? kg   : undefined,
 				birth_year: year  ?? undefined,
 				ftp_manual: ftp   ?? undefined,
+				tz_offset:  tz    ?? undefined,
 			});
 			saved       = res;
 			saveSuccess = true;
 			setTimeout(() => (saveSuccess = false), 2500);
+			await tzStore.load();
 		} catch (e) {
 			saveError = e instanceof Error ? e.message : 'Speichern fehlgeschlagen';
 		} finally {
@@ -218,6 +224,26 @@
 					{:else}
 						<p class="text-xs text-gray-700 mt-1.5">20-min-Test × 0,95</p>
 					{/if}
+				</div>
+
+				<!-- Zeitzone -->
+				<div>
+					<label for="tz" class="block text-xs text-gray-400 uppercase tracking-wider mb-2">
+						Zeitzone
+					</label>
+					<select
+						id="tz"
+						bind:value={tzOffsetInput}
+						class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200
+						       focus:outline-none focus:border-orange-500 transition-colors"
+					>
+						<option value="auto">Auto (Systemzeit)</option>
+						<option value="1">+1h (CET – Winter)</option>
+						<option value="2">+2h (CEST – Sommer)</option>
+					</select>
+					<p class="text-xs text-gray-600 mt-1.5">
+						Aktivitätszeiten sind in UTC gespeichert. Auto nutzt die Browser-Zeitzone.
+					</p>
 				</div>
 			</div>
 

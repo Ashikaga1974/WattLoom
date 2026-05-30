@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { api } from '$lib/api';
+	import { tzStore, effectiveTzOffset } from '$lib/tz.svelte';
 
 	const DAYS_SHORT = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
 	const DAYS_FULL  = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag', 'Sonntag'];
@@ -27,7 +28,7 @@
 		loading = true;
 		error = null;
 		try {
-			const res = await api.timeHeatmap(filterYear ? Number(filterYear) : undefined);
+			const res = await api.timeHeatmap(filterYear ? Number(filterYear) : undefined, effectiveTzOffset(tzStore.offset));
 			cells = res.cells;
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'Fehler beim Laden';

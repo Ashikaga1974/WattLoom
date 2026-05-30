@@ -4,6 +4,7 @@
 	import { page } from '$app/stores';
 	import { onMount } from 'svelte';
 	import { themeStore } from '$lib/theme.svelte';
+	import { tzStore } from '$lib/tz.svelte';
 	import ThemeSwitcher from '$lib/ThemeSwitcher.svelte';
 
 	let { children } = $props();
@@ -14,7 +15,7 @@
 		p.startsWith('/activities') || p === '/calendar' || p === '/best'
 	);
 	const isAnalyse = $derived(
-		['/training', '/compare', '/form', '/stats', '/hrcurve', '/timeheatmap', '/speedhr', '/progress', '/ftp', '/tempcorr', '/berechnungen']
+		['/training', '/compare', '/form', '/stats', '/hrcurve', '/timeheatmap', '/speedhr', '/progress', '/ftp', '/tempcorr', '/berechnungen', '/wrapped']
 			.some(r => p.startsWith(r))
 	);
 	const isKarte    = $derived(p === '/heatmap' || p.startsWith('/strecken'));
@@ -26,10 +27,11 @@
 	const isLeistung   = $derived(['/ftp', '/hrcurve'].some(r => p.startsWith(r)));
 	const isForm       = $derived(p.startsWith('/form'));
 	const isAnalysen   = $derived(['/speedhr', '/tempcorr', '/timeheatmap'].some(r => p.startsWith(r)));
-	const isStatistiken = $derived(['/stats', '/berechnungen'].some(r => p.startsWith(r)));
+	const isStatistiken = $derived(['/stats', '/berechnungen', '/wrapped'].some(r => p.startsWith(r)));
 
 	onMount(() => {
 		themeStore.init();
+		tzStore.load();
 	});
 </script>
 
@@ -221,8 +223,9 @@
 			<div class="border-b border-gray-600 bg-gray-850" style="background:#1a2230">
 				<div class="mx-auto max-w-6xl px-4 flex items-center gap-5 h-8">
 					{#each [
-						{ href: '/stats',       label: 'Verteilungen' },
+						{ href: '/stats',        label: 'Verteilungen' },
 						{ href: '/berechnungen', label: 'Berechnungen' },
+						{ href: '/wrapped',      label: 'Jahresrückblick' },
 					] as item}
 						<a href={item.href}
 							class="text-xs transition-colors hover:text-orange-200"

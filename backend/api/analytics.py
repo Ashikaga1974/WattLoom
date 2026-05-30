@@ -5,23 +5,33 @@ router = APIRouter(prefix="/analytics", tags=["analytics"])
 
 
 @router.get("/time-heatmap")
-def time_heatmap(year: int = Query(None)):
+def time_heatmap(year: int = Query(None), tz_offset: int = Query(None)):
     """
-    Anzahl Aktivitäten pro Wochentag (0=Mo … 6=So) und Stunde (0–23),
-    basierend auf start_date_local.
+    Anzahl Aktivitäten pro Wochentag (0=Mo … 6=So) und Stunde (0–23).
+    tz_offset: Stunden-Versatz gegenüber UTC (z.B. 2 für CEST).
+    Fehlt der Parameter, wird tz_offset aus der config-Tabelle gelesen.
     """
+    conn = get_connection()
+
+    # Offset bestimmen: Query-Parameter hat Vorrang, sonst aus config
+    if tz_offset is None:
+        row = conn.execute("SELECT value FROM config WHERE key = 'tz_offset'").fetchone()
+        tz_offset = int(row["value"]) if row else 0
+
+    # SQLite-Modifier für den Stundenversatz
+    offset_modifier = f"'{tz_offset:+d} hours'" if tz_offset != 0 else "'+0 hours'"
+
     year_filter = ""
     params: list = []
     if year:
-        year_filter = "WHERE strftime('%Y', start_date_local) = ?"
+        year_filter = "WHERE strftime('%Y', datetime(start_date_local, " + offset_modifier + ")) = ?"
         params.append(str(year))
 
-    conn = get_connection()
     rows = conn.execute(
         f"""
         SELECT
-            (CAST(strftime('%w', start_date_local) AS INTEGER) + 6) % 7 AS weekday,
-            CAST(strftime('%H', start_date_local) AS INTEGER) AS hour,
+            (CAST(strftime('%w', datetime(start_date_local, {offset_modifier})) AS INTEGER) + 6) % 7 AS weekday,
+            CAST(strftime('%H', datetime(start_date_local, {offset_modifier})) AS INTEGER) AS hour,
             COUNT(*) AS count
         FROM activities
         {year_filter}
@@ -392,6 +402,307 @@ def weekly_volume(weeks: int = Query(52)):
 
     conn.close()
     return result
+
+
+@router.get("/wrapped")
+def get_wrapped(year: int = None, tz_offset: int = Query(None)):
+    from datetime import datetime, timedelta
+
+    RIDE_TYPES = ('Ride', 'VirtualRide', 'EBikeRide')
+    placeholders = ','.join('?' * len(RIDE_TYPES))
+
+    conn = get_connection()
+
+    years_rows = conn.execute(
+        f"""
+        SELECT DISTINCT CAST(strftime('%Y', start_date_local) AS INTEGER) AS y
+        FROM activities
+        WHERE activity_type IN ({placeholders})
+          AND strftime('%Y', start_date_local) >= '2000'
+        ORDER BY y
+        """,
+        RIDE_TYPES,
+    ).fetchall()
+    available_years = [r["y"] for r in years_rows]
+
+    if not available_years:
+        conn.close()
+        return {"year": None, "available_years": [], "totals": {}}
+
+    if year is None:
+        year = available_years[-1]
+
+    # Timezone-Offset: Query-Parameter hat Vorrang, sonst aus config, sonst 0
+    if tz_offset is None:
+        tz_row = conn.execute("SELECT value FROM config WHERE key = 'tz_offset'").fetchone()
+        tz_offset = int(tz_row["value"]) if tz_row else 0
+    tz_mod = f"'{tz_offset:+d} hours'" if tz_offset != 0 else "'+0 hours'"
+
+    def fetch_year_totals(y):
+        return conn.execute(
+            f"""
+            SELECT
+                COUNT(*) AS rides,
+                SUM(distance_m) / 1000.0 AS distance_km,
+                SUM(moving_time_s) / 3600.0 AS moving_hours,
+                SUM(elevation_gain_m or 0) AS elevation_m,
+                SUM(calories or 0) AS calories
+            FROM activities
+            WHERE activity_type IN ({placeholders})
+              AND CAST(strftime('%Y', start_date_local) AS INTEGER) = ?
+            """,
+            (*RIDE_TYPES, y),
+        ).fetchone()
+
+    cur_totals = fetch_year_totals(year)
+    totals = {
+        "rides": cur_totals["rides"] or 0,
+        "distance_km": round(cur_totals["distance_km"] or 0, 1),
+        "moving_hours": round(cur_totals["moving_hours"] or 0, 1),
+        "elevation_m": round(cur_totals["elevation_m"] or 0, 1),
+        "calories": round(cur_totals["calories"] or 0, 1),
+    }
+
+    prev = fetch_year_totals(year - 1) if (year - 1) in available_years else None
+    if prev and prev["rides"]:
+        def pct(a, b):
+            return round((a - b) / b * 100, 1) if b else None
+        vs_prev_year = {
+            "rides_pct": pct(totals["rides"], prev["rides"]),
+            "distance_pct": pct(totals["distance_km"], round((prev["distance_km"] or 0), 1)),
+        }
+    else:
+        vs_prev_year = {"rides_pct": None, "distance_pct": None}
+
+    best_ride_row = conn.execute(
+        f"""
+        SELECT id, name, start_date_local, distance_m, moving_time_s
+        FROM activities
+        WHERE activity_type IN ({placeholders})
+          AND CAST(strftime('%Y', start_date_local) AS INTEGER) = ?
+        ORDER BY distance_m DESC LIMIT 1
+        """,
+        (*RIDE_TYPES, year),
+    ).fetchone()
+    best_ride = {
+        "id": best_ride_row["id"],
+        "name": best_ride_row["name"],
+        "date": best_ride_row["start_date_local"],
+        "distance_km": round((best_ride_row["distance_m"] or 0) / 1000, 1),
+        "moving_time_s": best_ride_row["moving_time_s"],
+    } if best_ride_row else None
+
+    elev_row = conn.execute(
+        f"""
+        SELECT id, name, start_date_local, elevation_gain_m, distance_m
+        FROM activities
+        WHERE activity_type IN ({placeholders})
+          AND CAST(strftime('%Y', start_date_local) AS INTEGER) = ?
+          AND elevation_gain_m IS NOT NULL
+        ORDER BY elevation_gain_m DESC LIMIT 1
+        """,
+        (*RIDE_TYPES, year),
+    ).fetchone()
+    most_elevation_ride = {
+        "id": elev_row["id"],
+        "name": elev_row["name"],
+        "date": elev_row["start_date_local"],
+        "elevation_m": round(elev_row["elevation_gain_m"] or 0, 1),
+        "distance_km": round((elev_row["distance_m"] or 0) / 1000, 1),
+    } if elev_row else None
+
+    fast_row = conn.execute(
+        f"""
+        SELECT id, name, start_date_local, avg_speed_ms, distance_m
+        FROM activities
+        WHERE activity_type IN ({placeholders})
+          AND CAST(strftime('%Y', start_date_local) AS INTEGER) = ?
+          AND avg_speed_ms IS NOT NULL AND distance_m >= 10000
+        ORDER BY avg_speed_ms DESC LIMIT 1
+        """,
+        (*RIDE_TYPES, year),
+    ).fetchone()
+    fastest_ride = {
+        "id": fast_row["id"],
+        "name": fast_row["name"],
+        "date": fast_row["start_date_local"],
+        "avg_speed_kmh": round((fast_row["avg_speed_ms"] or 0) * 3.6, 1),
+        "distance_km": round((fast_row["distance_m"] or 0) / 1000, 1),
+    } if fast_row else None
+
+    month_row = conn.execute(
+        f"""
+        SELECT
+            CAST(strftime('%m', start_date_local) AS INTEGER) AS month,
+            SUM(distance_m) / 1000.0 AS distance_km,
+            COUNT(*) AS rides
+        FROM activities
+        WHERE activity_type IN ({placeholders})
+          AND CAST(strftime('%Y', start_date_local) AS INTEGER) = ?
+        GROUP BY month
+        ORDER BY distance_km DESC LIMIT 1
+        """,
+        (*RIDE_TYPES, year),
+    ).fetchone()
+    best_month = {
+        "month": month_row["month"],
+        "distance_km": round(month_row["distance_km"] or 0, 1),
+        "rides": month_row["rides"],
+    } if month_row else None
+
+    # Montag der Woche via SQLite: 'weekday 1' springt auf den nächsten Dienstag,
+    # dann '-7 days' oder einfacher: 'weekday 0' springt auf Sonntag, dann '-6 days' = Montag
+    week_row = conn.execute(
+        f"""
+        SELECT
+            date(start_date_local, 'weekday 0', '-6 days') AS week_start,
+            SUM(distance_m) / 1000.0 AS distance_km,
+            COUNT(*) AS rides
+        FROM activities
+        WHERE activity_type IN ({placeholders})
+          AND CAST(strftime('%Y', start_date_local) AS INTEGER) = ?
+        GROUP BY week_start
+        ORDER BY distance_km DESC LIMIT 1
+        """,
+        (*RIDE_TYPES, year),
+    ).fetchone()
+    best_week = {
+        "week_start": week_row["week_start"],
+        "distance_km": round(week_row["distance_km"] or 0, 1),
+        "rides": week_row["rides"],
+    } if week_row else None
+
+    day_rows = conn.execute(
+        f"""
+        SELECT DISTINCT date(start_date_local) AS d
+        FROM activities
+        WHERE activity_type IN ({placeholders})
+          AND CAST(strftime('%Y', start_date_local) AS INTEGER) = ?
+        ORDER BY d
+        """,
+        (*RIDE_TYPES, year),
+    ).fetchall()
+    ride_days = [r["d"] for r in day_rows]
+
+    longest_streak = {"days": 0, "from": None, "to": None}
+    if ride_days:
+        best_len = 1
+        best_start = ride_days[0]
+        best_end = ride_days[0]
+        cur_len = 1
+        cur_start = ride_days[0]
+
+        for i in range(1, len(ride_days)):
+            prev_d = datetime.fromisoformat(ride_days[i - 1])
+            this_d = datetime.fromisoformat(ride_days[i])
+            if (this_d - prev_d).days == 1:
+                cur_len += 1
+            else:
+                if cur_len > best_len:
+                    best_len = cur_len
+                    best_start = cur_start
+                    best_end = ride_days[i - 1]
+                cur_len = 1
+                cur_start = ride_days[i]
+
+        if cur_len > best_len:
+            best_len = cur_len
+            best_start = cur_start
+            best_end = ride_days[-1]
+
+        longest_streak = {"days": best_len, "from": best_start, "to": best_end}
+
+    # SQLite %w: 0=Sonntag → (w+6)%7 ergibt 0=Montag; Timezone-Offset anwenden
+    wd_rows = conn.execute(
+        f"""
+        SELECT
+            (CAST(strftime('%w', datetime(start_date_local, {tz_mod})) AS INTEGER) + 6) % 7 AS wd,
+            COUNT(*) AS cnt
+        FROM activities
+        WHERE activity_type IN ({placeholders})
+          AND CAST(strftime('%Y', datetime(start_date_local, {tz_mod})) AS INTEGER) = ?
+        GROUP BY wd
+        """,
+        (*RIDE_TYPES, year),
+    ).fetchall()
+    rides_by_weekday = [0] * 7
+    for r in wd_rows:
+        rides_by_weekday[r["wd"]] = r["cnt"]
+
+    hr_rows = conn.execute(
+        f"""
+        SELECT
+            CAST(strftime('%H', datetime(start_date_local, {tz_mod})) AS INTEGER) AS hr,
+            COUNT(*) AS cnt
+        FROM activities
+        WHERE activity_type IN ({placeholders})
+          AND CAST(strftime('%Y', datetime(start_date_local, {tz_mod})) AS INTEGER) = ?
+        GROUP BY hr
+        """,
+        (*RIDE_TYPES, year),
+    ).fetchall()
+    rides_by_hour = [0] * 24
+    for r in hr_rows:
+        rides_by_hour[r["hr"]] = r["cnt"]
+
+    bike_row = conn.execute(
+        f"""
+        SELECT
+            a.bike_id,
+            b.name,
+            COUNT(*) AS rides,
+            SUM(a.distance_m) / 1000.0 AS distance_km
+        FROM activities a
+        LEFT JOIN bikes b ON b.id = a.bike_id
+        WHERE a.activity_type IN ({placeholders})
+          AND CAST(strftime('%Y', a.start_date_local) AS INTEGER) = ?
+          AND a.bike_id IS NOT NULL
+        GROUP BY a.bike_id
+        ORDER BY rides DESC LIMIT 1
+        """,
+        (*RIDE_TYPES, year),
+    ).fetchone()
+    favorite_bike = {
+        "id": bike_row["bike_id"],
+        "name": bike_row["name"],
+        "rides": bike_row["rides"],
+        "distance_km": round(bike_row["distance_km"] or 0, 1),
+    } if bike_row else None
+
+    monthly_rows = conn.execute(
+        f"""
+        SELECT
+            CAST(strftime('%m', start_date_local) AS INTEGER) AS m,
+            SUM(distance_m) / 1000.0 AS km
+        FROM activities
+        WHERE activity_type IN ({placeholders})
+          AND CAST(strftime('%Y', start_date_local) AS INTEGER) = ?
+        GROUP BY m
+        """,
+        (*RIDE_TYPES, year),
+    ).fetchall()
+    monthly_km = [0.0] * 12
+    for r in monthly_rows:
+        monthly_km[r["m"] - 1] = round(r["km"] or 0, 1)
+
+    conn.close()
+
+    return {
+        "year": year,
+        "available_years": available_years,
+        "totals": totals,
+        "vs_prev_year": vs_prev_year,
+        "best_ride": best_ride,
+        "most_elevation_ride": most_elevation_ride,
+        "fastest_ride": fastest_ride,
+        "best_month": best_month,
+        "best_week": best_week,
+        "longest_streak": longest_streak,
+        "rides_by_weekday": rides_by_weekday,
+        "rides_by_hour": rides_by_hour,
+        "favorite_bike": favorite_bike,
+        "monthly_km": monthly_km,
+    }
 
 
 DURATIONS = [60, 300, 600, 1200, 3600]  # 1min, 5min, 10min, 20min, 60min

@@ -4,6 +4,7 @@
 	import { api, type ActivityDetail, type Lap, type TrackPoint, type ActivityZones } from '$lib/api';
 	import ZoneBars from '$lib/ZoneBars.svelte';
 	import { SPEED_COLOR_BUCKETS } from '$lib/config';
+	import { tzStore, fmtDateLong, fmtTime } from '$lib/tz.svelte';
 	import ElevationProfile from '$lib/ElevationProfile.svelte';
 	import HRProfile from '$lib/HRProfile.svelte';
 	import SpeedProfile from '$lib/SpeedProfile.svelte';
@@ -165,14 +166,8 @@
 		const sec = s % 60;
 		return h > 0 ? `${h}h ${m}m` : `${m}m ${sec}s`;
 	}
-	function date(iso: string) {
-		return new Date(iso).toLocaleDateString('de-DE', {
-			weekday: 'long', day: '2-digit', month: 'long', year: 'numeric',
-		});
-	}
-	function time(iso: string) {
-		return new Date(iso).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
-	}
+	function date(iso: string) { return fmtDateLong(iso, tzStore.offset); }
+	function time(iso: string) { return fmtTime(iso, tzStore.offset); }
 </script>
 
 <svelte:head>

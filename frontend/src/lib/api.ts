@@ -203,6 +203,29 @@ export interface BikeCompareData {
 	distances: Record<string, number[]>;
 }
 
+export interface WrappedData {
+	year: number;
+	available_years: number[];
+	totals: {
+		rides: number;
+		distance_km: number;
+		moving_hours: number;
+		elevation_m: number;
+		calories: number;
+	};
+	vs_prev_year: { rides_pct: number; distance_pct: number } | null;
+	best_ride:           { id: number; name: string; date: string; distance_km: number; moving_time_s: number } | null;
+	most_elevation_ride: { id: number; name: string; date: string; elevation_m: number; distance_km: number } | null;
+	fastest_ride:        { id: number; name: string; date: string; avg_speed_kmh: number; distance_km: number } | null;
+	best_month:  { month: number; distance_km: number; rides: number } | null;
+	best_week:   { week_start: string; distance_km: number; rides: number } | null;
+	longest_streak: { days: number; from: string; to: string } | null;
+	rides_by_weekday: number[];
+	rides_by_hour: number[];
+	favorite_bike: { id: string; name: string; rides: number; distance_km: number } | null;
+	monthly_km: number[];
+}
+
 async function get<T>(path: string): Promise<T> {
 	const res = await fetch(`${BASE}${path}`);
 	if (!res.ok) throw new Error(`API ${path} → ${res.status}`);
@@ -268,8 +291,8 @@ export const api = {
 	hrCurve: (year?: number) =>
 		get<{ durations_s: number[]; labels: string[]; best_hr: number[] }>(`/analytics/hr-curve${buildQuery({ year })}`),
 
-	timeHeatmap: (year?: number) =>
-		get<{ cells: { weekday: number; hour: number; count: number }[] }>(`/analytics/time-heatmap${buildQuery({ year })}`),
+	timeHeatmap: (year?: number, tz_offset?: number) =>
+		get<{ cells: { weekday: number; hour: number; count: number }[] }>(`/analytics/time-heatmap${buildQuery({ year, tz_offset })}`),
 
 	speedHr: () =>
 		get<{ points: { year: number; speed_kmh: number; hr: number; dist_km: number }[] }>('/analytics/speed-hr'),
@@ -278,14 +301,14 @@ export const api = {
 		get<{ years: Record<string, [number, number][]> }>('/analytics/year-progress'),
 
 	getSettings: () =>
-		get<{ weight_kg: number | null; birth_year: number | null; ftp_manual: number | null }>('/settings'),
+		get<{ weight_kg: number | null; birth_year: number | null; ftp_manual: number | null; tz_offset: number | null }>('/settings'),
 
-	saveSettings: (settings: { weight_kg?: number | null; birth_year?: number | null; ftp_manual?: number | null }) =>
+	saveSettings: (settings: { weight_kg?: number | null; birth_year?: number | null; ftp_manual?: number | null; tz_offset?: number | null }) =>
 		fetch(`${BASE}/settings`, {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify(settings),
-		}).then(r => { if (!r.ok) throw new Error(`API /settings → ${r.status}`); return r.json() as Promise<{ weight_kg: number | null; birth_year: number | null; ftp_manual: number | null }>; }),
+		}).then(r => { if (!r.ok) throw new Error(`API /settings → ${r.status}`); return r.json() as Promise<{ weight_kg: number | null; birth_year: number | null; ftp_manual: number | null; tz_offset: number | null }>; }),
 
 	tempCorrelation: () =>
 		get<{ points: { temp_c: number; speed_kmh: number; hr: number; year: number; dist_km: number }[] }>('/analytics/temp-correlation'),
@@ -313,6 +336,9 @@ export const api = {
 			.then(r => { if (!r.ok) throw new Error(`API /import/reset → ${r.status}`); return r.json() as Promise<{ ok: boolean; message?: string }>; }),
 
 	bikeCompare: (): Promise<BikeCompareData> => get('/bikes/compare'),
+
+	wrapped: (year?: number, tz_offset?: number): Promise<WrappedData> =>
+		get(`/analytics/wrapped${buildQuery({ year, tz_offset })}`),
 
 	weeklyVolume: (weeks = 52): Promise<WeeklyVolume[]> =>
 		get(`/analytics/weekly-volume${buildQuery({ weeks })}`),
