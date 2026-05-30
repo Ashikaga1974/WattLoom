@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 	import { page } from '$app/stores';
-	import { api, type ActivityDetail, type Lap, type TrackPoint, type ActivityZones } from '$lib/api';
+	import { api, type ActivityDetail, type TrackPoint, type ActivityZones } from '$lib/api';
 	import ZoneBars from '$lib/ZoneBars.svelte';
 	import { SPEED_COLOR_BUCKETS } from '$lib/config';
 	import { tzStore, fmtDateLong, fmtTime } from '$lib/tz.svelte';
@@ -11,7 +11,6 @@
 	import CombinedProfile from '$lib/CombinedProfile.svelte';
 
 	let activity = $state<ActivityDetail | null>(null);
-	let laps = $state<Lap[]>([]);
 	let trackPoints = $state<TrackPoint[]>([]);
 	let mediaFiles = $state<string[]>([]);
 	let zones = $state<ActivityZones | null>(null);
@@ -35,13 +34,12 @@
 			const act = await api.activity(id);
 			activity = act;
 
-			const promises: Promise<unknown>[] = [api.activityLaps(id), api.activityMedia(id)];
+			const promises: Promise<unknown>[] = [api.activityMedia(id)];
 			if (act.has_track) promises.push(api.activityTrack(id));
 
 			const results = await Promise.all(promises);
-			laps = results[0] as Lap[];
-			mediaFiles = (results[1] as { files: string[] }).files;
-			if (act.has_track) trackPoints = (results[2] as { points: TrackPoint[] }).points;
+			mediaFiles = (results[0] as { files: string[] }).files;
+			if (act.has_track) trackPoints = (results[1] as { points: TrackPoint[] }).points;
 
 			// Zonen asynchron nachladen (nicht blockierend)
 			api.activityZones(id).then(z => zones = z).catch(() => {});
@@ -317,37 +315,5 @@
 			</section>
 		{/if}
 
-		<!-- Laps -->
-		{#if laps.length > 0}
-			<section>
-				<h2 class="text-lg font-semibold mb-3">Laps <span class="text-sm font-normal text-gray-400">({laps.length})</span></h2>
-				<div class="rounded-xl overflow-hidden border border-gray-800">
-					<table class="w-full text-sm">
-						<thead class="bg-gray-800/80 text-gray-400 uppercase text-xs tracking-wider">
-							<tr>
-								<th class="text-right px-4 py-2">#</th>
-								<th class="text-right px-4 py-2">Distanz</th>
-								<th class="text-right px-4 py-2">Zeit</th>
-								<th class="text-right px-4 py-2">km/h</th>
-								<th class="text-right px-4 py-2 hidden md:table-cell">HR</th>
-								<th class="text-right px-4 py-2 hidden md:table-cell">Hm</th>
-							</tr>
-						</thead>
-						<tbody>
-							{#each laps as lap, i}
-								<tr class="border-t border-gray-800/50 {i % 2 === 0 ? '' : 'bg-gray-800/20'}">
-									<td class="px-4 py-2 text-right text-gray-500">{lap.lap_number + 1}</td>
-									<td class="px-4 py-2 text-right tabular-nums">{(lap.distance_m / 1000).toFixed(2)} km</td>
-									<td class="px-4 py-2 text-right tabular-nums text-gray-300">{hm(lap.total_time_s)}</td>
-									<td class="px-4 py-2 text-right tabular-nums">{lap.avg_speed_ms ? (lap.avg_speed_ms * 3.6).toFixed(1) : '-'}</td>
-									<td class="px-4 py-2 text-right tabular-nums text-gray-300 hidden md:table-cell">{lap.avg_hr ? Math.round(lap.avg_hr) : '-'}</td>
-									<td class="px-4 py-2 text-right tabular-nums text-gray-300 hidden md:table-cell">{lap.elevation_gain_m ? Math.round(lap.elevation_gain_m) : '-'}</td>
-								</tr>
-							{/each}
-						</tbody>
-					</table>
-				</div>
-			</section>
-		{/if}
 	</div>
 {/if}

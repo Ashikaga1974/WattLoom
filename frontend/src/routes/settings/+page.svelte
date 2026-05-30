@@ -117,7 +117,7 @@
 				weight_kg:  weightInput    ? kg   : undefined,
 				birth_year: year  ?? undefined,
 				ftp_manual: ftp   ?? undefined,
-				tz_offset:  tz    ?? undefined,
+				tz_offset:  tz,
 			});
 			saved       = res;
 			saveSuccess = true;

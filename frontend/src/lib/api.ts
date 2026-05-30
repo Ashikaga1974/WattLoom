@@ -295,7 +295,7 @@ export const api = {
 		get<{ cells: { weekday: number; hour: number; count: number }[] }>(`/analytics/time-heatmap${buildQuery({ year, tz_offset })}`),
 
 	speedHr: () =>
-		get<{ points: { year: number; speed_kmh: number; hr: number; dist_km: number }[] }>('/analytics/speed-hr'),
+		get<{ points: { year: number; month: string; speed_kmh: number; hr: number; dist_km: number }[] }>('/analytics/speed-hr'),
 
 	yearProgress: () =>
 		get<{ years: Record<string, [number, number][]> }>('/analytics/year-progress'),

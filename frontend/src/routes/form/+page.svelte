@@ -52,6 +52,31 @@
 			: null
 	);
 
+	// Einzeiliges Fazit oben auf der Seite
+	const formSummary = $derived((): string => {
+		if (!data?.current) return '';
+		const { tsb, ctl } = data.current;
+		const ramp = rampRate ?? 0;
+		const peak = data.peak_ctl;
+
+		let state: string;
+		if      (tsb > 25)  state = 'Du bist sehr frisch – wenig Müdigkeit, idealer Zeitpunkt für einen harten oder langen Ride.';
+		else if (tsb > 5)   state = 'Gute Form: ausgeruht genug für intensive Einheiten oder einen Wettkampf.';
+		else if (tsb > -10) state = 'Normaler Trainingszustand – leicht ermüdet, aber voll belastbar.';
+		else if (tsb > -25) state = 'Du steckst im Trainingsblock und bist müde. In 1–2 Wochen eine Erholungswoche einplanen.';
+		else                state = 'Deutlich überbelastet – Ruhe bringt jetzt mehr als weiteres hartes Training.';
+
+		let context = '';
+		if      (ramp >=  5) context = `Fitness steigt sehr schnell (+${ramp.toFixed(1)} CTL/Woche) – bald Erholungswoche einplanen.`;
+		else if (ramp >=  2) context = `Fitness steigt gerade (+${ramp.toFixed(1)} CTL/Woche) – guter Aufbau.`;
+		else if (ramp <= -5) context = `Fitness fällt spürbar (${ramp.toFixed(1)}/Woche) – mehr regelmäßige Einheiten würden helfen.`;
+		else if (ramp <= -2) context = `Fitness geht leicht zurück (${ramp.toFixed(1)}/Woche).`;
+		else if (peak && ctl >= peak.value * 0.95) context = `Du bist nahe an deiner Bestform (${ctl.toFixed(0)} / ${peak.value.toFixed(0)} CTL).`;
+		else if (peak && ctl <= peak.value * 0.6)  context = `Fitness liegt bei ${Math.round(ctl / peak.value * 100)} % deines Bestwerts (${peak.value.toFixed(0)} CTL) – noch viel Potenzial.`;
+
+		return context ? `${state} ${context}` : state;
+	});
+
 	function rampZone(r: number) {
 		const abs = Math.abs(r);
 		if (abs < 5)  return { text: 'text-green-400',  bg: 'bg-green-900/20',  border: 'border-green-700/40',  suffix: 'moderat'        };
@@ -285,6 +310,12 @@
 	{:else if data?.current}
 		{@const cur = data.current}
 		{@const zone = tsbZone(cur.tsb)}
+
+		<!-- Formeinschätzung -->
+		<div class="rounded-xl px-5 py-4 border {zone.bg} {zone.border}">
+			<p class="text-xs text-gray-500 uppercase tracking-wide mb-1">Aktuelle Einschätzung</p>
+			<p class="text-sm text-gray-200 leading-relaxed">{formSummary()}</p>
+		</div>
 
 		<!-- Stat-Cards -->
 		<div class="grid grid-cols-2 md:grid-cols-4 gap-4">

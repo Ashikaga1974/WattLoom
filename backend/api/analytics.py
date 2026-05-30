@@ -53,6 +53,7 @@ def speed_hr():
         """
         SELECT
             CAST(strftime('%Y', start_date) AS INTEGER) AS year,
+            strftime('%Y-%m', start_date)               AS month,
             ROUND(avg_speed_ms * 3.6, 1)               AS speed_kmh,
             ROUND(avg_hr, 0)                            AS hr,
             ROUND(distance_m / 1000.0, 1)              AS dist_km
@@ -65,7 +66,7 @@ def speed_hr():
     conn.close()
     return {
         "points": [
-            {"year": r["year"], "speed_kmh": r["speed_kmh"], "hr": r["hr"], "dist_km": r["dist_km"]}
+            {"year": r["year"], "month": r["month"], "speed_kmh": r["speed_kmh"], "hr": r["hr"], "dist_km": r["dist_km"]}
             for r in rows
         ]
     }
@@ -472,7 +473,7 @@ def get_wrapped(year: int = None, tz_offset: int = Query(None)):
             "distance_pct": pct(totals["distance_km"], round((prev["distance_km"] or 0), 1)),
         }
     else:
-        vs_prev_year = {"rides_pct": None, "distance_pct": None}
+        vs_prev_year = None
 
     best_ride_row = conn.execute(
         f"""

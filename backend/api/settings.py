@@ -47,9 +47,9 @@ def update_settings(body: SettingsUpdate):
                 "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
                 (key, val),
             )
-        else:
-            # Wert löschen wenn explizit 0 übergeben (ftp_manual=0 → nicht gesetzt)
-            pass
+        elif key in body.model_fields_set:
+            # Explizit null gesendet → Wert aus DB entfernen (z.B. tz_offset → Auto)
+            conn.execute("DELETE FROM config WHERE key = ?", (key,))
     conn.commit()
     result = _load_settings(conn)
     conn.close()

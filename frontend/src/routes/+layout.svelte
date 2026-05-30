@@ -15,19 +15,20 @@
 		p.startsWith('/activities') || p === '/calendar' || p === '/best'
 	);
 	const isAnalyse = $derived(
-		['/training', '/compare', '/form', '/stats', '/hrcurve', '/timeheatmap', '/speedhr', '/progress', '/ftp', '/tempcorr', '/berechnungen', '/wrapped']
+		['/training', '/compare', '/form', '/stats', '/hrcurve', '/timeheatmap', '/speedhr', '/progress', '/ftp', '/tempcorr', '/wrapped']
 			.some(r => p.startsWith(r))
 	);
-	const isKarte    = $derived(p === '/heatmap' || p.startsWith('/strecken'));
-	const isBikes    = $derived(p.startsWith('/bikes'));
-	const isDash     = $derived(p === '/');
+	const isKarte         = $derived(p === '/heatmap' || p.startsWith('/strecken'));
+	const isBikes         = $derived(p.startsWith('/bikes'));
+	const isDash          = $derived(p === '/');
+	const isBerechnungen  = $derived(p === '/berechnungen');
 
 	// Analyse-Gruppen
 	const isVolumen    = $derived(['/progress', '/training', '/compare'].some(r => p.startsWith(r)));
 	const isLeistung   = $derived(['/ftp', '/hrcurve'].some(r => p.startsWith(r)));
 	const isForm       = $derived(p.startsWith('/form'));
 	const isAnalysen   = $derived(['/speedhr', '/tempcorr', '/timeheatmap'].some(r => p.startsWith(r)));
-	const isStatistiken = $derived(['/stats', '/berechnungen', '/wrapped'].some(r => p.startsWith(r)));
+	const isStatistiken = $derived(['/stats', '/wrapped'].some(r => p.startsWith(r)));
 
 	onMount(() => {
 		themeStore.init();
@@ -75,6 +76,12 @@
 				class:text-orange-400={isBikes}
 				class:text-gray-400={!isBikes}
 			>Bikes</a>
+
+			<a href="/berechnungen"
+				class="text-sm transition-colors hover:text-orange-400"
+				class:text-orange-400={isBerechnungen}
+				class:text-gray-400={!isBerechnungen}
+			>Berechnungen</a>
 
 			<div class="ml-auto flex items-center gap-3">
 			<ThemeSwitcher />
@@ -223,9 +230,8 @@
 			<div class="border-b border-gray-600 bg-gray-850" style="background:#1a2230">
 				<div class="mx-auto max-w-6xl px-4 flex items-center gap-5 h-8">
 					{#each [
-						{ href: '/stats',        label: 'Verteilungen' },
-						{ href: '/berechnungen', label: 'Berechnungen' },
-						{ href: '/wrapped',      label: 'Jahresrückblick' },
+						{ href: '/stats',   label: 'Verteilungen' },
+						{ href: '/wrapped', label: 'Jahresrückblick' },
 					] as item}
 						<a href={item.href}
 							class="text-xs transition-colors hover:text-orange-200"
