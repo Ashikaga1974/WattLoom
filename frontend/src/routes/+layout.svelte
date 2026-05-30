@@ -77,14 +77,18 @@
 				class:text-gray-400={!isBikes}
 			>Bikes</a>
 
-			<a href="/berechnungen"
-				class="text-sm transition-colors hover:text-orange-400"
-				class:text-orange-400={isBerechnungen}
-				class:text-gray-400={!isBerechnungen}
-			>Berechnungen</a>
-
 			<div class="ml-auto flex items-center gap-3">
 			<ThemeSwitcher />
+
+			<a href="/berechnungen" title="Berechnungen & Formeln"
+				class="transition-colors hover:text-orange-400"
+				class:text-orange-400={isBerechnungen}
+				class:text-gray-500={!isBerechnungen}
+			>
+				<svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+					<circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+				</svg>
+			</a>
 
 			<a href="/settings" title="Einstellungen"
 				class="text-gray-500 hover:text-orange-400 transition-colors"
