@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { api, type Activity } from '$lib/api';
+	import PageHeader from '$lib/PageHeader.svelte';
 
 	interface Category {
 		key: string;
@@ -89,7 +90,7 @@
 </svelte:head>
 
 <div class="space-y-8">
-	<h1 class="text-2xl font-bold">Best of – Persönliche Rekorde</h1>
+	<PageHeader title="Best of – Persönliche Rekorde" />
 
 	{#if error}
 		<div class="rounded bg-red-900/50 border border-red-700 p-4 text-red-300 text-sm">{error}</div>

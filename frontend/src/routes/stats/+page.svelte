@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { api, type Activity } from '$lib/api';
+	import PageHeader from '$lib/PageHeader.svelte';
 
 	let activities = $state<Activity[]>([]);
 	let loading = $state(true);
@@ -93,19 +94,7 @@
 </svelte:head>
 
 <div class="space-y-6">
-	<div class="flex flex-wrap items-center justify-between gap-4">
-		<h1 class="text-2xl font-bold">Verteilungen</h1>
-		<select
-			bind:value={filterYear}
-			onchange={reload}
-			class="bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-sm text-gray-200 focus:outline-none focus:border-orange-500"
-		>
-			<option value="">Alle Jahre</option>
-			{#each availableYears as y}
-				<option value={y}>{y}</option>
-			{/each}
-		</select>
-	</div>
+	<PageHeader title="Verteilungen" years={availableYears} bind:selectedYear={filterYear} onchange={reload} />
 
 	{#if error}
 		<div class="rounded bg-red-900/50 border border-red-700 p-4 text-red-300 text-sm">{error}</div>

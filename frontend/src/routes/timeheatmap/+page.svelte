@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { api } from '$lib/api';
 	import { tzStore, effectiveTzOffset } from '$lib/tz.svelte';
+	import PageHeader from '$lib/PageHeader.svelte';
 
 	const DAYS_SHORT = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
 	const DAYS_FULL  = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag', 'Sonntag'];
@@ -88,22 +89,13 @@
 </svelte:head>
 
 <div class="space-y-6">
-	<div class="flex flex-wrap items-center justify-between gap-4">
-		<div>
-			<h1 class="text-2xl font-bold">Tageszeit-Heatmap</h1>
-			<p class="text-xs text-gray-500 mt-0.5">Wann fährst du? · Aktivitätsstarts nach Wochentag und Uhrzeit</p>
-		</div>
-		<select
-			bind:value={filterYear}
-			onchange={loadData}
-			class="bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-sm text-gray-200 focus:outline-none focus:border-orange-500"
-		>
-			<option value="">Alle Jahre</option>
-			{#each availableYears as y}
-				<option value={y}>{y}</option>
-			{/each}
-		</select>
-	</div>
+	<PageHeader
+		title="Tageszeit-Heatmap"
+		subtitle="Wann fährst du? · Aktivitätsstarts nach Wochentag und Uhrzeit"
+		years={availableYears}
+		bind:selectedYear={filterYear}
+		onchange={loadData}
+	/>
 
 	{#if error}
 		<div class="rounded bg-red-900/50 border border-red-700 p-4 text-red-300 text-sm">{error}</div>

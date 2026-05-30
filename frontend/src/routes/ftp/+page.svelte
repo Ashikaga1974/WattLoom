@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { api } from '$lib/api';
+	import PageHeader from '$lib/PageHeader.svelte';
 
 	interface TrendPt  { label: string; best_w: number; }
 
@@ -91,12 +92,10 @@
 </svelte:head>
 
 <div class="space-y-6">
-	<div>
-		<h1 class="text-2xl font-bold">FTP-Analyse</h1>
-		<p class="text-xs text-gray-500 mt-0.5">
-			HR-korrigierte Schätzung · avg_power × 0,90 ÷ (avg_hr / HRmax) · exakte FTP per 20-min-Test in Einstellungen hinterlegen
-		</p>
-	</div>
+	<PageHeader
+		title="FTP-Analyse"
+		subtitle="HR-korrigierte Schätzung · avg_power × 0,90 ÷ (avg_hr / HRmax) · exakte FTP per 20-min-Test in Einstellungen hinterlegen"
+	/>
 
 	{#if error}
 		<div class="rounded bg-red-900/50 border border-red-700 p-4 text-red-300 text-sm">{error}</div>

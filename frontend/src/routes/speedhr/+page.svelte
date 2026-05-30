@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { api } from '$lib/api';
+	import PageHeader from '$lib/PageHeader.svelte';
 
 	const YEAR_COLORS: Record<number, string> = {};
 	const PALETTE = ['#60a5fa', '#4ade80', '#fb923c', '#c084fc', '#facc15', '#f472b6'];
@@ -151,13 +152,10 @@
 
 <div class="space-y-6">
 
-	<!-- Header -->
-	<div>
-		<h1 class="text-2xl font-bold">Aerobe Effizienz</h1>
-		<p class="text-sm text-gray-400 mt-1">
-			Wie viel Geschwindigkeit bekommst du pro Herzschlag? Steigt die Kurve → du wirst fitter.
-		</p>
-	</div>
+	<PageHeader
+		title="Aerobe Effizienz"
+		subtitle="Wie viel Geschwindigkeit bekommst du pro Herzschlag? Steigt die Kurve → du wirst fitter."
+	/>
 
 	{#if error}
 		<div class="rounded bg-red-900/50 border border-red-700 p-4 text-red-300 text-sm">{error}</div>

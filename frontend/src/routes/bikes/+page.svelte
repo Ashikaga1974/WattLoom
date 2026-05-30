@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { api, type Bike } from '$lib/api';
+	import PageHeader from '$lib/PageHeader.svelte';
 
 	let bikes = $state<Bike[]>([]);
 	let loading = $state(true);
@@ -18,7 +19,7 @@
 </script>
 
 <div class="space-y-6">
-	<h1 class="text-2xl font-bold">Bikes</h1>
+	<PageHeader title="Bikes" />
 
 	{#if error}
 		<div class="rounded bg-red-900/50 border border-red-700 p-4 text-red-300 text-sm">{error}</div>
