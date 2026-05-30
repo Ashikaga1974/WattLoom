@@ -257,28 +257,26 @@
 		<section>
 			<h2 class="text-lg font-semibold mb-3">Bikes</h2>
 			{#if loading}
-				<div class="space-y-2">
+				<div class="flex gap-2">
 					{#each Array(2) as _}
-						<div class="h-12 bg-gray-800/50 animate-pulse rounded-lg"></div>
+						<div class="h-9 w-36 bg-gray-800/50 animate-pulse rounded-full"></div>
 					{/each}
 				</div>
+			{:else if bikes.length === 0}
+				<p class="text-sm text-gray-500">Keine Bikes gefunden.</p>
 			{:else}
-				<div class="space-y-2">
+				<div class="flex flex-wrap gap-2">
 					{#each bikes as bike}
-						<a href="/bikes" class="flex items-center justify-between rounded-lg bg-gray-800 px-4 py-3 hover:bg-gray-700 transition-colors">
-							<div>
-								<span class="font-medium">{bike.name}</span>
-								{#if bike.brand && bike.model && `${bike.brand} ${bike.model}` !== bike.name}
-									<span class="text-xs text-gray-400 ml-2">{bike.brand} {bike.model}</span>
-								{/if}
-							</div>
-							<span class="text-sm text-orange-400">{bike.ride_count} Rides</span>
+						<a href="/bikes/{bike.id}"
+							class="inline-flex items-center gap-2 rounded-full bg-gray-800 px-4 py-2 text-sm hover:bg-gray-700 transition-colors"
+						>
+							<span class="font-medium">{bike.name}</span>
+							<span class="text-gray-600">·</span>
+							<span class="text-orange-400 text-xs">{bike.ride_count} Rides</span>
 						</a>
 					{/each}
-					{#if bikes.length === 0}
-						<p class="text-sm text-gray-500">Keine Bikes gefunden.</p>
-					{/if}
 				</div>
+				<a href="/bikes" class="block mt-3 text-xs text-gray-500 hover:text-orange-400 transition-colors">Alle Bikes →</a>
 			{/if}
 		</section>
 
