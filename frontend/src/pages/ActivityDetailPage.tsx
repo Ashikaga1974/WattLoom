@@ -151,7 +151,7 @@ function ElevationChart({ points, onHover, activeDist }: { points: TrackPoint[];
               <stop offset="95%" stopColor="var(--primary)" stopOpacity={0.05} />
             </linearGradient>
           </defs>
-          <XAxis dataKey="dist" type="number" hide />
+          <XAxis dataKey="dist" type="number" domain={[0, 'dataMax']} hide />
           <YAxis tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }} axisLine={false} tickLine={false} />
           <Tooltip
             contentStyle={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 11 }}
@@ -193,7 +193,7 @@ function HRChart({ points, onHover, activeDist }: { points: TrackPoint[]; onHove
               <stop offset="95%" stopColor="#ef4444" stopOpacity={0.05} />
             </linearGradient>
           </defs>
-          <XAxis dataKey="dist" type="number" hide />
+          <XAxis dataKey="dist" type="number" domain={[0, 'dataMax']} hide />
           <YAxis tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }} axisLine={false} tickLine={false} />
           <Tooltip
             contentStyle={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 11 }}
@@ -235,7 +235,7 @@ function SpeedChart({ points, onHover, activeDist }: { points: TrackPoint[]; onH
               <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.05} />
             </linearGradient>
           </defs>
-          <XAxis dataKey="dist" type="number" hide />
+          <XAxis dataKey="dist" type="number" domain={[0, 'dataMax']} hide />
           <YAxis tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }} axisLine={false} tickLine={false} />
           <Tooltip
             contentStyle={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 11 }}
