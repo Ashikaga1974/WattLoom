@@ -18,7 +18,7 @@
 		['/training', '/compare', '/form', '/stats', '/hrcurve', '/timeheatmap', '/speedhr', '/progress', '/ftp', '/tempcorr', '/wrapped']
 			.some(r => p.startsWith(r))
 	);
-	const isKarte        = $derived(p === '/heatmap' || p.startsWith('/strecken'));
+	const isKarte        = $derived(p === '/heatmap' || p.startsWith('/strecken') || p.startsWith('/routes'));
 	const isBikes        = $derived(p.startsWith('/bikes'));
 	const isDash         = $derived(p === '/');
 	const isBerechnungen = $derived(p === '/berechnungen');
@@ -97,6 +97,7 @@
 					<div class="mt-0.5 border-l border-gray-700 ml-4 pl-2 space-y-0.5">
 						{#each [
 							{ href: '/heatmap',  label: 'Heatmap' },
+							{ href: '/routes',   label: 'Top-Strecken' },
 							{ href: '/strecken', label: 'Streckenvergleich' },
 						] as item}
 							<a href={item.href}
