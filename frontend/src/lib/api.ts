@@ -180,6 +180,16 @@ export interface SimilarActivitiesResponse {
 	similar: SimilarActivity[];
 }
 
+export interface BestByDistanceBucket {
+	distance_km: number;
+	best_speed_kmh: number | null;
+	best_time_s: number | null;
+	activity_id: number | null;
+	activity_name: string | null;
+	date: string | null;
+	actual_distance_km: number | null;
+}
+
 export interface RouteClusterRide {
 	id: number;
 	name: string;
@@ -376,6 +386,9 @@ export const api = {
 
 	routeClusters: (min_rides = 3): Promise<RouteClustersResponse> =>
 		get(`/analytics/route-clusters${buildQuery({ min_rides })}`),
+
+	bestByDistance: (): Promise<{ buckets: BestByDistanceBucket[] }> =>
+		get('/analytics/best-by-distance'),
 
 	otherActivities: (year?: number): Promise<OtherActivity[]> =>
 		get(`/activities/other${buildQuery({ year })}`),

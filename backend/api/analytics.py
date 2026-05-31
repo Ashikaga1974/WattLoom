@@ -706,6 +706,62 @@ def get_wrapped(year: int = None, tz_offset: int = Query(None)):
     }
 
 
+@router.get("/best-by-distance")
+def best_by_distance():
+    """
+    Für jedes Distanz-Bucket die schnellste Fahrt (höchste avg_speed_ms)
+    innerhalb ±20 % Toleranz um den Zielwert.
+    """
+    BUCKETS_KM   = [1, 5, 10, 20, 30, 40, 50, 60]
+    TOLERANCE    = 0.20
+    RIDE_TYPES   = ('Ride', 'VirtualRide', 'EBikeRide')
+    ph           = ','.join('?' * len(RIDE_TYPES))
+
+    conn    = get_connection()
+    results = []
+
+    for d_km in BUCKETS_KM:
+        d_m  = d_km * 1000
+        low  = d_m * (1 - TOLERANCE)
+        high = d_m * (1 + TOLERANCE)
+
+        row = conn.execute(f"""
+            SELECT id, name, start_date_local AS date,
+                   distance_m, moving_time_s, avg_speed_ms
+            FROM activities
+            WHERE activity_type IN ({ph})
+              AND distance_m BETWEEN ? AND ?
+              AND avg_speed_ms IS NOT NULL
+              AND moving_time_s > 0
+            ORDER BY avg_speed_ms DESC
+            LIMIT 1
+        """, (*RIDE_TYPES, low, high)).fetchone()
+
+        if row:
+            results.append({
+                'distance_km':        d_km,
+                'best_speed_kmh':     round(row['avg_speed_ms'] * 3.6, 1),
+                'best_time_s':        row['moving_time_s'],
+                'activity_id':        row['id'],
+                'activity_name':      row['name'],
+                'date':               row['date'],
+                'actual_distance_km': round(row['distance_m'] / 1000, 1),
+            })
+        else:
+            results.append({
+                'distance_km':        d_km,
+                'best_speed_kmh':     None,
+                'best_time_s':        None,
+                'activity_id':        None,
+                'activity_name':      None,
+                'date':               None,
+                'actual_distance_km': None,
+            })
+
+    conn.close()
+    return {'buckets': results}
+
+
 @router.get("/route-clusters")
 def route_clusters(min_rides: int = Query(3)):
     """
