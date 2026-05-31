@@ -23,7 +23,11 @@ export function PageHeader({ title, subtitle, years, selectedYear, onYearChange,
             onValueChange={onYearChange}
           >
             <SelectTrigger className="w-28 h-8 text-sm">
-              <SelectValue />
+              <SelectValue>
+                {selectedYear !== null && selectedYear !== undefined && String(selectedYear) !== 'all'
+                  ? String(selectedYear)
+                  : 'Alle Jahre'}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Alle Jahre</SelectItem>

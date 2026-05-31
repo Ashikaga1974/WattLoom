@@ -14,9 +14,9 @@ Lokale Web-App zur Analyse von Strava-Exportdaten. Kein Strava-API-Zugriff nöti
 
 | Bereich | Was es kann |
 |---------|-------------|
-| **Dashboard** | Schnellübersicht: letzte Wochen, Jahresstatistik, Streak |
+| **Dashboard** | Hero-Banner (letzter Ride), animierte KPI-Zahlen (count-up), Distanz-Chart, Trainingsvolumen, letzte Aktivitäten, Bike-Progress |
 | **Aktivitätsliste** | Filterbar nach Jahr, Bike, GPS-Track; sortierbar |
-| **Aktivitätsdetail** | Karte (Leaflet), Höhenprofil, Geschwindigkeits- und HR-Profil, kombinierte Ansicht, Fotos |
+| **Aktivitätsdetail** | Karte (Leaflet), Höhenprofil, Geschwindigkeits-Profil (Farben synchron mit Karten-Gradient), HR-Profil, Fotos |
 | **Jahresrückblick** | „Wrapped"-Style: beste Rides, stärkste Monate, Tages-/Stunden-Heatmaps |
 | **Jahresfortschritt** | Kumulative km pro Kalendarjahr mit Prognose |
 | **Heatmap** | Alle Tracks als interaktive Karte, filterbar nach Jahr |
