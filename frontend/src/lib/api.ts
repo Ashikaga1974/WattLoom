@@ -221,6 +221,82 @@ export interface RouteClustersResponse {
 	clusters: RouteCluster[];
 }
 
+export interface CadenceStats {
+	rides_with_cadence: number;
+	total_points: number;
+	avg_cadence: number;
+	max_cadence: number;
+	mode_cadence: number;
+}
+
+export interface CadenceDistributionPoint {
+	cadence: number;
+	count: number;
+}
+
+export interface CadenceMonthly {
+	month: string;
+	avg_cadence: number;
+	rides: number;
+}
+
+export interface CadenceZone {
+	name: string;
+	min: number;
+	max: number;
+	count: number;
+}
+
+export interface CadenceEfficiency {
+	cadence_mid: number;
+	avg_speed_kmh: number;
+	avg_hr: number;
+	count: number;
+}
+
+export interface CadenceData {
+	stats: CadenceStats;
+	distribution: CadenceDistributionPoint[];
+	monthly: CadenceMonthly[];
+	zones: CadenceZone[];
+	efficiency: CadenceEfficiency[];
+}
+
+export interface FatigueRide {
+	activity_id: number;
+	activity_name: string;
+	date: string;
+	dist_km: number;
+	fatigue_pct: number;
+	spd_h1_kmh: number;
+	spd_h2_kmh: number;
+}
+
+export interface FatigueRideDetail {
+	fatigue_pct: number;
+	activity_id: number;
+	activity_name: string;
+	date: string;
+	dist_km: number;
+	spd_h1_kmh: number;
+	spd_h2_kmh: number;
+}
+
+export interface FatigueData {
+	stats: {
+		rides_analyzed: number;
+		avg_fatigue_pct: number | null;
+		negative_split_count: number;
+		positive_split_count: number;
+	};
+	best_negative: FatigueRideDetail | null;
+	worst_fatigue: FatigueRideDetail | null;
+	distribution: { bucket: number; count: number }[];
+	monthly: { month: string; avg_fatigue_pct: number; rides: number; neg_split_pct: number }[];
+	rides: FatigueRide[];
+	by_distance: { label: string; avg_fatigue_pct: number | null; rides: number }[];
+}
+
 export interface BikeCompareSummary {
 	id: string;
 	name: string;
@@ -392,4 +468,10 @@ export const api = {
 
 	otherActivities: (year?: number): Promise<OtherActivity[]> =>
 		get(`/activities/other${buildQuery({ year })}`),
+
+	cadence: (year?: number): Promise<CadenceData> =>
+		get(`/analytics/cadence${buildQuery({ year })}`),
+
+	fatigueIndex: (year?: number): Promise<FatigueData> =>
+		get(`/analytics/fatigue-index${buildQuery({ year })}`),
 };

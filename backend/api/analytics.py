@@ -900,6 +900,194 @@ def route_clusters(min_rides: int = Query(3)):
     return {'clusters': clusters}
 
 
+@router.get("/fatigue-index")
+def fatigue_index(year: int = Query(None)):
+    """
+    Ermüdungsindex je Ride: Vergleich der Durchschnittsgeschwindigkeit erster vs. zweiter Hälfte.
+    fatigue_pct = (spd_h1 - spd_h2) / spd_h1 * 100
+    Positiv = Ermüdung (langsamer in H2), Negativ = Negativsplit (schneller in H2).
+    Nur Rides mit ≥ 60 Track-Punkten, speed_ms > 0, distance_m IS NOT NULL.
+    """
+    RIDE_TYPES = ('Ride', 'VirtualRide', 'EBikeRide')
+
+    conn = get_connection()
+
+    # Jahresfilter optional
+    year_filter = ""
+    params: list = []
+    if year:
+        year_filter = "AND strftime('%Y', a.start_date_local) = ?"
+        params.append(str(year))
+
+    ph = ','.join('?' * len(RIDE_TYPES))
+
+    # Window-Function: max(distance_m) je Aktivität, dann Halbzeit-Split per AVG-CASE
+    rows = conn.execute(
+        f"""
+        WITH ranked AS (
+            SELECT
+                tp.activity_id,
+                tp.distance_m,
+                tp.speed_ms,
+                MAX(tp.distance_m) OVER (PARTITION BY tp.activity_id) AS max_dist,
+                a.start_date_local,
+                a.name,
+                a.id AS act_id
+            FROM track_points tp
+            JOIN activities a ON a.id = tp.activity_id
+            WHERE tp.speed_ms > 0
+              AND tp.distance_m IS NOT NULL
+              AND a.activity_type IN ({ph})
+              {year_filter}
+        ),
+        halves AS (
+            SELECT
+                activity_id,
+                MAX(act_id)           AS activity_id_val,
+                MAX(start_date_local) AS date,
+                MAX(name)             AS name,
+                AVG(CASE WHEN distance_m <= max_dist / 2.0 THEN speed_ms END) AS spd_h1,
+                AVG(CASE WHEN distance_m >  max_dist / 2.0 THEN speed_ms END) AS spd_h2,
+                MAX(max_dist) / 1000.0 AS dist_km,
+                COUNT(*) AS pts
+            FROM ranked
+            GROUP BY activity_id
+            HAVING pts >= 60
+        )
+        SELECT
+            activity_id_val  AS activity_id,
+            name,
+            date,
+            ROUND(dist_km, 1) AS dist_km,
+            spd_h1,
+            spd_h2,
+            (spd_h1 - spd_h2) / spd_h1 * 100 AS fatigue_pct
+        FROM halves
+        WHERE spd_h1 IS NOT NULL AND spd_h2 IS NOT NULL
+        ORDER BY date DESC
+        """,
+        (*RIDE_TYPES, *params),
+    ).fetchall()
+
+    conn.close()
+
+    if not rows:
+        return {
+            "stats": {
+                "rides_analyzed": 0,
+                "avg_fatigue_pct": None,
+                "negative_split_count": 0,
+                "positive_split_count": 0,
+            },
+            "best_negative": None,
+            "worst_fatigue": None,
+            "distribution": [],
+            "monthly": [],
+            "rides": [],
+            "by_distance": [],
+        }
+
+    # --- Rides-Liste aufbauen ---
+    rides = []
+    for r in rows:
+        rides.append({
+            "activity_id":   r["activity_id"],
+            "activity_name": r["name"],
+            "date":          r["date"],
+            "dist_km":       round(r["dist_km"], 1),
+            "fatigue_pct":   round(r["fatigue_pct"], 1),
+            "spd_h1_kmh":    round(r["spd_h1"] * 3.6, 1),
+            "spd_h2_kmh":    round(r["spd_h2"] * 3.6, 1),
+        })
+
+    fatigue_vals = [r["fatigue_pct"] for r in rows]
+    neg_count = sum(1 for v in fatigue_vals if v < 0)
+    pos_count = sum(1 for v in fatigue_vals if v >= 0)
+    avg_fatigue = sum(fatigue_vals) / len(fatigue_vals)
+
+    # --- Extremwerte ---
+    best_neg_row = min(rows, key=lambda r: r["fatigue_pct"])
+    worst_row    = max(rows, key=lambda r: r["fatigue_pct"])
+
+    def ride_detail(r):
+        return {
+            "fatigue_pct":   round(r["fatigue_pct"], 1),
+            "activity_id":   r["activity_id"],
+            "activity_name": r["name"],
+            "date":          r["date"][:10] if r["date"] else None,
+            "dist_km":       round(r["dist_km"], 1),
+            "spd_h1_kmh":    round(r["spd_h1"] * 3.6, 1),
+            "spd_h2_kmh":    round(r["spd_h2"] * 3.6, 1),
+        }
+
+    # --- Verteilung: 5%-Buckets von −55 bis +55, Buckets ohne Rides weglassen ---
+    from collections import defaultdict
+    bucket_counts: dict[int, int] = defaultdict(int)
+    for v in fatigue_vals:
+        # Untere Grenze des 5%-Buckets: floor(v/5)*5, aber geclamped auf [-55, 50]
+        b = int(v // 5) * 5
+        b = max(-55, min(50, b))
+        bucket_counts[b] += 1
+
+    distribution = [
+        {"bucket": b, "count": c}
+        for b, c in sorted(bucket_counts.items())
+    ]
+
+    # --- Monatliche Aggregation ---
+    from collections import OrderedDict
+    monthly_map: dict[str, list[float]] = defaultdict(list)
+    for r in rows:
+        month = r["date"][:7] if r["date"] else None
+        if month:
+            monthly_map[month].append(r["fatigue_pct"])
+
+    monthly = []
+    for month in sorted(monthly_map.keys()):
+        vals = monthly_map[month]
+        neg = sum(1 for v in vals if v < 0)
+        monthly.append({
+            "month":           month,
+            "avg_fatigue_pct": round(sum(vals) / len(vals), 1),
+            "rides":           len(vals),
+            "neg_split_pct":   round(neg / len(vals) * 100, 1),
+        })
+
+    # --- by_distance: fixe 4 Kategorien ---
+    dist_buckets = [
+        ("< 20 km",  0,    20),
+        ("20–40 km", 20,   40),
+        ("40–60 km", 40,   60),
+        ("> 60 km",  60, 9999),
+    ]
+    by_distance = []
+    for label, lo, hi in dist_buckets:
+        bucket_vals = [r["fatigue_pct"] for r in rows if lo <= r["dist_km"] < hi]
+        if bucket_vals:
+            by_distance.append({
+                "label":           label,
+                "avg_fatigue_pct": round(sum(bucket_vals) / len(bucket_vals), 1),
+                "rides":           len(bucket_vals),
+            })
+        else:
+            by_distance.append({"label": label, "avg_fatigue_pct": None, "rides": 0})
+
+    return {
+        "stats": {
+            "rides_analyzed":      len(rows),
+            "avg_fatigue_pct":     round(avg_fatigue, 1),
+            "negative_split_count": neg_count,
+            "positive_split_count": pos_count,
+        },
+        "best_negative": ride_detail(best_neg_row),
+        "worst_fatigue": ride_detail(worst_row),
+        "distribution":  distribution,
+        "monthly":       monthly,
+        "rides":         rides,
+        "by_distance":   by_distance,
+    }
+
+
 DURATIONS = [60, 300, 600, 1200, 3600]  # 1min, 5min, 10min, 20min, 60min
 
 
@@ -962,4 +1150,164 @@ def hr_curve(year: int = Query(None, description="Optional: nur dieses Jahr")):
         "durations_s": DURATIONS,
         "labels": ["1 min", "5 min", "10 min", "20 min", "60 min"],
         "best_hr": [round(best[d], 1) for d in DURATIONS],
+    }
+
+
+@router.get("/cadence")
+def cadence_analysis(year: int = Query(None)):
+    """
+    Cadence-Analyse: Statistiken, Verteilung, Monats-Aggregat, Zonen und Effizienz-Buckets.
+    cadence = 0 oder NULL wird überall ignoriert (echte Pausen, kein Signal).
+    """
+    conn = get_connection()
+
+    # Jahresfilter: JOIN auf activities + strftime-Filter
+    year_join  = ""
+    year_where = "WHERE tp.cadence IS NOT NULL AND tp.cadence > 0"
+    params_stats: list = []
+
+    if year:
+        year_join  = "JOIN activities a ON a.id = tp.activity_id"
+        year_where = (
+            "WHERE tp.cadence IS NOT NULL AND tp.cadence > 0"
+            " AND strftime('%Y', a.start_date_local) = ?"
+        )
+        params_stats = [str(year)]
+
+    # --- Globale Statistiken ---
+    stats_row = conn.execute(
+        f"""
+        SELECT
+            COUNT(DISTINCT tp.activity_id)  AS rides_with_cadence,
+            COUNT(*)                        AS total_points,
+            ROUND(AVG(CAST(tp.cadence AS REAL)), 1) AS avg_cadence,
+            MAX(tp.cadence)                 AS max_cadence
+        FROM track_points tp
+        {year_join}
+        {year_where}
+        """,
+        params_stats,
+    ).fetchone()
+
+    # --- Verteilung: cadence 40–130 ---
+    dist_rows = conn.execute(
+        f"""
+        SELECT tp.cadence AS cadence, COUNT(*) AS count
+        FROM track_points tp
+        {year_join}
+        {year_where}
+          AND tp.cadence BETWEEN 40 AND 130
+        GROUP BY tp.cadence
+        ORDER BY tp.cadence
+        """,
+        params_stats,
+    ).fetchall()
+
+    distribution = [{"cadence": r["cadence"], "count": r["count"]} for r in dist_rows]
+
+    # mode_cadence: Wert mit MAX count in der Verteilung
+    mode_cadence = max(distribution, key=lambda d: d["count"])["cadence"] if distribution else None
+
+    # --- Monatliche Aggregation ---
+    monthly_params: list = []
+    monthly_year_join  = "JOIN activities a ON a.id = tp.activity_id"
+    monthly_year_where = "WHERE tp.cadence IS NOT NULL AND tp.cadence > 0"
+
+    if year:
+        monthly_year_where += " AND strftime('%Y', a.start_date_local) = ?"
+        monthly_params = [str(year)]
+
+    monthly_rows = conn.execute(
+        f"""
+        SELECT
+            strftime('%Y-%m', a.start_date_local) AS month,
+            ROUND(AVG(CAST(tp.cadence AS REAL)), 1) AS avg_cadence,
+            COUNT(DISTINCT tp.activity_id) AS rides
+        FROM track_points tp
+        {monthly_year_join}
+        {monthly_year_where}
+        GROUP BY month
+        ORDER BY month
+        """,
+        monthly_params,
+    ).fetchall()
+
+    monthly = [
+        {"month": r["month"], "avg_cadence": r["avg_cadence"], "rides": r["rides"]}
+        for r in monthly_rows
+    ]
+
+    # --- Cadence-Zonen ---
+    ZONES = [
+        {"name": "Schleppen", "min":   0, "max":  59},
+        {"name": "Niedrig",   "min":  60, "max":  69},
+        {"name": "Moderat",   "min":  70, "max":  79},
+        {"name": "Optimal",   "min":  80, "max":  89},
+        {"name": "Hoch",      "min":  90, "max":  99},
+        {"name": "Sprint",    "min": 100, "max": 999},
+    ]
+
+    zones_result = []
+    for z in ZONES:
+        row = conn.execute(
+            f"""
+            SELECT COUNT(*) AS count
+            FROM track_points tp
+            {year_join}
+            {year_where}
+              AND tp.cadence BETWEEN ? AND ?
+            """,
+            params_stats + [z["min"] if z["min"] > 0 else 1, z["max"]],
+        ).fetchone()
+        zones_result.append({
+            "name":  z["name"],
+            "min":   z["min"],
+            "max":   z["max"],
+            "count": row["count"] if row else 0,
+        })
+
+    # --- Effizienz-Buckets: cadence in 5er-Gruppen ---
+    eff_rows = conn.execute(
+        f"""
+        SELECT
+            (tp.cadence / 5) * 5 + 2 AS cadence_mid,
+            ROUND(AVG(tp.speed_ms) * 3.6, 2) AS avg_speed_kmh,
+            ROUND(AVG(CAST(tp.hr AS REAL)), 1) AS avg_hr,
+            COUNT(*) AS count
+        FROM track_points tp
+        {year_join}
+        {year_where}
+          AND tp.hr IS NOT NULL AND tp.hr > 0
+          AND tp.speed_ms IS NOT NULL AND tp.speed_ms > 0
+        GROUP BY cadence_mid
+        HAVING COUNT(*) >= 100
+        ORDER BY cadence_mid
+        """,
+        params_stats,
+    ).fetchall()
+
+    efficiency = [
+        {
+            "cadence_mid":   r["cadence_mid"],
+            "avg_speed_kmh": r["avg_speed_kmh"],
+            "avg_hr":        r["avg_hr"],
+            "count":         r["count"],
+        }
+        for r in eff_rows
+    ]
+
+    conn.close()
+
+    return {
+        "stats": {
+            "rides_with_cadence": stats_row["rides_with_cadence"] if stats_row else 0,
+            "total_points":       stats_row["total_points"]       if stats_row else 0,
+            "avg_cadence":        stats_row["avg_cadence"]        if stats_row else None,
+            "max_cadence":        stats_row["max_cadence"]        if stats_row else None,
+            "mode_cadence":       mode_cadence,
+        },
+        "distribution": distribution,
+        "monthly":      monthly,
+        "zones":        zones_result,
+        "efficiency":   efficiency,
     }

@@ -165,8 +165,8 @@
 		{@const cd = chartData()}
 		<section class="rounded-xl border border-gray-800 bg-gray-800/40 overflow-hidden">
 			<div class="px-4 py-3 bg-gray-800/60 border-b border-gray-700">
-				<h2 class="font-semibold text-gray-100">Bestzeiten nach Distanz</h2>
-				<p class="text-xs text-gray-500 mt-0.5">Schnellste Fahrt je Distanzklasse (±20 %)</p>
+				<h2 class="font-semibold text-gray-100">Beste Ø-Geschwindigkeit nach Distanz</h2>
+				<p class="text-xs text-gray-500 mt-0.5">Höchste Ø-Geschwindigkeit je Distanzklasse (±20 % Toleranz)</p>
 			</div>
 
 			{#if cd}
@@ -248,7 +248,7 @@
 									font-size="10"
 									font-weight="600"
 									fill={hoveredBucket === i ? '#f97316' : '#d1d5db'}
-								>{pt.b.best_speed_kmh} km/h</text>
+								>Ø {pt.b.best_speed_kmh} km/h</text>
 
 								<!-- Tooltip-Box bei Hover -->
 								{#if hoveredBucket === i}
@@ -276,7 +276,7 @@
 							x={PAD.l - 36} y={PAD.t + innerH / 2}
 							text-anchor="middle" font-size="10" fill="#6b7280"
 							transform="rotate(-90, {PAD.l - 36}, {PAD.t + innerH / 2})"
-						>km/h</text>
+						>Ø km/h</text>
 
 					</svg>
 				</div>
@@ -288,7 +288,7 @@
 							<tr class="text-left text-gray-600 uppercase tracking-wide border-b border-gray-800">
 								<th class="px-4 py-2 font-medium">Distanz</th>
 								<th class="px-4 py-2 font-medium">Bestzeit</th>
-								<th class="px-4 py-2 font-medium">Speed</th>
+								<th class="px-4 py-2 font-medium">Ø km/h</th>
 								<th class="px-4 py-2 font-medium">Aktivität</th>
 								<th class="px-4 py-2 font-medium">Datum</th>
 							</tr>
@@ -299,7 +299,7 @@
 									<td class="px-4 py-2 font-semibold text-gray-300">{b.distance_km} km</td>
 									{#if b.activity_id}
 										<td class="px-4 py-2 font-mono text-amber-400 font-semibold">{fmtTime(b.best_time_s)}</td>
-										<td class="px-4 py-2 text-gray-300">{b.best_speed_kmh} km/h</td>
+										<td class="px-4 py-2 text-gray-300">Ø {b.best_speed_kmh} km/h</td>
 										<td class="px-4 py-2">
 											<a href="/activities/{b.activity_id}" class="text-gray-400 hover:text-orange-400 transition-colors truncate max-w-[200px] block">
 												{b.activity_name}

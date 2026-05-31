@@ -15,7 +15,7 @@
 		p.startsWith('/activities') || p === '/calendar' || p === '/best'
 	);
 	const isAnalyse = $derived(
-		['/training', '/compare', '/form', '/stats', '/hrcurve', '/timeheatmap', '/speedhr', '/progress', '/ftp', '/tempcorr', '/wrapped']
+		['/training', '/compare', '/form', '/stats', '/hrcurve', '/timeheatmap', '/speedhr', '/progress', '/ftp', '/tempcorr', '/wrapped', '/cadence', '/fatigue-index']
 			.some(r => p.startsWith(r))
 	);
 	const isKarte        = $derived(p === '/heatmap' || p.startsWith('/strecken') || p.startsWith('/routes'));
@@ -23,8 +23,8 @@
 	const isDash         = $derived(p === '/');
 	const isBerechnungen = $derived(p === '/berechnungen');
 
-	const isVolumen     = $derived(['/progress', '/training', '/compare'].some(r => p.startsWith(r)));
-	const isLeistung    = $derived(['/ftp', '/hrcurve'].some(r => p.startsWith(r)));
+	const isVolumen     = $derived(['/progress', '/training', '/compare', '/fatigue-index'].some(r => p.startsWith(r)));
+	const isLeistung    = $derived(['/ftp', '/hrcurve', '/cadence'].some(r => p.startsWith(r)));
 	const isForm        = $derived(p.startsWith('/form'));
 	const isAnalysen    = $derived(['/speedhr', '/tempcorr', '/timeheatmap'].some(r => p.startsWith(r)));
 	const isStatistiken = $derived(['/stats', '/wrapped'].some(r => p.startsWith(r)));
@@ -131,9 +131,10 @@
 							{#if isVolumen}
 								<div class="border-l border-gray-700 ml-2 pl-2 space-y-0.5">
 									{#each [
-										{ href: '/progress', label: 'Jahresfortschritt' },
-										{ href: '/training', label: 'Training' },
-										{ href: '/compare',  label: 'Jahresvergleich' },
+										{ href: '/progress',       label: 'Jahresfortschritt' },
+										{ href: '/training',       label: 'Training' },
+										{ href: '/compare',        label: 'Jahresvergleich' },
+										{ href: '/fatigue-index',  label: 'Ermüdung' },
 									] as item}
 										<a href={item.href}
 											class="flex items-center px-2 py-1 text-xs rounded transition-colors hover:text-orange-200"
@@ -157,6 +158,7 @@
 									{#each [
 										{ href: '/ftp',     label: 'FTP' },
 										{ href: '/hrcurve', label: 'HR-Kurve' },
+										{ href: '/cadence', label: 'Kadenz' },
 									] as item}
 										<a href={item.href}
 											class="flex items-center px-2 py-1 text-xs rounded transition-colors hover:text-orange-200"

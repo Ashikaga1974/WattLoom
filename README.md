@@ -28,7 +28,10 @@ Lokale Web-App zur Analyse von Strava-Exportdaten. Kein Strava-API-Zugriff nöti
 | **Jahresvergleich** | Jahre direkt gegenüberstellen |
 | **Bikes** | Kilometerstand und Statistiken je Fahrrad |
 | **Bike-Vergleich** | Bikes gegenüberstellen (km, Speed, Höhenmeter, Jahresverlauf) |
+| **Top-Strecken** | Greedy-Clustering aller Rides (2 km Startradius, ±15 % Distanz), SVG-Zeitchart mit PR-Markierung, Trend, Karte |
 | **Streckenvergleich** | Ähnliche Rides finden (Haversine-Radius + Distanzabgleich) |
+| **Kadenz-Analyse** | Radiales Verteilungsdiagramm (Polar-Chart), 6 Kadenz-Zonen, Monatstrend, Effizienz-Sweetspot |
+| **Ermüdungsindex** | Speed 1. vs. 2. Hälfte pro Ride – Histogramm, Negativsplit-Erkennung, Monatstrend |
 | **Zeit-Heatmap** | Aktivitäten nach Wochentag/Uhrzeit |
 | **Temp-Korrelation** | Zusammenhang Temperatur ↔ Leistung/Speed |
 | **Kalender** | Monatskalender aller Aktivitäten |
@@ -178,6 +181,9 @@ MyBiking/
 │           ├── settings/           # Einstellungen + Import
 │           ├── speedhr/            # Aerobe Effizienz
 │           ├── stats/              # Verteilungsdiagramme
+│           ├── routes/             # Top-Strecken (Greedy-Clustering)
+│           ├── cadence/            # Kadenz-Analyse (Polar-Chart, Zonen)
+│           ├── fatigue-index/      # Ermüdungsindex (H1 vs. H2 Speed)
 │           ├── strecken/           # Streckenvergleich
 │           ├── tempcorr/           # Temp-Korrelation
 │           ├── timeheatmap/        # Zeit-Heatmap
@@ -215,6 +221,10 @@ GET  /analytics/hr-curve            ?year
 GET  /analytics/pmc
 GET  /analytics/wrapped             ?year, tz_offset
 GET  /analytics/weekly-volume       ?weeks
+GET  /analytics/best-by-distance               → schnellste Ø-Geschwindigkeit je Distanzklasse (1–60 km, ±20%)
+GET  /analytics/route-clusters      ?min_rides → Greedy-Clustering aller Rides nach Startpunkt + Distanz
+GET  /analytics/cadence             ?year      → Distribution, Zonen, Monatsverlauf, Effizienz-Buckets
+GET  /analytics/fatigue-index       ?year      → Ermüdungsindex (H1 vs. H2 Speed) je Ride + Trend
 
 GET  /bikes
 GET  /bikes/{id}
@@ -254,6 +264,7 @@ Alle verwendeten Formeln sind auf der Seite `/berechnungen` dokumentiert und wer
 | **ATL** | 7-Tage EMA, K = 2/8 |
 | **TSB** | `CTL − ATL` |
 | **Aerobe Effizienz** | `avg_speed_kmh / avg_hr × 100` (monatlich aggregiert) |
+| **Ermüdungsindex** | `(spd_h1 − spd_h2) / spd_h1 × 100` (positiv = Ermüdung, negativ = Negativsplit) |
 | **Jahresprognose** | `(km_heute / Jahrestag) × 365` |
 
 ---
