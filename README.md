@@ -3,8 +3,10 @@
 Lokale Web-App zur Analyse von Strava-Exportdaten. Kein Strava-API-Zugriff nötig – alles läuft lokal auf Basis eines heruntergeladenen ZIP-Exports.
 
 ![Stack](https://img.shields.io/badge/Backend-FastAPI%20%2B%20SQLite-blue)
-![Stack](https://img.shields.io/badge/Frontend-SvelteKit%205%20%2B%20TailwindCSS%20v4-orange)
+![Stack](https://img.shields.io/badge/Frontend-React%2019%20%2B%20Vite%20%2B%20shadcn%2Fui-orange)
 ![Platform](https://img.shields.io/badge/Platform-Linux%20%2F%20macOS-lightgrey)
+
+> **Branch `design-refresh`** – React 19 + Vite + shadcn/ui base-nova. Der stabile SvelteKit-Stand ist im Branch `main`.
 
 ---
 
@@ -16,7 +18,7 @@ Lokale Web-App zur Analyse von Strava-Exportdaten. Kein Strava-API-Zugriff nöti
 | **Aktivitätsliste** | Filterbar nach Jahr, Bike, GPS-Track; sortierbar |
 | **Aktivitätsdetail** | Karte (Leaflet), Höhenprofil, Geschwindigkeits- und HR-Profil, kombinierte Ansicht, Fotos |
 | **Jahresrückblick** | „Wrapped"-Style: beste Rides, stärkste Monate, Tages-/Stunden-Heatmaps |
-| **Jahresfortschritt** | Kumulative km pro Kalenderjar mit Prognose |
+| **Jahresfortschritt** | Kumulative km pro Kalendarjahr mit Prognose |
 | **Heatmap** | Alle Tracks als interaktive Karte, filterbar nach Jahr |
 | **Aerobe Effizienz** | Monatliche Effizienz-Trendlinie (Geschwindigkeit ÷ HF), Jahresvergleich |
 | **HR-Kurve** | Beste Durchschnitts-HF über verschiedene Dauern |
@@ -28,7 +30,7 @@ Lokale Web-App zur Analyse von Strava-Exportdaten. Kein Strava-API-Zugriff nöti
 | **Jahresvergleich** | Jahre direkt gegenüberstellen |
 | **Bikes** | Kilometerstand und Statistiken je Fahrrad |
 | **Bike-Vergleich** | Bikes gegenüberstellen (km, Speed, Höhenmeter, Jahresverlauf) |
-| **Top-Strecken** | Greedy-Clustering aller Rides (2 km Startradius, ±15 % Distanz), SVG-Zeitchart mit PR-Markierung, Trend, Karte |
+| **Top-Strecken** | Greedy-Clustering aller Rides (2 km Startradius, ±15 % Distanz), Zeitchart mit PR-Markierung, Trend, Karte |
 | **Streckenvergleich** | Ähnliche Rides finden (Haversine-Radius + Distanzabgleich) |
 | **Kadenz-Analyse** | Radiales Verteilungsdiagramm (Polar-Chart), 6 Kadenz-Zonen, Monatstrend, Effizienz-Sweetspot |
 | **Ermüdungsindex** | Speed 1. vs. 2. Hälfte pro Ride – Histogramm, Negativsplit-Erkennung, Monatstrend |
@@ -37,12 +39,6 @@ Lokale Web-App zur Analyse von Strava-Exportdaten. Kein Strava-API-Zugriff nöti
 | **Kalender** | Monatskalender aller Aktivitäten |
 | **Berechnungen** | Dokumentation aller verwendeten Formeln und Parameter |
 | **Einstellungen** | Gewicht, Geburtsjahr, manueller FTP, Zeitzone |
-
----
-
-## Screenshot
-
-> Dashboard und Aktivitätsdetail mit Kartenansicht, Profilen und Stats.
 
 ---
 
@@ -71,7 +67,6 @@ download/export_XXXXXXXX.zip
 ### 2. Backend einrichten
 
 ```bash
-# Aus dem Projektwurzel
 python3 -m venv .venv
 source .venv/bin/activate        # Linux/macOS
 pip install -r backend/requirements.txt
@@ -111,18 +106,15 @@ Im Browser: **Einstellungen → Import starten** – der Importer liest die ZIP,
 Für dauerhaften Betrieb ohne manuellen Start:
 
 ```bash
-# Services aktivieren
 systemctl --user enable mybiking-backend.service
 systemctl --user enable mybiking-frontend.service
-
-# Ohne aktive Login-Session laufen lassen
 loginctl enable-linger $USER
 
 # Manuell steuern
 systemctl --user start|stop|restart mybiking-backend
 systemctl --user start|stop|restart mybiking-frontend
 
-# Logs beobachten
+# Logs
 journalctl --user -u mybiking-backend.service -f
 ```
 
@@ -154,45 +146,50 @@ MyBiking/
 │   └── requirements.txt
 ├── frontend/
 │   └── src/
+│       ├── main.tsx                    # Einstiegspunkt, React + Router
+│       ├── App.tsx                     # Root-Komponente mit react-router-dom-Routen
+│       ├── index.css                   # TailwindCSS v4, CSS Custom Properties, Themes
 │       ├── lib/
-│       │   ├── api.ts              # Typisierter API-Client
-│       │   ├── config.ts           # Zentrale Parameter (Glättung, Vereinfachung, …)
-│       │   ├── chart-utils.ts      # Catmull-Rom → Bezier Splines
-│       │   ├── tz.svelte.ts        # Timezone-Handling (UTC→lokal)
-│       │   ├── ElevationProfile.svelte
-│       │   ├── SpeedProfile.svelte
-│       │   ├── HRProfile.svelte
-│       │   ├── CombinedProfile.svelte
-│       │   └── Sparkline.svelte
-│       └── routes/
-│           ├── +layout.svelte      # Navigation
-│           ├── +page.svelte        # Dashboard
-│           ├── activities/         # Liste + Detailseite
-│           ├── berechnungen/       # Formel-Dokumentation
-│           ├── best/               # Bestzeiten / Rekorde
-│           ├── bikes/              # Bike-Übersicht + Vergleich
-│           ├── calendar/           # Monatskalender
-│           ├── compare/            # Jahresvergleich
-│           ├── form/               # Formkurve (PMC)
-│           ├── ftp/                # FTP-Analyse
-│           ├── heatmap/            # Karten-Heatmap
-│           ├── hrcurve/            # HR-Kurve
-│           ├── progress/           # Jahresfortschritt + Prognose
-│           ├── settings/           # Einstellungen + Import
-│           ├── speedhr/            # Aerobe Effizienz
-│           ├── stats/              # Verteilungsdiagramme
-│           ├── routes/             # Top-Strecken (Greedy-Clustering)
-│           ├── cadence/            # Kadenz-Analyse (Polar-Chart, Zonen)
-│           ├── fatigue-index/      # Ermüdungsindex (H1 vs. H2 Speed)
-│           ├── strecken/           # Streckenvergleich
-│           ├── tempcorr/           # Temp-Korrelation
-│           ├── timeheatmap/        # Zeit-Heatmap
-│           ├── training/           # Wochentraining
-│           └── wrapped/            # Jahresrückblick
+│       │   ├── api.ts                  # Typisierter API-Client
+│       │   ├── config.ts               # Zentrale Parameter (Glättung, Vereinfachung, …)
+│       │   ├── format.ts               # fmtKm, fmtSpeed, fmtTime, fmtDate, fmtNum
+│       │   └── utils.ts                # cn() Tailwind-Merge-Helper
+│       ├── components/
+│       │   ├── layout/
+│       │   │   └── AppSidebar.tsx      # Collapsible Sidebar mit Sub-Navigation
+│       │   ├── LeafletMap.tsx          # Leaflet-Karte (React.lazy), Speed-Halo, Hover-Sync
+│       │   └── ui/                     # shadcn/ui base-nova Komponenten
+│       ├── hooks/
+│       │   └── use-mobile.ts
+│       └── pages/                      # 25 Seiten als .tsx
+│           ├── DashboardPage.tsx
+│           ├── ActivitiesPage.tsx
+│           ├── ActivityDetailPage.tsx
+│           ├── BestPage.tsx
+│           ├── BikesPage.tsx
+│           ├── BikeComparePage.tsx
+│           ├── CalendarPage.tsx
+│           ├── ComparePage.tsx
+│           ├── FormPage.tsx
+│           ├── FtpPage.tsx
+│           ├── HeatmapPage.tsx
+│           ├── HrCurvePage.tsx
+│           ├── ProgressPage.tsx
+│           ├── SettingsPage.tsx
+│           ├── RoutesPage.tsx
+│           ├── SpeedHrPage.tsx
+│           ├── StatsPage.tsx
+│           ├── StreckenPage.tsx
+│           ├── TempCorrPage.tsx
+│           ├── TimeHeatmapPage.tsx
+│           ├── TrainingPage.tsx
+│           ├── WrappedPage.tsx
+│           ├── BerechnungenPage.tsx
+│           ├── CadencePage.tsx
+│           └── FatigueIndexPage.tsx
 ├── data/
 │   └── mybiking.db          # SQLite-Datenbank (wird beim Import erstellt)
 ├── download/                # Strava-Export-ZIP ablegen
-├── SETUP.md                 # Detaillierte Setup-Doku (VS Code, systemd, …)
 └── README.md
 ```
 
@@ -303,9 +300,11 @@ In [frontend/src/lib/config.ts](frontend/src/lib/config.ts):
 - **lxml** – TCX/GPX-Parsing
 
 ### Frontend
-- **SvelteKit** mit **Svelte 5 Runes** (`$state`, `$derived`, `$effect`)
+- **React 19** + **Vite** – SPA mit react-router-dom v7
+- **shadcn/ui base-nova** – Komponenten-Bibliothek (nutzt `@base-ui/react`)
+- **Recharts** – Chart-Bibliothek
 - **TailwindCSS v4**
-- **Leaflet.js** – interaktive Karten und Heatmaps
+- **Leaflet.js** – interaktive Karten (dynamischer Import via `React.lazy()`)
 - **TypeScript** – vollständig typisiert
 
 ---

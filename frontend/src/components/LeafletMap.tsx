@@ -72,7 +72,7 @@ export default function LeafletMap({ points, speedColorBuckets = 20, onReady }: 
 
     // Zoom-adaptive Linienbreite: skaliert mit dem Zoom-Level
     function lineWeight(zoom: number) {
-      return Math.max(2, Math.min(9, zoom - 9));
+      return Math.max(3, Math.min(10, zoom - 7));
     }
 
     // Alle Polylines (Halo + Farbe) für späteres Resizing sammeln
@@ -81,16 +81,15 @@ export default function LeafletMap({ points, speedColorBuckets = 20, onReady }: 
 
     function updateWeights() {
       const cw = lineWeight(map.getZoom());
-      haloLines.forEach(l => l.setStyle({ weight: cw + 3 }));
+      haloLines.forEach(l => l.setStyle({ weight: cw + 4 }));
       colorLines.forEach(l => l.setStyle({ weight: cw }));
     }
 
     if (!hasSpeed) {
-      const halo = L.polyline(latLngs, { ...lineOpts, color: '#ffffff', weight: lineWeight(map.getZoom()) + 3, opacity: 0.9 }).addTo(map);
+      const halo = L.polyline(latLngs, { ...lineOpts, color: '#1a1a1a', weight: lineWeight(map.getZoom()) + 4, opacity: 0.55 }).addTo(map);
       const poly = L.polyline(latLngs, { ...lineOpts, color: '#fc4c02', weight: lineWeight(map.getZoom()), opacity: 1.0 }).addTo(map);
       haloLines.push(halo);
       colorLines.push(poly);
-      map.fitBounds(poly.getBounds(), { padding: [6, 6] });
     } else {
       const minSpd = Math.min(...validSpeeds);
       const maxSpd = Math.max(...validSpeeds);
@@ -124,13 +123,11 @@ export default function LeafletMap({ points, speedColorBuckets = 20, onReady }: 
 
       const cw = lineWeight(map.getZoom());
       for (const seg of segments) {
-        haloLines.push(L.polyline(seg.lls, { ...lineOpts, color: '#ffffff', weight: cw + 3, opacity: 0.85 }).addTo(map));
+        haloLines.push(L.polyline(seg.lls, { ...lineOpts, color: '#1a1a1a', weight: cw + 4, opacity: 0.55 }).addTo(map));
       }
       for (const seg of segments) {
         colorLines.push(L.polyline(seg.lls, { ...lineOpts, color: seg.color, weight: cw, opacity: 1.0 }).addTo(map));
       }
-
-      map.fitBounds(L.polyline(latLngs).getBounds(), { padding: [6, 6] });
 
       const legend = (L.control as unknown as (opts: object) => L.Control)({ position: 'bottomright' });
       (legend as L.Control & { onAdd: () => HTMLElement }).onAdd = () => {
@@ -148,6 +145,14 @@ export default function LeafletMap({ points, speedColorBuckets = 20, onReady }: 
       };
       legend.addTo(map);
     }
+
+    // invalidateSize muss vor fitBounds kommen – Leaflet kennt sonst die Container-Größe nicht.
+    // updateWeights danach explizit aufrufen, da getZoom() beim Polyline-Erstellen noch 0 war.
+    requestAnimationFrame(() => {
+      map.invalidateSize(false);
+      map.fitBounds(L.polyline(latLngs).getBounds(), { padding: [6, 6] });
+      updateWeights();
+    });
 
     map.on('zoomend', updateWeights);
 
