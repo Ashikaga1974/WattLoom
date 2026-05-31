@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { api, type Activity, type Bike } from '@/lib/api';
-import { fmtKm, fmtTime, fmtDate, fmtSpeed } from '@/lib/format';
+import { fmtKm, fmtTime, fmtDate, fmtClock, fmtWeekday, fmtSpeed } from '@/lib/format';
 import { PageHeader } from '@/components/ui/page-header';
 import { Card, CardContent } from '@/components/ui/card';
 import {
@@ -33,6 +33,14 @@ export default function ActivitiesPage() {
 
   const [availableYears, setAvailableYears] = useState<string[]>([]);
   const [bikes, setBikes] = useState<Bike[]>([]);
+
+  const sortLabels: Record<string, string> = {
+    start_date: 'Datum',
+    distance_m: 'Distanz',
+    moving_time_s: 'Zeit',
+    avg_speed_ms: 'Geschwindigkeit',
+    elevation_gain_m: 'Höhenmeter',
+  };
 
   async function loadMeta() {
     const [s, b] = await Promise.all([api.activityStats(), api.bikes()]);
@@ -103,7 +111,7 @@ export default function ActivitiesPage() {
               onValueChange={v => setFilterYear(!v || v === 'all' ? '' : v)}
             >
               <SelectTrigger className="w-32 h-8 text-sm">
-                <SelectValue placeholder="Alle Jahre" />
+                <SelectValue>{filterYear || 'Alle Jahre'}</SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Alle Jahre</SelectItem>
@@ -118,7 +126,7 @@ export default function ActivitiesPage() {
               onValueChange={v => setFilterBike(!v || v === 'all' ? '' : v)}
             >
               <SelectTrigger className="w-40 h-8 text-sm">
-                <SelectValue placeholder="Alle Bikes" />
+                <SelectValue>{filterBike ? (bikes.find(b => b.id === filterBike)?.name ?? filterBike) : 'Alle Bikes'}</SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Alle Bikes</SelectItem>
@@ -133,7 +141,7 @@ export default function ActivitiesPage() {
               onValueChange={v => setSortBy(v ?? 'start_date')}
             >
               <SelectTrigger className="w-44 h-8 text-sm">
-                <SelectValue />
+                <SelectValue>{sortLabels[sortBy] ?? sortBy}</SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="start_date">Datum</SelectItem>
@@ -176,9 +184,10 @@ export default function ActivitiesPage() {
             <thead>
               <tr className="border-b border-border bg-muted/50">
                 <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Datum</th>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider hidden sm:table-cell">Uhrzeit</th>
                 <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Name</th>
                 <th className="text-right px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Distanz</th>
-                <th className="text-right px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Zeit</th>
+                <th className="text-right px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Dauer</th>
                 <th className="text-right px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">km/h</th>
                 <th className="text-right px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider hidden md:table-cell">Hm</th>
                 <th className="text-right px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider hidden md:table-cell">HR</th>
@@ -189,14 +198,14 @@ export default function ActivitiesPage() {
               {loading ? (
                 Array.from({ length: 10 }).map((_, i) => (
                   <tr key={i} className="border-b border-border/50">
-                    <td colSpan={8} className="px-4 py-3">
+                    <td colSpan={9} className="px-4 py-3">
                       <Skeleton className="h-4" style={{ width: `${60 + (i % 5) * 8}%` }} />
                     </td>
                   </tr>
                 ))
               ) : activities.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-4 py-10 text-center text-muted-foreground">
+                  <td colSpan={9} className="px-4 py-10 text-center text-muted-foreground">
                     Keine Aktivitäten gefunden.
                   </td>
                 </tr>
@@ -208,7 +217,13 @@ export default function ActivitiesPage() {
                     onClick={() => navigate(`/activities/${act.id}`)}
                   >
                     <td className="px-4 py-3 text-muted-foreground whitespace-nowrap text-xs">
-                      {fmtDate(act.start_date)}
+                      <div className="flex items-center gap-1">
+                        <span>{fmtDate(act.start_date)}</span>
+                        <span className="text-muted-foreground/50">{fmtWeekday(act.start_date)}</span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-muted-foreground whitespace-nowrap text-xs hidden sm:table-cell">
+                      {fmtClock(act.start_date)}
                     </td>
                     <td className="px-4 py-3 max-w-xs">
                       <span className="truncate block font-medium">{act.name}</span>

@@ -43,6 +43,18 @@ export function fmtDateShort(dateStr: string): string {
   return d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: '2-digit' });
 }
 
+/** ISO-Datum → Wochentag-Kürzel (z.B. "Mo.") */
+export function fmtWeekday(dateStr: string): string {
+  const d = new Date(dateStr.endsWith('Z') ? dateStr : dateStr + 'Z');
+  return d.toLocaleDateString('de-DE', { weekday: 'short' });
+}
+
+/** ISO-Datum → Uhrzeit (z.B. "08:45") */
+export function fmtClock(dateStr: string): string {
+  const d = new Date(dateStr.endsWith('Z') ? dateStr : dateStr + 'Z');
+  return d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+}
+
 /** Zahl mit Tausender-Trennzeichen */
 export function fmtNum(n: number, decimals = 0): string {
   return n.toLocaleString('de-DE', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
