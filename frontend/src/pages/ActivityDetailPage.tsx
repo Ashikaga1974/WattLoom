@@ -210,6 +210,12 @@ function HRChart({ points, onHover, activeDist }: { points: TrackPoint[]; onHove
   );
 }
 
+// Gleiche Formel wie LeafletMap: blau(240)=langsam → rot(0)=schnell
+function speedHue(kmh: number, minSpd: number, maxSpd: number): string {
+  const t = maxSpd > minSpd ? Math.max(0, Math.min(1, (kmh - minSpd) / (maxSpd - minSpd))) : 0;
+  return `hsl(${Math.round(240 - t * 240)},90%,50%)`;
+}
+
 function SpeedChart({ points, onHover, activeDist }: { points: TrackPoint[]; onHover?: HoverFn; activeDist?: number | null }) {
   const valid = points.map((p, i) => ({ p, i })).filter(({ p }) => p.speed_ms != null && p.speed_ms > 0 && p.distance_m != null);
   if (valid.length < 2) return null;
@@ -219,6 +225,20 @@ function SpeedChart({ points, onHover, activeDist }: { points: TrackPoint[]; onH
     speed: Math.round(p.speed_ms! * 3.6 * 10) / 10,
     origIdx: i,
   }));
+
+  const speeds = data.map(d => d.speed);
+  const minSpd = Math.min(...speeds);
+  const maxSpd = Math.max(...speeds);
+  const maxDist = data[data.length - 1].dist;
+
+  // Max. 80 Gradient-Stops – mehr wäre DOM-Overhead ohne sichtbaren Gewinn
+  const stride = Math.max(1, Math.floor(data.length / 80));
+  const stops = data
+    .filter((_, i) => i % stride === 0 || i === data.length - 1)
+    .map(d => ({
+      offset: maxDist > 0 ? `${((d.dist / maxDist) * 100).toFixed(1)}%` : '0%',
+      color: speedHue(d.speed, minSpd, maxSpd),
+    }));
 
   const { handleMouseMove, handleMouseLeave } = useChartHover(data, points, onHover);
 
@@ -230,9 +250,12 @@ function SpeedChart({ points, onHover, activeDist }: { points: TrackPoint[]; onH
           syncId="ap" syncMethod="value"
           onMouseMove={handleMouseMove} onMouseLeave={handleMouseLeave}>
           <defs>
-            <linearGradient id="speedGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.4} />
-              <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.05} />
+            {/* horizontaler Gradient entlang der Distanzachse – gleiche Farbskala wie die Map */}
+            <linearGradient id="speedLineGrad" x1="0" x2="1" y1="0" y2="0">
+              {stops.map((s, i) => <stop key={i} offset={s.offset} stopColor={s.color} />)}
+            </linearGradient>
+            <linearGradient id="speedAreaGrad" x1="0" x2="1" y1="0" y2="0">
+              {stops.map((s, i) => <stop key={i} offset={s.offset} stopColor={s.color} stopOpacity={0.18} />)}
             </linearGradient>
           </defs>
           <XAxis dataKey="dist" type="number" domain={[0, 'dataMax']} hide />
@@ -243,9 +266,9 @@ function SpeedChart({ points, onHover, activeDist }: { points: TrackPoint[]; onH
             labelFormatter={l => `${l} km`}
           />
           {activeDist != null && (
-            <ReferenceLine x={activeDist} stroke="#3b82f6" strokeWidth={1.5} strokeDasharray="4 2" />
+            <ReferenceLine x={activeDist} stroke="var(--primary)" strokeWidth={1.5} strokeDasharray="4 2" />
           )}
-          <Area type="monotone" dataKey="speed" stroke="#3b82f6" fill="url(#speedGrad)" strokeWidth={1.5} dot={false} />
+          <Area type="monotone" dataKey="speed" stroke="url(#speedLineGrad)" fill="url(#speedAreaGrad)" strokeWidth={2} dot={false} />
         </AreaChart>
       </ResponsiveContainer>
     </div>
