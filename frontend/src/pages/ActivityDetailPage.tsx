@@ -6,6 +6,7 @@ import {
   XAxis,
   YAxis,
   Tooltip,
+  ReferenceLine,
   ResponsiveContainer,
 } from 'recharts';
 
@@ -96,6 +97,21 @@ function ZoneBar({ label, pct, color, seconds }: { label: string; pct: number; c
 
 type HoverFn = (pt: { lat: number; lon: number } | null) => void;
 
+function closestTrackPointIdx(points: TrackPoint[], lat: number, lon: number): number {
+  let bestIdx = 0;
+  let bestDist = Infinity;
+  const cosLat = Math.cos(lat * Math.PI / 180);
+  for (let i = 0; i < points.length; i++) {
+    const p = points[i];
+    if (p.lat == null || p.lon == null) continue;
+    const dLat = p.lat - lat;
+    const dLon = (p.lon - lon) * cosLat;
+    const d = dLat * dLat + dLon * dLon;
+    if (d < bestDist) { bestDist = d; bestIdx = i; }
+  }
+  return bestIdx;
+}
+
 function useChartHover(
   data: { origIdx: number }[],
   points: TrackPoint[],
@@ -110,7 +126,7 @@ function useChartHover(
   return { handleMouseMove, handleMouseLeave };
 }
 
-function ElevationChart({ points, onHover }: { points: TrackPoint[]; onHover?: HoverFn }) {
+function ElevationChart({ points, onHover, activeDist }: { points: TrackPoint[]; onHover?: HoverFn; activeDist?: number | null }) {
   const valid = points.map((p, i) => ({ p, i })).filter(({ p }) => p.altitude_m != null && p.distance_m != null);
   if (valid.length < 2) return null;
 
@@ -127,6 +143,7 @@ function ElevationChart({ points, onHover }: { points: TrackPoint[]; onHover?: H
       <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Höhenprofil</p>
       <ResponsiveContainer width="100%" height={100}>
         <AreaChart data={data} margin={{ top: 0, right: 0, left: -30, bottom: 0 }}
+          syncId="ap" syncMethod="value"
           onMouseMove={handleMouseMove} onMouseLeave={handleMouseLeave}>
           <defs>
             <linearGradient id="elevGrad" x1="0" y1="0" x2="0" y2="1">
@@ -134,13 +151,16 @@ function ElevationChart({ points, onHover }: { points: TrackPoint[]; onHover?: H
               <stop offset="95%" stopColor="var(--primary)" stopOpacity={0.05} />
             </linearGradient>
           </defs>
-          <XAxis dataKey="dist" hide />
+          <XAxis dataKey="dist" type="number" hide />
           <YAxis tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }} axisLine={false} tickLine={false} />
           <Tooltip
             contentStyle={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 11 }}
             formatter={(v: unknown) => `${v} m`}
             labelFormatter={l => `${l} km`}
           />
+          {activeDist != null && (
+            <ReferenceLine x={activeDist} stroke="var(--primary)" strokeWidth={1.5} strokeDasharray="4 2" />
+          )}
           <Area type="monotone" dataKey="alt" stroke="var(--primary)" fill="url(#elevGrad)" strokeWidth={1.5} dot={false} />
         </AreaChart>
       </ResponsiveContainer>
@@ -148,7 +168,7 @@ function ElevationChart({ points, onHover }: { points: TrackPoint[]; onHover?: H
   );
 }
 
-function HRChart({ points, onHover }: { points: TrackPoint[]; onHover?: HoverFn }) {
+function HRChart({ points, onHover, activeDist }: { points: TrackPoint[]; onHover?: HoverFn; activeDist?: number | null }) {
   const valid = points.map((p, i) => ({ p, i })).filter(({ p }) => p.hr != null && p.distance_m != null);
   if (valid.length < 2) return null;
 
@@ -165,6 +185,7 @@ function HRChart({ points, onHover }: { points: TrackPoint[]; onHover?: HoverFn 
       <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Herzfrequenz</p>
       <ResponsiveContainer width="100%" height={100}>
         <AreaChart data={data} margin={{ top: 0, right: 0, left: -30, bottom: 0 }}
+          syncId="ap" syncMethod="value"
           onMouseMove={handleMouseMove} onMouseLeave={handleMouseLeave}>
           <defs>
             <linearGradient id="hrGrad" x1="0" y1="0" x2="0" y2="1">
@@ -172,13 +193,16 @@ function HRChart({ points, onHover }: { points: TrackPoint[]; onHover?: HoverFn 
               <stop offset="95%" stopColor="#ef4444" stopOpacity={0.05} />
             </linearGradient>
           </defs>
-          <XAxis dataKey="dist" hide />
+          <XAxis dataKey="dist" type="number" hide />
           <YAxis tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }} axisLine={false} tickLine={false} />
           <Tooltip
             contentStyle={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 11 }}
             formatter={(v: unknown) => `${v} bpm`}
             labelFormatter={l => `${l} km`}
           />
+          {activeDist != null && (
+            <ReferenceLine x={activeDist} stroke="#ef4444" strokeWidth={1.5} strokeDasharray="4 2" />
+          )}
           <Area type="monotone" dataKey="hr" stroke="#ef4444" fill="url(#hrGrad)" strokeWidth={1.5} dot={false} />
         </AreaChart>
       </ResponsiveContainer>
@@ -186,7 +210,7 @@ function HRChart({ points, onHover }: { points: TrackPoint[]; onHover?: HoverFn 
   );
 }
 
-function SpeedChart({ points, onHover }: { points: TrackPoint[]; onHover?: HoverFn }) {
+function SpeedChart({ points, onHover, activeDist }: { points: TrackPoint[]; onHover?: HoverFn; activeDist?: number | null }) {
   const valid = points.map((p, i) => ({ p, i })).filter(({ p }) => p.speed_ms != null && p.speed_ms > 0 && p.distance_m != null);
   if (valid.length < 2) return null;
 
@@ -203,6 +227,7 @@ function SpeedChart({ points, onHover }: { points: TrackPoint[]; onHover?: Hover
       <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Geschwindigkeit</p>
       <ResponsiveContainer width="100%" height={100}>
         <AreaChart data={data} margin={{ top: 0, right: 0, left: -30, bottom: 0 }}
+          syncId="ap" syncMethod="value"
           onMouseMove={handleMouseMove} onMouseLeave={handleMouseLeave}>
           <defs>
             <linearGradient id="speedGrad" x1="0" y1="0" x2="0" y2="1">
@@ -210,13 +235,16 @@ function SpeedChart({ points, onHover }: { points: TrackPoint[]; onHover?: Hover
               <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.05} />
             </linearGradient>
           </defs>
-          <XAxis dataKey="dist" hide />
+          <XAxis dataKey="dist" type="number" hide />
           <YAxis tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }} axisLine={false} tickLine={false} />
           <Tooltip
             contentStyle={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 11 }}
             formatter={(v: unknown) => `${v} km/h`}
             labelFormatter={l => `${l} km`}
           />
+          {activeDist != null && (
+            <ReferenceLine x={activeDist} stroke="#3b82f6" strokeWidth={1.5} strokeDasharray="4 2" />
+          )}
           <Area type="monotone" dataKey="speed" stroke="#3b82f6" fill="url(#speedGrad)" strokeWidth={1.5} dot={false} />
         </AreaChart>
       </ResponsiveContainer>
@@ -241,11 +269,30 @@ export default function ActivityDetailPage() {
   const [similar, setSimilar] = useState<SimilarActivity[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [activeDistKm, setActiveDistKm] = useState<number | null>(null);
+
   // setHoverFn wird von LeafletMap via onReady gesetzt und von den Charts direkt aufgerufen
   const setHoverFnRef = useRef<SetHoverFn | null>(null);
   const onMapReady = useCallback((fn: SetHoverFn) => { setHoverFnRef.current = fn; }, []);
   const onHover = useCallback((pt: { lat: number; lon: number } | null) => {
     setHoverFnRef.current?.(pt);
+  }, []);
+
+  // Sync-Update im Render-Body – immer aktuell wenn onMapClick aufgerufen wird
+  const trackPointsRef = useRef<TrackPoint[]>(trackPoints);
+  trackPointsRef.current = trackPoints;
+
+  const onMapClick = useCallback((lat: number, lon: number) => {
+    const pts = trackPointsRef.current;
+    const idx = closestTrackPointIdx(pts, lat, lon);
+    const pt = pts[idx];
+    if (pt?.distance_m != null) {
+      setActiveDistKm(Math.round(pt.distance_m / 100) / 10);
+    }
+    // Hover-Marker auf geklickten Punkt setzen (bleibt bis nächster Chart-Hover)
+    if (pt?.lat != null && pt?.lon != null) {
+      setHoverFnRef.current?.({ lat: pt.lat, lon: pt.lon });
+    }
   }, []);
 
   useEffect(() => {
@@ -340,6 +387,7 @@ export default function ActivityDetailPage() {
             points={trackPoints}
             speedColorBuckets={SPEED_COLOR_BUCKETS}
             onReady={onMapReady}
+            onPointClick={onMapClick}
           />
         </Suspense>
       )}
@@ -348,9 +396,9 @@ export default function ActivityDetailPage() {
       {trackPoints.length > 1 && (hasElevation || hasSpeed || hasHR) && (
         <Card>
           <CardContent className="space-y-4">
-            {hasElevation && <ElevationChart points={trackPoints} onHover={onHover} />}
-            {hasSpeed && <SpeedChart points={trackPoints} onHover={onHover} />}
-            {hasHR && <HRChart points={trackPoints} onHover={onHover} />}
+            {hasElevation && <ElevationChart points={trackPoints} onHover={onHover} activeDist={activeDistKm} />}
+            {hasSpeed && <SpeedChart points={trackPoints} onHover={onHover} activeDist={activeDistKm} />}
+            {hasHR && <HRChart points={trackPoints} onHover={onHover} activeDist={activeDistKm} />}
           </CardContent>
         </Card>
       )}

@@ -17,6 +17,7 @@ interface LeafletMapProps {
   points: TrackPoint[];
   speedColorBuckets?: number;
   onReady?: (fn: SetHoverFn) => void;
+  onPointClick?: (lat: number, lon: number) => void;
 }
 
 // Fix für Standard-Marker-Icons
@@ -27,9 +28,13 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
 });
 
-export default function LeafletMap({ points, speedColorBuckets = 20, onReady }: LeafletMapProps) {
+export default function LeafletMap({ points, speedColorBuckets = 20, onReady, onPointClick }: LeafletMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const hoverMarkerRef = useRef<L.CircleMarker | null>(null);
+  const clickMarkerRef = useRef<L.CircleMarker | null>(null);
+  // Ref statt Closure – damit der Klick-Handler immer die aktuelle Callback-Version nutzt
+  const onPointClickRef = useRef(onPointClick);
+  useEffect(() => { onPointClickRef.current = onPointClick; });
 
   // Kartenhöhe aus GPS-Bounds berechnen (Mercator-korrigiert).
   // CSS aspect-ratio + max-height beißen sich → Höhe direkt in px setzen.
@@ -156,6 +161,22 @@ export default function LeafletMap({ points, speedColorBuckets = 20, onReady }: 
 
     map.on('zoomend', updateWeights);
 
+    map.on('click', (e) => {
+      const { lat, lng } = e.latlng;
+      onPointClickRef.current?.(lat, lng);
+      if (clickMarkerRef.current) {
+        clickMarkerRef.current.setLatLng([lat, lng]);
+      } else {
+        clickMarkerRef.current = L.circleMarker([lat, lng], {
+          radius: 8,
+          color: '#ffffff',
+          fillColor: '#facc15',
+          fillOpacity: 1,
+          weight: 2.5,
+        }).addTo(map);
+      }
+    });
+
     // Hover-Funktion an die Page übergeben – direkt nach Karteninitialisierung
     onReady?.((pt) => {
       if (!pt) {
@@ -178,6 +199,7 @@ export default function LeafletMap({ points, speedColorBuckets = 20, onReady }: 
 
     return () => {
       hoverMarkerRef.current = null;
+      clickMarkerRef.current = null;
       map.remove();
     };
   // onReady bewusst nicht in deps – stabile useCallback-Referenz vorausgesetzt
