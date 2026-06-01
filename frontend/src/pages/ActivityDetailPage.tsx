@@ -210,10 +210,10 @@ function HRChart({ points, onHover, activeDist }: { points: TrackPoint[]; onHove
   );
 }
 
-// Gleiche Formel wie LeafletMap: blau(240)=langsam → rot(0)=schnell
+// Gleiche Formel wie LeafletMap: grün(120)=langsam → rot(0)=schnell
 function speedHue(kmh: number, minSpd: number, maxSpd: number): string {
   const t = maxSpd > minSpd ? Math.max(0, Math.min(1, (kmh - minSpd) / (maxSpd - minSpd))) : 0;
-  return `hsl(${Math.round(240 - t * 240)},90%,50%)`;
+  return `hsl(${Math.round(120 - t * 120)},90%,50%)`;
 }
 
 function SpeedChart({ points, onHover, activeDist }: { points: TrackPoint[]; onHover?: HoverFn; activeDist?: number | null }) {

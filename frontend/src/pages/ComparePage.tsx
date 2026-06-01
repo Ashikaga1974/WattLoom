@@ -2,7 +2,6 @@ import { useEffect, useState, useMemo } from 'react';
 import { api } from '@/lib/api';
 import { Card, CardContent } from '@/components/ui/card';
 import {
-  Line,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -166,25 +165,14 @@ export default function ComparePage() {
                   }}
                 />
                 <Legend wrapperStyle={{ fontSize: 12 }} />
-                {/* Flächen zuerst (damit Linien darüber liegen) */}
-                {[...sortedSelected].reverse().map(year => (
+                {sortedSelected.map(year => (
                   <Area
                     key={`area-${year}`}
                     type="monotone"
                     dataKey={String(year)}
+                    name={String(year)}
                     fill={yearColor(sortedSelected, year)}
                     fillOpacity={0.08}
-                    stroke="none"
-                    legendType="none"
-                    isAnimationActive={false}
-                  />
-                ))}
-                {sortedSelected.map(year => (
-                  <Line
-                    key={`line-${year}`}
-                    type="monotone"
-                    dataKey={String(year)}
-                    name={String(year)}
                     stroke={yearColor(sortedSelected, year)}
                     strokeWidth={1.8}
                     dot={{ r: 3, fill: yearColor(sortedSelected, year) }}

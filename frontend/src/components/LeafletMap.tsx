@@ -101,7 +101,7 @@ export default function LeafletMap({ points, speedColorBuckets = 20, onReady, on
 
       function speedColor(kmh: number): string {
         const t = maxSpd > minSpd ? Math.max(0, Math.min(1, (kmh - minSpd) / (maxSpd - minSpd))) : 0;
-        const hue = Math.round(240 - t * 240);
+        const hue = Math.round(120 - t * 120);
         return `hsl(${hue},90%,50%)`;
       }
 
@@ -143,7 +143,7 @@ export default function LeafletMap({ points, speedColorBuckets = 20, onReady, on
           <div style="margin-bottom:4px;font-weight:600">Geschwindigkeit</div>
           <div style="display:flex;align-items:center;gap:6px">
             <span>${minSpd.toFixed(0)}</span>
-            <div style="height:7px;width:80px;background:linear-gradient(to right,hsl(240,80%,55%),hsl(120,80%,55%),hsl(60,80%,55%),hsl(0,80%,55%));border-radius:4px"></div>
+            <div style="height:7px;width:80px;background:linear-gradient(to right,hsl(120,80%,55%),hsl(60,80%,55%),hsl(0,80%,55%));border-radius:4px"></div>
             <span>${maxSpd.toFixed(0)} km/h</span>
           </div>`;
         return div;
