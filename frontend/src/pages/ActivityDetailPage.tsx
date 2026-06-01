@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef, useCallback, lazy, Suspense } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
   AreaChart,
   Area,
@@ -293,6 +293,9 @@ export default function ActivityDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeDistKm, setActiveDistKm] = useState<number | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const navigate = useNavigate();
 
   // setHoverFn wird von LeafletMap via onReady gesetzt und von den Charts direkt aufgerufen
   const setHoverFnRef = useRef<SetHoverFn | null>(null);
@@ -372,6 +375,18 @@ export default function ActivityDetailPage() {
     );
   }
 
+  async function handleDelete() {
+    setDeleting(true);
+    try {
+      await api.deleteActivity(activityId);
+      navigate('/activities');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Fehler beim Löschen');
+      setDeleting(false);
+      setConfirmDelete(false);
+    }
+  }
+
   const hasTrack = activity.has_track === 1;
   const hasElevation = trackPoints.some(p => p.altitude_m != null);
   const hasSpeed = trackPoints.some(p => p.speed_ms != null && p.speed_ms > 0);
@@ -385,14 +400,41 @@ export default function ActivityDetailPage() {
           <Link to="/activities" className="text-sm text-muted-foreground hover:text-primary transition-colors">
             ← Aktivitäten
           </Link>
-          {hasTrack && (
-            <Link
-              to={`/strecken?ref=${activity.id}`}
-              className="text-xs px-3 py-1 rounded-lg bg-primary text-primary-foreground hover:bg-primary/80 transition-colors"
-            >
-              Ähnliche vergleichen
-            </Link>
-          )}
+          <div className="flex items-center gap-2">
+            {hasTrack && (
+              <Link
+                to={`/strecken?ref=${activity.id}`}
+                className="text-xs px-3 py-1 rounded-lg bg-primary text-primary-foreground hover:bg-primary/80 transition-colors"
+              >
+                Ähnliche vergleichen
+              </Link>
+            )}
+            {confirmDelete ? (
+              <span className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground">Wirklich löschen?</span>
+                <button
+                  onClick={handleDelete}
+                  disabled={deleting}
+                  className="text-xs px-3 py-1 rounded-lg bg-destructive text-destructive-foreground hover:bg-destructive/80 transition-colors disabled:opacity-50"
+                >
+                  {deleting ? 'Lösche…' : 'Ja, löschen'}
+                </button>
+                <button
+                  onClick={() => setConfirmDelete(false)}
+                  className="text-xs px-3 py-1 rounded-lg bg-muted text-muted-foreground hover:bg-muted/80 transition-colors"
+                >
+                  Abbrechen
+                </button>
+              </span>
+            ) : (
+              <button
+                onClick={() => setConfirmDelete(true)}
+                className="text-xs px-3 py-1 rounded-lg border border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground transition-colors"
+              >
+                Löschen
+              </button>
+            )}
+          </div>
         </div>
         <h1 className="text-2xl font-semibold tracking-tight text-foreground">{activity.name}</h1>
         <div className="flex items-center gap-2 mt-1">

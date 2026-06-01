@@ -1,7 +1,10 @@
 import math
+from pathlib import Path
 
 from fastapi import APIRouter, Query, HTTPException
 from backend.database import get_connection
+
+MEDIA_DIR = Path(__file__).parent.parent.parent / "data" / "media"
 
 
 def _haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
@@ -322,3 +325,30 @@ def get_similar_activities(
 
     result.sort(key=lambda x: x["start_distance_km"])
     return {"reference_id": activity_id, "similar": result[:limit]}
+
+
+@router.delete("/{activity_id}")
+def delete_activity(activity_id: int):
+    conn = get_connection()
+    row = conn.execute("SELECT id FROM activities WHERE id = ?", (activity_id,)).fetchone()
+    if row is None:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Activity not found")
+
+    # Mediendateien vom Dateisystem entfernen
+    media_rows = conn.execute(
+        "SELECT filename FROM media WHERE activity_id = ?", (activity_id,)
+    ).fetchall()
+    for m in media_rows:
+        path = MEDIA_DIR / m["filename"]
+        if path.exists():
+            path.unlink()
+
+    # Alle verknüpften Datensätze und die Aktivität löschen
+    conn.execute("DELETE FROM track_points WHERE activity_id = ?", (activity_id,))
+    conn.execute("DELETE FROM media WHERE activity_id = ?", (activity_id,))
+    conn.execute("DELETE FROM laps WHERE activity_id = ?", (activity_id,))
+    conn.execute("DELETE FROM activities WHERE id = ?", (activity_id,))
+    conn.commit()
+    conn.close()
+    return {"ok": True, "deleted_id": activity_id}

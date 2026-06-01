@@ -487,6 +487,12 @@ export const api = {
   fatigueIndex: (year?: number): Promise<FatigueData> =>
     get(`/analytics/fatigue-index${buildQuery({ year })}`),
 
+  deleteActivity: (id: number): Promise<{ ok: boolean; deleted_id: number }> =>
+    fetch(`${BASE}/activities/${id}`, { method: 'DELETE' }).then(r => {
+      if (!r.ok) return r.json().then(j => { throw new Error(j.detail ?? `Fehler ${r.status}`); });
+      return r.json() as Promise<{ ok: boolean; deleted_id: number }>;
+    }),
+
   importFitFile: (file: File, bikeId: string): Promise<{ activity_id: number; name: string }> => {
     const form = new FormData();
     form.append('file', file);
