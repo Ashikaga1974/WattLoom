@@ -19,7 +19,6 @@ import ProgressPage from '@/pages/ProgressPage';
 import SettingsPage from '@/pages/SettingsPage';
 import RoutesPage from '@/pages/RoutesPage';
 import SpeedHrPage from '@/pages/SpeedHrPage';
-import StatsPage from '@/pages/StatsPage';
 import StreckenPage from '@/pages/StreckenPage';
 import TempCorrPage from '@/pages/TempCorrPage';
 import TimeHeatmapPage from '@/pages/TimeHeatmapPage';
@@ -54,7 +53,6 @@ export default function App() {
                 <Route path="/settings" element={<SettingsPage />} />
                 <Route path="/routes" element={<RoutesPage />} />
                 <Route path="/speedhr" element={<SpeedHrPage />} />
-                <Route path="/stats" element={<StatsPage />} />
                 <Route path="/strecken" element={<StreckenPage />} />
                 <Route path="/strecken/:id" element={<StreckenPage />} />
                 <Route path="/tempcorr" element={<TempCorrPage />} />

@@ -92,7 +92,6 @@ const navGroups: NavGroup[] = [
       { href: '/speedhr',       label: 'Speed–HR', icon: <BarChart2 size={13} /> },
       { href: '/tempcorr',      label: 'Temperatur', icon: <BarChart size={13} /> },
       { href: '/timeheatmap',   label: 'Tageszeit', icon: <Map size={13} /> },
-      { href: '/stats',         label: 'Verteilungen', icon: <BarChart2 size={13} /> },
       { href: '/wrapped',       label: 'Jahresrückblick', icon: <Trophy size={13} /> },
     ],
   },
