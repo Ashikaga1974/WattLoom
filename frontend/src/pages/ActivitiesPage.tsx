@@ -96,6 +96,30 @@ export default function ActivitiesPage() {
   const [confirmingId, setConfirmingId] = useState<number | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
 
+  const [editingPowerId, setEditingPowerId] = useState<number | null>(null);
+  const [editingPowerValue, setEditingPowerValue] = useState('');
+
+  function startEditPower(act: Activity, e: React.MouseEvent) {
+    e.stopPropagation();
+    setEditingPowerId(act.id);
+    setEditingPowerValue(act.avg_power_w != null ? String(Math.round(act.avg_power_w)) : '');
+  }
+
+  async function savePower(actId: number) {
+    const parsed = editingPowerValue.trim() === '' ? null : parseFloat(editingPowerValue);
+    if (parsed !== null && isNaN(parsed)) {
+      setEditingPowerId(null);
+      return;
+    }
+    try {
+      await api.updateActivityPower(actId, parsed);
+      setActivities(prev => prev.map(a => a.id === actId ? { ...a, avg_power_w: parsed } : a));
+    } catch {
+      // Fehler ignorieren – Wert bleibt unverändert
+    }
+    setEditingPowerId(null);
+  }
+
   async function handleDelete(id: number) {
     setDeletingId(id);
     try {
@@ -246,11 +270,18 @@ export default function ActivitiesPage() {
                     </td>
                     <td className="px-4 py-3 max-w-xs">
                       <span className="truncate block font-medium">{act.name}</span>
-                      {act.bike_id && (
-                        <span className="text-xs text-muted-foreground">
-                          {bikes.find(b => b.id === act.bike_id)?.name ?? act.bike_id}
-                        </span>
-                      )}
+                      <span className="flex items-center gap-1.5 flex-wrap">
+                        {act.bike_id && (
+                          <span className="text-xs text-muted-foreground">
+                            {bikes.find(b => b.id === act.bike_id)?.name ?? act.bike_id}
+                          </span>
+                        )}
+                        {act.smart_device && (
+                          <span className="text-xs px-1.5 py-0 rounded-full bg-muted text-muted-foreground border border-border/60 leading-5">
+                            {act.smart_device}
+                          </span>
+                        )}
+                      </span>
                     </td>
                     <td className="px-4 py-3 text-right tabular-nums">
                       {fmtKm(act.distance_m)} km
@@ -267,8 +298,29 @@ export default function ActivitiesPage() {
                     <td className="px-4 py-3 text-right tabular-nums text-muted-foreground hidden md:table-cell">
                       {act.avg_hr ? Math.round(act.avg_hr) : '–'}
                     </td>
-                    <td className="px-4 py-3 text-right tabular-nums text-muted-foreground hidden lg:table-cell">
-                      {act.avg_power_w ? Math.round(act.avg_power_w) : '–'}
+                    <td className="px-4 py-3 text-right tabular-nums text-muted-foreground hidden lg:table-cell" onClick={act.manual ? e => startEditPower(act, e) : undefined}>
+                      {act.manual && editingPowerId === act.id ? (
+                        <input
+                          autoFocus
+                          type="number"
+                          min={0}
+                          max={2000}
+                          value={editingPowerValue}
+                          onChange={e => setEditingPowerValue(e.target.value)}
+                          onBlur={() => savePower(act.id)}
+                          onKeyDown={e => {
+                            if (e.key === 'Enter') savePower(act.id);
+                            if (e.key === 'Escape') setEditingPowerId(null);
+                          }}
+                          className="w-16 text-right bg-muted border border-border rounded px-1 py-0.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                        />
+                      ) : act.manual ? (
+                        <span className="cursor-pointer underline decoration-dotted hover:text-foreground" title="Klicken zum Bearbeiten">
+                          {act.avg_power_w != null ? `${Math.round(act.avg_power_w)} W` : '+ W'}
+                        </span>
+                      ) : (
+                        act.avg_power_w ? `${Math.round(act.avg_power_w)} W` : '–'
+                      )}
                     </td>
                     <td className="px-4 py-3 text-right whitespace-nowrap" onClick={e => e.stopPropagation()}>
                       {confirmingId === act.id ? (

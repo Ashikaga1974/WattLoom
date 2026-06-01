@@ -17,6 +17,8 @@ export interface Activity {
   calories: number | null;
   bike_id: string | null;
   has_track: number;
+  manual: number;
+  smart_device: string | null;
 }
 
 export interface ActivitiesResponse {
@@ -496,6 +498,16 @@ export const api = {
 
   fatigueIndex: (year?: number): Promise<FatigueData> =>
     get(`/analytics/fatigue-index${buildQuery({ year })}`),
+
+  updateActivityPower: (id: number, avg_power_w: number | null): Promise<{ ok: boolean; activity_id: number; avg_power_w: number | null }> =>
+    fetch(`${BASE}/activities/${id}/power`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ avg_power_w }),
+    }).then(r => {
+      if (!r.ok) return r.json().then(j => { throw new Error(j.detail ?? `Fehler ${r.status}`); });
+      return r.json();
+    }),
 
   deleteActivity: (id: number): Promise<{ ok: boolean; deleted_id: number }> =>
     fetch(`${BASE}/activities/${id}`, { method: 'DELETE' }).then(r => {

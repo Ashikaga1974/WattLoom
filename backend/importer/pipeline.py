@@ -149,6 +149,14 @@ def import_activities_csv(
             if not bike_id:
                 bike_id = DEFAULT_BIKE_ID
 
+            filename = r.get("Filename") or None
+            if filename and filename.endswith(".fit.gz"):
+                smart_device = "Amazfit"
+            elif filename and filename.endswith(".tcx.gz"):
+                smart_device = "Cyplus"
+            else:
+                smart_device = "Unbekannt"
+
             conn.execute("""
                 INSERT OR REPLACE INTO activities (
                     id, name, activity_type, sport_type, start_date, start_date_local,
@@ -157,8 +165,8 @@ def import_activities_csv(
                     avg_speed_ms, max_speed_ms,
                     avg_hr, max_hr, avg_power_w, max_power_w, avg_cadence,
                     avg_temp_c, calories, bike_id, commute, trainer, manual,
-                    track_file, imported_at
-                ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                    track_file, imported_at, smart_device
+                ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
             """, (
                 activity_id,
                 r.get("Activity Name"),
@@ -185,8 +193,9 @@ def import_activities_csv(
                 _to_bool(r.get("Commute")),
                 0,                          # trainer – kein verlässliches CSV-Feld
                 0,                          # manual – kein direktes CSV-Feld
-                r.get("Filename") or None,
+                filename,
                 _now_iso(),
+                smart_device,
             ))
             imported += 1
             if imported % 50 == 0:

@@ -48,7 +48,8 @@ def init_db() -> None:
                 manual              INTEGER,
                 track_file          TEXT,                 -- relativer Pfad in ZIP
                 has_track           INTEGER DEFAULT 0,
-                imported_at         TEXT                  -- ISO8601
+                imported_at         TEXT,                 -- ISO8601
+                smart_device        TEXT                  -- "Amazfit", "Cyplus", "Unbekannt"
             );
 
             CREATE TABLE IF NOT EXISTS track_points (
@@ -172,6 +173,19 @@ def init_db() -> None:
                 value TEXT
             );
         """)
+        # Migration: smart_device-Spalte hinzufügen falls nicht vorhanden
+        cols = [r[1] for r in conn.execute("PRAGMA table_info(activities)").fetchall()]
+        if "smart_device" not in cols:
+            conn.execute("ALTER TABLE activities ADD COLUMN smart_device TEXT")
+            conn.execute("""
+                UPDATE activities SET smart_device = CASE
+                    WHEN manual = 1                          THEN 'Amazfit'
+                    WHEN track_file LIKE '%.fit.gz'          THEN 'Amazfit'
+                    WHEN track_file LIKE '%.tcx.gz'          THEN 'Cyplus'
+                    ELSE 'Unbekannt'
+                END
+            """)
+
     print(f"DB initialisiert: {DB_PATH}")
 
 

@@ -59,7 +59,7 @@ def list_activities(
         f"""
         SELECT id, name, activity_type, start_date, distance_m, moving_time_s,
                elevation_gain_m, avg_speed_ms, avg_hr, avg_power_w, avg_cadence,
-               calories, bike_id, has_track
+               calories, bike_id, has_track, manual, smart_device
         FROM activities
         {where}
         ORDER BY {null_last}
@@ -325,6 +325,30 @@ def get_similar_activities(
 
     result.sort(key=lambda x: x["start_distance_km"])
     return {"reference_id": activity_id, "similar": result[:limit]}
+
+
+@router.patch("/{activity_id}/power")
+def update_activity_power(activity_id: int, body: dict):
+    """Setzt avg_power_w für manuell importierte Aktivitäten (manual=1)."""
+    conn = get_connection()
+    row = conn.execute(
+        "SELECT id, manual FROM activities WHERE id = ?", (activity_id,)
+    ).fetchone()
+    if row is None:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Activity not found")
+    if not row["manual"]:
+        conn.close()
+        raise HTTPException(status_code=400, detail="Nur bei manuell importierten Aktivitäten erlaubt")
+
+    power = body.get("avg_power_w")
+    if power is not None:
+        power = float(power)
+
+    conn.execute("UPDATE activities SET avg_power_w = ? WHERE id = ?", (power, activity_id))
+    conn.commit()
+    conn.close()
+    return {"ok": True, "activity_id": activity_id, "avg_power_w": power}
 
 
 @router.delete("/{activity_id}")

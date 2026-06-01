@@ -109,8 +109,8 @@ def import_single_fit(conn: sqlite3.Connection, fit_bytes: bytes, bike_id: str) 
                 avg_speed_ms, max_speed_ms,
                 avg_hr, max_hr, avg_power_w, max_power_w, avg_cadence,
                 avg_temp_c, calories, bike_id, commute, trainer, manual,
-                track_file, has_track, imported_at
-            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                track_file, has_track, imported_at, smart_device
+            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         """, (
             activity_id,
             activity_name,
@@ -140,6 +140,7 @@ def import_single_fit(conn: sqlite3.Connection, fit_bytes: bytes, bike_id: str) 
             None, # track_file
             0,    # has_track – wird nach Track-Import gesetzt
             datetime.now(timezone.utc).isoformat(),
+            "Amazfit",
         ))
 
     # Track-Punkte über bestehenden FIT-Parser importieren
