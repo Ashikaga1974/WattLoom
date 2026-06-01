@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 import { api, type Activity, type Bike } from '@/lib/api';
@@ -90,6 +91,23 @@ export default function ActivitiesPage() {
     const newOffset = offset + PAGE_SIZE;
     setOffset(newOffset);
     load(newOffset);
+  }
+
+  const [confirmingId, setConfirmingId] = useState<number | null>(null);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
+
+  async function handleDelete(id: number) {
+    setDeletingId(id);
+    try {
+      await api.deleteActivity(id);
+      setActivities(prev => prev.filter(a => a.id !== id));
+      setTotal(prev => prev - 1);
+      setConfirmingId(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Fehler beim Löschen');
+    } finally {
+      setDeletingId(null);
+    }
   }
 
   const totalPages = Math.ceil(total / PAGE_SIZE);
@@ -192,20 +210,21 @@ export default function ActivitiesPage() {
                 <th className="text-right px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider hidden md:table-cell">Hm</th>
                 <th className="text-right px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider hidden md:table-cell">HR</th>
                 <th className="text-right px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider hidden lg:table-cell">Watt</th>
+                <th className="px-4 py-3" />
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 Array.from({ length: 10 }).map((_, i) => (
                   <tr key={i} className="border-b border-border/50">
-                    <td colSpan={9} className="px-4 py-3">
+                    <td colSpan={10} className="px-4 py-3">
                       <Skeleton className="h-4" style={{ width: `${60 + (i % 5) * 8}%` }} />
                     </td>
                   </tr>
                 ))
               ) : activities.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="px-4 py-10 text-center text-muted-foreground">
+                  <td colSpan={10} className="px-4 py-10 text-center text-muted-foreground">
                     Keine Aktivitäten gefunden.
                   </td>
                 </tr>
@@ -250,6 +269,33 @@ export default function ActivitiesPage() {
                     </td>
                     <td className="px-4 py-3 text-right tabular-nums text-muted-foreground hidden lg:table-cell">
                       {act.avg_power_w ? Math.round(act.avg_power_w) : '–'}
+                    </td>
+                    <td className="px-4 py-3 text-right whitespace-nowrap" onClick={e => e.stopPropagation()}>
+                      {confirmingId === act.id ? (
+                        <span className="flex items-center justify-end gap-1">
+                          <button
+                            onClick={() => handleDelete(act.id)}
+                            disabled={deletingId === act.id}
+                            className="text-xs px-2 py-0.5 rounded bg-destructive text-destructive-foreground hover:bg-destructive/80 disabled:opacity-50"
+                          >
+                            {deletingId === act.id ? '…' : 'Ja'}
+                          </button>
+                          <button
+                            onClick={() => setConfirmingId(null)}
+                            className="text-xs px-2 py-0.5 rounded bg-muted text-muted-foreground hover:bg-muted/80"
+                          >
+                            Nein
+                          </button>
+                        </span>
+                      ) : (
+                        <button
+                          onClick={() => setConfirmingId(act.id)}
+                          className="text-muted-foreground/30 hover:text-destructive transition-colors p-1 rounded hover:bg-destructive/10"
+                          title="Löschen"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))

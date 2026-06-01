@@ -15,7 +15,7 @@ Lokale Web-App zur Analyse von Strava-Exportdaten. Kein Strava-API-Zugriff nöti
 | Bereich | Was es kann |
 |---------|-------------|
 | **Dashboard** | Hero-Banner (letzter Ride), animierte KPI-Zahlen (count-up), Distanz-Chart, Trainingsvolumen, letzte Aktivitäten, Bike-Progress |
-| **Aktivitätsliste** | Filterbar nach Jahr, Bike, GPS-Track; sortierbar |
+| **Aktivitätsliste** | Filterbar nach Jahr, Bike, GPS-Track; sortierbar; einzelne Aktivitäten löschbar |
 | **Aktivitätsdetail** | Karte (Leaflet), Höhenprofil, Geschwindigkeits-Profil (Farben synchron mit Karten-Gradient), HR-Profil, Fotos |
 | **Jahresrückblick** | „Wrapped"-Style: beste Rides, stärkste Monate, Tages-/Stunden-Heatmaps |
 | **Jahresfortschritt** | Kumulative km pro Kalendarjahr mit Prognose |
@@ -25,7 +25,6 @@ Lokale Web-App zur Analyse von Strava-Exportdaten. Kein Strava-API-Zugriff nöti
 | **FTP** | HR-korrigierte FTP-Schätzung, Trend, VO2max-Näherung |
 | **Formkurve (PMC)** | CTL/ATL/TSB nach Trainingstagebuch-Methodik, hrTSS, Einschätzungs-Banner |
 | **Training** | Wochentraining-Chart inkl. andere Sportarten |
-| **Statistiken** | Verteilungsdiagramme (Distanz, Höhenmeter, Geschwindigkeit, …) |
 | **Bestzeiten** | Rekorde und Top-Leistungen |
 | **Jahresvergleich** | Jahre direkt gegenüberstellen |
 | **Bikes** | Kilometerstand und Statistiken je Fahrrad |
@@ -38,7 +37,7 @@ Lokale Web-App zur Analyse von Strava-Exportdaten. Kein Strava-API-Zugriff nöti
 | **Temp-Korrelation** | Zusammenhang Temperatur ↔ Leistung/Speed |
 | **Kalender** | Monatskalender aller Aktivitäten |
 | **Berechnungen** | Dokumentation aller verwendeten Formeln und Parameter |
-| **Einstellungen** | Gewicht, Geburtsjahr, manueller FTP, Zeitzone |
+| **Einstellungen** | Gewicht, Geburtsjahr, manueller FTP, Zeitzone; FIT-Einzelimport (Amazfit, Garmin ohne Strava) |
 
 ---
 
@@ -136,11 +135,12 @@ MyBiking/
 │   │   ├── heatmap.py       # /tracks/heatmap
 │   │   ├── segments.py      # /segments
 │   │   ├── settings.py      # /settings (Gewicht, Geburtsjahr, FTP, Timezone)
-│   │   ├── importer.py      # /import/start|status|reset
+│   │   ├── importer.py      # /import/start|status|reset|fit-file
 │   │   └── tracks.py        # /activities/{id}/track
 │   ├── importer/
 │   │   ├── pipeline.py      # run_import() – Haupteinstieg
 │   │   ├── fit.py           # FIT-Parser (Garmin, mit _SafeProcessor)
+│   │   ├── fit_single.py    # FIT-Einzelimport (Amazfit, Garmin ohne Strava)
 │   │   ├── tcx.py           # TCX-Parser
 │   │   └── gpx.py           # GPX-Parser (Tracks + Routen)
 │   └── requirements.txt
@@ -161,7 +161,7 @@ MyBiking/
 │       │   └── ui/                     # shadcn/ui base-nova Komponenten
 │       ├── hooks/
 │       │   └── use-mobile.ts
-│       └── pages/                      # 25 Seiten als .tsx
+│       └── pages/                      # 24 Seiten als .tsx
 │           ├── DashboardPage.tsx
 │           ├── ActivitiesPage.tsx
 │           ├── ActivityDetailPage.tsx
@@ -178,7 +178,6 @@ MyBiking/
 │           ├── SettingsPage.tsx
 │           ├── RoutesPage.tsx
 │           ├── SpeedHrPage.tsx
-│           ├── StatsPage.tsx
 │           ├── StreckenPage.tsx
 │           ├── TempCorrPage.tsx
 │           ├── TimeHeatmapPage.tsx
@@ -203,7 +202,8 @@ GET  /activities/stats              ?year
 GET  /activities/weekly             ?weeks=8
 GET  /activities/monthly            ?year
 GET  /activities/monthly-all
-GET  /activities/{id}
+GET    /activities/{id}
+DELETE /activities/{id}             → löscht Aktivität inkl. track_points, media, laps
 GET  /activities/{id}/track         ?simplify, fields
 GET  /activities/{id}/media
 GET  /activities/{id}/zones
@@ -232,6 +232,7 @@ POST /settings
 POST /import/start
 GET  /import/status
 POST /import/reset
+POST /import/fit-file               → multipart: file (.fit) + bike_id
 GET  /media/{filename}
 ```
 
