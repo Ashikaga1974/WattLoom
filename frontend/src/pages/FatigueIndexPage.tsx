@@ -48,6 +48,81 @@ function splitBarWidths(h1: number, h2: number): { w1: number; w2: number } {
   };
 }
 
+function fmtMonth(m: string): string {
+  const names = ['Jan.', 'Feb.', 'Mär.', 'Apr.', 'Mai', 'Jun.', 'Jul.', 'Aug.', 'Sep.', 'Okt.', 'Nov.', 'Dez.'];
+  const [year, month] = m.split('-');
+  return `${names[parseInt(month) - 1]} ${year}`;
+}
+
+type InsightType = 'positive' | 'neutral' | 'warning';
+interface Insight { text: string; type: InsightType }
+
+function buildInsights(data: import('@/lib/api').FatigueData): Insight[] {
+  const insights: Insight[] = [];
+  const avg = data.stats.avg_fatigue_pct;
+  if (avg === null) return insights;
+
+  const negPct = Math.round(data.stats.negative_split_count / data.stats.rides_analyzed * 100);
+
+  if (avg < 0) {
+    insights.push({ text: `Im Schnitt fährst du mit Steigerung (${fmtPct(avg)}) – sehr gleichmäßiges bis aufbauendes Pacing.`, type: 'positive' });
+  } else if (avg < 5) {
+    insights.push({ text: `Dein Pacing ist sehr ausgeglichen (Ø ${fmtPct(avg)}) – kaum Ermüdungseffekt.`, type: 'positive' });
+  } else if (avg < 10) {
+    insights.push({ text: `Du wirst leicht ermüdet (Ø ${fmtPct(avg)}) – für Freizeitradler ein normaler Wert.`, type: 'neutral' });
+  } else if (avg < 20) {
+    insights.push({ text: `Du ermüdest spürbar (Ø ${fmtPct(avg)}) – du startest häufig etwas zu schnell.`, type: 'warning' });
+  } else {
+    insights.push({ text: `Starke Ermüdung im Schnitt (Ø ${fmtPct(avg)}) – deutlicher Einbruch in der zweiten Hälfte.`, type: 'warning' });
+  }
+
+  if (negPct >= 40) {
+    insights.push({ text: `${negPct} % deiner Rides endest du mit Steigerung – sehr konstantes Pacing.`, type: 'positive' });
+  } else if (negPct >= 20) {
+    insights.push({ text: `${negPct} % deiner Rides endest du mit Steigerung – etwa jeder 5. Ride.`, type: 'neutral' });
+  } else {
+    insights.push({ text: `Nur ${negPct} % deiner Rides endest du mit Steigerung (${data.stats.negative_split_count} von ${data.stats.rides_analyzed}).`, type: 'neutral' });
+  }
+
+  const shortBucket = data.by_distance.find(b => b.label === '< 20 km');
+  if (shortBucket && shortBucket.avg_fatigue_pct !== null && shortBucket.rides >= 5 && shortBucket.avg_fatigue_pct < 0) {
+    insights.push({ text: `Kurze Rides (< 20 km) endest du im Schnitt mit Steigerung (${fmtPct(shortBucket.avg_fatigue_pct)}) – du wirst erst im Laufe der Fahrt warm.`, type: 'positive' });
+  }
+
+  const midBucket  = data.by_distance.find(b => b.label === '20–40 km');
+  const longBucket = data.by_distance.find(b => b.label === '40–60 km');
+  if (
+    midBucket && longBucket &&
+    midBucket.avg_fatigue_pct !== null && longBucket.avg_fatigue_pct !== null &&
+    longBucket.rides >= 5 &&
+    longBucket.avg_fatigue_pct < midBucket.avg_fatigue_pct
+  ) {
+    insights.push({
+      text: `Paradox: Rides über 40 km pacst du gleichmäßiger (${fmtPct(longBucket.avg_fatigue_pct)}) als kürzere Rides (${fmtPct(midBucket.avg_fatigue_pct)}) – längere Ausfahrten planst du bewusster ein.`,
+      type: 'positive',
+    });
+  }
+
+  if (data.worst_fatigue && data.worst_fatigue.dist_km < 15) {
+    insights.push({
+      text: `Der Ausreißer mit ${fmtPct(data.worst_fatigue.fatigue_pct)} Ermüdung war nur ${data.worst_fatigue.dist_km} km lang – vermutlich kein typischer Ride.`,
+      type: 'neutral',
+    });
+  }
+
+  const validMonths = data.monthly.filter(m => m.rides >= 2);
+  if (validMonths.length >= 3) {
+    const bestMonth  = validMonths.reduce((a, b) => a.avg_fatigue_pct < b.avg_fatigue_pct ? a : b);
+    const worstMonth = validMonths.reduce((a, b) => a.avg_fatigue_pct > b.avg_fatigue_pct ? a : b);
+    insights.push({
+      text: `Bester Monat: ${fmtMonth(bestMonth.month)} (${fmtPct(bestMonth.avg_fatigue_pct)}), schlechtester: ${fmtMonth(worstMonth.month)} (${fmtPct(worstMonth.avg_fatigue_pct)}).`,
+      type: 'neutral',
+    });
+  }
+
+  return insights;
+}
+
 // Histogramm-Daten aufbereiten
 function buildHistoData(distribution: FatigueData['distribution']) {
   const BUCKET_MIN = -55;
@@ -179,6 +254,42 @@ export default function FatigueIndexPage() {
         onYearChange={handleYearChange}
       />
 
+      {/* Erklärungsbox */}
+      <Card className="shadow-sm border bg-muted/30">
+        <CardContent className="px-5 py-4 space-y-3">
+          <p className="text-sm font-semibold">Was zeigt der Ermüdungsindex?</p>
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            Jeder Ride wird an der Distanzmitte geteilt. Der Index misst, um wie viel Prozent sich deine
+            Durchschnittsgeschwindigkeit von der ersten zur zweiten Hälfte verändert.
+          </p>
+          <p className="text-xs text-muted-foreground font-mono bg-muted rounded px-2 py-1 inline-block">
+            Index = (Ø-Speed 1. Hälfte − Ø-Speed 2. Hälfte) ÷ Ø-Speed 1. Hälfte × 100
+          </p>
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            Beispiel: 1. Hälfte 28 km/h, 2. Hälfte 25 km/h → <span className="text-orange-500 font-semibold">+10,7 %</span> Ermüdung.
+            Fährst du in der zweiten Hälfte schneller, ist der Wert negativ — das bedeutet Steigerung (Fachbegriff: Negativsplit) und ist das beste mögliche Ergebnis.
+          </p>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-1">
+            {[
+              { range: '< 0 %', label: 'Steigerung', desc: 'Du wirst in H2 schneller', color: 'text-blue-500', bar: '#3b82f6' },
+              { range: '0 – 5 %', label: 'Ausgeglichenes Pacing', desc: 'Sehr gleichmäßig', color: 'text-green-500', bar: '#22c55e' },
+              { range: '5 – 10 %', label: 'Leichte Ermüdung', desc: 'Noch im grünen Bereich', color: 'text-amber-500', bar: '#f59e0b' },
+              { range: '10 – 20 %', label: 'Mittlere Ermüdung', desc: 'Deutlicher Einbruch', color: 'text-orange-500', bar: '#f97316' },
+              { range: '> 20 %', label: 'Starke Ermüdung', desc: 'Massiver Einbruch H2', color: 'text-red-500', bar: '#ef4444' },
+            ].map(({ range, label, desc, color, bar }) => (
+              <div key={range} className="flex items-start gap-2">
+                <div className="w-1 h-full min-h-[36px] rounded-full shrink-0 mt-0.5" style={{ background: bar }} />
+                <div>
+                  <p className={`text-[11px] font-semibold ${color}`}>{range}</p>
+                  <p className="text-[10px] text-foreground">{label}</p>
+                  <p className="text-[10px] text-muted-foreground">{desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
       {/* 1. Stats-Leiste */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
 
@@ -206,7 +317,7 @@ export default function FatigueIndexPage() {
         {/* Negativsplits */}
         <Card className="shadow-sm border">
           <CardContent className="px-4 py-3 space-y-1">
-            <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Negativsplits</p>
+            <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Steigerungen</p>
             <p className="text-2xl font-bold text-blue-500">{data.stats.negative_split_count}</p>
             <p className="text-[10px] text-muted-foreground">von {data.stats.rides_analyzed} Rides</p>
             <div className="h-1.5 bg-muted rounded-full overflow-hidden mt-1">
@@ -218,11 +329,11 @@ export default function FatigueIndexPage() {
           </CardContent>
         </Card>
 
-        {/* Bester Negativsplit */}
+        {/* Beste Steigerung */}
         {data.best_negative ? (
           <Card className="shadow-sm" style={{ borderColor: 'rgba(59,130,246,0.25)', background: 'rgba(59,130,246,0.05)' }}>
             <CardContent className="px-4 py-3 space-y-1">
-              <p className="text-[10px] uppercase tracking-wide text-blue-500">Bester Negativsplit</p>
+              <p className="text-[10px] uppercase tracking-wide text-blue-500">Beste Steigerung</p>
               <p className="text-2xl font-bold text-blue-500">{fmtPct(data.best_negative.fatigue_pct)}</p>
               <Link
                 to={`/activities/${data.best_negative.activity_id}`}
@@ -235,7 +346,7 @@ export default function FatigueIndexPage() {
         ) : (
           <Card className="shadow-sm border">
             <CardContent className="px-4 py-3">
-              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Bester Negativsplit</p>
+              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Beste Steigerung</p>
               <p className="text-2xl font-bold text-muted-foreground">–</p>
             </CardContent>
           </Card>
@@ -265,7 +376,37 @@ export default function FatigueIndexPage() {
         )}
       </div>
 
-      {/* 2. Histogramm: Verteilung */}
+      {/* 2. Dynamische Einschätzung */}
+      {(() => {
+        const insights = buildInsights(data);
+        if (!insights.length) return null;
+        return (
+          <Card className="shadow-sm border">
+            <CardHeader className="pb-1 border-b">
+              <CardTitle className="text-base font-semibold">Einschätzung</CardTitle>
+              <p className="text-xs text-muted-foreground mt-0.5">Automatisch aus deinen Rides abgeleitet</p>
+            </CardHeader>
+            <CardContent className="pt-4">
+              <ul className="space-y-2.5">
+                {insights.map((insight, i) => (
+                  <li key={i} className="flex items-start gap-2.5 text-sm">
+                    <span className={`mt-0.5 shrink-0 font-bold leading-none ${
+                      insight.type === 'positive' ? 'text-green-500' :
+                      insight.type === 'warning'  ? 'text-orange-500' :
+                      'text-muted-foreground'
+                    }`}>
+                      {insight.type === 'positive' ? '↑' : insight.type === 'warning' ? '↓' : '·'}
+                    </span>
+                    <span className="text-muted-foreground leading-snug">{insight.text}</span>
+                  </li>
+                ))}
+              </ul>
+            </CardContent>
+          </Card>
+        );
+      })()}
+
+      {/* Histogramm: Verteilung */}
       {histoData.length > 0 && (
         <Card className="shadow-sm border overflow-hidden">
           <CardHeader className="pb-1 border-b">
@@ -308,7 +449,7 @@ export default function FatigueIndexPage() {
                   stroke="hsl(var(--foreground))"
                   strokeDasharray="6 4"
                   strokeOpacity={0.6}
-                  label={{ value: 'Ø-Pacing', fontSize: 9, fill: 'hsl(var(--foreground))', position: 'insideTopRight' }}
+                  label={{ value: 'Ausgeglichenes Pacing (0 %)', fontSize: 9, fill: 'hsl(var(--foreground))', position: 'insideTopRight' }}
                 />
                 {/* Ø-Linie */}
                 {avgFatigue !== null && (
@@ -328,17 +469,17 @@ export default function FatigueIndexPage() {
               </BarChart>
             </ResponsiveContainer>
             <div className="flex justify-between text-[10px] text-muted-foreground px-8 mt-1">
-              <span>← Negativsplit (schneller)</span>
+              <span>← Steigerung (schneller in H2)</span>
               <span>Ermüdung (langsamer) →</span>
             </div>
           </CardContent>
         </Card>
       )}
 
-      {/* 3. Kacheln: Bester Negativsplit / Größte Ermüdung (Detail) */}
+      {/* 3. Kacheln: Beste Steigerung / Größte Ermüdung (Detail) */}
       {data.best_negative && data.worst_fatigue && (
         <div className="grid sm:grid-cols-2 gap-4">
-          {/* Bester Negativsplit */}
+          {/* Beste Steigerung */}
           {(() => {
             const bn = data.best_negative!;
             const bnW = splitBarWidths(bn.spd_h1_kmh, bn.spd_h2_kmh);
@@ -347,7 +488,7 @@ export default function FatigueIndexPage() {
                 <CardContent className="px-5 py-4 space-y-3">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
-                      <p className="text-xs text-blue-500 uppercase tracking-wide font-medium">Bester Negativsplit</p>
+                      <p className="text-xs text-blue-500 uppercase tracking-wide font-medium">Beste Steigerung</p>
                       <p className="text-sm font-semibold text-foreground truncate mt-0.5">{bn.activity_name}</p>
                       <p className="text-xs text-muted-foreground">{fmtDate(bn.date)} · {bn.dist_km} km</p>
                     </div>
@@ -460,7 +601,7 @@ export default function FatigueIndexPage() {
                 />
                 <Tooltip
                   formatter={(value, _name, props) => [
-                    `${fmtPct(Number(value))} · ${props.payload.rides} Rides · ${props.payload.neg_split_pct.toFixed(0)} % Neg.`,
+                    `${fmtPct(Number(value))} · ${props.payload.rides} Rides · ${props.payload.neg_split_pct.toFixed(0)} % Steigerung`,
                     props.payload.month,
                   ]}
                   contentStyle={{
@@ -522,8 +663,8 @@ export default function FatigueIndexPage() {
                   <th className="px-4 py-2 font-medium">Datum</th>
                   <th className="px-4 py-2 font-medium">Name</th>
                   <th className="px-4 py-2 font-medium text-right">Dist.</th>
-                  <th className="px-4 py-2 font-medium text-right">H1</th>
-                  <th className="px-4 py-2 font-medium text-right">H2</th>
+                  <th className="px-4 py-2 font-medium text-right">1. Hälfte</th>
+                  <th className="px-4 py-2 font-medium text-right">2. Hälfte</th>
                   <th className="px-4 py-2 font-medium">Index</th>
                 </tr>
               </thead>
