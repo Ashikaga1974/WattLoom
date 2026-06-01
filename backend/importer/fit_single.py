@@ -69,7 +69,7 @@ def import_single_fit(conn: sqlite3.Connection, fit_bytes: bytes, bike_id: str) 
 
     # Negativer Unix-Timestamp → kein Kollisionsrisiko mit positiven Strava-IDs
     activity_id = -int(start_dt.timestamp())
-    start_date = start_dt.isoformat()
+    start_date = start_dt.strftime('%Y-%m-%dT%H:%M:%S')
 
     # Duplikat-Check
     dup = conn.execute("SELECT id FROM activities WHERE id = ?", (activity_id,)).fetchone()
