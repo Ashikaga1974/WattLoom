@@ -486,4 +486,14 @@ export const api = {
 
   fatigueIndex: (year?: number): Promise<FatigueData> =>
     get(`/analytics/fatigue-index${buildQuery({ year })}`),
+
+  importFitFile: (file: File, bikeId: string): Promise<{ activity_id: number; name: string }> => {
+    const form = new FormData();
+    form.append('file', file);
+    form.append('bike_id', bikeId);
+    return fetch(`${BASE}/import/fit-file`, { method: 'POST', body: form }).then(r => {
+      if (!r.ok) return r.json().then(j => { throw new Error(j.detail ?? `Fehler ${r.status}`); });
+      return r.json() as Promise<{ activity_id: number; name: string }>;
+    });
+  },
 };

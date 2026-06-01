@@ -1,6 +1,6 @@
 import threading
 import sys
-from fastapi import APIRouter
+from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 
 router = APIRouter(prefix="/import", tags=["import"])
 
@@ -74,6 +74,31 @@ def import_status():
             "log": list(_state["log"]),
             "zip_name": _state["zip_name"],
         }
+
+
+@router.post("/fit-file")
+async def import_fit_file(
+    file: UploadFile = File(...),
+    bike_id: str = Form(...),
+) -> dict:
+    """Importiert eine einzelne .fit-Datei direkt in die DB."""
+    if not file.filename or not file.filename.lower().endswith(".fit"):
+        raise HTTPException(status_code=400, detail="Nur .fit-Dateien werden unterstützt")
+
+    data = await file.read()
+
+    from backend.database import get_connection
+    from backend.importer.fit_single import import_single_fit
+
+    conn = get_connection()
+    try:
+        result = import_single_fit(conn, data, bike_id)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    finally:
+        conn.close()
+
+    return result
 
 
 @router.post("/reset")
