@@ -27,6 +27,7 @@ import WrappedPage from '@/pages/WrappedPage';
 import BerechnungenPage from '@/pages/BerechnungenPage';
 import CadencePage from '@/pages/CadencePage';
 import FatigueIndexPage from '@/pages/FatigueIndexPage';
+import CaloriesPage from '@/pages/CaloriesPage';
 
 export default function App() {
   return (
@@ -62,6 +63,7 @@ export default function App() {
                 <Route path="/berechnungen" element={<BerechnungenPage />} />
                 <Route path="/cadence" element={<CadencePage />} />
                 <Route path="/fatigue-index" element={<FatigueIndexPage />} />
+                <Route path="/calories" element={<CaloriesPage />} />
               </Routes>
             </main>
           </SidebarInset>

@@ -30,6 +30,7 @@ import {
   BarChart,
   Route,
   GitCompare,
+  Cookie,
 } from 'lucide-react';
 
 interface NavSubItem {
@@ -79,7 +80,7 @@ const navGroups: NavGroup[] = [
     href: '/progress',
     label: 'Analyse',
     icon: <BarChart2 size={16} />,
-    prefixes: ['/progress', '/training', '/compare', '/fatigue-index', '/ftp', '/hrcurve', '/cadence', '/form', '/speedhr', '/tempcorr', '/timeheatmap', '/stats', '/wrapped'],
+    prefixes: ['/progress', '/training', '/compare', '/fatigue-index', '/ftp', '/hrcurve', '/cadence', '/form', '/speedhr', '/tempcorr', '/timeheatmap', '/stats', '/wrapped', '/calories'],
     children: [
       { href: '/progress',      label: 'Jahresfortschritt', icon: <TrendingUp size={13} /> },
       { href: '/training',      label: 'Training', icon: <BarChart size={13} /> },
@@ -92,6 +93,7 @@ const navGroups: NavGroup[] = [
       { href: '/speedhr',       label: 'Speed–HR', icon: <BarChart2 size={13} /> },
       { href: '/tempcorr',      label: 'Temperatur', icon: <BarChart size={13} /> },
       { href: '/timeheatmap',   label: 'Tageszeit', icon: <Map size={13} /> },
+      { href: '/calories',      label: 'Kalorien', icon: <Cookie size={13} /> },
       { href: '/wrapped',       label: 'Jahresrückblick', icon: <Trophy size={13} /> },
     ],
   },

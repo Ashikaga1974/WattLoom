@@ -436,6 +436,16 @@ export const api = {
   tempCorrelation: () =>
     get<{ points: { temp_c: number; speed_kmh: number; hr: number; year: number; dist_km: number }[] }>('/analytics/temp-correlation'),
 
+  calories: (year?: number | null) =>
+    get<{
+      total_kcal: number;
+      rides: number;
+      avg_kcal: number;
+      kcal_per_hour: number | null;
+      monthly: { month: string; kcal: number; rides: number; avg_kcal: number }[];
+      yearly: { year: string; kcal: number; rides: number; avg_kcal: number }[];
+    }>(`/analytics/calories${year ? `?year=${year}` : ''}`),
+
   ftp: () =>
     get<{
       trend: { label: string; best_w: number }[];
