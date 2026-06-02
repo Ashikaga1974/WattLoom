@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Query
-from backend.database import get_connection
+from backend.database import db_connection
 
 router = APIRouter(prefix="/tracks", tags=["heatmap"])
 
@@ -27,19 +27,17 @@ def get_heatmap(
         year_where = "AND strftime('%Y', a.start_date) = ?"
         params.append(str(year))
 
-    conn = get_connection()
-    rows = conn.execute(
-        f"""
-        SELECT tp.lat, tp.lon
-        FROM track_points tp
-        {year_join}
-        WHERE (tp.rowid % ?) = 0
-          AND tp.lat IS NOT NULL
-          AND tp.lon IS NOT NULL
-          {year_where}
-        """,
-        params,
-    ).fetchall()
-    conn.close()
-
-    return {"count": len(rows), "points": [[r["lat"], r["lon"]] for r in rows]}
+    with db_connection() as conn:
+        rows = conn.execute(
+            f"""
+            SELECT tp.lat, tp.lon
+            FROM track_points tp
+            {year_join}
+            WHERE (tp.rowid % ?) = 0
+              AND tp.lat IS NOT NULL
+              AND tp.lon IS NOT NULL
+              {year_where}
+            """,
+            params,
+        ).fetchall()
+        return {"count": len(rows), "points": [[r["lat"], r["lon"]] for r in rows]}

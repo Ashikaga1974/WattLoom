@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 from pydantic import BaseModel
-from backend.database import get_connection
+from backend.database import db_connection
 
 router = APIRouter(prefix="/settings", tags=["settings"])
 
@@ -41,36 +41,32 @@ def _load_settings(conn):
 
 @router.get("")
 def get_settings():
-    conn = get_connection()
-    result = _load_settings(conn)
-    conn.close()
-    return result
+    with db_connection() as conn:
+        return _load_settings(conn)
 
 
 @router.post("")
 def update_settings(body: SettingsUpdate):
-    conn = get_connection()
-    fields = {
-        "weight_kg":           str(body.weight_kg)           if body.weight_kg           is not None else None,
-        "birth_year":          str(body.birth_year)          if body.birth_year          is not None else None,
-        "ftp_manual":          str(body.ftp_manual)          if body.ftp_manual          is not None else None,
-        "tz_offset":           str(body.tz_offset)           if body.tz_offset           is not None else None,
-        "bezier_tension":      str(body.bezier_tension)      if body.bezier_tension      is not None else None,
-        "sparkline_weeks":     str(body.sparkline_weeks)     if body.sparkline_weeks     is not None else None,
-        "speed_color_buckets": str(body.speed_color_buckets) if body.speed_color_buckets is not None else None,
-        "track_simplify_m":    str(body.track_simplify_m)    if body.track_simplify_m    is not None else None,
-    }
-    for key, val in fields.items():
-        if val is not None:
-            conn.execute(
-                "INSERT INTO config(key, value) VALUES(?, ?) "
-                "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
-                (key, val),
-            )
-        elif key in body.model_fields_set:
-            # Explizit null → auf Default zurücksetzen (Eintrag löschen)
-            conn.execute("DELETE FROM config WHERE key = ?", (key,))
-    conn.commit()
-    result = _load_settings(conn)
-    conn.close()
-    return result
+    with db_connection() as conn:
+        fields = {
+            "weight_kg":           str(body.weight_kg)           if body.weight_kg           is not None else None,
+            "birth_year":          str(body.birth_year)          if body.birth_year          is not None else None,
+            "ftp_manual":          str(body.ftp_manual)          if body.ftp_manual          is not None else None,
+            "tz_offset":           str(body.tz_offset)           if body.tz_offset           is not None else None,
+            "bezier_tension":      str(body.bezier_tension)      if body.bezier_tension      is not None else None,
+            "sparkline_weeks":     str(body.sparkline_weeks)     if body.sparkline_weeks     is not None else None,
+            "speed_color_buckets": str(body.speed_color_buckets) if body.speed_color_buckets is not None else None,
+            "track_simplify_m":    str(body.track_simplify_m)    if body.track_simplify_m    is not None else None,
+        }
+        for key, val in fields.items():
+            if val is not None:
+                conn.execute(
+                    "INSERT INTO config(key, value) VALUES(?, ?) "
+                    "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+                    (key, val),
+                )
+            elif key in body.model_fields_set:
+                # Explizit null → auf Default zurücksetzen (Eintrag löschen)
+                conn.execute("DELETE FROM config WHERE key = ?", (key,))
+        conn.commit()
+        return _load_settings(conn)

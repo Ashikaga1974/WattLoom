@@ -4,8 +4,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
 from backend.api import activities, tracks, bikes, segments, heatmap, analytics, settings, importer, zones
+from backend.database import init_db
 
 app = FastAPI(title="MyBiking API", version="0.1.0")
+init_db()
 
 app.add_middleware(
     CORSMiddleware,

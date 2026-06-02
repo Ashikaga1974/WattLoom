@@ -44,6 +44,9 @@ export default function SettingsPage() {
   const [configSuccess, setConfigSuccess]       = useState(false);
   const [configError, setConfigError]           = useState<string | null>(null);
 
+  // Import-Sicherheitsabfrage
+  const [importConfirm, setImportConfirm] = useState(false);
+
   // Reset
   const [resetConfirm, setResetConfirm]   = useState(false);
   const [resetBusy, setResetBusy]         = useState(false);
@@ -182,7 +185,17 @@ export default function SettingsPage() {
     }
   }
 
+  async function handleImportClick() {
+    const stats = await api.activityStats();
+    if (stats.total_rides > 0) {
+      setImportConfirm(true);
+    } else {
+      await doStartImport();
+    }
+  }
+
   async function doStartImport() {
+    setImportConfirm(false);
     setImportLog([]);
     setImportZip(null);
     setImportStatus('running');
@@ -473,20 +486,46 @@ export default function SettingsPage() {
           </p>
         </CardHeader>
         <CardContent className="pt-5 space-y-4">
-          <div className="flex items-center gap-4 flex-wrap">
-            <button
-              onClick={doStartImport}
-              disabled={importStatus === 'running'}
-              className="rounded-md px-5 py-2 text-sm font-medium bg-orange-500 hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-white cursor-pointer"
-            >
-              {importStatus === 'running' ? 'Import läuft…' : 'Import starten'}
-            </button>
-            {importZip && (
-              <span className="text-xs text-muted-foreground font-mono">{importZip}</span>
-            )}
-            {importStatus === 'done' && <span className="text-sm text-green-600">Abgeschlossen</span>}
-            {importStatus === 'error' && <span className="text-sm text-red-500">Fehler beim Import</span>}
-          </div>
+          {importConfirm ? (
+            <div className="rounded-lg border border-orange-500/40 bg-orange-500/10 p-4 space-y-3">
+              <p className="text-sm font-medium text-orange-600 dark:text-orange-400">
+                ⚠ Datenbank enthält bereits Aktivitäten
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Ein erneuter Import dupliziert Track-Punkte, Laps und Streckenvergleiche.
+                Zuerst <strong>Datenbank zurücksetzen</strong>, dann importieren.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={doStartImport}
+                  className="rounded-md px-4 py-1.5 text-xs font-medium bg-orange-500 hover:bg-orange-600 text-white transition-colors cursor-pointer"
+                >
+                  Trotzdem importieren
+                </button>
+                <button
+                  onClick={() => setImportConfirm(false)}
+                  className="rounded-md px-4 py-1.5 text-xs font-medium border border-border hover:bg-muted transition-colors cursor-pointer"
+                >
+                  Abbrechen
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center gap-4 flex-wrap">
+              <button
+                onClick={handleImportClick}
+                disabled={importStatus === 'running'}
+                className="rounded-md px-5 py-2 text-sm font-medium bg-orange-500 hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-white cursor-pointer"
+              >
+                {importStatus === 'running' ? 'Import läuft…' : 'Import starten'}
+              </button>
+              {importZip && (
+                <span className="text-xs text-muted-foreground font-mono">{importZip}</span>
+              )}
+              {importStatus === 'done' && <span className="text-sm text-green-600">Abgeschlossen</span>}
+              {importStatus === 'error' && <span className="text-sm text-red-500">Fehler beim Import</span>}
+            </div>
+          )}
 
           {importLog.length > 0 && (
             <div className="rounded-lg border border-border bg-muted/40 p-3 max-h-56 overflow-y-auto font-mono text-xs space-y-0.5 leading-relaxed">

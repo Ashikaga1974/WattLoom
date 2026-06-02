@@ -2,7 +2,7 @@ import math
 from pathlib import Path
 
 from fastapi import APIRouter, Query, HTTPException
-from backend.database import get_connection
+from backend.database import db_connection
 
 MEDIA_DIR = Path(__file__).parent.parent.parent / "data" / "media"
 
@@ -54,22 +54,21 @@ def list_activities(
     null_last = f"{sort_by} IS NULL, {sort_by} {sort_dir.upper()}"
     where = ("WHERE " + " AND ".join(filters)) if filters else ""
 
-    conn = get_connection()
-    rows = conn.execute(
-        f"""
-        SELECT id, name, activity_type, start_date, distance_m, moving_time_s,
-               elevation_gain_m, avg_speed_ms, avg_hr, avg_power_w, avg_cadence,
-               calories, bike_id, has_track, manual, smart_device
-        FROM activities
-        {where}
-        ORDER BY {null_last}
-        LIMIT ? OFFSET ?
-        """,
-        params + [limit, offset],
-    ).fetchall()
+    with db_connection() as conn:
+        rows = conn.execute(
+            f"""
+            SELECT id, name, activity_type, start_date, distance_m, moving_time_s,
+                   elevation_gain_m, avg_speed_ms, avg_hr, avg_power_w, avg_cadence,
+                   calories, bike_id, has_track, manual, smart_device
+            FROM activities
+            {where}
+            ORDER BY {null_last}
+            LIMIT ? OFFSET ?
+            """,
+            params + [limit, offset],
+        ).fetchall()
 
-    total = conn.execute(f"SELECT COUNT(*) FROM activities {where}", params).fetchone()[0]
-    conn.close()
+        total = conn.execute(f"SELECT COUNT(*) FROM activities {where}", params).fetchone()[0]
 
     return {"total": total, "limit": limit, "offset": offset, "items": [dict(r) for r in rows]}
 
@@ -84,54 +83,52 @@ def overall_stats(year: int | None = None):
         params.append(str(year))
     where = ("WHERE " + " AND ".join(filters)) if filters else ""
 
-    conn = get_connection()
-    row = conn.execute(
-        f"""
-        SELECT
-            COUNT(*)                        AS total_rides,
-            SUM(distance_m) / 1000.0        AS total_km,
-            SUM(moving_time_s)              AS total_moving_s,
-            SUM(elevation_gain_m)           AS total_elevation_m,
-            AVG(distance_m) / 1000.0        AS avg_km,
-            MAX(distance_m) / 1000.0        AS max_km,
-            AVG(avg_speed_ms) * 3.6         AS avg_speed_kmh,
-            AVG(avg_hr)                     AS avg_hr,
-            AVG(avg_power_w)                AS avg_power_w,
-            SUM(calories)                   AS total_calories
-        FROM activities
-        {where}
-        """,
-        params,
-    ).fetchone()
+    with db_connection() as conn:
+        row = conn.execute(
+            f"""
+            SELECT
+                COUNT(*)                        AS total_rides,
+                SUM(distance_m) / 1000.0        AS total_km,
+                SUM(moving_time_s)              AS total_moving_s,
+                SUM(elevation_gain_m)           AS total_elevation_m,
+                AVG(distance_m) / 1000.0        AS avg_km,
+                MAX(distance_m) / 1000.0        AS max_km,
+                AVG(avg_speed_ms) * 3.6         AS avg_speed_kmh,
+                AVG(avg_hr)                     AS avg_hr,
+                AVG(avg_power_w)                AS avg_power_w,
+                SUM(calories)                   AS total_calories
+            FROM activities
+            {where}
+            """,
+            params,
+        ).fetchone()
 
-    years = conn.execute(
-        "SELECT DISTINCT strftime('%Y', start_date) AS y FROM activities ORDER BY y DESC"
-    ).fetchall()
+        years = conn.execute(
+            "SELECT DISTINCT strftime('%Y', start_date) AS y FROM activities ORDER BY y DESC"
+        ).fetchall()
 
-    conn.close()
     return {**dict(row), "available_years": [r["y"] for r in years]}
 
 
 @router.get("/weekly")
 def weekly_stats(weeks: int = Query(8, ge=1, le=52)):
     """Aggregierte Wochendaten der letzten N Wochen."""
-    conn = get_connection()
-    rows = conn.execute(
-        """
-        SELECT
-            CAST((julianday('now') - julianday(start_date)) / 7 AS INTEGER) AS weeks_ago,
-            COUNT(*)                        AS count,
-            SUM(distance_m) / 1000.0        AS distance_km,
-            SUM(moving_time_s)              AS moving_s,
-            COALESCE(SUM(elevation_gain_m), 0) AS elevation_m
-        FROM activities
-        WHERE start_date >= date('now', ? || ' days')
-        GROUP BY weeks_ago
-        ORDER BY weeks_ago ASC
-        """,
-        (f"-{weeks * 7}",),
-    ).fetchall()
-    conn.close()
+    with db_connection() as conn:
+        rows = conn.execute(
+            """
+            SELECT
+                CAST((julianday('now') - julianday(start_date)) / 7 AS INTEGER) AS weeks_ago,
+                COUNT(*)                        AS count,
+                SUM(distance_m) / 1000.0        AS distance_km,
+                SUM(moving_time_s)              AS moving_s,
+                COALESCE(SUM(elevation_gain_m), 0) AS elevation_m
+            FROM activities
+            WHERE start_date >= date('now', ? || ' days')
+            GROUP BY weeks_ago
+            ORDER BY weeks_ago ASC
+            """,
+            (f"-{weeks * 7}",),
+        ).fetchall()
 
     by_week: dict[int, dict] = {r["weeks_ago"]: dict(r) for r in rows}
     result = []
@@ -143,43 +140,41 @@ def weekly_stats(weeks: int = Query(8, ge=1, le=52)):
 @router.get("/monthly-all")
 def monthly_all():
     """Monatliche km über den gesamten Zeitraum, chronologisch sortiert."""
-    conn = get_connection()
-    rows = conn.execute(
-        """
-        SELECT
-            CAST(strftime('%Y', start_date) AS INTEGER) AS year,
-            CAST(strftime('%m', start_date) AS INTEGER) AS month,
-            SUM(distance_m) / 1000.0 AS distance_km,
-            COUNT(*) AS count
-        FROM activities
-        GROUP BY year, month
-        ORDER BY year, month
-        """
-    ).fetchall()
-    conn.close()
+    with db_connection() as conn:
+        rows = conn.execute(
+            """
+            SELECT
+                CAST(strftime('%Y', start_date) AS INTEGER) AS year,
+                CAST(strftime('%m', start_date) AS INTEGER) AS month,
+                SUM(distance_m) / 1000.0 AS distance_km,
+                COUNT(*) AS count
+            FROM activities
+            GROUP BY year, month
+            ORDER BY year, month
+            """
+        ).fetchall()
     return [dict(r) for r in rows]
 
 
 @router.get("/monthly")
 def monthly_stats(year: int = Query(..., description="Jahr")):
     """Monatliche Aggregation für ein bestimmtes Jahr (12 Monate, fehlende = 0)."""
-    conn = get_connection()
-    rows = conn.execute(
-        """
-        SELECT
-            CAST(strftime('%m', start_date) AS INTEGER) AS month,
-            COUNT(*)                        AS count,
-            SUM(distance_m) / 1000.0        AS distance_km,
-            SUM(moving_time_s)              AS moving_s,
-            COALESCE(SUM(elevation_gain_m), 0) AS elevation_m
-        FROM activities
-        WHERE strftime('%Y', start_date) = ?
-        GROUP BY month
-        ORDER BY month
-        """,
-        (str(year),),
-    ).fetchall()
-    conn.close()
+    with db_connection() as conn:
+        rows = conn.execute(
+            """
+            SELECT
+                CAST(strftime('%m', start_date) AS INTEGER) AS month,
+                COUNT(*)                        AS count,
+                SUM(distance_m) / 1000.0        AS distance_km,
+                SUM(moving_time_s)              AS moving_s,
+                COALESCE(SUM(elevation_gain_m), 0) AS elevation_m
+            FROM activities
+            WHERE strftime('%Y', start_date) = ?
+            GROUP BY month
+            ORDER BY month
+            """,
+            (str(year),),
+        ).fetchall()
 
     by_month: dict[int, dict] = {r["month"]: dict(r) for r in rows}
     return [
@@ -191,32 +186,30 @@ def monthly_stats(year: int = Query(..., description="Jahr")):
 @router.get("/other")
 def list_other_activities(year: int = Query(None)):
     """Alle other_activities (Workout, Weight Training), optional nach Jahr gefiltert."""
-    conn = get_connection()
     params = []
     where = "WHERE strftime('%Y', start_date_local) >= '2000'"
     if year:
         where += " AND strftime('%Y', start_date_local) = ?"
         params.append(str(year))
-    rows = conn.execute(f"""
-        SELECT
-            strftime('%Y-%m-%d', start_date_local) AS date,
-            sport_type,
-            moving_time_s
-        FROM other_activities
-        {where}
-        ORDER BY start_date_local
-    """, params).fetchall()
-    conn.close()
+    with db_connection() as conn:
+        rows = conn.execute(f"""
+            SELECT
+                strftime('%Y-%m-%d', start_date_local) AS date,
+                sport_type,
+                moving_time_s
+            FROM other_activities
+            {where}
+            ORDER BY start_date_local
+        """, params).fetchall()
     return [dict(r) for r in rows]
 
 
 @router.get("/{activity_id}")
 def get_activity(activity_id: int):
-    conn = get_connection()
-    row = conn.execute(
-        "SELECT * FROM activities WHERE id = ?", (activity_id,)
-    ).fetchone()
-    conn.close()
+    with db_connection() as conn:
+        row = conn.execute(
+            "SELECT * FROM activities WHERE id = ?", (activity_id,)
+        ).fetchone()
     if row is None:
         raise HTTPException(status_code=404, detail="Activity not found")
     return dict(row)
@@ -224,23 +217,21 @@ def get_activity(activity_id: int):
 
 @router.get("/{activity_id}/laps")
 def get_laps(activity_id: int):
-    conn = get_connection()
-    rows = conn.execute(
-        "SELECT * FROM laps WHERE activity_id = ? ORDER BY lap_number",
-        (activity_id,),
-    ).fetchall()
-    conn.close()
+    with db_connection() as conn:
+        rows = conn.execute(
+            "SELECT * FROM laps WHERE activity_id = ? ORDER BY lap_number",
+            (activity_id,),
+        ).fetchall()
     return [dict(r) for r in rows]
 
 
 @router.get("/{activity_id}/media")
 def get_activity_media(activity_id: int):
-    conn = get_connection()
-    rows = conn.execute(
-        "SELECT filename FROM media WHERE activity_id = ? ORDER BY id",
-        (activity_id,),
-    ).fetchall()
-    conn.close()
+    with db_connection() as conn:
+        rows = conn.execute(
+            "SELECT filename FROM media WHERE activity_id = ? ORDER BY id",
+            (activity_id,),
+        ).fetchall()
     return {"files": [r["filename"] for r in rows]}
 
 
@@ -252,61 +243,56 @@ def get_similar_activities(
     limit: int = Query(10, ge=1, le=50),
 ):
     """Findet Aktivitäten mit ähnlichem Startpunkt (±start_radius_km) und ähnlicher Distanz (±max_distance_diff_pct)."""
-    conn = get_connection()
+    with db_connection() as conn:
+        ref = conn.execute(
+            "SELECT id, distance_m FROM activities WHERE id = ? AND has_track = 1",
+            (activity_id,),
+        ).fetchone()
+        if ref is None:
+            raise HTTPException(status_code=404, detail="Activity not found or has no track")
 
-    ref = conn.execute(
-        "SELECT id, distance_m FROM activities WHERE id = ? AND has_track = 1",
-        (activity_id,),
-    ).fetchone()
-    if ref is None:
-        conn.close()
-        raise HTTPException(status_code=404, detail="Activity not found or has no track")
+        ref_start = conn.execute(
+            "SELECT lat, lon FROM track_points WHERE activity_id = ? AND lat IS NOT NULL AND lon IS NOT NULL ORDER BY id LIMIT 1",
+            (activity_id,),
+        ).fetchone()
+        if ref_start is None:
+            raise HTTPException(status_code=404, detail="Reference activity has no GPS track points")
 
-    ref_start = conn.execute(
-        "SELECT lat, lon FROM track_points WHERE activity_id = ? AND lat IS NOT NULL AND lon IS NOT NULL ORDER BY id LIMIT 1",
-        (activity_id,),
-    ).fetchone()
-    if ref_start is None:
-        conn.close()
-        raise HTTPException(status_code=404, detail="Reference activity has no GPS track points")
+        ref_lat = ref_start["lat"]
+        ref_lon = ref_start["lon"]
+        ref_dist = ref["distance_m"]
+        min_dist = ref_dist * (1 - max_distance_diff_pct / 100)
+        max_dist = ref_dist * (1 + max_distance_diff_pct / 100)
 
-    ref_lat = ref_start["lat"]
-    ref_lon = ref_start["lon"]
-    ref_dist = ref["distance_m"]
-    min_dist = ref_dist * (1 - max_distance_diff_pct / 100)
-    max_dist = ref_dist * (1 + max_distance_diff_pct / 100)
+        candidates = conn.execute(
+            """
+            SELECT id, name, start_date, distance_m, moving_time_s,
+                   avg_speed_ms, avg_hr, elevation_gain_m
+            FROM activities
+            WHERE id != ? AND has_track = 1 AND distance_m BETWEEN ? AND ?
+            ORDER BY start_date DESC
+            """,
+            (activity_id, min_dist, max_dist),
+        ).fetchall()
 
-    candidates = conn.execute(
-        """
-        SELECT id, name, start_date, distance_m, moving_time_s,
-               avg_speed_ms, avg_hr, elevation_gain_m
-        FROM activities
-        WHERE id != ? AND has_track = 1 AND distance_m BETWEEN ? AND ?
-        ORDER BY start_date DESC
-        """,
-        (activity_id, min_dist, max_dist),
-    ).fetchall()
+        if not candidates:
+            return {"reference_id": activity_id, "similar": []}
 
-    if not candidates:
-        conn.close()
-        return {"reference_id": activity_id, "similar": []}
-
-    # Ersten Track-Punkt jeder Kandidaten-Aktivität in einer Query holen
-    cand_ids = [c["id"] for c in candidates]
-    placeholders = ",".join("?" * len(cand_ids))
-    start_pts = conn.execute(
-        f"""
-        SELECT tp.activity_id, tp.lat, tp.lon
-        FROM track_points tp
-        WHERE tp.id IN (
-            SELECT MIN(id) FROM track_points
-            WHERE activity_id IN ({placeholders})
-            GROUP BY activity_id
-        )
-        """,
-        cand_ids,
-    ).fetchall()
-    conn.close()
+        # Ersten Track-Punkt jeder Kandidaten-Aktivität in einer Query holen
+        cand_ids = [c["id"] for c in candidates]
+        placeholders = ",".join("?" * len(cand_ids))
+        start_pts = conn.execute(
+            f"""
+            SELECT tp.activity_id, tp.lat, tp.lon
+            FROM track_points tp
+            WHERE tp.id IN (
+                SELECT MIN(id) FROM track_points
+                WHERE activity_id IN ({placeholders})
+                GROUP BY activity_id
+            )
+            """,
+            cand_ids,
+        ).fetchall()
 
     start_map = {
         r["activity_id"]: (r["lat"], r["lon"])
@@ -330,49 +316,44 @@ def get_similar_activities(
 @router.patch("/{activity_id}/power")
 def update_activity_power(activity_id: int, body: dict):
     """Setzt avg_power_w für manuell importierte Aktivitäten (manual=1)."""
-    conn = get_connection()
-    row = conn.execute(
-        "SELECT id, manual FROM activities WHERE id = ?", (activity_id,)
-    ).fetchone()
-    if row is None:
-        conn.close()
-        raise HTTPException(status_code=404, detail="Activity not found")
-    if not row["manual"]:
-        conn.close()
-        raise HTTPException(status_code=400, detail="Nur bei manuell importierten Aktivitäten erlaubt")
+    with db_connection() as conn:
+        row = conn.execute(
+            "SELECT id, manual FROM activities WHERE id = ?", (activity_id,)
+        ).fetchone()
+        if row is None:
+            raise HTTPException(status_code=404, detail="Activity not found")
+        if not row["manual"]:
+            raise HTTPException(status_code=400, detail="Nur bei manuell importierten Aktivitäten erlaubt")
 
-    power = body.get("avg_power_w")
-    if power is not None:
-        power = float(power)
+        power = body.get("avg_power_w")
+        if power is not None:
+            power = float(power)
 
-    conn.execute("UPDATE activities SET avg_power_w = ? WHERE id = ?", (power, activity_id))
-    conn.commit()
-    conn.close()
+        conn.execute("UPDATE activities SET avg_power_w = ? WHERE id = ?", (power, activity_id))
+        conn.commit()
     return {"ok": True, "activity_id": activity_id, "avg_power_w": power}
 
 
 @router.delete("/{activity_id}")
 def delete_activity(activity_id: int):
-    conn = get_connection()
-    row = conn.execute("SELECT id FROM activities WHERE id = ?", (activity_id,)).fetchone()
-    if row is None:
-        conn.close()
-        raise HTTPException(status_code=404, detail="Activity not found")
+    with db_connection() as conn:
+        row = conn.execute("SELECT id FROM activities WHERE id = ?", (activity_id,)).fetchone()
+        if row is None:
+            raise HTTPException(status_code=404, detail="Activity not found")
 
-    # Mediendateien vom Dateisystem entfernen
-    media_rows = conn.execute(
-        "SELECT filename FROM media WHERE activity_id = ?", (activity_id,)
-    ).fetchall()
-    for m in media_rows:
-        path = MEDIA_DIR / m["filename"]
-        if path.exists():
-            path.unlink()
+        # Mediendateien vom Dateisystem entfernen
+        media_rows = conn.execute(
+            "SELECT filename FROM media WHERE activity_id = ?", (activity_id,)
+        ).fetchall()
+        for m in media_rows:
+            path = MEDIA_DIR / m["filename"]
+            if path.exists():
+                path.unlink()
 
-    # Alle verknüpften Datensätze und die Aktivität löschen
-    conn.execute("DELETE FROM track_points WHERE activity_id = ?", (activity_id,))
-    conn.execute("DELETE FROM media WHERE activity_id = ?", (activity_id,))
-    conn.execute("DELETE FROM laps WHERE activity_id = ?", (activity_id,))
-    conn.execute("DELETE FROM activities WHERE id = ?", (activity_id,))
-    conn.commit()
-    conn.close()
+        # Alle verknüpften Datensätze und die Aktivität löschen
+        conn.execute("DELETE FROM track_points WHERE activity_id = ?", (activity_id,))
+        conn.execute("DELETE FROM media WHERE activity_id = ?", (activity_id,))
+        conn.execute("DELETE FROM laps WHERE activity_id = ?", (activity_id,))
+        conn.execute("DELETE FROM activities WHERE id = ?", (activity_id,))
+        conn.commit()
     return {"ok": True, "deleted_id": activity_id}

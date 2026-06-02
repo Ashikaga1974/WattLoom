@@ -4,21 +4,27 @@ Alle Tabellen werden hier angelegt; keine Migrations-Library – simples CREATE 
 """
 
 import sqlite3
+from contextlib import contextmanager
 from pathlib import Path
+from typing import Generator
 
 DB_PATH = Path(__file__).parent.parent / "data" / "mybiking.db"
 
 
-def get_connection() -> sqlite3.Connection:
+@contextmanager
+def db_connection() -> Generator[sqlite3.Connection, None, None]:
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA foreign_keys=ON")
-    return conn
+    try:
+        yield conn
+    finally:
+        conn.close()
 
 
 def init_db() -> None:
-    with get_connection() as conn:
+    with db_connection() as conn:
         conn.executescript("""
             CREATE TABLE IF NOT EXISTS activities (
                 id                  INTEGER PRIMARY KEY,  -- Strava Activity-ID
@@ -173,6 +179,13 @@ def init_db() -> None:
                 value TEXT
             );
         """)
+        # Default-Bike sicherstellen – wird nach jedem Reset neu angelegt
+        conn.execute(
+            "INSERT OR IGNORE INTO bikes (id, name, brand, retired) VALUES (?, ?, ?, 0)",
+            ("giant_propel", "Giant Propel", "Giant"),
+        )
+        conn.commit()
+
         # Migration: smart_device-Spalte hinzufügen falls nicht vorhanden
         cols = [r[1] for r in conn.execute("PRAGMA table_info(activities)").fetchall()]
         if "smart_device" not in cols:

@@ -1,6 +1,6 @@
 from datetime import datetime
 from fastapi import APIRouter, HTTPException
-from backend.database import get_connection
+from backend.database import db_connection
 
 router = APIRouter(prefix="/activities", tags=["zones"])
 
@@ -96,8 +96,7 @@ def get_zones(activity_id: int):
     Zeitdelta zwischen aufeinanderfolgenden Punkten wird auf max. 10 s gecappt
     (GPS-Pausen werden so ausgeschlossen).
     """
-    conn = get_connection()
-    try:
+    with db_connection() as conn:
         # 1. HRmax aus allen Aktivitäten
         row = conn.execute(
             "SELECT MAX(max_hr) AS v FROM activities WHERE max_hr > 0"
@@ -120,8 +119,6 @@ def get_zones(activity_id: int):
             """,
             (activity_id,),
         ).fetchall()
-    finally:
-        conn.close()
 
     if not rows:
         raise HTTPException(status_code=404, detail="Keine Track-Punkte für diese Aktivität")

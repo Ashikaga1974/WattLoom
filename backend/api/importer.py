@@ -87,16 +87,14 @@ async def import_fit_file(
 
     data = await file.read()
 
-    from backend.database import get_connection
+    from backend.database import db_connection
     from backend.importer.fit_single import import_single_fit
 
-    conn = get_connection()
     try:
-        result = import_single_fit(conn, data, bike_id)
+        with db_connection() as conn:
+            result = import_single_fit(conn, data, bike_id)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
-    finally:
-        conn.close()
 
     return result
 
@@ -108,20 +106,19 @@ def reset_db():
         if _state["status"] == "running":
             return {"ok": False, "message": "Import läuft gerade – bitte warten"}
 
-    from backend.database import get_connection
-    conn = get_connection()
-    with conn:
+    from backend.database import db_connection, init_db
+    with db_connection() as conn:
         conn.executescript("""
-            DELETE FROM track_points;
-            DELETE FROM laps;
-            DELETE FROM segment_efforts;
-            DELETE FROM media;
+            DELETE FROM track_points WHERE activity_id > 0;
+            DELETE FROM laps WHERE activity_id > 0;
+            DELETE FROM segment_efforts WHERE activity_id > 0;
+            DELETE FROM media WHERE activity_id > 0;
             DELETE FROM route_points;
             DELETE FROM routes;
             DELETE FROM bike_components;
-            DELETE FROM activities;
+            DELETE FROM activities WHERE id > 0;
             DELETE FROM other_activities;
             DELETE FROM bikes;
         """)
-    conn.close()
+    init_db()
     return {"ok": True}

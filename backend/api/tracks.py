@@ -1,7 +1,7 @@
 import math
 
 from fastapi import APIRouter, HTTPException, Query
-from backend.database import get_connection
+from backend.database import db_connection
 
 router = APIRouter(prefix="/activities", tags=["tracks"])
 
@@ -59,27 +59,24 @@ def get_track(
     else:
         where_mod = ""
 
-    conn = get_connection()
-    row_check = conn.execute(
-        "SELECT has_track FROM activities WHERE id = ?", (activity_id,)
-    ).fetchone()
-    if row_check is None:
-        conn.close()
-        raise HTTPException(status_code=404, detail="Activity not found")
-    if row_check["has_track"] == 0:
-        conn.close()
-        return {"activity_id": activity_id, "points": []}
+    with db_connection() as conn:
+        row_check = conn.execute(
+            "SELECT has_track FROM activities WHERE id = ?", (activity_id,)
+        ).fetchone()
+        if row_check is None:
+            raise HTTPException(status_code=404, detail="Activity not found")
+        if row_check["has_track"] == 0:
+            return {"activity_id": activity_id, "points": []}
 
-    rows = conn.execute(
-        f"""
-        SELECT {col_sql}
-        FROM track_points
-        WHERE activity_id = ? {where_mod}
-        ORDER BY id
-        """,
-        (activity_id,),
-    ).fetchall()
-    conn.close()
+        rows = conn.execute(
+            f"""
+            SELECT {col_sql}
+            FROM track_points
+            WHERE activity_id = ? {where_mod}
+            ORDER BY id
+            """,
+            (activity_id,),
+        ).fetchall()
 
     points = [dict(r) for r in rows]
 
