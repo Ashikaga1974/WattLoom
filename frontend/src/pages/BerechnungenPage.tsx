@@ -1,11 +1,5 @@
-import {
-  BEZIER_TENSION,
-  SPARKLINE_WEEKS,
-  SPEED_COLOR_BUCKETS,
-  TRACK_SIMPLIFY_M,
-  COMPARISON_SIMPLIFY,
-  THRESHOLD_HR_RATIO,
-} from '@/lib/config';
+import { COMPARISON_SIMPLIFY, THRESHOLD_HR_RATIO } from '@/lib/config';
+import { useConfig } from '@/lib/config-context';
 import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 
@@ -79,6 +73,7 @@ const POWER_ZONES = [
 ];
 
 export default function BerechnungenPage() {
+  const config = useConfig();
   return (
     <div className="space-y-10 max-w-3xl">
       <div>
@@ -92,7 +87,7 @@ export default function BerechnungenPage() {
       <Section title="Dashboard – Sparklines">
         <p>Jede Stat-Kachel zeigt ein Balkendiagramm der letzten Aktivitätsperiode.</p>
         <InfoBox>
-          <ParamRow label="Ohne Jahresfilter" value={<>Letzte <Val v={SPARKLINE_WEEKS} /> Wochen, gruppiert per Kalenderwochen-Abstand zu heute</>} />
+          <ParamRow label="Ohne Jahresfilter" value={<>Letzte <Val v={config.sparkline_weeks} /> Wochen, gruppiert per Kalenderwochen-Abstand zu heute</>} />
           <ParamRow label="Mit Jahresfilter" value="12 Monate des gewählten Jahres (Jan–Dez)" />
           <ParamRow label="Wochenberechnung" value={<Code>CAST((julianday('now') − julianday(start_date)) / 7 AS INTEGER)</Code>} />
           <ParamRow label="Fehlende Wochen/Monate" value="Werden mit 0 aufgefüllt – Lücken im Aktivitätsverlauf sind sichtbar" />
@@ -103,11 +98,11 @@ export default function BerechnungenPage() {
       <Section title="Aktivitätskarte – Geschwindigkeitsfärbung">
         <p>Die Route wird in Segmente gleicher Farbe aufgeteilt. Langsam = Blau, schnell = Rot.</p>
         <InfoBox>
-          <ParamRow label="Farbstufen" value={<><Val v={SPEED_COLOR_BUCKETS} /> gleichmäßige Buckets zwischen Mindest- und Höchstgeschwindigkeit</>} />
+          <ParamRow label="Farbstufen" value={<><Val v={config.speed_color_buckets} /> gleichmäßige Buckets zwischen Mindest- und Höchstgeschwindigkeit</>} />
           <ParamRow label="Farbmodell" value={<Code>HSL(240 − t·240, 80%, 55%) mit t = (v − v_min) / (v_max − v_min)</Code>} />
           <ParamRow label="Min/Max-Basis" value="Alle Punkte mit Geschwindigkeit > 0 km/h (Stillstand wird ignoriert)" />
           <ParamRow label="Segmentierung" value="Aufeinanderfolgende Punkte im gleichen Bucket werden zu einer Polyline zusammengefasst" />
-          <ParamRow label="Track-Vereinfachung" value={<>Ramer-Douglas-Peucker mit Toleranz <Val v={`${TRACK_SIMPLIFY_M} m`} /> vor der Übertragung</>} />
+          <ParamRow label="Track-Vereinfachung" value={<>Ramer-Douglas-Peucker mit Toleranz <Val v={`${config.track_simplify_m} m`} /> vor der Übertragung</>} />
         </InfoBox>
       </Section>
 
@@ -139,7 +134,7 @@ export default function BerechnungenPage() {
         <p>Alle Liniendiagramme verwenden kubische Bezier-Splines (Catmull-Rom-Konvertierung) statt gerader Liniensegmente.</p>
         <InfoBox>
           <ParamRow label="Methode" value="Catmull-Rom → kubische Bezier" />
-          <ParamRow label="Spannung (Tension)" value={<><Val v={BEZIER_TENSION} /> – 0 = gerade Linien, 0.5 = starke Rundung</>} />
+          <ParamRow label="Spannung (Tension)" value={<><Val v={config.bezier_tension} /> – 0 = gerade Linien, 0.5 = starke Rundung</>} />
           <ParamRow label="Kontrollpunkte" value={<Code>cp1 = P[i] + (P[i+1] − P[i−1]) · T</Code>} />
           <ParamRow label="Endpunkte" value="Erstes und letztes Segment clamp auf sich selbst (kein Überschwingen)" />
           <ParamRow label="Lücken" value="Jeder kontinuierliche Abschnitt wird separat geglättet; Null-Werte erzeugen ein neues Segment" />

@@ -12,7 +12,7 @@ import {
 
 import { api, type ActivityStats, type Bike, type Activity, type WeeklyStats, type MonthlyStats, type WeeklyVolume } from '@/lib/api';
 import { fmtKm, fmtTime, fmtDate, fmtNum, fmtSpeed, fmtWeekday } from '@/lib/format';
-import { SPARKLINE_WEEKS } from '@/lib/config';
+import { useConfig } from '@/lib/config-context';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -182,6 +182,7 @@ function HeroBanner({ activity, loading }: { activity: Activity | null; loading:
 }
 
 export default function DashboardPage() {
+  const config = useConfig();
   const [stats, setStats] = useState<ActivityStats | null>(null);
   const [bikes, setBikes] = useState<Bike[]>([]);
   const [recentActivities, setRecentActivities] = useState<Activity[]>([]);
@@ -199,7 +200,7 @@ export default function DashboardPage() {
       const yearNum = year ? Number(year) : undefined;
       const sparkPromise = year
         ? api.monthlyStats(Number(year))
-        : api.weeklyStats(SPARKLINE_WEEKS);
+        : api.weeklyStats(config.sparkline_weeks);
 
       const [s, b, ar, sp, vol] = await Promise.all([
         api.activityStats(yearNum),
@@ -369,7 +370,7 @@ export default function DashboardPage() {
             <CardTitle className="text-sm text-muted-foreground font-medium">
               {selectedYear
                 ? `Distanz ${selectedYear} – nach Monat`
-                : `Distanz – letzte ${SPARKLINE_WEEKS} Wochen`}
+                : `Distanz – letzte ${config.sparkline_weeks} Wochen`}
             </CardTitle>
           </CardHeader>
           <CardContent>

@@ -349,6 +349,10 @@ export interface Settings {
   birth_year: number | null;
   ftp_manual: number | null;
   tz_offset: number | null;
+  bezier_tension: number;
+  sparkline_weeks: number;
+  speed_color_buckets: number;
+  track_simplify_m: number;
 }
 
 async function get<T>(path: string): Promise<T> {

@@ -12,7 +12,7 @@ import {
 
 import { api, type ActivityDetail, type TrackPoint, type ActivityZones, type SimilarActivity } from '@/lib/api';
 import { fmtKm, fmtTime, fmtDate, fmtSpeed } from '@/lib/format';
-import { SPEED_COLOR_BUCKETS } from '@/lib/config';
+import { useConfig } from '@/lib/config-context';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -284,6 +284,7 @@ function SpeedChart({ points, onHover, activeDist }: { points: TrackPoint[]; onH
 export default function ActivityDetailPage() {
   const { id } = useParams<{ id: string }>();
   const activityId = Number(id);
+  const config = useConfig();
 
   const [activity, setActivity] = useState<ActivityDetail | null>(null);
   const [trackPoints, setTrackPoints] = useState<TrackPoint[]>([]);
@@ -338,7 +339,7 @@ export default function ActivityDetailPage() {
         api.similarActivities(activityId),
       ];
       if (act.has_track) {
-        basePromises.push(api.activityTrack(activityId));
+        basePromises.push(api.activityTrack(activityId, config.track_simplify_m));
       }
 
       const results = await Promise.all(basePromises);
@@ -450,7 +451,7 @@ export default function ActivityDetailPage() {
         <Suspense fallback={<Skeleton className="h-80 w-full rounded-xl" />}>
           <LeafletMap
             points={trackPoints}
-            speedColorBuckets={SPEED_COLOR_BUCKETS}
+            speedColorBuckets={config.speed_color_buckets}
             onReady={onMapReady}
             onPointClick={onMapClick}
           />

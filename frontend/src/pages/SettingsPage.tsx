@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { api, type Bike, type Settings } from '@/lib/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { CONFIG_DEFAULTS, useConfigReload } from '@/lib/config-context';
 
 type ImportStatus = 'idle' | 'running' | 'done' | 'error';
 
@@ -32,6 +33,16 @@ export default function SettingsPage() {
   const [fitError, setFitError]           = useState<string | null>(null);
   const fitInputRef                       = useRef<HTMLInputElement>(null);
   const navigate                          = useNavigate();
+
+  // App-Konfiguration
+  const reloadConfig = useConfigReload();
+  const [bezierInput, setBezierInput]           = useState(String(CONFIG_DEFAULTS.bezier_tension));
+  const [sparklineInput, setSparklineInput]     = useState(String(CONFIG_DEFAULTS.sparkline_weeks));
+  const [bucketInput, setBucketInput]           = useState(String(CONFIG_DEFAULTS.speed_color_buckets));
+  const [simplifyInput, setSimplifyInput]       = useState(String(CONFIG_DEFAULTS.track_simplify_m));
+  const [configSaving, setConfigSaving]         = useState(false);
+  const [configSuccess, setConfigSuccess]       = useState(false);
+  const [configError, setConfigError]           = useState<string | null>(null);
 
   // Reset
   const [resetConfirm, setResetConfirm]   = useState(false);
@@ -70,6 +81,10 @@ export default function SettingsPage() {
         if (res.birth_year != null) setBirthYearInput(String(res.birth_year));
         if (res.ftp_manual != null) setFtpInput(String(res.ftp_manual));
         setTzInput(res.tz_offset != null ? String(res.tz_offset) : 'auto');
+        setBezierInput(String(res.bezier_tension      ?? CONFIG_DEFAULTS.bezier_tension));
+        setSparklineInput(String(res.sparkline_weeks  ?? CONFIG_DEFAULTS.sparkline_weeks));
+        setBucketInput(String(res.speed_color_buckets ?? CONFIG_DEFAULTS.speed_color_buckets));
+        setSimplifyInput(String(res.track_simplify_m  ?? CONFIG_DEFAULTS.track_simplify_m));
       } catch { /* ignorieren */ }
       setLoadingSettings(false);
 
@@ -124,6 +139,46 @@ export default function SettingsPage() {
       setSaveError(e instanceof Error ? e.message : 'Speichern fehlgeschlagen');
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function saveConfig() {
+    const bezier = parseFloat(bezierInput.replace(',', '.'));
+    const sparkline = parseInt(sparklineInput);
+    const buckets = parseInt(bucketInput);
+    const simplify = parseInt(simplifyInput);
+    if (isNaN(bezier) || bezier < 0 || bezier > 0.5) {
+      setConfigError('Kurvenglättung: 0.0 – 0.5');
+      return;
+    }
+    if (isNaN(sparkline) || sparkline < 4 || sparkline > 16) {
+      setConfigError('Sparkline-Wochen: 4 – 16');
+      return;
+    }
+    if (isNaN(buckets) || buckets < 5 || buckets > 40) {
+      setConfigError('Farbstufen: 5 – 40');
+      return;
+    }
+    if (isNaN(simplify) || simplify < 1 || simplify > 20) {
+      setConfigError('Track-Toleranz: 1 – 20 m');
+      return;
+    }
+    setConfigSaving(true);
+    setConfigError(null);
+    try {
+      await api.saveSettings({
+        bezier_tension:      bezier,
+        sparkline_weeks:     sparkline,
+        speed_color_buckets: buckets,
+        track_simplify_m:    simplify,
+      });
+      await reloadConfig();
+      setConfigSuccess(true);
+      setTimeout(() => setConfigSuccess(false), 2500);
+    } catch (e) {
+      setConfigError(e instanceof Error ? e.message : 'Speichern fehlgeschlagen');
+    } finally {
+      setConfigSaving(false);
     }
   }
 
@@ -312,6 +367,98 @@ export default function SettingsPage() {
               </div>
             </>
           )}
+        </CardContent>
+      </Card>
+
+      {/* ── App-Konfiguration ── */}
+      <Card>
+        <CardHeader className="border-b border-border pb-3">
+          <CardTitle className="text-sm font-semibold">App-Konfiguration</CardTitle>
+          <p className="text-xs text-muted-foreground">Anzeigeoptionen und Performance-Parameter</p>
+        </CardHeader>
+        <CardContent className="pt-5 space-y-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+            <div>
+              <label className="block text-xs text-muted-foreground uppercase tracking-wider mb-2">
+                Kurvenglättung
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  step="0.05"
+                  min="0"
+                  max="0.5"
+                  value={bezierInput}
+                  onChange={e => setBezierInput(e.target.value)}
+                  className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-colors"
+                />
+              </div>
+              <p className="text-xs text-muted-foreground/50 mt-1.5">0 = gerade · 0.5 = stark gerundet</p>
+            </div>
+
+            <div>
+              <label className="block text-xs text-muted-foreground uppercase tracking-wider mb-2">
+                Sparkline-Wochen
+              </label>
+              <input
+                type="number"
+                step="1"
+                min="4"
+                max="16"
+                value={sparklineInput}
+                onChange={e => setSparklineInput(e.target.value)}
+                className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-colors"
+              />
+              <p className="text-xs text-muted-foreground/50 mt-1.5">Wochen im Dashboard-Verlauf (4–16)</p>
+            </div>
+
+            <div>
+              <label className="block text-xs text-muted-foreground uppercase tracking-wider mb-2">
+                Geschwindigkeits-Farbstufen
+              </label>
+              <input
+                type="number"
+                step="1"
+                min="5"
+                max="40"
+                value={bucketInput}
+                onChange={e => setBucketInput(e.target.value)}
+                className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-colors"
+              />
+              <p className="text-xs text-muted-foreground/50 mt-1.5">Farbstufen auf der Aktivitätskarte (5–40)</p>
+            </div>
+
+            <div>
+              <label className="block text-xs text-muted-foreground uppercase tracking-wider mb-2">
+                Track-Toleranz
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  step="1"
+                  min="1"
+                  max="20"
+                  value={simplifyInput}
+                  onChange={e => setSimplifyInput(e.target.value)}
+                  className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-colors"
+                />
+                <span className="text-xs text-muted-foreground whitespace-nowrap">m</span>
+              </div>
+              <p className="text-xs text-muted-foreground/50 mt-1.5">RDP-Vereinfachung beim Track-Laden (1–20 m)</p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-4 pt-1">
+            <button
+              onClick={saveConfig}
+              disabled={configSaving}
+              className="rounded-md px-5 py-2 text-sm font-medium bg-orange-500 hover:bg-orange-600 disabled:opacity-50 transition-colors text-white cursor-pointer"
+            >
+              {configSaving ? 'Speichern…' : 'Speichern'}
+            </button>
+            {configSuccess && <span className="text-sm text-green-600">Gespeichert</span>}
+            {configError && <span className="text-sm text-red-500">{configError}</span>}
+          </div>
         </CardContent>
       </Card>
 

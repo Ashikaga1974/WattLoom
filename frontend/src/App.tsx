@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { AppSidebar } from '@/components/layout/AppSidebar';
+import { ConfigProvider } from '@/lib/config-context';
 
 import DashboardPage from '@/pages/DashboardPage';
 import ActivitiesPage from '@/pages/ActivitiesPage';
@@ -31,6 +32,7 @@ import CaloriesPage from '@/pages/CaloriesPage';
 
 export default function App() {
   return (
+    <ConfigProvider>
     <BrowserRouter>
       <TooltipProvider>
         <SidebarProvider>
@@ -70,5 +72,6 @@ export default function App() {
         </SidebarProvider>
       </TooltipProvider>
     </BrowserRouter>
+    </ConfigProvider>
   );
 }
