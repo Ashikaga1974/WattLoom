@@ -28,6 +28,8 @@ import WrappedPage from '@/pages/WrappedPage';
 import BerechnungenPage from '@/pages/BerechnungenPage';
 import CadencePage from '@/pages/CadencePage';
 import FatigueIndexPage from '@/pages/FatigueIndexPage';
+import FatigueTrackPage from '@/pages/FatigueTrackPage';
+import FatigueActivityPage from '@/pages/FatigueActivityPage';
 import CaloriesPage from '@/pages/CaloriesPage';
 
 export default function App() {
@@ -65,6 +67,8 @@ export default function App() {
                 <Route path="/berechnungen" element={<BerechnungenPage />} />
                 <Route path="/cadence" element={<CadencePage />} />
                 <Route path="/fatigue-index" element={<FatigueIndexPage />} />
+                <Route path="/fatigue-track" element={<FatigueTrackPage />} />
+                <Route path="/fatigue-activity" element={<FatigueActivityPage />} />
                 <Route path="/calories" element={<CaloriesPage />} />
               </Routes>
             </main>

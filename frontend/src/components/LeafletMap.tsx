@@ -18,6 +18,8 @@ interface LeafletMapProps {
   speedColorBuckets?: number;
   onReady?: (fn: SetHoverFn) => void;
   onPointClick?: (lat: number, lon: number) => void;
+  fixedHeight?: number; // Feste Höhe in px – überschreibt automatische Berechnung
+  fullHeight?: boolean; // height: 100% – füllt den Eltern-Container (dieser muss h-full haben)
 }
 
 // Fix für Standard-Marker-Icons
@@ -28,7 +30,7 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
 });
 
-export default function LeafletMap({ points, speedColorBuckets = 20, onReady, onPointClick }: LeafletMapProps) {
+export default function LeafletMap({ points, speedColorBuckets = 20, onReady, onPointClick, fixedHeight, fullHeight }: LeafletMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const hoverMarkerRef = useRef<L.CircleMarker | null>(null);
   const clickMarkerRef = useRef<L.CircleMarker | null>(null);
@@ -39,6 +41,8 @@ export default function LeafletMap({ points, speedColorBuckets = 20, onReady, on
   // Kartenhöhe aus GPS-Bounds berechnen (Mercator-korrigiert).
   // CSS aspect-ratio + max-height beißen sich → Höhe direkt in px setzen.
   const mapStyle = useMemo(() => {
+    if (fullHeight)  return { zIndex: 0, height: '100%' };
+    if (fixedHeight) return { zIndex: 0, height: `${fixedHeight}px` };
     const validPts = points.filter(p => p.lat != null && p.lon != null);
     if (validPts.length < 2) return { zIndex: 0, height: '240px' };
     const lats = validPts.map(p => p.lat);
@@ -52,7 +56,7 @@ export default function LeafletMap({ points, speedColorBuckets = 20, onReady, on
     const containerW = Math.max(400, window.innerWidth - 256);
     const height = Math.max(160, Math.min(480, Math.round(containerW / geoRatio)));
     return { zIndex: 0, height: `${height}px` };
-  }, [points]);
+  }, [points, fixedHeight, fullHeight]);
 
   useEffect(() => {
     const container = containerRef.current;

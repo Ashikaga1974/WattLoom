@@ -298,6 +298,19 @@ export interface FatigueData {
   by_distance: { label: string; avg_fatigue_pct: number | null; rides: number }[];
 }
 
+export interface FatigueTrackData {
+  stats: {
+    rides_analyzed: number;
+    avg_fatigue_pct: number | null;
+    negative_split_count: number;
+    positive_split_count: number;
+  };
+  best_negative: FatigueRideDetail | null;
+  worst_fatigue: FatigueRideDetail | null;
+  distribution: { bucket: number; count: number }[];
+  rides: FatigueRide[];
+}
+
 export interface BikeCompareSummary {
   id: string;
   name: string;
@@ -502,6 +515,9 @@ export const api = {
 
   fatigueIndex: (year?: number): Promise<FatigueData> =>
     get(`/analytics/fatigue-index${buildQuery({ year })}`),
+
+  fatigueIndexTrack: (activityIds: number[]): Promise<FatigueTrackData> =>
+    get(`/analytics/fatigue-index-track?activity_ids=${activityIds.join(',')}`),
 
   updateActivityPower: (id: number, avg_power_w: number | null): Promise<{ ok: boolean; activity_id: number; avg_power_w: number | null }> =>
     fetch(`${BASE}/activities/${id}/power`, {

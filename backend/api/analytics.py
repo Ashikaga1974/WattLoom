@@ -1067,6 +1067,130 @@ def fatigue_index(year: int = Query(None)):
     }
 
 
+@router.get("/fatigue-index-track")
+def fatigue_index_track(activity_ids: str = Query(...)):
+    """
+    Ermüdungsindex für einen bestimmten Strecken-Cluster.
+    activity_ids: kommaseparierte Liste von Activity-IDs (aus route-clusters).
+    Rides werden chronologisch sortiert (ASC) für Trendanalyse.
+    """
+    try:
+        ids = [int(x.strip()) for x in activity_ids.split(',') if x.strip()]
+    except ValueError:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=400, detail="Ungültige Activity-IDs")
+
+    empty = {
+        "stats": {"rides_analyzed": 0, "avg_fatigue_pct": None, "negative_split_count": 0, "positive_split_count": 0},
+        "best_negative": None, "worst_fatigue": None,
+        "distribution": [], "rides": [],
+    }
+    if not ids:
+        return empty
+
+    ph = ','.join('?' * len(ids))
+
+    with db_connection() as conn:
+        rows = conn.execute(f"""
+            WITH ranked AS (
+                SELECT
+                    tp.activity_id,
+                    tp.distance_m,
+                    tp.speed_ms,
+                    MAX(tp.distance_m) OVER (PARTITION BY tp.activity_id) AS max_dist,
+                    a.start_date_local,
+                    a.name,
+                    a.id AS act_id
+                FROM track_points tp
+                JOIN activities a ON a.id = tp.activity_id
+                WHERE tp.speed_ms > 0
+                  AND tp.distance_m IS NOT NULL
+                  AND tp.activity_id IN ({ph})
+            ),
+            halves AS (
+                SELECT
+                    activity_id,
+                    MAX(act_id)           AS activity_id_val,
+                    MAX(start_date_local) AS date,
+                    MAX(name)             AS name,
+                    AVG(CASE WHEN distance_m <= max_dist / 2.0 THEN speed_ms END) AS spd_h1,
+                    AVG(CASE WHEN distance_m >  max_dist / 2.0 THEN speed_ms END) AS spd_h2,
+                    MAX(max_dist) / 1000.0 AS dist_km,
+                    COUNT(*) AS pts
+                FROM ranked
+                GROUP BY activity_id
+                HAVING pts >= 60
+            )
+            SELECT
+                activity_id_val AS activity_id,
+                name,
+                date,
+                ROUND(dist_km, 1) AS dist_km,
+                spd_h1,
+                spd_h2,
+                (spd_h1 - spd_h2) / spd_h1 * 100 AS fatigue_pct
+            FROM halves
+            WHERE spd_h1 IS NOT NULL AND spd_h2 IS NOT NULL
+            ORDER BY date ASC
+        """, ids).fetchall()
+
+    if not rows:
+        return empty
+
+    rides = [
+        {
+            "activity_id":   r["activity_id"],
+            "activity_name": r["name"],
+            "date":          r["date"],
+            "dist_km":       round(r["dist_km"], 1),
+            "fatigue_pct":   round(r["fatigue_pct"], 1),
+            "spd_h1_kmh":    round(r["spd_h1"] * 3.6, 1),
+            "spd_h2_kmh":    round(r["spd_h2"] * 3.6, 1),
+        }
+        for r in rows
+    ]
+
+    fatigue_vals = [r["fatigue_pct"] for r in rows]
+    neg_count    = sum(1 for v in fatigue_vals if v < 0)
+    pos_count    = sum(1 for v in fatigue_vals if v >= 0)
+    avg_fatigue  = sum(fatigue_vals) / len(fatigue_vals)
+
+    best_neg_row = min(rows, key=lambda r: r["fatigue_pct"])
+    worst_row    = max(rows, key=lambda r: r["fatigue_pct"])
+
+    def ride_detail(r):
+        return {
+            "fatigue_pct":   round(r["fatigue_pct"], 1),
+            "activity_id":   r["activity_id"],
+            "activity_name": r["name"],
+            "date":          r["date"][:10] if r["date"] else None,
+            "dist_km":       round(r["dist_km"], 1),
+            "spd_h1_kmh":    round(r["spd_h1"] * 3.6, 1),
+            "spd_h2_kmh":    round(r["spd_h2"] * 3.6, 1),
+        }
+
+    from collections import defaultdict
+    bucket_counts: dict[int, int] = defaultdict(int)
+    for v in fatigue_vals:
+        b = max(-55, min(50, int(v // 5) * 5))
+        bucket_counts[b] += 1
+
+    distribution = [{"bucket": b, "count": c} for b, c in sorted(bucket_counts.items())]
+
+    return {
+        "stats": {
+            "rides_analyzed":       len(rows),
+            "avg_fatigue_pct":      round(avg_fatigue, 1),
+            "negative_split_count": neg_count,
+            "positive_split_count": pos_count,
+        },
+        "best_negative": ride_detail(best_neg_row),
+        "worst_fatigue": ride_detail(worst_row),
+        "distribution":  distribution,
+        "rides":         rides,
+    }
+
+
 DURATIONS = [60, 300, 600, 1200, 3600]  # 1min, 5min, 10min, 20min, 60min
 
 
