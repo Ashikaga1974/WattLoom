@@ -4,8 +4,18 @@ Segment-Efforts gibt es in TCX nicht.
 """
 
 import gzip
+import math
 import sqlite3
 from lxml import etree
+
+
+def _haversine_m(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    """Luftlinien-Distanz zwischen zwei GPS-Punkten in Metern."""
+    R = 6_371_000
+    p = math.pi / 180
+    a = (math.sin((lat2 - lat1) * p / 2) ** 2
+         + math.cos(lat1 * p) * math.cos(lat2 * p) * math.sin((lon2 - lon1) * p / 2) ** 2)
+    return 2 * R * math.asin(math.sqrt(a))
 
 NS = {
     "ns": "http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2",
@@ -43,6 +53,12 @@ def import_tcx(conn: sqlite3.Connection, activity_id: int, data: bytes, *, compr
     points: list[tuple] = []
     laps: list[tuple] = []
 
+    # Zustand für kumulative Haversine-Distanz (Fallback wenn kein DistanceMeters)
+    cum_dist: float = 0.0
+    prev_lat: float | None = None
+    prev_lon: float | None = None
+    has_native_dist: bool | None = None  # None = noch unbekannt
+
     for lap_idx, lap_el in enumerate(root.xpath(".//ns:Lap", namespaces=NS)):
         start_time = lap_el.get("StartTime")
 
@@ -78,6 +94,23 @@ def import_tcx(conn: sqlite3.Connection, activity_id: int, data: bytes, *, compr
             speed = _float(tp_el, ".//ns2:Speed")
             cadence = _int(tp_el, ".//ns2:RunCadence") or _int(tp_el, "ns:Cadence")
             power = _int(tp_el, ".//ns2:Watts")
+
+            # Beim ersten Punkt mit bekanntem dist-Status festlegen ob native Distanz vorhanden
+            if has_native_dist is None and dist is not None:
+                has_native_dist = True
+            elif has_native_dist is None and dist is None and lat is not None:
+                has_native_dist = False
+
+            # Fallback: kumulative Haversine-Distanz wenn kein natives DistanceMeters
+            if dist is not None:
+                cum_dist = dist
+            elif not has_native_dist and lat is not None and lon is not None:
+                if prev_lat is not None and prev_lon is not None:
+                    cum_dist += _haversine_m(prev_lat, prev_lon, lat, lon)
+                dist = cum_dist
+
+            if lat is not None and lon is not None:
+                prev_lat, prev_lon = lat, lon
 
             points.append((
                 activity_id, ts, lat, lon, alt, dist, speed, hr, power, cadence, None,

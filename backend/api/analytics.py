@@ -937,8 +937,8 @@ def route_clusters(min_rides: int = Query(3)):
 def fatigue_index(year: int = Query(None)):
     """
     Ermüdungsindex je Ride: Vergleich der Durchschnittsgeschwindigkeit erster vs. zweiter Hälfte.
-    fatigue_pct = (spd_h1 - spd_h2) / spd_h1 * 100
-    Positiv = Ermüdung (langsamer in H2), Negativ = Negativsplit (schneller in H2).
+    fatigue_pct = (spd_h2 - spd_h1) / spd_h1 * 100
+    Negativ = Ermüdung (langsamer in H2), Positiv = Steigerung (schneller in H2).
     Nur Rides mit ≥ 60 Track-Punkten, speed_ms > 0, distance_m IS NOT NULL.
     """
     RIDE_TYPES = ('Ride', 'VirtualRide', 'EBikeRide')
@@ -993,7 +993,7 @@ def fatigue_index(year: int = Query(None)):
                 ROUND(dist_km, 1) AS dist_km,
                 spd_h1,
                 spd_h2,
-                (spd_h1 - spd_h2) / spd_h1 * 100 AS fatigue_pct
+                (spd_h2 - spd_h1) / spd_h1 * 100 AS fatigue_pct
             FROM halves
             WHERE spd_h1 IS NOT NULL AND spd_h2 IS NOT NULL
             ORDER BY date DESC
@@ -1006,11 +1006,11 @@ def fatigue_index(year: int = Query(None)):
             "stats": {
                 "rides_analyzed": 0,
                 "avg_fatigue_pct": None,
-                "negative_split_count": 0,
-                "positive_split_count": 0,
+                "steigerung_count": 0,
+                "ermuedung_count": 0,
             },
-            "best_negative": None,
-            "worst_fatigue": None,
+            "best_steigerung": None,
+            "worst_ermuedung": None,
             "distribution": [],
             "monthly": [],
             "rides": [],
@@ -1031,14 +1031,18 @@ def fatigue_index(year: int = Query(None)):
         })
 
     fatigue_vals = [r["fatigue_pct"] for r in rows]
-    neg_count = sum(1 for v in fatigue_vals if v < 0)
-    pos_count = sum(1 for v in fatigue_vals if v >= 0)
+    # Positiv = Steigerung (H2 schneller), Negativ = Ermüdung (H2 langsamer)
+    pos_rows  = [r for r in rows if r["fatigue_pct"] > 0]
+    neg_rows  = [r for r in rows if r["fatigue_pct"] < 0]
+    steigerung_count = len(pos_rows)
+    ermuedung_count  = len(neg_rows)
     avg_fatigue = sum(fatigue_vals) / len(fatigue_vals)
 
     # --- Extremwerte ---
-    neg_rows     = [r for r in rows if r["fatigue_pct"] < 0]
-    best_neg_row = min(neg_rows, key=lambda r: r["fatigue_pct"]) if neg_rows else None
-    worst_row    = max(rows, key=lambda r: r["fatigue_pct"])
+    # Beste Steigerung: positivster Wert (größte Beschleunigung in H2)
+    best_pos_row = max(pos_rows, key=lambda r: r["fatigue_pct"]) if pos_rows else None
+    # Größte Ermüdung: negativster Wert (stärkster Einbruch in H2)
+    worst_row    = min(rows, key=lambda r: r["fatigue_pct"])
 
     def ride_detail(r):
         return {
@@ -1051,13 +1055,13 @@ def fatigue_index(year: int = Query(None)):
             "spd_h2_kmh":    round(r["spd_h2"] * 3.6, 1),
         }
 
-    # --- Verteilung: 5%-Buckets von −55 bis +55, Buckets ohne Rides weglassen ---
+    # --- Verteilung: 5%-Buckets von −50 bis +30 (Ermüdungen negativ, Steigerungen positiv) ---
     from collections import defaultdict
     bucket_counts: dict[int, int] = defaultdict(int)
     for v in fatigue_vals:
-        # Untere Grenze des 5%-Buckets: floor(v/5)*5, aber geclamped auf [-55, 50]
+        # Untere Grenze des 5%-Buckets: floor(v/5)*5, geclamped auf [-50, 30]
         b = int(v // 5) * 5
-        b = max(-55, min(50, b))
+        b = max(-50, min(30, b))
         bucket_counts[b] += 1
 
     distribution = [
@@ -1105,17 +1109,17 @@ def fatigue_index(year: int = Query(None)):
 
     return {
         "stats": {
-            "rides_analyzed":      len(rows),
-            "avg_fatigue_pct":     round(avg_fatigue, 1),
-            "negative_split_count": neg_count,
-            "positive_split_count": pos_count,
+            "rides_analyzed":  len(rows),
+            "avg_fatigue_pct": round(avg_fatigue, 1),
+            "steigerung_count": steigerung_count,
+            "ermuedung_count":  ermuedung_count,
         },
-        "best_negative": ride_detail(best_neg_row) if best_neg_row else None,
-        "worst_fatigue": ride_detail(worst_row),
-        "distribution":  distribution,
-        "monthly":       monthly,
-        "rides":         rides,
-        "by_distance":   by_distance,
+        "best_steigerung": ride_detail(best_pos_row) if best_pos_row else None,
+        "worst_ermuedung": ride_detail(worst_row),
+        "distribution":    distribution,
+        "monthly":         monthly,
+        "rides":           rides,
+        "by_distance":     by_distance,
     }
 
 
@@ -1133,8 +1137,8 @@ def fatigue_index_track(activity_ids: str = Query(...)):
         raise HTTPException(status_code=400, detail="Ungültige Activity-IDs")
 
     empty = {
-        "stats": {"rides_analyzed": 0, "avg_fatigue_pct": None, "negative_split_count": 0, "positive_split_count": 0},
-        "best_negative": None, "worst_fatigue": None,
+        "stats": {"rides_analyzed": 0, "avg_fatigue_pct": None, "steigerung_count": 0, "ermuedung_count": 0},
+        "best_steigerung": None, "worst_ermuedung": None,
         "distribution": [], "rides": [],
     }
     if not ids:
@@ -1180,7 +1184,7 @@ def fatigue_index_track(activity_ids: str = Query(...)):
                 ROUND(dist_km, 1) AS dist_km,
                 spd_h1,
                 spd_h2,
-                (spd_h1 - spd_h2) / spd_h1 * 100 AS fatigue_pct
+                (spd_h2 - spd_h1) / spd_h1 * 100 AS fatigue_pct
             FROM halves
             WHERE spd_h1 IS NOT NULL AND spd_h2 IS NOT NULL
             ORDER BY date ASC
@@ -1203,13 +1207,17 @@ def fatigue_index_track(activity_ids: str = Query(...)):
     ]
 
     fatigue_vals = [r["fatigue_pct"] for r in rows]
-    neg_count    = sum(1 for v in fatigue_vals if v < 0)
-    pos_count    = sum(1 for v in fatigue_vals if v >= 0)
-    avg_fatigue  = sum(fatigue_vals) / len(fatigue_vals)
+    # Positiv = Steigerung, Negativ = Ermüdung
+    pos_rows         = [r for r in rows if r["fatigue_pct"] > 0]
+    neg_rows         = [r for r in rows if r["fatigue_pct"] < 0]
+    steigerung_count = len(pos_rows)
+    ermuedung_count  = len(neg_rows)
+    avg_fatigue      = sum(fatigue_vals) / len(fatigue_vals)
 
-    neg_rows     = [r for r in rows if r["fatigue_pct"] < 0]
-    best_neg_row = min(neg_rows, key=lambda r: r["fatigue_pct"]) if neg_rows else None
-    worst_row    = max(rows, key=lambda r: r["fatigue_pct"])
+    # Beste Steigerung: positivster Wert
+    best_pos_row = max(pos_rows, key=lambda r: r["fatigue_pct"]) if pos_rows else None
+    # Größte Ermüdung: negativster Wert
+    worst_row    = min(rows, key=lambda r: r["fatigue_pct"])
 
     def ride_detail(r):
         return {
@@ -1225,22 +1233,23 @@ def fatigue_index_track(activity_ids: str = Query(...)):
     from collections import defaultdict
     bucket_counts: dict[int, int] = defaultdict(int)
     for v in fatigue_vals:
-        b = max(-55, min(50, int(v // 5) * 5))
+        # Geclamped auf [-50, 30]: Ermüdungen negativ, Steigerungen positiv
+        b = max(-50, min(30, int(v // 5) * 5))
         bucket_counts[b] += 1
 
     distribution = [{"bucket": b, "count": c} for b, c in sorted(bucket_counts.items())]
 
     return {
         "stats": {
-            "rides_analyzed":       len(rows),
-            "avg_fatigue_pct":      round(avg_fatigue, 1),
-            "negative_split_count": neg_count,
-            "positive_split_count": pos_count,
+            "rides_analyzed":  len(rows),
+            "avg_fatigue_pct": round(avg_fatigue, 1),
+            "steigerung_count": steigerung_count,
+            "ermuedung_count":  ermuedung_count,
         },
-        "best_negative": ride_detail(best_neg_row) if best_neg_row else None,
-        "worst_fatigue": ride_detail(worst_row),
-        "distribution":  distribution,
-        "rides":         rides,
+        "best_steigerung": ride_detail(best_pos_row) if best_pos_row else None,
+        "worst_ermuedung": ride_detail(worst_row),
+        "distribution":    distribution,
+        "rides":           rides,
     }
 
 

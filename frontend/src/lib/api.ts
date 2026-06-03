@@ -287,11 +287,11 @@ export interface FatigueData {
   stats: {
     rides_analyzed: number;
     avg_fatigue_pct: number | null;
-    negative_split_count: number;
-    positive_split_count: number;
+    steigerung_count: number;
+    ermuedung_count: number;
   };
-  best_negative: FatigueRideDetail | null;
-  worst_fatigue: FatigueRideDetail | null;
+  best_steigerung: FatigueRideDetail | null;
+  worst_ermuedung: FatigueRideDetail | null;
   distribution: { bucket: number; count: number }[];
   monthly: { month: string; avg_fatigue_pct: number; rides: number; neg_split_pct: number }[];
   rides: FatigueRide[];
@@ -302,11 +302,11 @@ export interface FatigueTrackData {
   stats: {
     rides_analyzed: number;
     avg_fatigue_pct: number | null;
-    negative_split_count: number;
-    positive_split_count: number;
+    steigerung_count: number;
+    ermuedung_count: number;
   };
-  best_negative: FatigueRideDetail | null;
-  worst_fatigue: FatigueRideDetail | null;
+  best_steigerung: FatigueRideDetail | null;
+  worst_ermuedung: FatigueRideDetail | null;
   distribution: { bucket: number; count: number }[];
   rides: FatigueRide[];
 }

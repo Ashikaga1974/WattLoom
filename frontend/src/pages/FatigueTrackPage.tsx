@@ -25,21 +25,22 @@ import {
 } from 'recharts';
 import { fmtDate } from '@/lib/format';
 
+// Farblogik: negativ = Ermüdung (H2 langsamer), positiv = Steigerung (H2 schneller)
 function fatigueColor(v: number): string {
-  if (v <= -10) return '#3b82f6';
-  if (v < 0)    return '#10b981';
-  if (v < 5)    return '#22c55e';
-  if (v < 10)   return '#f59e0b';
-  if (v < 20)   return '#f97316';
-  return '#ef4444';
+  if (v >= 10)  return '#3b82f6';  // blau – starke Steigerung
+  if (v > 0)    return '#10b981';  // grün – Steigerung
+  if (v > -5)   return '#22c55e';  // hellgrün – ausgeglichen
+  if (v > -10)  return '#f59e0b';  // amber – leichte Ermüdung
+  if (v > -20)  return '#f97316';  // orange – mittlere Ermüdung
+  return '#ef4444';                 // rot – starke Ermüdung
 }
 
 function fatigueTextColor(v: number): string {
-  if (v <= -10) return 'text-blue-500';
-  if (v < 0)    return 'text-emerald-500';
-  if (v < 5)    return 'text-green-500';
-  if (v < 10)   return 'text-amber-500';
-  if (v < 20)   return 'text-orange-500';
+  if (v >= 10)  return 'text-blue-500';
+  if (v > 0)    return 'text-emerald-500';
+  if (v > -5)   return 'text-green-500';
+  if (v > -10)  return 'text-amber-500';
+  if (v > -20)  return 'text-orange-500';
   return 'text-red-500';
 }
 
@@ -68,8 +69,8 @@ function fmtShortDate(dateStr: string): string {
 
 // Histogramm-Daten aufbereiten
 function buildHistoData(distribution: FatigueTrackData['distribution']) {
-  const BUCKET_MIN = -55;
-  const BUCKET_MAX = 50;
+  const BUCKET_MIN = -50;
+  const BUCKET_MAX = 30;
   const allBuckets: number[] = [];
   for (let b = BUCKET_MIN; b <= BUCKET_MAX; b += 5) allBuckets.push(b);
 
@@ -246,15 +247,16 @@ export default function FatigueTrackPage() {
                 Durchschnittsgeschwindigkeit von der ersten zur zweiten Hälfte verändert.
               </p>
               <p className="text-xs text-muted-foreground font-mono bg-muted rounded px-2 py-1 inline-block">
-                Index = (Ø-Speed 1. Hälfte − Ø-Speed 2. Hälfte) ÷ Ø-Speed 1. Hälfte × 100
+                Index = (Ø-Speed 2. Hälfte − Ø-Speed 1. Hälfte) ÷ Ø-Speed 1. Hälfte × 100
               </p>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-1">
                 {[
-                  { range: '< 0 %', label: 'Steigerung', desc: 'Du wirst in H2 schneller', color: 'text-blue-500', bar: '#3b82f6' },
-                  { range: '0 – 5 %', label: 'Ausgeglichenes Pacing', desc: 'Sehr gleichmäßig', color: 'text-green-500', bar: '#22c55e' },
-                  { range: '5 – 10 %', label: 'Leichte Ermüdung', desc: 'Noch im grünen Bereich', color: 'text-amber-500', bar: '#f59e0b' },
-                  { range: '10 – 20 %', label: 'Mittlere Ermüdung', desc: 'Deutlicher Einbruch', color: 'text-orange-500', bar: '#f97316' },
-                  { range: '> 20 %', label: 'Starke Ermüdung', desc: 'Massiver Einbruch H2', color: 'text-red-500', bar: '#ef4444' },
+                  { range: '> +10 %', label: 'Starke Steigerung', desc: 'H2 deutlich schneller', color: 'text-blue-500', bar: '#3b82f6' },
+                  { range: '0 – +10 %', label: 'Steigerung / Ausgeglichen', desc: 'H2 schneller oder gleich', color: 'text-emerald-500', bar: '#10b981' },
+                  { range: '−5 – 0 %', label: 'Fast ausgeglichen', desc: 'Kaum Unterschied', color: 'text-green-500', bar: '#22c55e' },
+                  { range: '−10 – −5 %', label: 'Leichte Ermüdung', desc: 'Noch im grünen Bereich', color: 'text-amber-500', bar: '#f59e0b' },
+                  { range: '−20 – −10 %', label: 'Mittlere Ermüdung', desc: 'Deutlicher Einbruch', color: 'text-orange-500', bar: '#f97316' },
+                  { range: '< −20 %', label: 'Starke Ermüdung', desc: 'Massiver Einbruch H2', color: 'text-red-500', bar: '#ef4444' },
                 ].map(({ range, label, desc, color, bar }) => (
                   <div key={range} className="flex items-start gap-2">
                     <div className="w-1 h-full min-h-[36px] rounded-full shrink-0 mt-0.5" style={{ background: bar }} />
@@ -280,9 +282,9 @@ export default function FatigueTrackPage() {
                   <>
                     <p className={`text-2xl font-bold ${fatigueTextColor(avgFatigue)}`}>{fmtPct(avgFatigue)}</p>
                     <p className="text-[10px] text-muted-foreground">
-                      {avgFatigue < 0
-                        ? 'Im Schnitt Negativsplit'
-                        : avgFatigue < 5
+                      {avgFatigue > 0
+                        ? 'Im Schnitt Steigerung'
+                        : avgFatigue > -5
                         ? 'Fast kein Ermüdungseffekt'
                         : 'Durchschnittliche Ermüdung'}
                     </p>
@@ -297,28 +299,28 @@ export default function FatigueTrackPage() {
             <Card className="shadow-sm border">
               <CardContent className="px-4 py-3 space-y-1">
                 <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Steigerungen</p>
-                <p className="text-2xl font-bold text-blue-500">{data.stats.negative_split_count}</p>
+                <p className="text-2xl font-bold text-blue-500">{data.stats.steigerung_count}</p>
                 <p className="text-[10px] text-muted-foreground">von {data.stats.rides_analyzed} Rides</p>
                 <div className="h-1.5 bg-muted rounded-full overflow-hidden mt-1">
                   <div
                     className="h-full bg-blue-500 rounded-full transition-all"
-                    style={{ width: `${Math.round(data.stats.negative_split_count / data.stats.rides_analyzed * 100)}%` }}
+                    style={{ width: `${Math.round(data.stats.steigerung_count / data.stats.rides_analyzed * 100)}%` }}
                   />
                 </div>
               </CardContent>
             </Card>
 
             {/* Beste Steigerung */}
-            {data.best_negative ? (
+            {data.best_steigerung ? (
               <Card className="shadow-sm" style={{ borderColor: 'rgba(59,130,246,0.25)', background: 'rgba(59,130,246,0.05)' }}>
                 <CardContent className="px-4 py-3 space-y-1">
                   <p className="text-[10px] uppercase tracking-wide text-blue-500">Beste Steigerung</p>
-                  <p className="text-2xl font-bold text-blue-500">{fmtPct(data.best_negative.fatigue_pct)}</p>
+                  <p className="text-2xl font-bold text-blue-500">{fmtPct(data.best_steigerung.fatigue_pct)}</p>
                   <Link
-                    to={`/activities/${data.best_negative.activity_id}`}
+                    to={`/activities/${data.best_steigerung.activity_id}`}
                     className="text-[10px] text-blue-400 hover:text-blue-300 truncate block transition-colors"
                   >
-                    {data.best_negative.activity_name} · {fmtDate(data.best_negative.date)}
+                    {data.best_steigerung.activity_name} · {fmtDate(data.best_steigerung.date)}
                   </Link>
                 </CardContent>
               </Card>
@@ -332,16 +334,16 @@ export default function FatigueTrackPage() {
             )}
 
             {/* Größte Ermüdung */}
-            {data.worst_fatigue ? (
+            {data.worst_ermuedung ? (
               <Card className="shadow-sm" style={{ borderColor: 'rgba(239,68,68,0.25)', background: 'rgba(239,68,68,0.05)' }}>
                 <CardContent className="px-4 py-3 space-y-1">
                   <p className="text-[10px] uppercase tracking-wide text-red-500">Größte Ermüdung</p>
-                  <p className="text-2xl font-bold text-red-500">+{data.worst_fatigue.fatigue_pct.toFixed(1)}%</p>
+                  <p className="text-2xl font-bold text-red-500">{data.worst_ermuedung.fatigue_pct.toFixed(1)}%</p>
                   <Link
-                    to={`/activities/${data.worst_fatigue.activity_id}`}
+                    to={`/activities/${data.worst_ermuedung.activity_id}`}
                     className="text-[10px] text-red-400 hover:text-red-300 truncate block transition-colors"
                   >
-                    {data.worst_fatigue.activity_name} · {fmtDate(data.worst_fatigue.date)}
+                    {data.worst_ermuedung.activity_name} · {fmtDate(data.worst_ermuedung.date)}
                   </Link>
                 </CardContent>
               </Card>
@@ -373,10 +375,10 @@ export default function FatigueTrackPage() {
           )}
 
           {/* Beste / Größte Detail-Kacheln */}
-          {data.best_negative && data.worst_fatigue && (
+          {data.worst_ermuedung && (
             <div className="grid sm:grid-cols-2 gap-4">
-              {(() => {
-                const bn = data.best_negative!;
+              {data.best_steigerung && (() => {
+                const bn = data.best_steigerung!;
                 const bnW = splitBarWidths(bn.spd_h1_kmh, bn.spd_h2_kmh);
                 return (
                   <Card className="shadow-sm" style={{ borderColor: 'rgba(59,130,246,0.25)', background: 'rgba(59,130,246,0.05)' }}>
@@ -418,7 +420,7 @@ export default function FatigueTrackPage() {
               })()}
 
               {(() => {
-                const wf = data.worst_fatigue!;
+                const wf = data.worst_ermuedung!;
                 const wfW = splitBarWidths(wf.spd_h1_kmh, wf.spd_h2_kmh);
                 return (
                   <Card className="shadow-sm" style={{ borderColor: 'rgba(239,68,68,0.25)', background: 'rgba(239,68,68,0.05)' }}>
@@ -429,7 +431,7 @@ export default function FatigueTrackPage() {
                           <p className="text-sm font-semibold text-foreground truncate mt-0.5">{wf.activity_name}</p>
                           <p className="text-xs text-muted-foreground">{fmtDate(wf.date)} · {wf.dist_km} km</p>
                         </div>
-                        <span className="shrink-0 text-lg font-bold text-red-500 tabular-nums">+{wf.fatigue_pct.toFixed(1)}%</span>
+                        <span className="shrink-0 text-lg font-bold text-red-500 tabular-nums">{wf.fatigue_pct.toFixed(1)}%</span>
                       </div>
                       <div className="space-y-2">
                         <div>
@@ -575,8 +577,8 @@ export default function FatigueTrackPage() {
                   </BarChart>
                 </ResponsiveContainer>
                 <div className="flex justify-between text-[10px] text-muted-foreground px-8 mt-1">
-                  <span>← Steigerung (schneller in H2)</span>
-                  <span>Ermüdung (langsamer) →</span>
+                  <span>← Ermüdung (langsamer in H2)</span>
+                  <span>Steigerung (schneller) →</span>
                 </div>
               </CardContent>
             </Card>
@@ -596,8 +598,8 @@ export default function FatigueTrackPage() {
                       <th className="px-4 py-2 font-medium">Datum</th>
                       <th className="px-4 py-2 font-medium">Name</th>
                       <th className="px-4 py-2 font-medium text-right">Dist.</th>
-                      <th className="px-4 py-2 font-medium text-right">1. Hälfte</th>
-                      <th className="px-4 py-2 font-medium text-right">2. Hälfte</th>
+                      <th className="px-4 py-2 font-medium text-right">1. Hälfte (km/h)</th>
+                      <th className="px-4 py-2 font-medium text-right">2. Hälfte (km/h)</th>
                       <th className="px-4 py-2 font-medium">Index</th>
                     </tr>
                   </thead>
