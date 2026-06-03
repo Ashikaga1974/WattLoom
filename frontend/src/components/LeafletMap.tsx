@@ -4,6 +4,8 @@
  *
  * Hover-Synchronisation: nach Karteninitialisierung ruft die Komponente onReady(fn) auf.
  * Die Page speichert fn in einem Ref; Charts rufen fn() direkt auf – kein State, kein Re-render.
+ *
+ * multiPoints: mehrere Tracks überlagert (Heatmap-Modus) – kein Speed-Gradient, nur orange.
  */
 import { useEffect, useRef, useMemo } from 'react';
 import 'leaflet/dist/leaflet.css';
@@ -14,7 +16,8 @@ import type { TrackPoint } from '@/lib/api';
 export type SetHoverFn = (pt: { lat: number; lon: number } | null) => void;
 
 interface LeafletMapProps {
-  points: TrackPoint[];
+  points?: TrackPoint[];        // Einzelner Track (Speed-Farbgradient)
+  multiPoints?: TrackPoint[][]; // Mehrere Tracks überlagert (Heatmap-Modus)
   speedColorBuckets?: number;
   onReady?: (fn: SetHoverFn) => void;
   onPointClick?: (lat: number, lon: number) => void;
@@ -30,7 +33,7 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
 });
 
-export default function LeafletMap({ points, speedColorBuckets = 20, onReady, onPointClick, fixedHeight, fullHeight }: LeafletMapProps) {
+export default function LeafletMap({ points = [], multiPoints, speedColorBuckets = 20, onReady, onPointClick, fixedHeight, fullHeight }: LeafletMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const hoverMarkerRef = useRef<L.CircleMarker | null>(null);
   const clickMarkerRef = useRef<L.CircleMarker | null>(null);
@@ -43,7 +46,13 @@ export default function LeafletMap({ points, speedColorBuckets = 20, onReady, on
   const mapStyle = useMemo(() => {
     if (fullHeight)  return { zIndex: 0, height: '100%' };
     if (fixedHeight) return { zIndex: 0, height: `${fixedHeight}px` };
-    const validPts = points.filter(p => p.lat != null && p.lon != null);
+
+    // Alle Punkte für Bounds-Berechnung (single oder multi)
+    const allPts = multiPoints
+      ? multiPoints.flatMap(tp => tp)
+      : points;
+
+    const validPts = allPts.filter(p => p.lat != null && p.lon != null);
     if (validPts.length < 2) return { zIndex: 0, height: '240px' };
     const lats = validPts.map(p => p.lat);
     const lons = validPts.map(p => p.lon);
@@ -56,11 +65,14 @@ export default function LeafletMap({ points, speedColorBuckets = 20, onReady, on
     const containerW = Math.max(400, window.innerWidth - 256);
     const height = Math.max(160, Math.min(480, Math.round(containerW / geoRatio)));
     return { zIndex: 0, height: `${height}px` };
-  }, [points, fixedHeight, fullHeight]);
+  }, [points, multiPoints, fixedHeight, fullHeight]);
 
   useEffect(() => {
     const container = containerRef.current;
-    if (!container || points.length === 0) return;
+    if (!container) return;
+
+    const isMulti = multiPoints != null && multiPoints.length > 0;
+    if (!isMulti && points.length === 0) return;
 
     const map = L.map(container);
 
@@ -68,14 +80,6 @@ export default function LeafletMap({ points, speedColorBuckets = 20, onReady, on
       attribution: '© OpenStreetMap',
       maxZoom: 19,
     }).addTo(map);
-
-    const validPts = points.filter(p => p.lat != null && p.lon != null);
-    if (validPts.length === 0) return;
-
-    const latLngs = validPts.map(p => [p.lat, p.lon] as L.LatLngTuple);
-    const speeds = validPts.map(p => (p.speed_ms ?? 0) * 3.6);
-    const validSpeeds = speeds.filter(s => s > 0);
-    const hasSpeed = validSpeeds.length > 10;
 
     const lineOpts = { lineCap: 'round' as const, lineJoin: 'round' as const };
 
@@ -94,112 +98,150 @@ export default function LeafletMap({ points, speedColorBuckets = 20, onReady, on
       colorLines.forEach(l => l.setStyle({ weight: cw }));
     }
 
-    if (!hasSpeed) {
-      const halo = L.polyline(latLngs, { ...lineOpts, color: '#1a1a1a', weight: lineWeight(map.getZoom()) + 4, opacity: 0.55 }).addTo(map);
-      const poly = L.polyline(latLngs, { ...lineOpts, color: '#fc4c02', weight: lineWeight(map.getZoom()), opacity: 1.0 }).addTo(map);
-      haloLines.push(halo);
-      colorLines.push(poly);
+    if (isMulti) {
+      // Heatmap-Modus: alle Tracks überlagert in orange, niedrige Opacity
+      const allValidPts = multiPoints!
+        .flatMap(tp => tp.filter(p => p.lat != null && p.lon != null));
+      if (allValidPts.length === 0) { map.remove(); return; }
+
+      const allLatLngs = allValidPts.map(p => [p.lat, p.lon] as L.LatLngTuple);
+
+      // Erst alle Halos, dann alle farbigen Linien (korrekte Z-Reihenfolge)
+      for (const track of multiPoints!) {
+        const vp = track.filter(p => p.lat != null && p.lon != null);
+        if (vp.length < 2) continue;
+        const lls = vp.map(p => [p.lat, p.lon] as L.LatLngTuple);
+        haloLines.push(L.polyline(lls, { ...lineOpts, color: '#1a1a1a', weight: 8, opacity: 0.25 }).addTo(map));
+      }
+      for (const track of multiPoints!) {
+        const vp = track.filter(p => p.lat != null && p.lon != null);
+        if (vp.length < 2) continue;
+        const lls = vp.map(p => [p.lat, p.lon] as L.LatLngTuple);
+        colorLines.push(L.polyline(lls, { ...lineOpts, color: '#fc4c02', weight: 4, opacity: 0.55 }).addTo(map));
+      }
+
+      requestAnimationFrame(() => {
+        map.invalidateSize(false);
+        map.fitBounds(L.polyline(allLatLngs).getBounds(), { padding: [6, 6] });
+        updateWeights();
+      });
     } else {
-      const minSpd = Math.min(...validSpeeds);
-      const maxSpd = Math.max(...validSpeeds);
+      // Einzelner Track
+      const validPts = points.filter(p => p.lat != null && p.lon != null);
+      if (validPts.length === 0) { map.remove(); return; }
 
-      function speedColor(kmh: number): string {
-        const t = maxSpd > minSpd ? Math.max(0, Math.min(1, (kmh - minSpd) / (maxSpd - minSpd))) : 0;
-        const hue = Math.round(120 - t * 120);
-        return `hsl(${hue},90%,50%)`;
-      }
+      const latLngs = validPts.map(p => [p.lat, p.lon] as L.LatLngTuple);
+      const speeds = validPts.map(p => (p.speed_ms ?? 0) * 3.6);
+      const validSpeeds = speeds.filter(s => s > 0);
+      const hasSpeed = validSpeeds.length > 10;
 
-      function bucket(kmh: number): number {
-        if (maxSpd <= minSpd) return 0;
-        return Math.floor(
-          Math.max(0, Math.min(0.9999, (kmh - minSpd) / (maxSpd - minSpd))) * speedColorBuckets
-        );
-      }
+      if (!hasSpeed) {
+        const halo = L.polyline(latLngs, { ...lineOpts, color: '#1a1a1a', weight: lineWeight(map.getZoom()) + 4, opacity: 0.55 }).addTo(map);
+        const poly = L.polyline(latLngs, { ...lineOpts, color: '#fc4c02', weight: lineWeight(map.getZoom()), opacity: 1.0 }).addTo(map);
+        haloLines.push(halo);
+        colorLines.push(poly);
+      } else {
+        const minSpd = Math.min(...validSpeeds);
+        const maxSpd = Math.max(...validSpeeds);
 
-      // Segmente sammeln, dann 2 Durchläufe: erst Halos, dann farbige Linien
-      const segments: { lls: L.LatLngTuple[]; color: string }[] = [];
-      let segStart = 0;
-      let curBucket = bucket(speeds[0]);
-      for (let i = 1; i < validPts.length; i++) {
-        const b = bucket(speeds[i]);
-        if (b !== curBucket) {
-          segments.push({ lls: latLngs.slice(segStart, i + 1), color: speedColor(speeds[segStart]) });
-          segStart = i;
-          curBucket = b;
+        function speedColor(kmh: number): string {
+          const t = maxSpd > minSpd ? Math.max(0, Math.min(1, (kmh - minSpd) / (maxSpd - minSpd))) : 0;
+          const hue = Math.round(120 - t * 120);
+          return `hsl(${hue},90%,50%)`;
         }
-      }
-      segments.push({ lls: latLngs.slice(segStart), color: speedColor(speeds[segStart]) });
 
-      const cw = lineWeight(map.getZoom());
-      for (const seg of segments) {
-        haloLines.push(L.polyline(seg.lls, { ...lineOpts, color: '#1a1a1a', weight: cw + 4, opacity: 0.55 }).addTo(map));
-      }
-      for (const seg of segments) {
-        colorLines.push(L.polyline(seg.lls, { ...lineOpts, color: seg.color, weight: cw, opacity: 1.0 }).addTo(map));
+        function bucket(kmh: number): number {
+          if (maxSpd <= minSpd) return 0;
+          return Math.floor(
+            Math.max(0, Math.min(0.9999, (kmh - minSpd) / (maxSpd - minSpd))) * speedColorBuckets
+          );
+        }
+
+        // Segmente sammeln, dann 2 Durchläufe: erst Halos, dann farbige Linien
+        const segments: { lls: L.LatLngTuple[]; color: string }[] = [];
+        let segStart = 0;
+        let curBucket = bucket(speeds[0]);
+        for (let i = 1; i < validPts.length; i++) {
+          const b = bucket(speeds[i]);
+          if (b !== curBucket) {
+            segments.push({ lls: latLngs.slice(segStart, i + 1), color: speedColor(speeds[segStart]) });
+            segStart = i;
+            curBucket = b;
+          }
+        }
+        segments.push({ lls: latLngs.slice(segStart), color: speedColor(speeds[segStart]) });
+
+        const cw = lineWeight(map.getZoom());
+        for (const seg of segments) {
+          haloLines.push(L.polyline(seg.lls, { ...lineOpts, color: '#1a1a1a', weight: cw + 4, opacity: 0.55 }).addTo(map));
+        }
+        for (const seg of segments) {
+          colorLines.push(L.polyline(seg.lls, { ...lineOpts, color: seg.color, weight: cw, opacity: 1.0 }).addTo(map));
+        }
+
+        const legend = (L.control as unknown as (opts: object) => L.Control)({ position: 'bottomright' });
+        (legend as L.Control & { onAdd: () => HTMLElement }).onAdd = () => {
+          const div = L.DomUtil.create('div');
+          div.style.cssText =
+            'background:rgba(255,255,255,0.92);padding:7px 10px;border-radius:8px;font-size:11px;color:#374151;border:1px solid rgba(0,0,0,0.1);pointer-events:none';
+          div.innerHTML = `
+            <div style="margin-bottom:4px;font-weight:600">Geschwindigkeit</div>
+            <div style="display:flex;align-items:center;gap:6px">
+              <span>${minSpd.toFixed(0)}</span>
+              <div style="height:7px;width:80px;background:linear-gradient(to right,hsl(120,80%,55%),hsl(60,80%,55%),hsl(0,80%,55%));border-radius:4px"></div>
+              <span>${maxSpd.toFixed(0)} km/h</span>
+            </div>`;
+          return div;
+        };
+        legend.addTo(map);
       }
 
-      const legend = (L.control as unknown as (opts: object) => L.Control)({ position: 'bottomright' });
-      (legend as L.Control & { onAdd: () => HTMLElement }).onAdd = () => {
-        const div = L.DomUtil.create('div');
-        div.style.cssText =
-          'background:rgba(255,255,255,0.92);padding:7px 10px;border-radius:8px;font-size:11px;color:#374151;border:1px solid rgba(0,0,0,0.1);pointer-events:none';
-        div.innerHTML = `
-          <div style="margin-bottom:4px;font-weight:600">Geschwindigkeit</div>
-          <div style="display:flex;align-items:center;gap:6px">
-            <span>${minSpd.toFixed(0)}</span>
-            <div style="height:7px;width:80px;background:linear-gradient(to right,hsl(120,80%,55%),hsl(60,80%,55%),hsl(0,80%,55%));border-radius:4px"></div>
-            <span>${maxSpd.toFixed(0)} km/h</span>
-          </div>`;
-        return div;
-      };
-      legend.addTo(map);
+      // invalidateSize muss vor fitBounds kommen – Leaflet kennt sonst die Container-Größe nicht.
+      // updateWeights danach explizit aufrufen, da getZoom() beim Polyline-Erstellen noch 0 war.
+      requestAnimationFrame(() => {
+        map.invalidateSize(false);
+        map.fitBounds(L.polyline(latLngs).getBounds(), { padding: [6, 6] });
+        updateWeights();
+      });
+
+      map.on('click', (e) => {
+        const { lat, lng } = e.latlng;
+        onPointClickRef.current?.(lat, lng);
+        if (clickMarkerRef.current) {
+          clickMarkerRef.current.setLatLng([lat, lng]);
+        } else {
+          clickMarkerRef.current = L.circleMarker([lat, lng], {
+            radius: 8,
+            color: '#ffffff',
+            fillColor: '#facc15',
+            fillOpacity: 1,
+            weight: 2.5,
+          }).addTo(map);
+        }
+      });
+
+      // Hover-Funktion an die Page übergeben – direkt nach Karteninitialisierung
+      onReady?.((pt) => {
+        if (!pt) {
+          hoverMarkerRef.current?.remove();
+          hoverMarkerRef.current = null;
+          return;
+        }
+        if (hoverMarkerRef.current) {
+          hoverMarkerRef.current.setLatLng([pt.lat, pt.lon]);
+        } else {
+          hoverMarkerRef.current = L.circleMarker([pt.lat, pt.lon], {
+            radius: 7,
+            color: '#ffffff',
+            fillColor: '#fc4c02',
+            fillOpacity: 1,
+            weight: 2,
+          }).addTo(map);
+        }
+      });
     }
 
-    // invalidateSize muss vor fitBounds kommen – Leaflet kennt sonst die Container-Größe nicht.
-    // updateWeights danach explizit aufrufen, da getZoom() beim Polyline-Erstellen noch 0 war.
-    requestAnimationFrame(() => {
-      map.invalidateSize(false);
-      map.fitBounds(L.polyline(latLngs).getBounds(), { padding: [6, 6] });
-      updateWeights();
-    });
-
     map.on('zoomend', updateWeights);
-
-    map.on('click', (e) => {
-      const { lat, lng } = e.latlng;
-      onPointClickRef.current?.(lat, lng);
-      if (clickMarkerRef.current) {
-        clickMarkerRef.current.setLatLng([lat, lng]);
-      } else {
-        clickMarkerRef.current = L.circleMarker([lat, lng], {
-          radius: 8,
-          color: '#ffffff',
-          fillColor: '#facc15',
-          fillOpacity: 1,
-          weight: 2.5,
-        }).addTo(map);
-      }
-    });
-
-    // Hover-Funktion an die Page übergeben – direkt nach Karteninitialisierung
-    onReady?.((pt) => {
-      if (!pt) {
-        hoverMarkerRef.current?.remove();
-        hoverMarkerRef.current = null;
-        return;
-      }
-      if (hoverMarkerRef.current) {
-        hoverMarkerRef.current.setLatLng([pt.lat, pt.lon]);
-      } else {
-        hoverMarkerRef.current = L.circleMarker([pt.lat, pt.lon], {
-          radius: 7,
-          color: '#ffffff',
-          fillColor: '#fc4c02',
-          fillOpacity: 1,
-          weight: 2,
-        }).addTo(map);
-      }
-    });
 
     return () => {
       hoverMarkerRef.current = null;
@@ -208,7 +250,7 @@ export default function LeafletMap({ points, speedColorBuckets = 20, onReady, on
     };
   // onReady bewusst nicht in deps – stabile useCallback-Referenz vorausgesetzt
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [points, speedColorBuckets]);
+  }, [points, multiPoints, speedColorBuckets]);
 
   return (
     <div

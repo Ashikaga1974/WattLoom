@@ -1,6 +1,8 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, lazy, Suspense } from 'react';
 import { Link } from 'react-router-dom';
-import { api, type FatigueTrackData, type FatigueRide, type RouteCluster } from '@/lib/api';
+import { api, type FatigueTrackData, type FatigueRide, type RouteCluster, type TrackPoint } from '@/lib/api';
+
+const LeafletMap = lazy(() => import('@/components/LeafletMap'));
 import { PageHeader } from '@/components/ui/page-header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -88,6 +90,7 @@ export default function FatigueTrackPage() {
   const [loading, setLoading]         = useState(false);
   const [loadingClusters, setLoadingClusters] = useState(true);
   const [error, setError]             = useState<string | null>(null);
+  const [allTracks, setAllTracks]     = useState<TrackPoint[][] | null>(null);
 
   useEffect(() => {
     api.routeClusters(3)
@@ -103,11 +106,21 @@ export default function FatigueTrackPage() {
     setLoading(true);
     setError(null);
     setData(null);
+    setAllTracks(null);
 
     const ids = cluster.rides.map(r => r.id);
     try {
       const result = await api.fatigueIndexTrack(ids);
       setData(result);
+
+      // Tracks für Heatmap-Karte parallel laden (stark vereinfacht → schnell)
+      const trackResults = await Promise.allSettled(
+        ids.map(id => api.activityTrack(id, 20))
+      );
+      const tracks = trackResults
+        .filter((r): r is PromiseFulfilledResult<{ points: TrackPoint[] }> => r.status === 'fulfilled')
+        .map(r => r.value.points);
+      setAllTracks(tracks.length > 0 ? tracks : null);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Fehler beim Laden');
     } finally {
@@ -341,6 +354,23 @@ export default function FatigueTrackPage() {
               </Card>
             )}
           </div>
+
+          {/* Strecken-Heatmap */}
+          {allTracks && allTracks.length > 0 && (
+            <Card className="shadow-sm border overflow-hidden">
+              <CardHeader className="pb-1 border-b">
+                <CardTitle className="text-base font-semibold">Streckenübersicht</CardTitle>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Alle {allTracks.length} Rides dieser Strecke überlagert
+                </p>
+              </CardHeader>
+              <CardContent className="p-0">
+                <Suspense fallback={<div className="h-64 bg-muted animate-pulse" />}>
+                  <LeafletMap multiPoints={allTracks} fixedHeight={280} />
+                </Suspense>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Beste / Größte Detail-Kacheln */}
           {data.best_negative && data.worst_fatigue && (

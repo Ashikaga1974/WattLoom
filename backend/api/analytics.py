@@ -748,14 +748,16 @@ def best_by_distance():
 @router.get("/route-clusters")
 def route_clusters(min_rides: int = Query(3)):
     """
-    Greedy-Clustering aller Rides nach Startpunkt (2 km Radius) + Distanz (±15 %).
+    Greedy-Clustering aller Rides nach Startpunkt (2 km Radius) + Distanz (±10 %)
+    + Wegpunkte bei 25 %/50 %/75 % der Strecke (je ≤ 3 km Abstand).
     Gibt Cluster mit ≥ min_rides zurück, sortiert nach Ride-Anzahl.
     """
     import math
 
     RIDE_TYPES       = ('Ride', 'VirtualRide', 'EBikeRide')
     START_RADIUS_KM  = 2.0
-    DIST_TOLERANCE   = 0.15
+    DIST_TOLERANCE   = 0.10  # ±10 % Distanztoleranz
+    WP_RADIUS_KM     = 3.0   # Wegpunkt-Radius für 25 %/50 %/75 %-Checks
 
     def haversine(lat1, lon1, lat2, lon2):
         R = 6371.0
@@ -793,7 +795,46 @@ def route_clusters(min_rides: int = Query(3)):
             ORDER BY a.start_date_local
         """, RIDE_TYPES).fetchall()
 
+        # Track-Punkte bei 25 %, 50 % und 75 % der Streckendistanz je Aktivität.
+        # ROW_NUMBER() OVER erfordert SQLite ≥ 3.25 (2018).
+        wp_rows = conn.execute("""
+            WITH fractions(frac) AS (
+                VALUES (0.25) UNION ALL VALUES (0.5) UNION ALL VALUES (0.75)
+            ),
+            targets AS (
+                SELECT tp.activity_id, f.frac,
+                       MAX(tp.distance_m) * f.frac AS target
+                FROM track_points tp
+                CROSS JOIN fractions f
+                WHERE tp.distance_m IS NOT NULL AND tp.distance_m > 0
+                GROUP BY tp.activity_id, f.frac
+            ),
+            ranked AS (
+                SELECT
+                    tp.activity_id, t.frac, tp.lat, tp.lon,
+                    ROW_NUMBER() OVER (
+                        PARTITION BY tp.activity_id, t.frac
+                        ORDER BY ABS(tp.distance_m - t.target)
+                    ) AS rn
+                FROM track_points tp
+                JOIN targets t ON tp.activity_id = t.activity_id
+                WHERE tp.lat IS NOT NULL AND tp.lon IS NOT NULL
+                  AND tp.distance_m IS NOT NULL
+            )
+            SELECT activity_id, frac, lat, lon
+            FROM ranked WHERE rn = 1
+        """).fetchall()
+
+    wp_map: dict = {}
+    for r in wp_rows:
+        wp_map.setdefault(r['activity_id'], {})[r['frac']] = (r['lat'], r['lon'])
+
     activities = [dict(r) for r in rows]
+    for a in activities:
+        wps = wp_map.get(a['id'], {})
+        a['wp25'] = wps.get(0.25)
+        a['wp50'] = wps.get(0.5)
+        a['wp75'] = wps.get(0.75)
 
     clustered: set[int] = set()
     clusters = []
@@ -813,7 +854,17 @@ def route_clusters(min_rides: int = Query(3)):
             if not (d_ref * (1 - DIST_TOLERANCE) <= cand['distance_m'] <= d_ref * (1 + DIST_TOLERANCE)):
                 continue
             # Startpunkt-Radius 2 km
-            if haversine(seed['lat'], seed['lon'], cand['lat'], cand['lon']) <= START_RADIUS_KM:
+            if haversine(seed['lat'], seed['lon'], cand['lat'], cand['lon']) > START_RADIUS_KM:
+                continue
+            # Wegpunkt-Check: 25 %/50 %/75 % der Strecke müssen innerhalb WP_RADIUS_KM liegen.
+            # for…else: else-Block nur wenn kein break ausgelöst wurde (alle Checks bestanden).
+            for wp_key in ('wp25', 'wp50', 'wp75'):
+                s_wp = seed[wp_key]
+                c_wp = cand[wp_key]
+                if s_wp is not None and c_wp is not None:
+                    if haversine(s_wp[0], s_wp[1], c_wp[0], c_wp[1]) > WP_RADIUS_KM:
+                        break
+            else:
                 members.append(j)
                 clustered.add(j)
 
@@ -985,7 +1036,8 @@ def fatigue_index(year: int = Query(None)):
     avg_fatigue = sum(fatigue_vals) / len(fatigue_vals)
 
     # --- Extremwerte ---
-    best_neg_row = min(rows, key=lambda r: r["fatigue_pct"])
+    neg_rows     = [r for r in rows if r["fatigue_pct"] < 0]
+    best_neg_row = min(neg_rows, key=lambda r: r["fatigue_pct"]) if neg_rows else None
     worst_row    = max(rows, key=lambda r: r["fatigue_pct"])
 
     def ride_detail(r):
@@ -1058,7 +1110,7 @@ def fatigue_index(year: int = Query(None)):
             "negative_split_count": neg_count,
             "positive_split_count": pos_count,
         },
-        "best_negative": ride_detail(best_neg_row),
+        "best_negative": ride_detail(best_neg_row) if best_neg_row else None,
         "worst_fatigue": ride_detail(worst_row),
         "distribution":  distribution,
         "monthly":       monthly,
@@ -1155,7 +1207,8 @@ def fatigue_index_track(activity_ids: str = Query(...)):
     pos_count    = sum(1 for v in fatigue_vals if v >= 0)
     avg_fatigue  = sum(fatigue_vals) / len(fatigue_vals)
 
-    best_neg_row = min(rows, key=lambda r: r["fatigue_pct"])
+    neg_rows     = [r for r in rows if r["fatigue_pct"] < 0]
+    best_neg_row = min(neg_rows, key=lambda r: r["fatigue_pct"]) if neg_rows else None
     worst_row    = max(rows, key=lambda r: r["fatigue_pct"])
 
     def ride_detail(r):
@@ -1184,7 +1237,7 @@ def fatigue_index_track(activity_ids: str = Query(...)):
             "negative_split_count": neg_count,
             "positive_split_count": pos_count,
         },
-        "best_negative": ride_detail(best_neg_row),
+        "best_negative": ride_detail(best_neg_row) if best_neg_row else None,
         "worst_fatigue": ride_detail(worst_row),
         "distribution":  distribution,
         "rides":         rides,
