@@ -79,9 +79,13 @@ def import_status():
 @router.post("/fit-file")
 async def import_fit_file(
     file: UploadFile = File(...),
-    bike_id: str = Form(...),
+    bike_id: str | None = Form(None),
 ) -> dict:
-    """Importiert eine einzelne .fit-Datei direkt in die DB."""
+    """
+    Importiert eine einzelne .fit-Datei direkt in die DB.
+    bike_id ist nur für Radtouren (sport: cycling/generic) erforderlich;
+    Workouts werden ohne Rad in other_activities gespeichert.
+    """
     if not file.filename or not file.filename.lower().endswith(".fit"):
         raise HTTPException(status_code=400, detail="Nur .fit-Dateien werden unterstützt")
 
@@ -92,7 +96,7 @@ async def import_fit_file(
 
     try:
         with db_connection() as conn:
-            result = import_single_fit(conn, data, bike_id)
+            result = import_single_fit(conn, data, bike_id or None)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 

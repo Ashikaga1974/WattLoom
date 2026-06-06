@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { api, type Activity } from '@/lib/api';
+import { api, type Activity, type OtherActivity } from '@/lib/api';
 import { PageHeader } from '@/components/ui/page-header';
 
 const WEEKDAYS = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
@@ -11,20 +11,23 @@ interface DayCell {
   date: string;   // YYYY-MM-DD
   km: number;
   acts: Activity[];
+  workouts: OtherActivity[];
 }
 
 interface MonthLabel { label: string; weekIndex: number; }
 
-// Farbklassen je km-Bereich
+// Farbklassen je km-Bereich; reine Workout-Tage erhalten eigene Farbe
 function colorClass(day: DayCell | null): string {
-  if (!day || day.acts.length === 0) return 'bg-muted hover:bg-muted/80';
+  if (!day) return '';
+  if (day.acts.length === 0 && day.workouts.length > 0) return 'bg-slate-300 hover:bg-slate-400 dark:bg-slate-600 dark:hover:bg-slate-500';
+  if (day.acts.length === 0) return 'bg-muted hover:bg-muted/80';
   if (day.km < 15)  return 'bg-orange-200 hover:bg-orange-300';
   if (day.km < 30)  return 'bg-orange-400 hover:bg-orange-500';
   if (day.km < 50)  return 'bg-orange-500 hover:bg-orange-600';
   return              'bg-primary hover:bg-primary/80';
 }
 
-function buildCalendar(year: number, activities: Activity[]): {
+function buildCalendar(year: number, activities: Activity[], workouts: OtherActivity[]): {
   weeks: (DayCell | null)[][];
   monthLabels: MonthLabel[];
 } {
@@ -34,6 +37,12 @@ function buildCalendar(year: number, activities: Activity[]): {
     const key = d.toISOString().slice(0, 10);
     if (!byDate.has(key)) byDate.set(key, []);
     byDate.get(key)!.push(act);
+  }
+
+  const workoutsByDate = new Map<string, OtherActivity[]>();
+  for (const w of workouts) {
+    if (!workoutsByDate.has(w.date)) workoutsByDate.set(w.date, []);
+    workoutsByDate.get(w.date)!.push(w);
   }
 
   const end = new Date(year, 11, 31);
@@ -56,7 +65,8 @@ function buildCalendar(year: number, activities: Activity[]): {
         const dateStr = cursor.toISOString().slice(0, 10);
         const acts = byDate.get(dateStr) ?? [];
         const km = acts.reduce((s, a) => s + a.distance_m / 1000, 0);
-        week.push({ date: dateStr, km, acts });
+        const dayWorkouts = workoutsByDate.get(dateStr) ?? [];
+        week.push({ date: dateStr, km, acts, workouts: dayWorkouts });
         const mo = cursor.getMonth();
         if (dow === 0 && !seenMonths.has(mo)) {
           seenMonths.add(mo);
@@ -81,6 +91,7 @@ export default function CalendarPage() {
   const [selectedYear, setSelectedYear] = useState(currentYear);
   const [availableYears, setAvailableYears] = useState<string[]>([]);
   const [activities, setActivities] = useState<Activity[]>([]);
+  const [workouts, setWorkouts]     = useState<OtherActivity[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [tooltip, setTooltip] = useState<TooltipState | null>(null);
@@ -89,8 +100,12 @@ export default function CalendarPage() {
     async function init() {
       const stats = await api.activityStats();
       setAvailableYears(stats.available_years);
-      const res = await api.activities({ limit: 500, year: currentYear });
+      const [res, wo] = await Promise.all([
+        api.activities({ limit: 500, year: currentYear }),
+        api.otherActivities(currentYear),
+      ]);
       setActivities(res.items);
+      setWorkouts(wo);
     }
     init()
       .catch(e => setError(e instanceof Error ? e.message : 'Fehler'))
@@ -101,8 +116,12 @@ export default function CalendarPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await api.activities({ limit: 500, year });
+      const [res, wo] = await Promise.all([
+        api.activities({ limit: 500, year }),
+        api.otherActivities(year),
+      ]);
       setActivities(res.items);
+      setWorkouts(wo);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Fehler');
     } finally {
@@ -116,7 +135,7 @@ export default function CalendarPage() {
     reload(year);
   }
 
-  const { weeks, monthLabels } = buildCalendar(selectedYear, activities);
+  const { weeks, monthLabels } = buildCalendar(selectedYear, activities, workouts);
   const activeDays = new Set(activities.map(a => {
     const d = new Date(a.start_date.endsWith('Z') ? a.start_date : a.start_date + 'Z');
     return d.toISOString().slice(0, 10);
@@ -144,15 +163,20 @@ export default function CalendarPage() {
           style={{ left: tooltip.x + 12, top: tooltip.y - 8 }}
         >
           <p className="font-semibold">{tooltip.day.date}</p>
-          {tooltip.day.acts.length === 0 ? (
+          {tooltip.day.acts.length === 0 && tooltip.day.workouts.length === 0 ? (
             <p className="text-muted-foreground">Kein Training</p>
           ) : (
             <>
-              <p className="text-primary">{tooltip.day.km.toFixed(1)} km · {tooltip.day.acts.length} Ride{tooltip.day.acts.length > 1 ? 's' : ''}</p>
+              {tooltip.day.acts.length > 0 && (
+                <p className="text-primary">{tooltip.day.km.toFixed(1)} km · {tooltip.day.acts.length} Ride{tooltip.day.acts.length > 1 ? 's' : ''}</p>
+              )}
               {tooltip.day.acts.slice(0, 2).map(a => (
                 <p key={a.id} className="max-w-48 truncate text-muted-foreground">{a.name}</p>
               ))}
               {tooltip.day.acts.length > 2 && <p className="text-muted-foreground">+ {tooltip.day.acts.length - 2} weitere</p>}
+              {tooltip.day.workouts.map((w, i) => (
+                <p key={i} className="text-slate-500">{w.sport_type}</p>
+              ))}
             </>
           )}
         </div>
@@ -195,7 +219,10 @@ export default function CalendarPage() {
                         if (!day) {
                           return <div key={di} className="h-3 w-3 rounded-sm" />;
                         }
-                        if (day.acts.length > 0) {
+                        const hasRide    = day.acts.length > 0;
+                        const hasWorkout = day.workouts.length > 0;
+                        const ringClass  = hasRide && hasWorkout ? 'ring-1 ring-slate-400 ring-offset-0' : '';
+                        if (hasRide) {
                           const href = day.acts.length === 1
                             ? `/activities/${day.acts[0].id}`
                             : `/activities?date=${day.date}`;
@@ -203,7 +230,7 @@ export default function CalendarPage() {
                             <Link
                               key={di}
                               to={href}
-                              className={`h-3 w-3 rounded-sm cursor-pointer transition-colors ${colorClass(day)}`}
+                              className={`h-3 w-3 rounded-sm cursor-pointer transition-colors ${colorClass(day)} ${ringClass}`}
                               onMouseEnter={e => setTooltip({ x: e.pageX, y: e.pageY, day })}
                               onMouseLeave={() => setTooltip(null)}
                               aria-label={`${day.date}: ${day.km.toFixed(1)} km`}
@@ -235,7 +262,15 @@ export default function CalendarPage() {
             <div className="h-3 w-3 rounded-sm bg-orange-500" />
             <div className="h-3 w-3 rounded-sm bg-primary" />
             <span>Mehr</span>
-            <span className="ml-4 text-muted-foreground">(&lt;15 / 15–30 / 30–50 / 50+ km)</span>
+            <span className="text-muted-foreground">(&lt;15 / 15–30 / 30–50 / 50+ km)</span>
+            <span className="ml-4 flex items-center gap-1.5">
+              <div className="h-3 w-3 rounded-sm bg-slate-300 dark:bg-slate-600" />
+              Workout
+            </span>
+            <span className="flex items-center gap-1.5">
+              <div className="h-3 w-3 rounded-sm bg-orange-400 ring-1 ring-slate-400" />
+              Ride + Workout
+            </span>
           </div>
 
           {/* Monatsübersicht */}

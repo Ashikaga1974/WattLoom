@@ -666,7 +666,7 @@ export default function FormPage() {
                   {hoverDay.other.map((o, i) => (
                     <div key={i} className="flex justify-between gap-4">
                       <span style={{ color: o.sport_type === 'Workout' ? '#a78bfa' : '#f59e0b' }}>
-                        {o.sport_type === 'Weight Training' ? 'Kraft' : o.sport_type}
+                        {(['Weight Training', 'Krafttraining', 'Strength Training'].includes(o.sport_type)) ? 'Kraft' : o.sport_type}
                       </span>
                       <span className="text-foreground font-mono">{Math.round(o.moving_time_s / 60)} min</span>
                     </div>

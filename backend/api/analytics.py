@@ -381,13 +381,16 @@ def weekly_volume(weeks: int = Query(52)):
                 GROUP BY sport_type
             """, (ws, we)).fetchall()
 
-            other_map = {r["sport_type"]: r["total_s"] for r in other}
+            # Kraft-ähnliche Typen aus Strava und FIT-Import zusammenfassen
+            _KRAFT = {"Weight Training", "Krafttraining", "Strength Training", "Fitness"}
+            weight_s  = sum(r["total_s"] for r in other if r["sport_type"] in _KRAFT)
+            workout_s = sum(r["total_s"] for r in other if r["sport_type"] not in _KRAFT)
             result.append({
                 "week_start": ws,
                 "weeks_ago": i,
                 "ride_minutes": round(ride_s / 60),
-                "workout_minutes": round(other_map.get("Workout", 0) / 60),
-                "weight_training_minutes": round(other_map.get("Weight Training", 0) / 60),
+                "workout_minutes": round(workout_s / 60),
+                "weight_training_minutes": round(weight_s / 60),
             })
 
         return result

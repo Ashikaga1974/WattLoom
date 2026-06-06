@@ -535,13 +535,13 @@ export const api = {
       return r.json() as Promise<{ ok: boolean; deleted_id: number }>;
     }),
 
-  importFitFile: (file: File, bikeId: string): Promise<{ activity_id: number; name: string }> => {
+  importFitFile: (file: File, bikeId?: string): Promise<{ activity_id: number; name: string; is_ride: boolean }> => {
     const form = new FormData();
     form.append('file', file);
-    form.append('bike_id', bikeId);
+    if (bikeId) form.append('bike_id', bikeId);
     return fetch(`${BASE}/import/fit-file`, { method: 'POST', body: form }).then(r => {
       if (!r.ok) return r.json().then(j => { throw new Error(j.detail ?? `Fehler ${r.status}`); });
-      return r.json() as Promise<{ activity_id: number; name: string }>;
+      return r.json() as Promise<{ activity_id: number; name: string; is_ride: boolean }>;
     });
   },
 };

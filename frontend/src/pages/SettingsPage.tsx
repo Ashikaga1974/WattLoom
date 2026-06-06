@@ -29,7 +29,7 @@ export default function SettingsPage() {
   const [fitFile, setFitFile]             = useState<File | null>(null);
   const [fitBikeId, setFitBikeId]         = useState('');
   const [fitUploading, setFitUploading]   = useState(false);
-  const [fitResult, setFitResult]         = useState<{ activity_id: number; name: string } | null>(null);
+  const [fitResult, setFitResult]         = useState<{ activity_id: number; name: string; is_ride: boolean } | null>(null);
   const [fitError, setFitError]           = useState<string | null>(null);
   const fitInputRef                       = useRef<HTMLInputElement>(null);
   const navigate                          = useNavigate();
@@ -229,12 +229,12 @@ export default function SettingsPage() {
 
   async function doFitUpload(e: React.FormEvent) {
     e.preventDefault();
-    if (!fitFile || !fitBikeId) return;
+    if (!fitFile) return;
     setFitUploading(true);
     setFitResult(null);
     setFitError(null);
     try {
-      const res = await api.importFitFile(fitFile, fitBikeId);
+      const res = await api.importFitFile(fitFile, fitBikeId || undefined);
       setFitResult(res);
       setFitFile(null);
       if (fitInputRef.current) fitInputRef.current.value = '';
@@ -569,19 +569,17 @@ export default function SettingsPage() {
                 />
               </div>
 
-              {/* Bike-Dropdown */}
+              {/* Bike-Dropdown (optional – nur für Radtouren) */}
               <div>
                 <label className="block text-xs text-muted-foreground uppercase tracking-wider mb-2">
-                  Bike
+                  Bike <span className="normal-case font-normal">(optional, nur für Radtouren)</span>
                 </label>
                 <select
                   value={fitBikeId}
                   onChange={e => setFitBikeId(e.target.value)}
                   className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-colors"
                 >
-                  {bikes.length === 0 && (
-                    <option value="">Keine Bikes vorhanden</option>
-                  )}
+                  <option value="">– kein Rad / Workout –</option>
                   {bikes.map(b => (
                     <option key={b.id} value={b.id}>{b.name}</option>
                   ))}
@@ -592,7 +590,7 @@ export default function SettingsPage() {
             <div className="flex items-center gap-4 flex-wrap">
               <button
                 type="submit"
-                disabled={!fitFile || !fitBikeId || fitUploading}
+                disabled={!fitFile || fitUploading}
                 className="rounded-md px-5 py-2 text-sm font-medium bg-orange-500 hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-white cursor-pointer"
               >
                 {fitUploading ? 'Importiere…' : 'Importieren'}
@@ -603,13 +601,15 @@ export default function SettingsPage() {
                   <span className="text-sm text-green-600">
                     Importiert: <span className="font-medium">{fitResult.name}</span>
                   </span>
-                  <button
-                    type="button"
-                    onClick={() => navigate(`/activities/${fitResult.activity_id}`)}
-                    className="text-xs text-orange-500 hover:text-orange-400 underline underline-offset-2 transition-colors"
-                  >
-                    Aktivität öffnen →
-                  </button>
+                  {fitResult.is_ride && (
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/activities/${fitResult.activity_id}`)}
+                      className="text-xs text-orange-500 hover:text-orange-400 underline underline-offset-2 transition-colors"
+                    >
+                      Aktivität öffnen →
+                    </button>
+                  )}
                 </div>
               )}
 

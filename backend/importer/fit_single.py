@@ -1,7 +1,7 @@
 """
 Einzelimport einer externen .fit-Datei (kein Strava-ZIP).
-Extrahiert Aktivitäts-Metadaten aus dem session-Block und berechnet
-kumulative Distanz via Haversine wenn kein distance-Feld in den records vorhanden.
+Erkennt anhand des Sport-Typs selbst, ob die Aktivität als Radfahrt (activities)
+oder als sonstiges Workout (other_activities) gespeichert wird.
 """
 import io
 import math
@@ -14,12 +14,27 @@ import fitparse
 from backend.importer.fit import _SafeProcessor, _val, import_fit
 
 
-_SPORT_TO_ACTIVITY_TYPE: dict[str, str] = {
-    "cycling": "Ride",
-    "running": "Run",
-    "walking": "Walk",
-    "swimming": "Swim",
-    "generic": "Ride",
+# Sportarten die als Radfahrt in activities landen
+_CYCLING_SPORTS: set[str] = {"cycling", "generic"}
+
+# Anzeigename für Sport/Sub-Sport in other_activities.sport_type
+_SUB_SPORT_LABELS: dict[str, str] = {
+    "strength_training": "Krafttraining",
+    "yoga":              "Yoga",
+    "cardio_training":   "Cardio",
+    "flexibility_training": "Dehnen",
+    "warm_up":           "Aufwärmen",
+    "cool_down":         "Abkühlen",
+}
+
+_SPORT_LABELS: dict[str, str] = {
+    "training":  "Training",
+    "running":   "Laufen",
+    "walking":   "Gehen",
+    "swimming":  "Schwimmen",
+    "hiking":    "Wandern",
+    "yoga":      "Yoga",
+    "fitness_equipment": "Fitness",
 }
 
 
@@ -32,15 +47,16 @@ def haversine_m(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     return 2.0 * R * math.asin(math.sqrt(max(0.0, min(1.0, a))))
 
 
-def import_single_fit(conn: sqlite3.Connection, fit_bytes: bytes, bike_id: str) -> dict:
+def import_single_fit(conn: sqlite3.Connection, fit_bytes: bytes, bike_id: str | None = None) -> dict:
     """
     Importiert eine einzelne .fit-Datei direkt in die DB (ohne Strava-ZIP).
-    Gibt {"activity_id": int, "name": str} zurück.
-    Wirft ValueError bei Duplikat oder fehlenden Pflichtfeldern.
+    - Radtouren (sport: cycling/generic) → activities; bike_id ist dann Pflicht.
+    - Alles andere                       → other_activities; bike_id wird ignoriert.
+    Gibt {"activity_id": int, "name": str, "is_ride": bool} zurück.
+    Wirft ValueError bei Duplikat, fehlendem Pflichtfeld oder fehlendem bike_id für Radtouren.
     """
     fit = fitparse.FitFile(io.BytesIO(fit_bytes), data_processor=_SafeProcessor())
 
-    # Einmaliger Durchlauf für session + file_id
     session_msg = None
     device_hint = ""
     for msg in fit.get_messages():
@@ -64,42 +80,54 @@ def import_single_fit(conn: sqlite3.Connection, fit_bytes: bytes, bike_id: str) 
     if isinstance(start_raw, datetime):
         start_dt = start_raw.replace(tzinfo=timezone.utc)
     else:
-        # Garmin-Epoch: 631065600 Sekunden Offset zu Unix-Epoch
         start_dt = datetime.fromtimestamp(631065600 + int(start_raw), tz=timezone.utc)
 
     # Negativer Unix-Timestamp → kein Kollisionsrisiko mit positiven Strava-IDs
     activity_id = -int(start_dt.timestamp())
-    start_date = start_dt.strftime('%Y-%m-%dT%H:%M:%S')
+    start_date  = start_dt.strftime('%Y-%m-%dT%H:%M:%S')
+    local_date  = start_dt.strftime("%d.%m.%Y")
 
-    # Duplikat-Check
-    dup = conn.execute("SELECT id FROM activities WHERE id = ?", (activity_id,)).fetchone()
-    if dup:
-        raise ValueError(
-            f"Aktivität vom {start_dt.strftime('%d.%m.%Y %H:%M')} UTC "
-            f"bereits importiert (ID {activity_id})"
-        )
-
-    # Distanz und Zeiten
-    distance_m = sv("total_distance")
-    moving_time_s = sv("total_timer_time")
-    elapsed_time_s = sv("total_elapsed_time")
-
-    # avg_speed aus session oder berechnen
-    avg_speed = sv("avg_speed") or sv("enhanced_avg_speed")
-    if avg_speed is None and distance_m and moving_time_s and float(moving_time_s) > 0:
-        avg_speed = float(distance_m) / float(moving_time_s)
-    max_speed = sv("max_speed") or sv("enhanced_max_speed")
-
-    # Sport → activity_type (kompatibel mit RIDE_TYPES-Filter im Backend)
     sport_raw = sv("sport")
     sport_str = str(sport_raw).lower() if sport_raw is not None else "cycling"
-    activity_type = _SPORT_TO_ACTIVITY_TYPE.get(sport_str, "Ride")
 
-    # Aktivitätsname generieren
-    local_date = start_dt.strftime("%d.%m.%Y")
+    if sport_str in _CYCLING_SPORTS:
+        if not bike_id:
+            raise ValueError("bike_id ist für Radtouren erforderlich")
+        return _import_as_ride(conn, fit, fit_bytes, session_msg, sv,
+                               activity_id, start_date, local_date, device_hint, bike_id)
+    else:
+        return _import_as_workout(conn, session_msg, sv,
+                                  activity_id, start_date, local_date, device_hint, sport_str)
+
+
+# ── interne Helfer ────────────────────────────────────────────────────────────
+
+def _import_as_ride(
+    conn: sqlite3.Connection,
+    fit: Any,
+    fit_bytes: bytes,
+    session_msg: Any,
+    sv: Any,
+    activity_id: int,
+    start_date: str,
+    local_date: str,
+    device_hint: str,
+    bike_id: str,
+) -> dict:
+    """Speichert eine Radtour in der activities-Tabelle."""
+    _check_duplicate(conn, activity_id, start_date)
+
+    distance_m  = sv("total_distance")
+    moving_time = sv("total_timer_time")
+    elapsed_time = sv("total_elapsed_time")
+
+    avg_speed = sv("avg_speed") or sv("enhanced_avg_speed")
+    if avg_speed is None and distance_m and moving_time and float(moving_time) > 0:
+        avg_speed = float(distance_m) / float(moving_time)
+    max_speed = sv("max_speed") or sv("enhanced_max_speed")
+
     activity_name = f"Radfahrt {local_date}{device_hint}"
 
-    # Aktivität in DB einfügen
     with conn:
         conn.execute("""
             INSERT INTO activities (
@@ -114,14 +142,14 @@ def import_single_fit(conn: sqlite3.Connection, fit_bytes: bytes, bike_id: str) 
         """, (
             activity_id,
             activity_name,
-            activity_type,
-            activity_type,
+            "Ride",
+            "Ride",
             start_date,
-            start_date,       # start_date_local = UTC (kein Offset aus FIT bekannt)
-            None,             # timezone
+            start_date,
+            None,
             distance_m,
-            int(float(moving_time_s)) if moving_time_s is not None else None,
-            int(float(elapsed_time_s)) if elapsed_time_s is not None else None,
+            int(float(moving_time))  if moving_time  is not None else None,
+            int(float(elapsed_time)) if elapsed_time is not None else None,
             sv("total_ascent"),
             sv("total_descent"),
             avg_speed,
@@ -134,22 +162,14 @@ def import_single_fit(conn: sqlite3.Connection, fit_bytes: bytes, bike_id: str) 
             sv("avg_temperature"),
             sv("total_calories"),
             bike_id,
-            0,    # commute
-            0,    # trainer
-            1,    # manual = True (kein Strava-Import)
-            None, # track_file
-            0,    # has_track – wird nach Track-Import gesetzt
+            0, 0, 1, None, 0,
             datetime.now(timezone.utc).isoformat(),
             "Amazfit",
         ))
 
-    # Track-Punkte über bestehenden FIT-Parser importieren
     import_fit(conn, activity_id, fit_bytes, compressed=False)
-
-    # Kumulative Distanz via Haversine berechnen wenn records kein distance-Feld haben
     _fill_distance_if_missing(conn, activity_id)
 
-    # has_track setzen wenn Track-Punkte vorhanden
     count = conn.execute(
         "SELECT COUNT(*) FROM track_points WHERE activity_id = ?", (activity_id,)
     ).fetchone()[0]
@@ -157,7 +177,71 @@ def import_single_fit(conn: sqlite3.Connection, fit_bytes: bytes, bike_id: str) 
         with conn:
             conn.execute("UPDATE activities SET has_track=1 WHERE id=?", (activity_id,))
 
-    return {"activity_id": activity_id, "name": activity_name}
+    return {"activity_id": activity_id, "name": activity_name, "is_ride": True}
+
+
+def _import_as_workout(
+    conn: sqlite3.Connection,
+    session_msg: Any,
+    sv: Any,
+    activity_id: int,
+    start_date: str,
+    local_date: str,
+    device_hint: str,
+    sport_str: str,
+) -> dict:
+    """Speichert ein Nicht-Rad-Workout in der other_activities-Tabelle."""
+    # Duplikat-Check in other_activities
+    dup = conn.execute("SELECT id FROM other_activities WHERE id = ?", (activity_id,)).fetchone()
+    if dup:
+        start_label = start_date[:16].replace("T", " ")
+        raise ValueError(
+            f"Aktivität vom {start_label} UTC bereits importiert (ID {activity_id})"
+        )
+
+    sub_sport_raw = _val(session_msg, "sub_sport")
+    sub_sport_str = str(sub_sport_raw).lower().replace(" ", "_") if sub_sport_raw else ""
+
+    # Anzeigename: Sub-Sport hat Vorrang vor Sport
+    sport_label = (
+        _SUB_SPORT_LABELS.get(sub_sport_str)
+        or _SPORT_LABELS.get(sport_str)
+        or sport_str.replace("_", " ").title()
+    )
+
+    activity_name = f"{sport_label} {local_date}{device_hint}"
+    moving_time  = sv("total_timer_time")
+    elapsed_time = sv("total_elapsed_time")
+
+    with conn:
+        conn.execute("""
+            INSERT INTO other_activities
+                (id, name, sport_type, start_date_local,
+                 moving_time_s, elapsed_time_s, avg_hr, max_hr, calories, imported_at)
+            VALUES (?,?,?,?,?,?,?,?,?,?)
+        """, (
+            activity_id,
+            activity_name,
+            sport_label,
+            start_date,
+            int(float(moving_time))  if moving_time  is not None else None,
+            int(float(elapsed_time)) if elapsed_time is not None else None,
+            sv("avg_heart_rate"),
+            sv("max_heart_rate"),
+            sv("total_calories"),
+            datetime.now(timezone.utc).isoformat(),
+        ))
+
+    return {"activity_id": activity_id, "name": activity_name, "is_ride": False}
+
+
+def _check_duplicate(conn: sqlite3.Connection, activity_id: int, start_date: str) -> None:
+    dup = conn.execute("SELECT id FROM activities WHERE id = ?", (activity_id,)).fetchone()
+    if dup:
+        start_label = start_date[:16].replace("T", " ")
+        raise ValueError(
+            f"Aktivität vom {start_label} UTC bereits importiert (ID {activity_id})"
+        )
 
 
 def _fill_distance_if_missing(conn: sqlite3.Connection, activity_id: int) -> None:
