@@ -154,6 +154,7 @@ export interface OtherActivity {
   date: string;
   sport_type: string;
   moving_time_s: number;
+  calories: number | null;
 }
 
 export interface PmcResponse {

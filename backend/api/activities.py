@@ -196,7 +196,8 @@ def list_other_activities(year: int = Query(None)):
             SELECT
                 strftime('%Y-%m-%d', start_date_local) AS date,
                 sport_type,
-                moving_time_s
+                moving_time_s,
+                calories
             FROM other_activities
             {where}
             ORDER BY start_date_local

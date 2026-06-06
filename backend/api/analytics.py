@@ -1478,15 +1478,18 @@ def cadence_analysis(year: int = Query(None)):
 
 @router.get("/calories")
 def calories(year: int = Query(None)):
-    """Kalorien-Auswertung: KPIs, Monatsverlauf, Jahresvergleich."""
+    """Kalorien-Auswertung: KPIs, Monatsverlauf, Jahresvergleich – Radtouren + Workouts."""
     with db_connection() as conn:
-        year_filter = "WHERE calories IS NOT NULL AND calories > 0"
+        ride_filter = "WHERE calories IS NOT NULL AND calories > 0"
+        oa_filter   = "WHERE calories IS NOT NULL AND calories > 0"
         params: list = []
         if year:
-            year_filter += " AND strftime('%Y', start_date_local) = ?"
+            ride_filter += " AND strftime('%Y', start_date_local) = ?"
+            oa_filter   += " AND strftime('%Y', start_date_local) = ?"
             params.append(str(year))
 
-        total_row = conn.execute(
+        # Radtouren-KPIs
+        ride_row = conn.execute(
             f"""
             SELECT
                 ROUND(SUM(calories))                                           AS total_kcal,
@@ -1494,52 +1497,101 @@ def calories(year: int = Query(None)):
                 ROUND(AVG(calories))                                           AS avg_kcal,
                 ROUND(SUM(calories) / NULLIF(SUM(moving_time_s), 0) * 3600)   AS kcal_per_hour
             FROM activities
-            {year_filter}
+            {ride_filter}
             """,
             params,
         ).fetchone()
 
+        # Workout-KPIs (other_activities)
+        oa_row = conn.execute(
+            f"""
+            SELECT
+                ROUND(SUM(calories)) AS total_kcal,
+                COUNT(*)             AS workouts,
+                ROUND(AVG(calories)) AS avg_kcal
+            FROM other_activities
+            {oa_filter}
+            """,
+            params,
+        ).fetchone()
+
+        # Monatsverlauf: beide Quellen per UNION zusammengeführt
         monthly_rows = conn.execute(
             f"""
             SELECT
-                strftime('%Y-%m', start_date_local) AS month,
-                ROUND(SUM(calories))                AS kcal,
-                COUNT(*)                            AS rides,
-                ROUND(AVG(calories))                AS avg_kcal
-            FROM activities
-            {year_filter}
+                month,
+                ROUND(SUM(CASE WHEN src = 'rides'    THEN calories ELSE 0 END)) AS kcal,
+                ROUND(SUM(CASE WHEN src = 'workouts' THEN calories ELSE 0 END)) AS kcal_workouts,
+                COUNT(CASE WHEN src = 'rides'    THEN 1 END)                    AS rides,
+                COUNT(CASE WHEN src = 'workouts' THEN 1 END)                    AS workouts,
+                ROUND(AVG(CASE WHEN src = 'rides' THEN calories END))           AS avg_kcal
+            FROM (
+                SELECT strftime('%Y-%m', start_date_local) AS month,
+                       calories, 'rides' AS src
+                FROM activities {ride_filter}
+                UNION ALL
+                SELECT strftime('%Y-%m', start_date_local) AS month,
+                       calories, 'workouts' AS src
+                FROM other_activities {oa_filter}
+            )
             GROUP BY month
             ORDER BY month
             """,
-            params,
+            params + params,
         ).fetchall()
 
+        # Jahresvergleich: ebenfalls beide Quellen
         yearly_rows = conn.execute(
             """
             SELECT
-                strftime('%Y', start_date_local)    AS year,
-                ROUND(SUM(calories))                AS kcal,
-                COUNT(*)                            AS rides,
-                ROUND(AVG(calories))                AS avg_kcal
-            FROM activities
-            WHERE calories IS NOT NULL AND calories > 0
-              AND strftime('%Y', start_date_local) >= '2022'
+                year,
+                ROUND(SUM(CASE WHEN src = 'rides'    THEN calories ELSE 0 END)) AS kcal,
+                ROUND(SUM(CASE WHEN src = 'workouts' THEN calories ELSE 0 END)) AS kcal_workouts,
+                COUNT(CASE WHEN src = 'rides'    THEN 1 END)                    AS rides,
+                COUNT(CASE WHEN src = 'workouts' THEN 1 END)                    AS workouts,
+                ROUND(AVG(CASE WHEN src = 'rides' THEN calories END))           AS avg_kcal
+            FROM (
+                SELECT strftime('%Y', start_date_local) AS year,
+                       calories, 'rides' AS src
+                FROM activities
+                WHERE calories IS NOT NULL AND calories > 0
+                  AND strftime('%Y', start_date_local) >= '2022'
+                UNION ALL
+                SELECT strftime('%Y', start_date_local) AS year,
+                       calories, 'workouts' AS src
+                FROM other_activities
+                WHERE calories IS NOT NULL AND calories > 0
+                  AND strftime('%Y', start_date_local) >= '2022'
+            )
             GROUP BY year
             ORDER BY year
             """,
         ).fetchall()
 
         return {
-            "total_kcal":    total_row["total_kcal"],
-            "rides":         total_row["rides"],
-            "avg_kcal":      total_row["avg_kcal"],
-            "kcal_per_hour": total_row["kcal_per_hour"],
+            "total_kcal":          ride_row["total_kcal"] or 0,
+            "total_kcal_workouts": oa_row["total_kcal"] or 0,
+            "rides":               ride_row["rides"] or 0,
+            "workouts":            oa_row["workouts"] or 0,
+            "avg_kcal":            ride_row["avg_kcal"] or 0,
+            "avg_kcal_workouts":   oa_row["avg_kcal"],
+            "kcal_per_hour":       ride_row["kcal_per_hour"],
             "monthly": [
-                {"month": r["month"], "kcal": r["kcal"], "rides": r["rides"], "avg_kcal": r["avg_kcal"]}
+                {
+                    "month": r["month"], "kcal": r["kcal"] or 0,
+                    "kcal_workouts": r["kcal_workouts"] or 0,
+                    "rides": r["rides"], "workouts": r["workouts"],
+                    "avg_kcal": r["avg_kcal"] or 0,
+                }
                 for r in monthly_rows
             ],
             "yearly": [
-                {"year": r["year"], "kcal": r["kcal"], "rides": r["rides"], "avg_kcal": r["avg_kcal"]}
+                {
+                    "year": r["year"], "kcal": r["kcal"] or 0,
+                    "kcal_workouts": r["kcal_workouts"] or 0,
+                    "rides": r["rides"], "workouts": r["workouts"],
+                    "avg_kcal": r["avg_kcal"] or 0,
+                }
                 for r in yearly_rows
             ],
         }
