@@ -279,6 +279,17 @@ function SpeedChart({ points, onHover, activeDist }: { points: TrackPoint[]; onH
 // Wird als separates Component exportiert in components/LeafletMap.tsx
 // Hier nur die Fallback-Ausgabe im Suspense
 
+// Windrichtung in Grad → Kompass-Label + Unicode-Pfeil (woher der Wind kommt)
+const COMPASS = ['N', 'NO', 'O', 'SO', 'S', 'SW', 'W', 'NW'];
+const ARROWS  = ['↓', '↙', '←', '↖', '↑', '↗', '→', '↘'];
+
+function windLabel(deg: number): string {
+  return COMPASS[Math.round(deg / 45) % 8];
+}
+function windArrow(deg: number): string {
+  return ARROWS[Math.round(deg / 45) % 8];
+}
+
 // --- Hauptseite ---
 
 export default function ActivityDetailPage() {
@@ -572,6 +583,38 @@ export default function ActivityDetailPage() {
             />
           )}
         </div>
+      )}
+
+      {/* Wetter */}
+      {(activity.weather_temp_c != null || activity.weather_wind_ms != null) && (
+        <Card size="sm">
+          <CardContent>
+            <p className="text-xs text-muted-foreground uppercase tracking-wider mb-2">Wetter (Open-Meteo)</p>
+            <div className="flex flex-wrap gap-4 text-sm">
+              {activity.weather_temp_c != null && (
+                <span className="text-foreground font-medium">
+                  {activity.weather_temp_c.toFixed(1)} °C
+                </span>
+              )}
+              {activity.weather_wind_ms != null && (
+                <span className="text-foreground font-medium">
+                  {activity.weather_wind_deg != null ? (
+                    <span className="mr-1 text-muted-foreground">{windArrow(activity.weather_wind_deg)} {windLabel(activity.weather_wind_deg)}</span>
+                  ) : null}
+                  {(activity.weather_wind_ms * 3.6).toFixed(1)} km/h
+                </span>
+              )}
+              {activity.weather_precip_mm != null && activity.weather_precip_mm > 0 && (
+                <span className="text-foreground font-medium">
+                  {activity.weather_precip_mm.toFixed(1)} mm Regen
+                </span>
+              )}
+              {activity.weather_precip_mm === 0 && (
+                <span className="text-muted-foreground text-xs">kein Regen</span>
+              )}
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       {/* Fotos */}

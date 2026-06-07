@@ -107,28 +107,50 @@ def year_progress():
 
 @router.get("/temp-correlation")
 def temp_correlation():
-    """Temperatur vs. Speed und HR – aggregiert aus track_points.temp_c."""
+    """Temperatur vs. Speed und HR – Quelle: Open-Meteo weather_temp_c je Aktivität."""
     with db_connection() as conn:
         rows = conn.execute("""
             SELECT
-                ROUND(AVG(tp.temp_c), 1)                        AS temp_c,
-                ROUND(a.avg_speed_ms * 3.6, 1)                  AS speed_kmh,
-                ROUND(a.avg_hr, 0)                              AS hr,
-                CAST(strftime('%Y', a.start_date_local) AS INTEGER) AS year,
-                ROUND(a.distance_m / 1000.0, 1)                 AS dist_km
+                ROUND(a.weather_temp_c, 1)                          AS temp_c,
+                ROUND(a.avg_speed_ms * 3.6, 1)                      AS speed_kmh,
+                ROUND(a.avg_hr, 0)                                   AS hr,
+                CAST(strftime('%Y', a.start_date_local) AS INTEGER)  AS year,
+                ROUND(a.distance_m / 1000.0, 1)                     AS dist_km
             FROM activities a
-            JOIN track_points tp ON tp.activity_id = a.id
-            WHERE tp.temp_c IS NOT NULL
+            WHERE a.weather_temp_c IS NOT NULL
               AND a.avg_speed_ms IS NOT NULL AND a.avg_speed_ms > 3
               AND a.avg_hr IS NOT NULL
-            GROUP BY a.id
-            HAVING COUNT(tp.temp_c) >= 10
             ORDER BY a.start_date_local
         """).fetchall()
         return {
             "points": [
                 {"temp_c": r["temp_c"], "speed_kmh": r["speed_kmh"],
                  "hr": r["hr"], "year": r["year"], "dist_km": r["dist_km"]}
+                for r in rows
+            ]
+        }
+
+
+@router.get("/wind-impact")
+def wind_impact():
+    """Windstärke vs. Speed und HR – Quelle: Open-Meteo weather_wind_ms je Aktivität."""
+    with db_connection() as conn:
+        rows = conn.execute("""
+            SELECT
+                ROUND(a.weather_wind_ms, 2)                         AS wind_ms,
+                ROUND(a.avg_speed_ms * 3.6, 1)                      AS speed_kmh,
+                ROUND(a.avg_hr, 0)                                   AS hr,
+                ROUND(a.distance_m / 1000.0, 1)                     AS dist_km
+            FROM activities a
+            WHERE a.weather_wind_ms IS NOT NULL
+              AND a.avg_speed_ms IS NOT NULL AND a.avg_speed_ms > 3
+              AND a.avg_hr IS NOT NULL
+            ORDER BY a.start_date_local
+        """).fetchall()
+        return {
+            "points": [
+                {"wind_ms": r["wind_ms"], "speed_kmh": r["speed_kmh"],
+                 "hr": r["hr"], "dist_km": r["dist_km"]}
                 for r in rows
             ]
         }

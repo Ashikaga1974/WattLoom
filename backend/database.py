@@ -199,6 +199,16 @@ def init_db() -> None:
                 END
             """)
 
+        # Migration: Wetter-Spalten hinzufügen
+        for col, typ in [
+            ("weather_temp_c", "REAL"),
+            ("weather_wind_ms", "REAL"),
+            ("weather_wind_deg", "INTEGER"),
+            ("weather_precip_mm", "REAL"),
+        ]:
+            if col not in cols:
+                conn.execute(f"ALTER TABLE activities ADD COLUMN {col} {typ}")
+
     print(f"DB initialisiert: {DB_PATH}")
 
 

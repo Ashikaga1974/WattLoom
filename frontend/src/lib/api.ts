@@ -52,6 +52,21 @@ export interface ActivityDetail extends Activity {
   max_power_w: number | null;
   commute: number;
   trainer: number;
+  weather_temp_c: number | null;
+  weather_wind_ms: number | null;
+  weather_wind_deg: number | null;
+  weather_precip_mm: number | null;
+}
+
+export interface WeatherStatus {
+  running: boolean;
+  total: number;
+  done: number;
+  skipped: number;
+  errors: number;
+  total_activities: number;
+  with_weather: number;
+  without_weather: number;
 }
 
 export interface Lap {
@@ -456,6 +471,9 @@ export const api = {
   tempCorrelation: () =>
     get<{ points: { temp_c: number; speed_kmh: number; hr: number; year: number; dist_km: number }[] }>('/analytics/temp-correlation'),
 
+  windImpact: () =>
+    get<{ points: { wind_ms: number; speed_kmh: number; hr: number; dist_km: number }[] }>('/analytics/wind-impact'),
+
   calories: (year?: number | null) =>
     get<{
       total_kcal: number;
@@ -534,6 +552,15 @@ export const api = {
     fetch(`${BASE}/activities/${id}`, { method: 'DELETE' }).then(r => {
       if (!r.ok) return r.json().then(j => { throw new Error(j.detail ?? `Fehler ${r.status}`); });
       return r.json() as Promise<{ ok: boolean; deleted_id: number }>;
+    }),
+
+  weatherStatus: (): Promise<WeatherStatus> =>
+    get('/weather/status'),
+
+  weatherFetchAll: (): Promise<{ ok: boolean; message?: string }> =>
+    fetch(`${BASE}/weather/fetch-all`, { method: 'POST' }).then(r => {
+      if (!r.ok) throw new Error(`API /weather/fetch-all → ${r.status}`);
+      return r.json() as Promise<{ ok: boolean; message?: string }>;
     }),
 
   importFitFile: (file: File, bikeId?: string): Promise<{ activity_id: number; name: string; is_ride: boolean }> => {

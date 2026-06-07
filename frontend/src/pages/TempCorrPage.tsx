@@ -8,6 +8,68 @@ import {
   Tooltip, ResponsiveContainer, Area, AreaChart, Cell, ReferenceLine,
 } from 'recharts';
 
+// --- Wind-Impact-Typen und Hilfsfunktionen ---
+
+interface WindPt {
+  wind_ms: number;
+  speed_kmh: number;
+  hr: number;
+  dist_km: number;
+}
+
+interface WindBucket {
+  label: string;
+  count: number;
+  avg_speed: number;
+  avg_hr: number;
+  isBest: boolean;
+}
+
+const WIND_BUCKET_DEFS = [
+  { label: '0–2 m/s', min: 0, max: 2 },
+  { label: '2–4 m/s', min: 2, max: 4 },
+  { label: '4–7 m/s', min: 4, max: 7 },
+  { label: '7–10 m/s', min: 7, max: 10 },
+  { label: '> 10 m/s', min: 10, max: Infinity },
+];
+
+function buildWindBuckets(pts: WindPt[]): WindBucket[] {
+  const raw = WIND_BUCKET_DEFS.map(b => {
+    const bPts = pts.filter(p => p.wind_ms >= b.min && p.wind_ms < b.max);
+    if (bPts.length < 2) return null;
+    const avg_speed = bPts.reduce((s, p) => s + p.speed_kmh, 0) / bPts.length;
+    const avg_hr = bPts.reduce((s, p) => s + p.hr, 0) / bPts.length;
+    return {
+      label: b.label,
+      count: bPts.length,
+      avg_speed: +avg_speed.toFixed(1),
+      avg_hr: +avg_hr.toFixed(0),
+      isBest: false,
+    };
+  }).filter((b): b is WindBucket => b !== null);
+
+  if (raw.length > 0) {
+    const bestIdx = raw.reduce((bi, b, i) => b.avg_speed > raw[bi].avg_speed ? i : bi, 0);
+    raw[bestIdx].isBest = true;
+  }
+  return raw;
+}
+
+function WindTooltip({ active, payload, label }: { active?: boolean; payload?: any[]; label?: string }) {
+  if (!active || !payload?.length) return null;
+  const d = payload[0]?.payload as WindBucket;
+  return (
+    <div className="rounded-lg border border-border bg-background/95 px-3 py-2 text-sm shadow-md backdrop-blur">
+      <p className="font-semibold mb-1.5">{label}</p>
+      <div className="flex flex-col gap-1 text-xs">
+        <span style={{ color: 'var(--primary)' }}>Ø Geschwindigkeit: {d.avg_speed} km/h</span>
+        <span style={{ color: 'var(--chart-2)' }}>Ø Herzfrequenz: {d.avg_hr} bpm</span>
+        <span className="text-muted-foreground">{d.count} Rides</span>
+      </div>
+    </div>
+  );
+}
+
 interface Pt {
   temp_c: number;
   speed_kmh: number;
@@ -86,17 +148,22 @@ function EffTooltip({ active, payload, label }: { active?: boolean; payload?: an
 
 export default function TempCorrPage() {
   const [pts, setPts] = useState<Pt[]>([]);
+  const [windPts, setWindPts] = useState<WindPt[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    api.tempCorrelation()
-      .then(res => setPts(res.points.filter(p => p.year >= 2000)))
+    Promise.all([api.tempCorrelation(), api.windImpact()])
+      .then(([tempRes, windRes]) => {
+        setPts(tempRes.points.filter(p => p.year >= 2000));
+        setWindPts(windRes.points);
+      })
       .catch(e => setError(e instanceof Error ? e.message : 'Fehler'))
       .finally(() => setLoading(false));
   }, []);
 
   const buckets = useMemo(() => pts.length ? buildBuckets(pts) : [], [pts]);
+  const windBuckets = useMemo(() => windPts.length ? buildWindBuckets(windPts) : [], [windPts]);
 
   const sweet = buckets.find(b => b.isBest);
   const fastest = buckets.length
@@ -116,8 +183,8 @@ export default function TempCorrPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Temperatur & Leistung"
-        subtitle={`Wie die Außentemperatur deine Geschwindigkeit und Herzfrequenz beeinflusst · ${pts.length} Rides mit Temperaturdaten`}
+        title="Wetter & Leistung"
+        subtitle={`Temperatur und Wind aus Open-Meteo · ${pts.length} Rides mit Wetterdaten`}
       />
 
       {error && (
@@ -349,9 +416,80 @@ export default function TempCorrPage() {
               </div>
             </CardContent>
           </Card>
+          {/* Wind-Impact */}
+          {windBuckets.length > 0 && (() => {
+            const windSpeedMin = Math.floor(Math.min(...windBuckets.map(b => b.avg_speed)) - 2);
+            const windSpeedMax = Math.ceil(Math.max(...windBuckets.map(b => b.avg_speed)) + 2);
+            const windHrMin = Math.floor(Math.min(...windBuckets.map(b => b.avg_hr)) - 5);
+            const windHrMax = Math.ceil(Math.max(...windBuckets.map(b => b.avg_hr)) + 5);
+            const bestWind = windBuckets.find(b => b.isBest);
+            return (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-sm font-medium">
+                    Wind-Impact{' '}
+                    <span className="font-normal text-muted-foreground">Ø Geschwindigkeit & Herzfrequenz je Windstärke</span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ResponsiveContainer width="100%" height={260}>
+                    <ComposedChart data={windBuckets} margin={{ top: 8, right: 48, bottom: 0, left: 0 }}>
+                      <CartesianGrid vertical={false} stroke="var(--border)" strokeOpacity={0.5} />
+                      <XAxis
+                        dataKey="label"
+                        tick={{ fontSize: 12, fill: 'var(--muted-foreground)' }}
+                        axisLine={false}
+                        tickLine={false}
+                      />
+                      <YAxis
+                        yAxisId="speed"
+                        domain={[windSpeedMin, windSpeedMax]}
+                        tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
+                        axisLine={false}
+                        tickLine={false}
+                        width={36}
+                        label={{ value: 'km/h', angle: -90, position: 'insideLeft', offset: 10, fill: 'var(--muted-foreground)', fontSize: 11 }}
+                      />
+                      <YAxis
+                        yAxisId="hr"
+                        orientation="right"
+                        domain={[windHrMin, windHrMax]}
+                        tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
+                        axisLine={false}
+                        tickLine={false}
+                        width={42}
+                        label={{ value: 'bpm', angle: 90, position: 'insideRight', offset: 10, fill: 'var(--muted-foreground)', fontSize: 11 }}
+                      />
+                      <Tooltip content={<WindTooltip />} />
+                      <Bar yAxisId="speed" dataKey="avg_speed" radius={[4, 4, 0, 0]} maxBarSize={52}>
+                        {windBuckets.map((b, i) => (
+                          <Cell key={i} fill="var(--primary)" fillOpacity={b.isBest ? 1 : 0.45} />
+                        ))}
+                      </Bar>
+                      <Line
+                        yAxisId="hr"
+                        dataKey="avg_hr"
+                        stroke="var(--chart-2)"
+                        strokeWidth={2.5}
+                        dot={{ r: 4, fill: 'var(--chart-2)', strokeWidth: 0 }}
+                        activeDot={{ r: 6 }}
+                      />
+                    </ComposedChart>
+                  </ResponsiveContainer>
+                  {bestWind && (
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Schnellstes Segment: <span className="font-medium text-foreground">{bestWind.label}</span> mit Ø {bestWind.avg_speed} km/h ({bestWind.count} Rides)
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+            );
+          })()}
         </>
       ) : (
-        <p className="text-muted-foreground text-sm">Keine Temperaturdaten vorhanden.</p>
+        <p className="text-muted-foreground text-sm">
+          Keine Wetterdaten vorhanden – bitte zuerst in den Einstellungen „Wetterdaten abrufen" starten.
+        </p>
       )}
     </div>
   );
