@@ -327,6 +327,49 @@ export interface FatigueTrackData {
   rides: FatigueRide[];
 }
 
+export interface SpeedTrendRide {
+  id: number;
+  name: string;
+  date: string;
+  speed_kmh: number;
+  dist_km: number;
+  elevation_m: number;
+  bike_id: string | null;
+  year: number;
+}
+
+export interface SpeedTrendYear {
+  year: number;
+  avg_kmh: number;
+  best_kmh: number;
+  median_kmh: number;
+  rides: number;
+  delta_kmh: number | null;
+}
+
+export interface SpeedTrendMonth {
+  month: string;
+  avg_kmh: number;
+  rides: number;
+}
+
+export interface SpeedTrendData {
+  rides: SpeedTrendRide[];
+  rolling: { date: string; rolling_kmh: number }[];
+  by_year: SpeedTrendYear[];
+  monthly_heatmap: SpeedTrendMonth[];
+  stats: {
+    total_rides: number;
+    overall_avg_kmh: number;
+    best_kmh: number;
+    best_ride_id: number | null;
+    best_ride_name: string | null;
+    best_ride_date: string | null;
+    first_date: string;
+    last_date: string;
+  };
+}
+
 export interface BikeCompareSummary {
   id: string;
   name: string;
@@ -562,6 +605,9 @@ export const api = {
       if (!r.ok) throw new Error(`API /weather/fetch-all → ${r.status}`);
       return r.json() as Promise<{ ok: boolean; message?: string }>;
     }),
+
+  speedTrend: (): Promise<SpeedTrendData> =>
+    get('/analytics/speed-trend'),
 
   importFitFile: (file: File, bikeId?: string): Promise<{ activity_id: number; name: string; is_ride: boolean }> => {
     const form = new FormData();

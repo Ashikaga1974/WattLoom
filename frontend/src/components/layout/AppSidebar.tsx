@@ -80,7 +80,7 @@ const navGroups: NavGroup[] = [
     href: '/progress',
     label: 'Analyse',
     icon: <BarChart2 size={16} />,
-    prefixes: ['/progress', '/training', '/compare', '/fatigue-index', '/fatigue-track', '/fatigue-activity', '/ftp', '/hrcurve', '/cadence', '/form', '/speedhr', '/tempcorr', '/timeheatmap', '/stats', '/wrapped', '/calories'],
+    prefixes: ['/progress', '/training', '/compare', '/fatigue-index', '/fatigue-track', '/fatigue-activity', '/ftp', '/hrcurve', '/cadence', '/form', '/speedhr', '/tempcorr', '/timeheatmap', '/stats', '/wrapped', '/calories', '/speed-trend'],
     children: [
       { href: '/progress',      label: 'Jahresfortschritt', icon: <TrendingUp size={13} /> },
       { href: '/training',      label: 'Training', icon: <BarChart size={13} /> },
@@ -96,6 +96,7 @@ const navGroups: NavGroup[] = [
       { href: '/tempcorr',      label: 'Wetter & Leistung', icon: <BarChart size={13} /> },
       { href: '/timeheatmap',   label: 'Tageszeit', icon: <Map size={13} /> },
       { href: '/calories',      label: 'Kalorien', icon: <Cookie size={13} /> },
+      { href: '/speed-trend',   label: 'Tempoentwicklung', icon: <TrendingUp size={13} /> },
       { href: '/wrapped',       label: 'Jahresrückblick', icon: <Trophy size={13} /> },
     ],
   },

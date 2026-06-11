@@ -31,6 +31,7 @@ import FatigueIndexPage from '@/pages/FatigueIndexPage';
 import FatigueTrackPage from '@/pages/FatigueTrackPage';
 import FatigueActivityPage from '@/pages/FatigueActivityPage';
 import CaloriesPage from '@/pages/CaloriesPage';
+import SpeedTrendPage from '@/pages/SpeedTrendPage';
 
 export default function App() {
   return (
@@ -70,6 +71,7 @@ export default function App() {
                 <Route path="/fatigue-track" element={<FatigueTrackPage />} />
                 <Route path="/fatigue-activity" element={<FatigueActivityPage />} />
                 <Route path="/calories" element={<CaloriesPage />} />
+                <Route path="/speed-trend" element={<SpeedTrendPage />} />
               </Routes>
             </main>
           </SidebarInset>

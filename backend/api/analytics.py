@@ -58,6 +58,7 @@ def speed_hr():
             FROM activities
             WHERE avg_speed_ms IS NOT NULL AND avg_hr IS NOT NULL
               AND avg_speed_ms > 3 AND avg_hr > 0
+              AND strftime('%Y', start_date) >= '2000'
             ORDER BY start_date
             """,
         ).fetchall()
@@ -120,6 +121,7 @@ def temp_correlation():
             WHERE a.weather_temp_c IS NOT NULL
               AND a.avg_speed_ms IS NOT NULL AND a.avg_speed_ms > 3
               AND a.avg_hr IS NOT NULL
+              AND strftime('%Y', a.start_date_local) >= '2000'
             ORDER BY a.start_date_local
         """).fetchall()
         return {
@@ -1617,3 +1619,118 @@ def calories(year: int = Query(None)):
                 for r in yearly_rows
             ],
         }
+
+
+@router.get("/speed-trend")
+def speed_trend():
+    """
+    Entwicklung der Durchschnittsgeschwindigkeit über alle Radtouren.
+    Liefert: Rides-Liste (Scatter), Rolling-Average (20 Rides), Jahres-Aggregate, Monats-Heatmap.
+    Nur Rides ≥ 5 km mit gültigem avg_speed_ms.
+    """
+    RIDE_TYPES = ('Ride', 'VirtualRide', 'EBikeRide')
+    MIN_DIST_M = 5000
+    ROLLING_WINDOW = 20
+
+    ph = ','.join('?' * len(RIDE_TYPES))
+
+    with db_connection() as conn:
+        rows = conn.execute(
+            f"""
+            SELECT
+                id,
+                name,
+                start_date_local                                  AS date,
+                ROUND(avg_speed_ms * 3.6, 1)                     AS speed_kmh,
+                ROUND(distance_m / 1000.0, 1)                    AS dist_km,
+                COALESCE(ROUND(elevation_gain_m), 0)             AS elevation_m,
+                bike_id,
+                CAST(strftime('%Y', start_date_local) AS INTEGER) AS year
+            FROM activities
+            WHERE avg_speed_ms IS NOT NULL
+              AND avg_speed_ms > 0
+              AND distance_m >= ?
+              AND activity_type IN ({ph})
+              AND strftime('%Y', start_date_local) >= '2000'
+            ORDER BY start_date_local ASC
+            """,
+            (MIN_DIST_M, *RIDE_TYPES),
+        ).fetchall()
+
+    if not rows:
+        return {
+            "rides": [], "rolling": [], "by_year": [],
+            "monthly_heatmap": [],
+            "stats": {"total_rides": 0, "overall_avg_kmh": None, "best_kmh": None,
+                      "best_ride_id": None, "best_ride_name": None, "best_ride_date": None,
+                      "first_date": None, "last_date": None},
+        }
+
+    rides = [dict(r) for r in rows]
+
+    # Rolling Average über ROLLING_WINDOW Rides
+    rolling = []
+    for i in range(ROLLING_WINDOW - 1, len(rides)):
+        window = rides[i - ROLLING_WINDOW + 1 : i + 1]
+        avg_spd = sum(r["speed_kmh"] for r in window) / ROLLING_WINDOW
+        rolling.append({
+            "date":        rides[i]["date"],
+            "rolling_kmh": round(avg_spd, 2),
+        })
+
+    # Jahres-Aggregate: avg, best, median, rides, delta zum Vorjahr
+    from collections import defaultdict
+    year_map: dict[int, list[float]] = defaultdict(list)
+    for r in rides:
+        year_map[r["year"]].append(r["speed_kmh"])
+
+    by_year = []
+    prev_avg = None
+    for year in sorted(year_map.keys()):
+        vals   = year_map[year]
+        avg    = sum(vals) / len(vals)
+        best   = max(vals)
+        sv     = sorted(vals)
+        n      = len(sv)
+        median = sv[n // 2] if n % 2 else (sv[n // 2 - 1] + sv[n // 2]) / 2
+        delta  = round(avg - prev_avg, 2) if prev_avg is not None else None
+        by_year.append({
+            "year":       year,
+            "avg_kmh":    round(avg, 2),
+            "best_kmh":   round(best, 1),
+            "median_kmh": round(median, 1),
+            "rides":      n,
+            "delta_kmh":  delta,
+        })
+        prev_avg = avg
+
+    # Monatliche Heatmap: Ø-Speed je Kalendermonat
+    month_map: dict[str, list[float]] = defaultdict(list)
+    for r in rides:
+        month_map[r["date"][:7]].append(r["speed_kmh"])
+
+    monthly_heatmap = [
+        {"month": month, "avg_kmh": round(sum(v) / len(v), 2), "rides": len(v)}
+        for month, v in sorted(month_map.items())
+    ]
+
+    all_speeds = [r["speed_kmh"] for r in rides]
+    overall_avg = sum(all_speeds) / len(all_speeds)
+    fastest = max(rides, key=lambda r: r["speed_kmh"])
+
+    return {
+        "rides":           rides,
+        "rolling":         rolling,
+        "by_year":         by_year,
+        "monthly_heatmap": monthly_heatmap,
+        "stats": {
+            "total_rides":     len(rides),
+            "overall_avg_kmh": round(overall_avg, 2),
+            "best_kmh":        round(max(all_speeds), 1),
+            "best_ride_id":    fastest["id"],
+            "best_ride_name":  fastest["name"],
+            "best_ride_date":  fastest["date"],
+            "first_date":      rides[0]["date"],
+            "last_date":       rides[-1]["date"],
+        },
+    }

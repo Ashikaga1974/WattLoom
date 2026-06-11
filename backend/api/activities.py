@@ -104,7 +104,7 @@ def overall_stats(year: int | None = None):
         ).fetchone()
 
         years = conn.execute(
-            "SELECT DISTINCT strftime('%Y', start_date) AS y FROM activities ORDER BY y DESC"
+            "SELECT DISTINCT strftime('%Y', start_date) AS y FROM activities WHERE strftime('%Y', start_date) >= '2000' ORDER BY y DESC"
         ).fetchall()
 
     return {**dict(row), "available_years": [r["y"] for r in years]}
