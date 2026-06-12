@@ -4,7 +4,7 @@ import { PageHeader } from '@/components/ui/page-header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
+  ComposedChart, BarChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Cell, Legend,
 } from 'recharts';
 
@@ -57,6 +57,11 @@ function MonthTooltip({ active, payload, label }: { active?: boolean; payload?: 
         {d?.kcal > 0 && d?.kcal_workouts > 0 && (
           <span className="text-muted-foreground border-t border-border/60 pt-1 mt-0.5">
             Gesamt: {total.toLocaleString()} kcal
+          </span>
+        )}
+        {d?.rolling_avg > 0 && (
+          <span className="text-muted-foreground">
+            3M-Ø: {d.rolling_avg.toLocaleString()} kcal
           </span>
         )}
       </div>
@@ -117,10 +122,16 @@ export default function CaloriesPage() {
   const MONTHS = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
   const monthlyFormatted = useMemo(() => {
     if (!data) return [];
-    return data.monthly.map(m => {
+    const base = data.monthly.map(m => {
       const [y, mo] = m.month.split('-');
       const label = selectedYear ? MONTHS[Number(mo) - 1] : `${MONTHS[Number(mo) - 1]} ${y.slice(2)}`;
       return { ...m, label };
+    });
+    // 3-Monats-gleitender Durchschnitt über Gesamtkalorien
+    return base.map((m, i) => {
+      const slice = base.slice(Math.max(0, i - 2), i + 1);
+      const avg = slice.reduce((s, x) => s + x.kcal + x.kcal_workouts, 0) / slice.length;
+      return { ...m, rolling_avg: Math.round(avg) };
     });
   }, [data, selectedYear]);
 
@@ -242,7 +253,7 @@ export default function CaloriesPage() {
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={260}>
-                  <BarChart data={monthlyFormatted} margin={{ top: 8, right: 10, bottom: 0, left: 0 }}>
+                  <ComposedChart data={monthlyFormatted} margin={{ top: 8, right: 10, bottom: 0, left: 0 }}>
                     <CartesianGrid vertical={false} stroke="var(--border)" strokeOpacity={0.5} />
                     <XAxis
                       dataKey="label"
@@ -258,7 +269,7 @@ export default function CaloriesPage() {
                     <Tooltip content={<MonthTooltip />} />
                     {hasWorkouts && (
                       <Legend
-                        formatter={v => v === 'kcal' ? 'Radtouren' : 'Workouts'}
+                        formatter={v => v === 'kcal' ? 'Radtouren' : v === 'kcal_workouts' ? 'Workouts' : '3M-Ø'}
                         wrapperStyle={{ fontSize: 11 }}
                       />
                     )}
@@ -276,7 +287,16 @@ export default function CaloriesPage() {
                         fill={COLOR_WORKOUTS} fillOpacity={0.85}
                       />
                     )}
-                  </BarChart>
+                    <Line
+                      dataKey="rolling_avg"
+                      name="rolling_avg"
+                      type="monotone"
+                      stroke="var(--muted-foreground)"
+                      strokeWidth={2}
+                      dot={false}
+                      legendType="none"
+                    />
+                  </ComposedChart>
                 </ResponsiveContainer>
               </CardContent>
             </Card>

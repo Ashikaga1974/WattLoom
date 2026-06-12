@@ -1,6 +1,33 @@
 import { useEffect, useState } from 'react';
 import { PageHeader } from '@/components/ui/page-header';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { api } from '@/lib/api';
+import {
+  ComposedChart, Line, XAxis, YAxis, CartesianGrid,
+  Tooltip, ResponsiveContainer, ReferenceLine,
+} from 'recharts';
+
+const MONTHS_SHORT = ['Jan','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'];
+
+interface TrendPoint {
+  month: string;
+  label: string;
+  avg_hr: number;
+  rolling_avg: number;
+  trend_line: number;
+}
+
+function linReg(values: number[]): { slope: number; intercept: number } {
+  const n = values.length;
+  if (n < 2) return { slope: 0, intercept: values[0] ?? 0 };
+  const sumX = (n * (n - 1)) / 2;
+  const sumY = values.reduce((a, b) => a + b, 0);
+  const sumXY = values.reduce((s, v, i) => s + i * v, 0);
+  const sumXX = values.reduce((s, _, i) => s + i * i, 0);
+  const slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
+  const intercept = (sumY - slope * sumX) / n;
+  return { slope, intercept };
+}
 
 interface CurveData {
   durations_s: number[];
@@ -51,6 +78,8 @@ export default function HrCurvePage() {
   const [availableYears, setAvailableYears] = useState<string[]>([]);
   const [filterYear, setFilterYear] = useState<string | null>(null);
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
+  const [trendData, setTrendData] = useState<TrendPoint[]>([]);
+  const [trendBpm, setTrendBpm] = useState<number | null>(null);
 
   useEffect(() => {
     api.activityStats()
@@ -59,6 +88,36 @@ export default function HrCurvePage() {
       })
       .catch(() => {});
     loadCurve(null);
+
+    // HR-Verlauf: Speed-HR-Daten monatlich aggregieren
+    api.speedHr().then(res => {
+      const byMonth: Record<string, number[]> = {};
+      for (const p of res.points) {
+        if (!byMonth[p.month]) byMonth[p.month] = [];
+        byMonth[p.month].push(p.hr);
+      }
+      const sorted = Object.keys(byMonth).sort();
+      const base = sorted.map(m => {
+        const hrs = byMonth[m];
+        const avg = hrs.reduce((a, b) => a + b, 0) / hrs.length;
+        const [y, mo] = m.split('-');
+        return {
+          month: m,
+          label: `${MONTHS_SHORT[Number(mo) - 1]} ${y.slice(2)}`,
+          avg_hr: Math.round(avg),
+          rolling_avg: 0,
+        };
+      });
+      // 3-Monats-gleitender Durchschnitt + lineare Regression
+      const { slope, intercept } = linReg(base.map(d => d.avg_hr));
+      const withRolling: TrendPoint[] = base.map((d, i) => {
+        const slice = base.slice(Math.max(0, i - 2), i + 1);
+        const avg = slice.reduce((s, x) => s + x.avg_hr, 0) / slice.length;
+        return { ...d, rolling_avg: Math.round(avg), trend_line: Math.round(intercept + slope * i) };
+      });
+      setTrendBpm(Math.round(slope * 12)); // bpm pro Jahr
+      setTrendData(withRolling);
+    }).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -338,6 +397,109 @@ export default function HrCurvePage() {
             Berechnung: gleitendes Maximum der Sekunden-HR über alle FIT-Tracks. Nur Aktivitäten mit HR-Daten fließen ein.
             Kurze Fenster können durch kurze Sprints verzerrt sein — der 20-min-Wert ist am aussagekräftigsten.
           </p>
+
+          {/* HR-Verlauf über Zeit */}
+          {trendData.length > 0 && (
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-sm font-medium">
+                    Ø Herzfrequenz pro Monat
+                    <span className="ml-2 text-xs font-normal text-muted-foreground">— gesamter Zeitraum</span>
+                  </CardTitle>
+                  {trendBpm !== null && (
+                    <span className={`shrink-0 text-xs font-semibold px-2.5 py-1 rounded-full border ${
+                      trendBpm < -1 ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-400' :
+                      trendBpm >  1 ? 'border-red-500/40 bg-red-500/10 text-red-400' :
+                                      'border-border bg-muted text-muted-foreground'
+                    }`}>
+                      {trendBpm > 0 ? '↑' : trendBpm < 0 ? '↓' : '→'}{' '}
+                      {trendBpm > 0 ? '+' : ''}{trendBpm} bpm/Jahr
+                    </span>
+                  )}
+                </div>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={220}>
+                  <ComposedChart data={trendData} margin={{ top: 8, right: 12, bottom: 0, left: 0 }}>
+                    <CartesianGrid vertical={false} stroke="var(--border)" strokeOpacity={0.5} />
+                    <XAxis
+                      dataKey="label"
+                      tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }}
+                      axisLine={false} tickLine={false}
+                      interval={Math.max(0, Math.floor(trendData.length / 10) - 1)}
+                    />
+                    <YAxis
+                      domain={['auto', 'auto']}
+                      tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
+                      axisLine={false} tickLine={false}
+                      width={36}
+                      unit=" bpm"
+                    />
+                    <Tooltip
+                      content={({ active, payload, label }) => {
+                        if (!active || !payload?.length) return null;
+                        const d = payload[0]?.payload as TrendPoint;
+                        return (
+                          <div className="rounded-lg border border-border bg-background/95 px-3 py-2 text-xs shadow-md">
+                            <p className="font-semibold mb-1">{label}</p>
+                            <p style={{ color: '#94a3b8' }}>Ø HR: {d.avg_hr} bpm</p>
+                            <p style={{ color: '#f87171' }}>3M-Ø: {d.rolling_avg} bpm</p>
+                          </div>
+                        );
+                      }}
+                    />
+                    {thresholdHR !== null && (
+                      <ReferenceLine
+                        y={Math.round(thresholdHR)}
+                        stroke="#f97316"
+                        strokeDasharray="4 4"
+                        strokeOpacity={0.5}
+                        label={{ value: 'Schwelle', position: 'insideTopRight', fontSize: 10, fill: '#f97316' }}
+                      />
+                    )}
+                    {/* Monatliche Ø-HR – grau, dünn */}
+                    <Line
+                      dataKey="avg_hr"
+                      type="monotone"
+                      stroke="#94a3b8"
+                      strokeWidth={1}
+                      dot={{ r: 2, fill: '#94a3b8', strokeWidth: 0 }}
+                      activeDot={{ r: 4 }}
+                      legendType="none"
+                    />
+                    {/* 3-Monats-gleitender Durchschnitt – rot, dick */}
+                    <Line
+                      dataKey="rolling_avg"
+                      type="monotone"
+                      stroke="#f87171"
+                      strokeWidth={2.5}
+                      dot={false}
+                      legendType="none"
+                    />
+                    {/* Lineare Regressionslinie – gestrichelt, gelb */}
+                    <Line
+                      dataKey="trend_line"
+                      type="monotone"
+                      stroke="#facc15"
+                      strokeWidth={2}
+                      strokeDasharray="8,4"
+                      dot={false}
+                      legendType="none"
+                    />
+                  </ComposedChart>
+                </ResponsiveContainer>
+                <p className="text-xs text-muted-foreground/60 mt-2">
+                  <span style={{ color: '#94a3b8' }}>— monatlicher Ø</span>
+                  {' · '}
+                  <span style={{ color: '#f87171' }}>— 3M-Schnitt</span>
+                  {' · '}
+                  <span style={{ color: '#facc15' }}>- - Trend</span>
+                  {' · Nur Rides mit HR-Daten'}
+                </p>
+              </CardContent>
+            </Card>
+          )}
         </>
       ) : null}
     </div>
