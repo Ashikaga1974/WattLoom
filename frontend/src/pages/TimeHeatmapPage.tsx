@@ -31,8 +31,10 @@ export default function TimeHeatmapPage() {
   async function loadData(year?: string | null) {
     setLoading(true);
     setError(null);
+    // Browser-Timezone-Offset: getTimezoneOffset() gibt UTC-local in Minuten zurück → negieren und auf Stunden runden
+    const tzOffset = -Math.round(new Date().getTimezoneOffset() / 60);
     try {
-      const res = await api.timeHeatmap(year ? Number(year) : undefined);
+      const res = await api.timeHeatmap(year ? Number(year) : undefined, tzOffset);
       setCells(res.cells);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Fehler beim Laden');

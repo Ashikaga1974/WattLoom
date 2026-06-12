@@ -80,7 +80,8 @@ export default function WrappedPage() {
     setLoading(true);
     setError(null);
     try {
-      const result = await api.wrapped(year);
+      const tzOffset = -Math.round(new Date().getTimezoneOffset() / 60);
+      const result = await api.wrapped(year, tzOffset);
       setData(result);
       setSelectedYear(result.year);
     } catch (e) {
