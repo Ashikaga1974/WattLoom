@@ -15,13 +15,16 @@ Lokale Web-App zur Analyse von Strava-Exportdaten. Kein Strava-API-Zugriff nöti
 | Bereich | Was es kann |
 |---------|-------------|
 | **Dashboard** | Hero-Banner (letzter Ride), animierte KPI-Zahlen (count-up), Distanz-Chart, Trainingsvolumen, letzte Aktivitäten, Bike-Progress |
-| **Aktivitätsliste** | Filterbar nach Jahr, Bike, GPS-Track; sortierbar; einzelne Aktivitäten löschbar |
-| **Aktivitätsdetail** | Karte (Leaflet), Höhenprofil, Geschwindigkeits-Profil (Farben synchron mit Karten-Gradient), HR-Profil, Fotos |
+| **Aktivitätsliste** | Tabs: Radtouren (Filter/Sort/Paginierung) + Workouts (Sportart-Badges, Kalorien farbig); einzelne Aktivitäten löschbar |
+| **Aktivitätsdetail** | Karte (Leaflet), Höhenprofil, Geschwindigkeits-Profil (Farben synchron mit Karten-Gradient), HR-Profil, Wetterkachel, Fotos |
 | **Jahresrückblick** | „Wrapped"-Style: beste Rides, stärkste Monate, Tages-/Stunden-Heatmaps |
 | **Jahresfortschritt** | Kumulative km pro Kalendarjahr mit Prognose |
 | **Heatmap** | Alle Tracks als interaktive Karte, filterbar nach Jahr |
 | **Aerobe Effizienz** | Monatliche Effizienz-Trendlinie (Geschwindigkeit ÷ HF), Jahresvergleich |
-| **HR-Kurve** | Beste Durchschnitts-HF über verschiedene Dauern |
+| **HR-Kurve** | Beste Durchschnitts-HF über verschiedene Dauern (1–60 min); monatlicher HR-Verlauf mit 3M-Ø und Regressionstrend |
+| **Tempoentwicklung** | Scatter + 20-Rides-Rolling-Ø, Jahresvergleich, Saison-Heatmap (Monat × Jahr) |
+| **Kalorien** | Energieverbrauch aus Rides + Workouts; KPI-Kacheln, gestapelter Monatsverlauf mit 3M-gleitendem Ø, Jahresvergleich |
+| **Wetter & Leistung** | Ø-Speed nach Temperatur-Buckets, Wind-Impact-Chart; Wetterdaten via Open-Meteo (abrufbar per Knopfdruck) |
 | **FTP** | HR-korrigierte FTP-Schätzung, Trend, VO2max-Näherung |
 | **Formkurve (PMC)** | CTL/ATL/TSB nach Trainingstagebuch-Methodik, hrTSS, Einschätzungs-Banner |
 | **Training** | Wochentraining-Chart inkl. andere Sportarten |
@@ -29,15 +32,14 @@ Lokale Web-App zur Analyse von Strava-Exportdaten. Kein Strava-API-Zugriff nöti
 | **Jahresvergleich** | Jahre direkt gegenüberstellen |
 | **Bikes** | Kilometerstand und Statistiken je Fahrrad |
 | **Bike-Vergleich** | Bikes gegenüberstellen (km, Speed, Höhenmeter, Jahresverlauf) |
-| **Top-Strecken** | Greedy-Clustering aller Rides (2 km Startradius, ±15 % Distanz), Zeitchart mit PR-Markierung, Trend, Karte |
+| **Top-Strecken** | Greedy-Clustering aller Rides (2 km Startradius, ±10 % Distanz), Zeitchart mit PR-Markierung, Trend, Karte |
 | **Streckenvergleich** | Ähnliche Rides finden (Haversine-Radius + Distanzabgleich) |
 | **Kadenz-Analyse** | Radiales Verteilungsdiagramm (Polar-Chart), 6 Kadenz-Zonen, Monatstrend, Effizienz-Sweetspot |
-| **Ermüdungsindex** | Speed 1. vs. 2. Hälfte pro Ride – Histogramm, Negativsplit-Erkennung, Monatstrend |
-| **Zeit-Heatmap** | Aktivitäten nach Wochentag/Uhrzeit |
-| **Temp-Korrelation** | Zusammenhang Temperatur ↔ Leistung/Speed |
-| **Kalender** | Monatskalender aller Aktivitäten |
+| **Ermüdungsindex** | Speed 1. vs. 2. Hälfte pro Ride – Histogramm, Steigerung/Ermüdung, Monatstrend; auch nach Strecke und Einzelfahrt |
+| **Zeit-Heatmap** | Aktivitäten nach Wochentag/Uhrzeit (Browser-Timezone-korrigiert) |
+| **Kalender** | Monatskalender: Radtouren + Workouts (grau markiert), Ring-Indikator bei Kombi-Tagen |
 | **Berechnungen** | Dokumentation aller verwendeten Formeln und Parameter |
-| **Einstellungen** | Gewicht, Geburtsjahr, manueller FTP, Zeitzone; FIT-Einzelimport (Amazfit, Garmin ohne Strava) |
+| **Einstellungen** | Gewicht, Geburtsjahr, manueller FTP, Zeitzone; FIT-Einzelimport (Amazfit, Garmin ohne Strava); Wetterdaten-Abruf |
 
 ---
 
@@ -136,7 +138,8 @@ MyBiking/
 │   │   ├── segments.py      # /segments
 │   │   ├── settings.py      # /settings (Gewicht, Geburtsjahr, FTP, Timezone)
 │   │   ├── importer.py      # /import/start|status|reset|fit-file
-│   │   └── tracks.py        # /activities/{id}/track
+│   │   ├── tracks.py        # /activities/{id}/track
+│   │   └── weather.py       # /weather/status, /weather/fetch-all (Open-Meteo)
 │   ├── importer/
 │   │   ├── pipeline.py      # run_import() – Haupteinstieg
 │   │   ├── fit.py           # FIT-Parser (Garmin, mit _SafeProcessor)
@@ -185,7 +188,11 @@ MyBiking/
 │           ├── WrappedPage.tsx
 │           ├── BerechnungenPage.tsx
 │           ├── CadencePage.tsx
-│           └── FatigueIndexPage.tsx
+│           ├── FatigueIndexPage.tsx
+│           ├── FatigueTrackPage.tsx
+│           ├── FatigueActivityPage.tsx
+│           ├── CaloriesPage.tsx
+│           └── SpeedTrendPage.tsx
 ├── data/
 │   └── mybiking.db          # SQLite-Datenbank (wird beim Import erstellt)
 ├── download/                # Strava-Export-ZIP ablegen
@@ -209,19 +216,29 @@ GET  /activities/{id}/media
 GET  /activities/{id}/zones
 GET  /activities/{id}/similar
 
+GET  /activities/other              ?year      → andere Sportarten (Laufen, Kraft, …)
+GET  /activities/{id}/zones         → HR-Zonen + Power-Zonen
+GET  /activities/{id}/similar       ?limit=10  → ähnliche Rides (Haversine + Distanz)
+
 GET  /analytics/year-progress
 GET  /analytics/time-heatmap        ?year, tz_offset
-GET  /analytics/speed-hr
+GET  /analytics/speed-hr                       → per Ride: month, speed_kmh, hr, dist_km
+GET  /analytics/speed-trend         ?year      → Scatter, Rolling-Ø, Jahres-Aggregate, Monats-Heatmap
 GET  /analytics/temp-correlation
 GET  /analytics/ftp
 GET  /analytics/hr-curve            ?year
-GET  /analytics/pmc
+GET  /analytics/pmc                            → CTL/ATL/TSB + hrTSS
 GET  /analytics/wrapped             ?year, tz_offset
 GET  /analytics/weekly-volume       ?weeks
 GET  /analytics/best-by-distance               → schnellste Ø-Geschwindigkeit je Distanzklasse (1–60 km, ±20%)
 GET  /analytics/route-clusters      ?min_rides → Greedy-Clustering aller Rides nach Startpunkt + Distanz
 GET  /analytics/cadence             ?year      → Distribution, Zonen, Monatsverlauf, Effizienz-Buckets
 GET  /analytics/fatigue-index       ?year      → Ermüdungsindex (H1 vs. H2 Speed) je Ride + Trend
+GET  /analytics/fatigue-index-track ?activity_ids → Ermüdungsindex für kommaseparierte IDs
+GET  /analytics/calories            ?year      → total_kcal, rides + workouts, monatlich/jährlich
+
+GET  /weather/status
+POST /weather/fetch-all             → Wetterdaten für alle Aktivitäten via Open-Meteo (Background-Job)
 
 GET  /bikes
 GET  /bikes/{id}
@@ -262,7 +279,7 @@ Alle verwendeten Formeln sind auf der Seite `/berechnungen` dokumentiert und wer
 | **ATL** | 7-Tage EMA, K = 2/8 |
 | **TSB** | `CTL − ATL` |
 | **Aerobe Effizienz** | `avg_speed_kmh / avg_hr × 100` (monatlich aggregiert) |
-| **Ermüdungsindex** | `(spd_h1 − spd_h2) / spd_h1 × 100` (positiv = Ermüdung, negativ = Negativsplit) |
+| **Ermüdungsindex** | `(spd_h2 − spd_h1) / spd_h1 × 100` (negativ = Ermüdung, positiv = Steigerung) |
 | **Jahresprognose** | `(km_heute / Jahrestag) × 365` |
 
 ---
@@ -286,9 +303,10 @@ In [frontend/src/lib/config.ts](frontend/src/lib/config.ts):
 - Aktivitäten ohne Strava-Gear-Zuweisung erhalten beim Import automatisch das Standard-Bike
 - `activities.avg_temp_c` ist immer NULL – Temperatur liegt in `track_points.temp_c`
 - GPS-Ausreißer (Koordinaten außerhalb des Ursprungslandes) werden in der Heatmap per Median±5° gefiltert
-- Ein Eintrag aus 1990/12 (Fehldatum) erscheint im monatlichen Gesamtverlauf
+- Ein Eintrag aus 1990/12 (Fehldatum) erscheint im monatlichen Gesamtverlauf; Analysen filtern mit `>= '2000'`
 - Track-Punkte können `lat: null, lon: null` haben (kein GPS-Fix beim Start) → Frontend filtert diese
 - fitparse 1.2.0 liefert component fields als Tupel → `_SafeProcessor` in `fit.py` als Workaround
+- **`Activity Date` im Strava-Export ist UTC** (nicht Lokalzeit) – `start_date_local` in der DB enthält daher ebenfalls UTC; Seiten mit Tageszeit-Auswertung übergeben den Browser-Timezone-Offset an die API
 
 ---
 
