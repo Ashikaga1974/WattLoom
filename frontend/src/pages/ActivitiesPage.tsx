@@ -128,6 +128,9 @@ export default function ActivitiesPage() {
     loadMeta().then(() => {
       load(0);
       loadWorkouts();
+    }).catch(() => {
+      setError('Fehler beim Laden der Filterdaten');
+      setLoading(false);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

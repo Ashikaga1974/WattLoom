@@ -661,7 +661,7 @@ export default function ActivityDetailPage() {
                     <tr
                       key={act.id}
                       className="border-b border-border/50 hover:bg-muted/40 cursor-pointer transition-colors"
-                      onClick={() => window.location.href = `/activities/${act.id}`}
+                      onClick={() => navigate(`/activities/${act.id}`)}
                     >
                       <td className="px-4 py-2 text-muted-foreground text-xs whitespace-nowrap">
                         {fmtDate(act.start_date)}

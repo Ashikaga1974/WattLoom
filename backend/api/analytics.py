@@ -5,7 +5,7 @@ router = APIRouter(prefix="/analytics", tags=["analytics"])
 
 
 @router.get("/time-heatmap")
-def time_heatmap(year: int = Query(None), tz_offset: int = Query(None)):
+def time_heatmap(year: int = Query(None), tz_offset: int = Query(None, ge=-14, le=14)):
     """
     Anzahl Aktivitäten pro Wochentag (0=Mo … 6=So) und Stunde (0–23).
     tz_offset: Stunden-Versatz gegenüber UTC (z.B. 2 für CEST).
@@ -421,7 +421,7 @@ def weekly_volume(weeks: int = Query(52)):
 
 
 @router.get("/wrapped")
-def get_wrapped(year: int = None, tz_offset: int = Query(None)):
+def get_wrapped(year: int = None, tz_offset: int = Query(None, ge=-14, le=14)):
     from datetime import datetime, timedelta
 
     RIDE_TYPES = ('Ride', 'VirtualRide', 'EBikeRide')

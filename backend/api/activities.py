@@ -342,14 +342,11 @@ def delete_activity(activity_id: int):
         if row is None:
             raise HTTPException(status_code=404, detail="Activity not found")
 
-        # Mediendateien vom Dateisystem entfernen
+        # Mediendateinamen merken, aber erst nach erfolgreichem DB-Commit löschen
         media_rows = conn.execute(
             "SELECT filename FROM media WHERE activity_id = ?", (activity_id,)
         ).fetchall()
-        for m in media_rows:
-            path = MEDIA_DIR / m["filename"]
-            if path.exists():
-                path.unlink()
+        media_files = [MEDIA_DIR / m["filename"] for m in media_rows]
 
         # Alle verknüpften Datensätze und die Aktivität löschen
         conn.execute("DELETE FROM track_points WHERE activity_id = ?", (activity_id,))
@@ -357,4 +354,9 @@ def delete_activity(activity_id: int):
         conn.execute("DELETE FROM laps WHERE activity_id = ?", (activity_id,))
         conn.execute("DELETE FROM activities WHERE id = ?", (activity_id,))
         conn.commit()
+
+    # Erst nach erfolgreichem Commit Dateien vom Filesystem entfernen
+    for path in media_files:
+        if path.exists():
+            path.unlink()
     return {"ok": True, "deleted_id": activity_id}

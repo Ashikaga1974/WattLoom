@@ -153,8 +153,15 @@ def import_activities_csv(
                     smart_device = "Amazfit"
                 elif filename and filename.endswith(".tcx.gz"):
                     smart_device = "Cyplus"
-                else:
+                elif filename:
+                    # GPX oder anderes bekanntes Format – Gerät unbekannt
                     smart_device = "Unbekannt"
+                else:
+                    # Kein Dateiname im CSV → bestehenden Wert in der DB behalten
+                    existing = conn.execute(
+                        "SELECT smart_device FROM activities WHERE id = ?", (activity_id,)
+                    ).fetchone()
+                    smart_device = existing["smart_device"] if existing else "Unbekannt"
 
                 conn.execute("""
                     INSERT OR REPLACE INTO activities (

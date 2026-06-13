@@ -520,11 +520,14 @@ export const api = {
   calories: (year?: number | null) =>
     get<{
       total_kcal: number;
+      total_kcal_workouts: number;
       rides: number;
+      workouts: number;
       avg_kcal: number;
+      avg_kcal_workouts: number | null;
       kcal_per_hour: number | null;
-      monthly: { month: string; kcal: number; rides: number; avg_kcal: number }[];
-      yearly: { year: string; kcal: number; rides: number; avg_kcal: number }[];
+      monthly: { month: string; kcal: number; kcal_workouts: number; rides: number; workouts: number; avg_kcal: number }[];
+      yearly: { year: string; kcal: number; kcal_workouts: number; rides: number; workouts: number; avg_kcal: number }[];
     }>(`/analytics/calories${year ? `?year=${year}` : ''}`),
 
   ftp: () =>

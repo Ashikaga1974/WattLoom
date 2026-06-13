@@ -125,6 +125,9 @@ export default function LeafletMap({ points = [], multiPoints, speedColorBuckets
         map.fitBounds(L.polyline(allLatLngs).getBounds(), { padding: [6, 6] });
         updateWeights();
       });
+
+      // onReady auch im Heatmap-Modus aufrufen (kein Hover, aber Callback erwartet)
+      onReady?.(() => {});
     } else {
       // Einzelner Track
       const validPts = points.filter(p => p.lat != null && p.lon != null);
