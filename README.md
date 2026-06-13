@@ -27,7 +27,9 @@ Lokale Web-App zur Analyse von Strava-Exportdaten. Kein Strava-API-Zugriff nöti
 | **FTP** | HR-korrigierte FTP-Schätzung, Trend, VO2max-Näherung |
 | **Formkurve (PMC)** | CTL/ATL/TSB nach Trainingstagebuch-Methodik, hrTSS, Einschätzungs-Banner |
 | **Bestzeiten** | Rekorde und Top-Leistungen |
-| **Bikes** | Kilometerstand und Statistiken je Fahrrad; Bike-Vergleich (km, Speed, Höhenmeter, Jahresverlauf) |
+| **Bikes** | 2 Tabs: Übersicht (Kennzahlen je Bike) · Vergleich (km, Speed, Höhenmeter, Jahresverlauf, Distanzhistogramm) |
+| **Workout-Detail** | Detailansicht je Workout: Sport-Hero, 4 KPI-Kacheln, SVG-Intensitätsgauge (Ø HR / Max HR), Verlaufschart, Ø-Vergleich |
+| **Wochentag-Analyse** | Werktag (Mo–Fr) vs. Wochenende (Sa–So): Duell-Karte mit Gewinner-Indikatoren, Rides/Wochentag-Balken, Monatsverlauf |
 | **Top-Strecken** | Greedy-Clustering aller Rides (2 km Startradius, ±10 % Distanz), Zeitchart mit PR-Markierung, Trend, Karte |
 | **Streckenvergleich** | Ähnliche Rides finden (Haversine-Radius + Distanzabgleich) |
 | **Kadenz-Analyse** | Radiales Verteilungsdiagramm (Polar-Chart), 6 Kadenz-Zonen, Monatstrend, Effizienz-Sweetspot |
@@ -164,8 +166,9 @@ MyBiking/
 │           ├── ActivitiesPage.tsx
 │           ├── ActivityDetailPage.tsx
 │           ├── BestPage.tsx
-│           ├── BikesPage.tsx           # Tab: Übersicht
-│           ├── BikeComparePage.tsx     # Tab: Bike-Vergleich  (direkt unter /bikes/compare)
+│           ├── BikesPage.tsx           # Tabs: Übersicht · Vergleich (/bikes?tab=übersicht|vergleich)
+│           ├── WorkoutDetailPage.tsx   # Workout-Detail mit Intensitätsgauge (/workouts/:id)
+│           ├── WeekendPage.tsx         # Wochentag-Analyse (/weekend)
 │           ├── CalendarPage.tsx
 │           ├── FormPage.tsx
 │           ├── FtpPage.tsx
@@ -181,7 +184,7 @@ MyBiking/
 │           ├── CadencePage.tsx
 │           ├── FatiguePage.tsx         # Tabs: Übersicht · Strecke · Einzelfahrt (/fatigue?tab=…)
 │           ├── CaloriesPage.tsx
-│           └── SpeedTrendPage.tsx
+│           └── SpeedTrendPage.tsx      # Tempoentwicklung (/speed-trend)
 ├── data/
 │   └── mybiking.db          # SQLite-Datenbank (wird beim Import erstellt)
 ├── download/                # Strava-Export-ZIP ablegen
