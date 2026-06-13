@@ -100,10 +100,6 @@ const navGroups: NavGroup[] = [
     label: 'Bikes',
     icon: <Bike size={16} />,
     prefixes: ['/bikes'],
-    children: [
-      { href: '/bikes',         label: 'Übersicht', icon: <Bike size={13} /> },
-      { href: '/bikes/compare', label: 'Bike-Vergleich', icon: <GitCompare size={13} /> },
-    ],
   },
 ];
 

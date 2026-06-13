@@ -9,7 +9,6 @@ import ActivitiesPage from '@/pages/ActivitiesPage';
 import ActivityDetailPage from '@/pages/ActivityDetailPage';
 import BestPage from '@/pages/BestPage';
 import BikesPage from '@/pages/BikesPage';
-import BikeComparePage from '@/pages/BikeComparePage';
 import CalendarPage from '@/pages/CalendarPage';
 import FormPage from '@/pages/FormPage';
 import FtpPage from '@/pages/FtpPage';
@@ -42,7 +41,7 @@ export default function App() {
                 <Route path="/activities/:id" element={<ActivityDetailPage />} />
                 <Route path="/best" element={<BestPage />} />
                 <Route path="/bikes" element={<BikesPage />} />
-                <Route path="/bikes/compare" element={<BikeComparePage />} />
+                <Route path="/bikes/compare" element={<Navigate to="/bikes?tab=vergleich" replace />} />
                 <Route path="/calendar" element={<CalendarPage />} />
                 <Route path="/compare" element={<Navigate to="/progress?tab=vergleich" replace />} />
                 <Route path="/form" element={<FormPage />} />
