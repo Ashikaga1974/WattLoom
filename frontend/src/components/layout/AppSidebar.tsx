@@ -31,6 +31,7 @@ import {
   Route,
   GitCompare,
   Cookie,
+  SunMoon,
 } from 'lucide-react';
 
 interface NavSubItem {
@@ -80,7 +81,7 @@ const navGroups: NavGroup[] = [
     href: '/progress',
     label: 'Analyse',
     icon: <BarChart2 size={16} />,
-    prefixes: ['/progress', '/fatigue', '/ftp', '/hrcurve', '/cadence', '/form', '/tempcorr', '/stats', '/wrapped', '/calories', '/speed-trend'],
+    prefixes: ['/progress', '/fatigue', '/ftp', '/hrcurve', '/cadence', '/form', '/tempcorr', '/stats', '/wrapped', '/calories', '/speed-trend', '/weekend'],
     children: [
       { href: '/progress',      label: 'Jahresübersicht', icon: <TrendingUp size={13} /> },
       { href: '/fatigue', label: 'Ermüdung', icon: <Flame size={13} /> },
@@ -92,6 +93,7 @@ const navGroups: NavGroup[] = [
       { href: '/timeheatmap',   label: 'Tageszeit', icon: <Map size={13} /> },
       { href: '/calories',      label: 'Kalorien', icon: <Cookie size={13} /> },
       { href: '/speed-trend',   label: 'Tempoentwicklung', icon: <TrendingUp size={13} /> },
+      { href: '/weekend',       label: 'Wochentag-Analyse', icon: <SunMoon size={13} /> },
       { href: '/wrapped',       label: 'Jahresrückblick', icon: <Trophy size={13} /> },
     ],
   },

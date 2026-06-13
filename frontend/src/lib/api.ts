@@ -644,6 +644,22 @@ export const api = {
   speedTrend: (): Promise<SpeedTrendData> =>
     get('/analytics/speed-trend'),
 
+  weekendWeekday: (year?: number) =>
+    get<{
+      weekday: {
+        rides: number; avg_km: number; avg_kmh: number;
+        avg_elevation_m: number; avg_hr: number | null;
+        total_km: number; avg_duration_min: number; avg_calories: number | null;
+      };
+      weekend: {
+        rides: number; avg_km: number; avg_kmh: number;
+        avg_elevation_m: number; avg_hr: number | null;
+        total_km: number; avg_duration_min: number; avg_calories: number | null;
+      };
+      by_weekday: { weekday_idx: number; rides: number; avg_km: number; avg_kmh: number }[];
+      monthly: { month: string; weekend_km: number; weekday_km: number; weekend_rides: number; weekday_rides: number }[];
+    }>(`/analytics/weekend-weekday${buildQuery({ year })}`),
+
   importFitFile: (file: File, bikeId?: string): Promise<{ activity_id: number; name: string; is_ride: boolean }> => {
     const form = new FormData();
     form.append('file', file);

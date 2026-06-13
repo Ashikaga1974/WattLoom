@@ -1734,3 +1734,112 @@ def speed_trend():
             "last_date":       rides[-1]["date"],
         },
     }
+
+
+@router.get("/weekend-weekday")
+def weekend_weekday(year: int = Query(None)):
+    """
+    Vergleich Werktag (Mo–Fr) vs. Wochenende (Sa–So).
+    Liefert Ø-Kennzahlen, Rides-pro-Wochentag-Verteilung und Monatsverlauf.
+    """
+    year_filter = "AND strftime('%Y', start_date_local) >= '2000'"
+    params: list = []
+    if year:
+        year_filter += " AND strftime('%Y', start_date_local) = ?"
+        params.append(str(year))
+
+    with db_connection() as conn:
+        # Hauptvergleich: Werktag vs. Wochenende
+        # SQLite: strftime('%w') → 0=So, 1=Mo … 6=Sa
+        # Wochenende = 0 (So) oder 6 (Sa)
+        summary = conn.execute(f"""
+            SELECT
+                CASE WHEN strftime('%w', start_date_local) IN ('0','6')
+                     THEN 'weekend' ELSE 'weekday' END AS group_type,
+                COUNT(*)                               AS rides,
+                AVG(distance_m / 1000.0)               AS avg_km,
+                AVG(avg_speed_ms * 3.6)                AS avg_kmh,
+                AVG(elevation_gain_m)                  AS avg_elevation_m,
+                AVG(avg_hr)                            AS avg_hr,
+                SUM(distance_m / 1000.0)               AS total_km,
+                AVG(moving_time_s / 60.0)              AS avg_duration_min,
+                AVG(calories)                          AS avg_calories
+            FROM activities
+            WHERE distance_m > 0
+              AND avg_speed_ms IS NOT NULL
+              {year_filter}
+            GROUP BY group_type
+        """, params).fetchall()
+
+        # Rides pro Wochentag (0=Mo … 6=So, umgerechnet aus SQLite-Format)
+        by_weekday = conn.execute(f"""
+            SELECT
+                CASE strftime('%w', start_date_local)
+                    WHEN '1' THEN 0 WHEN '2' THEN 1 WHEN '3' THEN 2
+                    WHEN '4' THEN 3 WHEN '5' THEN 4 WHEN '6' THEN 5
+                    WHEN '0' THEN 6 END AS weekday_idx,
+                COUNT(*)               AS rides,
+                AVG(distance_m / 1000.0) AS avg_km,
+                AVG(avg_speed_ms * 3.6)  AS avg_kmh
+            FROM activities
+            WHERE distance_m > 0 {year_filter}
+            GROUP BY weekday_idx
+            ORDER BY weekday_idx
+        """, params).fetchall()
+
+        # Monatsverlauf: km Werktag vs. Wochenende
+        monthly = conn.execute(f"""
+            SELECT
+                strftime('%Y-%m', start_date_local) AS month,
+                SUM(CASE WHEN strftime('%w', start_date_local) IN ('0','6')
+                         THEN distance_m / 1000.0 ELSE 0 END) AS weekend_km,
+                SUM(CASE WHEN strftime('%w', start_date_local) NOT IN ('0','6')
+                         THEN distance_m / 1000.0 ELSE 0 END) AS weekday_km,
+                COUNT(CASE WHEN strftime('%w', start_date_local) IN ('0','6') THEN 1 END) AS weekend_rides,
+                COUNT(CASE WHEN strftime('%w', start_date_local) NOT IN ('0','6') THEN 1 END) AS weekday_rides
+            FROM activities
+            WHERE distance_m > 0 {year_filter}
+            GROUP BY month
+            ORDER BY month
+        """, params).fetchall()
+
+    def rnd(v, n=1):
+        return round(v, n) if v is not None else None
+
+    summary_map = {}
+    for r in summary:
+        g = r["group_type"]
+        summary_map[g] = {
+            "rides":            r["rides"],
+            "avg_km":           rnd(r["avg_km"]),
+            "avg_kmh":          rnd(r["avg_kmh"]),
+            "avg_elevation_m":  rnd(r["avg_elevation_m"], 0),
+            "avg_hr":           rnd(r["avg_hr"], 0),
+            "total_km":         rnd(r["total_km"], 0),
+            "avg_duration_min": rnd(r["avg_duration_min"], 0),
+            "avg_calories":     rnd(r["avg_calories"], 0),
+        }
+
+    return {
+        "weekday": summary_map.get("weekday", {}),
+        "weekend": summary_map.get("weekend", {}),
+        "by_weekday": [
+            {
+                "weekday_idx": r["weekday_idx"],
+                "rides":       r["rides"],
+                "avg_km":      rnd(r["avg_km"]),
+                "avg_kmh":     rnd(r["avg_kmh"]),
+            }
+            for r in by_weekday
+        ],
+        "monthly": [
+            {
+                "month":         r["month"],
+                "weekend_km":    rnd(r["weekend_km"]),
+                "weekday_km":    rnd(r["weekday_km"]),
+                "weekend_rides": r["weekend_rides"],
+                "weekday_rides": r["weekday_rides"],
+            }
+            for r in monthly
+        ],
+    }

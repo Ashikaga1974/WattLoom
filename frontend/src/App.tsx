@@ -26,6 +26,7 @@ import FatiguePage from '@/pages/FatiguePage';
 import CaloriesPage from '@/pages/CaloriesPage';
 import SpeedTrendPage from '@/pages/SpeedTrendPage';
 import WorkoutDetailPage from '@/pages/WorkoutDetailPage';
+import WeekendPage from '@/pages/WeekendPage';
 
 export default function App() {
   return (
@@ -68,6 +69,7 @@ export default function App() {
                 <Route path="/calories" element={<CaloriesPage />} />
                 <Route path="/speed-trend" element={<SpeedTrendPage />} />
                 <Route path="/workouts/:id" element={<WorkoutDetailPage />} />
+                <Route path="/weekend" element={<WeekendPage />} />
               </Routes>
             </main>
           </SidebarInset>
