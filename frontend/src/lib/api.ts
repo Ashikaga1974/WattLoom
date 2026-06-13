@@ -166,10 +166,39 @@ export interface WeeklyVolume {
 }
 
 export interface OtherActivity {
+  id: number;
+  name: string;
   date: string;
   sport_type: string;
   moving_time_s: number;
   calories: number | null;
+  avg_hr: number | null;
+  max_hr: number | null;
+}
+
+export interface WorkoutHistoryEntry {
+  id: number;
+  start_date_local: string;
+  moving_time_s: number;
+  calories: number | null;
+  avg_hr: number | null;
+  max_hr: number | null;
+}
+
+export interface WorkoutDetail {
+  id: number;
+  name: string;
+  sport_type: string;
+  start_date_local: string;
+  moving_time_s: number;
+  elapsed_time_s: number;
+  avg_hr: number | null;
+  max_hr: number | null;
+  calories: number | null;
+  history: WorkoutHistoryEntry[];
+  avg_moving_time_s: number | null;
+  avg_calories: number | null;
+  history_count: number;
 }
 
 export interface PmcResponse {
@@ -574,6 +603,9 @@ export const api = {
 
   otherActivities: (year?: number): Promise<OtherActivity[]> =>
     get(`/activities/other${buildQuery({ year })}`),
+
+  workout: (id: number): Promise<WorkoutDetail> =>
+    get(`/activities/other/${id}`),
 
   cadence: (year?: number): Promise<CadenceData> =>
     get(`/analytics/cadence${buildQuery({ year })}`),

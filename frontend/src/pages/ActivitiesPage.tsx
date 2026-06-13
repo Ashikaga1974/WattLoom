@@ -497,7 +497,7 @@ export default function ActivitiesPage() {
                     workoutsSorted.map((w, i) => {
                       const sport = getSport(w.sport_type);
                       return (
-                        <tr key={i} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
+                        <tr key={i} onClick={() => navigate(`/workouts/${w.id}`)} className="border-b border-border/50 hover:bg-muted/30 transition-colors cursor-pointer">
                           <td className="px-4 py-3 whitespace-nowrap text-xs text-muted-foreground">
                             {fmtWorkoutDate(w.date)}
                           </td>

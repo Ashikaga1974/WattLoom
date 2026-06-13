@@ -194,15 +194,51 @@ def list_other_activities(year: int = Query(None)):
     with db_connection() as conn:
         rows = conn.execute(f"""
             SELECT
+                id,
+                name,
                 strftime('%Y-%m-%d', start_date_local) AS date,
                 sport_type,
                 moving_time_s,
-                calories
+                calories,
+                avg_hr,
+                max_hr
             FROM other_activities
             {where}
             ORDER BY start_date_local
         """, params).fetchall()
     return [dict(r) for r in rows]
+
+
+@router.get("/other/{workout_id}")
+def get_other_activity(workout_id: int):
+    """Detail einer Workout-Einheit inkl. Verlauf des gleichen Sport-Typs."""
+    with db_connection() as conn:
+        row = conn.execute(
+            "SELECT * FROM other_activities WHERE id = ?", (workout_id,)
+        ).fetchone()
+        if row is None:
+            raise HTTPException(status_code=404, detail="Workout not found")
+        history = conn.execute("""
+            SELECT id, start_date_local, moving_time_s, calories, avg_hr, max_hr
+            FROM other_activities
+            WHERE sport_type = ?
+            AND strftime('%Y', start_date_local) >= '2000'
+            ORDER BY start_date_local ASC
+        """, (row["sport_type"],)).fetchall()
+    avg_time = None
+    avg_kcal = None
+    if history:
+        times = [h["moving_time_s"] for h in history if h["moving_time_s"]]
+        kcals = [h["calories"] for h in history if h["calories"]]
+        avg_time = sum(times) / len(times) if times else None
+        avg_kcal = sum(kcals) / len(kcals) if kcals else None
+    return {
+        **dict(row),
+        "history": [dict(h) for h in history],
+        "avg_moving_time_s": avg_time,
+        "avg_calories": avg_kcal,
+        "history_count": len(history),
+    }
 
 
 @router.get("/{activity_id}")

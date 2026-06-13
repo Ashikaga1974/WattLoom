@@ -25,6 +25,7 @@ import CadencePage from '@/pages/CadencePage';
 import FatiguePage from '@/pages/FatiguePage';
 import CaloriesPage from '@/pages/CaloriesPage';
 import SpeedTrendPage from '@/pages/SpeedTrendPage';
+import WorkoutDetailPage from '@/pages/WorkoutDetailPage';
 
 export default function App() {
   return (
@@ -66,6 +67,7 @@ export default function App() {
                 <Route path="/fatigue-activity" element={<Navigate to="/fatigue?tab=einzelfahrt" replace />} />
                 <Route path="/calories" element={<CaloriesPage />} />
                 <Route path="/speed-trend" element={<SpeedTrendPage />} />
+                <Route path="/workouts/:id" element={<WorkoutDetailPage />} />
               </Routes>
             </main>
           </SidebarInset>
