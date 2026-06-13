@@ -11,7 +11,6 @@ import BestPage from '@/pages/BestPage';
 import BikesPage from '@/pages/BikesPage';
 import CalendarPage from '@/pages/CalendarPage';
 import FormPage from '@/pages/FormPage';
-import FtpPage from '@/pages/FtpPage';
 import HeatmapPage from '@/pages/HeatmapPage';
 import HrCurvePage from '@/pages/HrCurvePage';
 import ProgressPage from '@/pages/ProgressPage';
@@ -47,7 +46,6 @@ export default function App() {
                 <Route path="/calendar" element={<CalendarPage />} />
                 <Route path="/compare" element={<Navigate to="/progress?tab=vergleich" replace />} />
                 <Route path="/form" element={<FormPage />} />
-                <Route path="/ftp" element={<FtpPage />} />
                 <Route path="/heatmap" element={<HeatmapPage />} />
                 <Route path="/hrcurve" element={<HrCurvePage />} />
                 <Route path="/progress" element={<ProgressPage />} />

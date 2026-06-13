@@ -509,11 +509,9 @@ export default function ActivityDetailPage() {
                 </div>
               )}
             </div>
-            {(zones.hr_max || zones.ftp) && (
+            {zones.hr_max && (
               <p className="text-xs text-muted-foreground mt-3">
-                {zones.hr_max && `HRmax ${zones.hr_max} bpm`}
-                {zones.hr_max && zones.ftp && ' · '}
-                {zones.ftp && `FTP ${zones.ftp} W`}
+                HRmax {zones.hr_max} bpm
               </p>
             )}
           </CardContent>

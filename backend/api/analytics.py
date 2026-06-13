@@ -158,102 +158,6 @@ def wind_impact():
         }
 
 
-@router.get("/ftp")
-def ftp_analysis():
-    """
-    FTP-Schätzung aus avg_power mit HR-Korrektur.
-    Methode: avg_power × THRESHOLD_HR_RATIO / (avg_hr / global_max_hr)
-    Extrapoliert die lineare Power/HR-Beziehung bis zur Schwellen-HR (~90 % HRmax).
-    Fallback ohne HR-Daten: avg_power × FALLBACK_FACTOR.
-    """
-    # Schwellen-HR ≈ 90 % von HRmax; Fallback-Korrekturfaktor ohne HR
-    THRESHOLD_HR_RATIO = 0.90 * 1.20   # +20 % Korrekturfaktor auf Schwellenwert
-    FALLBACK_FACTOR    = 1.15  * 1.20
-    # Nur Rides mit avg_hr > MIN_HR_RATIO × global_max_hr berücksichtigen
-    # (sehr lockere Fahrten liefern unzuverlässige Extrapolationen)
-    MIN_HR_RATIO       = 0.65
-
-    with db_connection() as conn:
-        # Globale Max-HR als robustere Basis (per-Ride-Max kann durch Sprint-Peaks verzerrt sein)
-        max_hr_row = conn.execute("SELECT MAX(max_hr) AS v FROM activities WHERE max_hr > 0").fetchone()
-        global_max_hr = max_hr_row["v"] if max_hr_row and max_hr_row["v"] else None
-
-        def hr_expr(power_col: str = "avg_power_w") -> str:
-            """SQL-Ausdruck für HR-korrigierte FTP-Schätzung."""
-            if global_max_hr:
-                return f"""
-                    CASE
-                        WHEN avg_hr > 0 AND avg_hr >= {MIN_HR_RATIO * global_max_hr:.1f}
-                        THEN {power_col} * {THRESHOLD_HR_RATIO} / (avg_hr * 1.0 / {global_max_hr})
-                        ELSE {power_col} * {FALLBACK_FACTOR}
-                    END"""
-            return f"{power_col} * {FALLBACK_FACTOR}"
-
-        # Quartalsweise bester Schätzwert für 45–75-min-Fahrten
-        trend = conn.execute(f"""
-            SELECT
-                strftime('%Y', start_date_local) AS year,
-                ((CAST(strftime('%m', start_date_local) AS INTEGER) - 1) / 3 + 1) AS q,
-                MAX({hr_expr()}) AS best_w
-            FROM activities
-            WHERE avg_power_w > 0 AND moving_time_s BETWEEN 2700 AND 4500
-            GROUP BY year, q
-            ORDER BY year, q
-        """).fetchall()
-
-        # Power-Profil: bester raw avg_power je Dauerkategorie (gemessene Werte, keine Schätzung)
-        profile = conn.execute("""
-            SELECT
-                CASE
-                    WHEN moving_time_s <  900  THEN 1
-                    WHEN moving_time_s < 1800  THEN 2
-                    WHEN moving_time_s < 3600  THEN 3
-                    WHEN moving_time_s < 5400  THEN 4
-                    WHEN moving_time_s < 10800 THEN 5
-                    ELSE 6
-                END AS bucket,
-                MAX(avg_power_w) AS best_w,
-                COUNT(*) AS cnt
-            FROM activities
-            WHERE avg_power_w > 0
-            GROUP BY bucket
-            ORDER BY bucket
-        """).fetchall()
-
-        # Aktuell (90 Tage): bester HR-korrigierter Schätzwert
-        cur = conn.execute(f"""
-            SELECT MAX({hr_expr()}) AS best_w
-            FROM activities
-            WHERE avg_power_w > 0 AND moving_time_s BETWEEN 2700 AND 4500
-              AND start_date_local >= date('now', '-90 days')
-        """).fetchone()
-
-        # Bester HR-korrigierter Schätzwert aller Zeiten + Datum der Quell-Aktivität
-        best = conn.execute(f"""
-            SELECT {hr_expr()} AS est_w,
-                   strftime('%Y-%m-%d', start_date_local) AS date
-            FROM activities
-            WHERE avg_power_w > 0 AND moving_time_s BETWEEN 2700 AND 4500
-            ORDER BY est_w DESC
-            LIMIT 1
-        """).fetchone()
-
-        LABELS = ['< 15 min', '15–30 min', '30–60 min', '60–90 min', '90–180 min', '> 180 min']
-        return {
-            "trend": [
-                {"label": f"{r['year']}-Q{r['q']}", "best_w": round(r["best_w"], 1)}
-                for r in trend if r["best_w"] is not None
-            ],
-            "profile": [
-                {"label": LABELS[r["bucket"] - 1], "best_w": round(r["best_w"], 1), "count": r["cnt"]}
-                for r in profile
-            ],
-            "current_ftp": round(cur["best_w"], 1) if cur and cur["best_w"] else None,
-            "best_ever":   {"w": round(best["est_w"], 1), "date": best["date"]}
-                           if best and best["est_w"] else None,
-            "method": "hr_corrected" if global_max_hr else "fallback",
-        }
-
 @router.get("/pmc")
 def performance_management_chart():
     """
@@ -308,8 +212,10 @@ def performance_management_chart():
         return (dur / 3600.0) * 50.0
 
     daily_tss: dict[str, float] = defaultdict(float)
+    daily_rides: dict[str, int] = defaultdict(int)
     for r in rows:
         daily_tss[r["date"]] += calc_tss(r["moving_time_s"], r["elapsed_time_s"], r["avg_hr"])
+        daily_rides[r["date"]] += 1
 
     # TSS aus other_activities addieren + pro Tag merken für das other-Feld
     daily_other: dict[str, list[dict]] = defaultdict(list)
@@ -359,6 +265,7 @@ def performance_management_chart():
             "ctl": round(ctl, 1),
             "atl": round(atl, 1),
             "tsb": round(tsb, 1),
+            "rides": daily_rides.get(d, 0),
             "other": daily_other.get(d, []),
         })
         cursor += timedelta(days=1)

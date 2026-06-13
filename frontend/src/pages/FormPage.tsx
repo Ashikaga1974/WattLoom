@@ -27,8 +27,8 @@ function fmtDateLong(iso: string) {
 const MONTHS = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
 
 // Chart-Dimensionen PMC
-const W = 1000, H = 280;
-const PAD = { top: 20, right: 24, bottom: 36, left: 48 };
+const W = 1000, H = 300;
+const PAD = { top: 20, right: 24, bottom: 46, left: 48 };
 const cW = W - PAD.left - PAD.right;
 const cH = H - PAD.top - PAD.bottom;
 
@@ -133,6 +133,16 @@ export default function FormPage() {
 
   function polyPts(key: 'ctl' | 'atl'): string {
     return viewDays.map((d, i) => `${xOf(i).toFixed(1)},${yOf(d[key]).toFixed(1)}`).join(' ');
+  }
+
+  // 28-Tage gleitender Durchschnitt über CTL
+  const CTL_MA_WINDOW = 28;
+  const ctlMa: number[] = viewDays.map((_, i) => {
+    const slice = viewDays.slice(Math.max(0, i - CTL_MA_WINDOW + 1), i + 1);
+    return slice.reduce((s, d) => s + d.ctl, 0) / slice.length;
+  });
+  function ctlMaPoints(): string {
+    return viewDays.map((_, i) => `${xOf(i).toFixed(1)},${yOf(ctlMa[i]).toFixed(1)}`).join(' ');
   }
 
   // Trainingspausen ≥5 Tage
@@ -338,6 +348,12 @@ export default function FormPage() {
             <span className="inline-block w-6 h-0.5 rounded" style={{ background: '#60a5fa' }} /> Fitness (CTL)
           </span>
           <span className="flex items-center gap-1.5">
+            <svg width="24" height="8">
+              <line x1="0" y1="4" x2="24" y2="4" stroke="#22d3ee" strokeWidth="2.5" />
+            </svg>
+            CTL Ø28d
+          </span>
+          <span className="flex items-center gap-1.5">
             <span className="inline-block w-6 h-0.5 rounded" style={{ background: '#fb923c' }} /> Müdigkeit (ATL)
           </span>
           <span className="flex items-center gap-1.5">
@@ -354,6 +370,9 @@ export default function FormPage() {
           )}
           <span className="flex items-center gap-1.5">
             <span className="inline-block w-5 h-3 rounded-sm bg-white/5 border border-white/10" /> Pause ≥5 Tage
+          </span>
+          <span className="flex items-center gap-1.5">
+            <svg width="8" height="8"><circle cx="4" cy="4" r="3" fill="#60a5fa" /></svg> Ride
           </span>
           <span className="flex items-center gap-1.5">
             <svg width="8" height="8"><circle cx="4" cy="4" r="3" fill="#a78bfa" /></svg> Workout
@@ -416,6 +435,8 @@ export default function FormPage() {
             <polyline points={polyPts('atl')} fill="none" stroke="#fb923c" strokeWidth={1.5} strokeLinejoin="round" />
             {/* CTL-Linie */}
             <polyline points={polyPts('ctl')} fill="none" stroke="#60a5fa" strokeWidth={2.5} strokeLinejoin="round" />
+            {/* 28-Tage CTL-Durchschnitt */}
+            <polyline points={ctlMaPoints()} fill="none" stroke="#22d3ee" strokeWidth={3} strokeLinejoin="round" opacity={0.85} />
 
             {/* Peak-CTL gestrichelt */}
             {data.peak_ctl && (
@@ -452,18 +473,29 @@ export default function FormPage() {
             })()}
 
             {/* Aktivitätstyp-Marker */}
-            {viewDays.map((day, i) =>
-              day.other?.map((o, j) => (
-                <circle
-                  key={`${i}-${j}`}
-                  cx={xOf(i) + (day.other!.length > 1 ? (j - (day.other!.length - 1) / 2) * 5 : 0)}
-                  cy={PAD.top + cH + 10}
-                  r={3}
-                  fill={o.sport_type === 'Workout' ? '#a78bfa' : '#f59e0b'}
-                  opacity={0.85}
-                />
-              ))
-            )}
+            {viewDays.map((day, i) => (
+              <g key={i}>
+                {(day.rides ?? 0) > 0 && (
+                  <circle
+                    cx={xOf(i)}
+                    cy={PAD.top + cH + 8}
+                    r={1.5}
+                    fill="#60a5fa"
+                    opacity={0.7}
+                  />
+                )}
+                {day.other?.map((o, j) => (
+                  <circle
+                    key={j}
+                    cx={xOf(i) + (day.other!.length > 1 ? (j - (day.other!.length - 1) / 2) * 3 : 0)}
+                    cy={PAD.top + cH + 15}
+                    r={1.5}
+                    fill={o.sport_type === 'Workout' ? '#a78bfa' : '#f59e0b'}
+                    opacity={0.85}
+                  />
+                ))}
+              </g>
+            ))}
 
             {/* Transparentes Rect für Maus */}
             <rect x={PAD.left} y={PAD.top} width={cW} height={cH} fill="transparent" />
@@ -636,10 +668,20 @@ export default function FormPage() {
       {/* Hover-Tooltip (fixed) */}
       {hoverDay && (() => {
         const z = tsbZone(hoverDay.tsb);
+        const ttW = 168;
+        const ttH = 160;
+        const ttLeft = tooltipPos.x + 14 + ttW > window.innerWidth
+          ? tooltipPos.x - ttW - 8
+          : tooltipPos.x + 14;
+        const ttTop = tooltipPos.y - 70 < 0
+          ? tooltipPos.y + 14
+          : tooltipPos.y + ttH > window.innerHeight
+            ? window.innerHeight - ttH - 8
+            : tooltipPos.y - 70;
         return (
           <div
             className="fixed z-50 pointer-events-none rounded-lg bg-card/95 border border-border p-3 text-xs shadow-xl"
-            style={{ left: tooltipPos.x + 14, top: tooltipPos.y - 70, minWidth: 148 }}
+            style={{ left: ttLeft, top: ttTop, minWidth: 148 }}
           >
             <p className="font-medium text-foreground mb-2">{fmtDateDE(hoverDay.date)}</p>
             <div className="space-y-1">
@@ -647,6 +689,12 @@ export default function FormPage() {
                 <span style={{ color: '#60a5fa' }}>CTL</span>
                 <span className="font-mono" style={{ color: '#60a5fa' }}>{hoverDay.ctl.toFixed(1)}</span>
               </div>
+              {hoverIdx !== null && (
+                <div className="flex justify-between gap-4">
+                  <span style={{ color: '#22d3ee' }}>Ø28d</span>
+                  <span className="font-mono" style={{ color: '#22d3ee' }}>{ctlMa[hoverIdx].toFixed(1)}</span>
+                </div>
+              )}
               <div className="flex justify-between gap-4">
                 <span style={{ color: '#fb923c' }}>ATL</span>
                 <span className="font-mono" style={{ color: '#fb923c' }}>{hoverDay.atl.toFixed(1)}</span>

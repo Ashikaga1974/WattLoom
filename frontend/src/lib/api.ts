@@ -138,7 +138,6 @@ export interface ActivityZones {
   hr_zones: ZoneInfo[];
   power_zones: ZoneInfo[];
   hr_max: number | null;
-  ftp: number | null;
   has_hr: boolean;
   has_power: boolean;
 }
@@ -154,6 +153,7 @@ export interface PmcDay {
   ctl: number;
   atl: number;
   tsb: number;
+  rides?: number;
   other?: PmcOtherActivity[];
 }
 
@@ -448,7 +448,6 @@ export interface WrappedData {
 export interface Settings {
   weight_kg: number | null;
   birth_year: number | null;
-  ftp_manual: number | null;
   tz_offset: number | null;
   bezier_tension: number;
   sparkline_weeks: number;
@@ -558,14 +557,6 @@ export const api = {
       monthly: { month: string; kcal: number; kcal_workouts: number; rides: number; workouts: number; avg_kcal: number }[];
       yearly: { year: string; kcal: number; kcal_workouts: number; rides: number; workouts: number; avg_kcal: number }[];
     }>(`/analytics/calories${year ? `?year=${year}` : ''}`),
-
-  ftp: () =>
-    get<{
-      trend: { label: string; best_w: number }[];
-      profile: { label: string; best_w: number; count: number }[];
-      current_ftp: number | null;
-      best_ever: { w: number; date: string } | null;
-    }>('/analytics/ftp'),
 
   pmc: () =>
     get<PmcResponse>('/analytics/pmc'),

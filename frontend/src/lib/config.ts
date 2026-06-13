@@ -21,6 +21,3 @@ export const COMPARISON_COLORS = [
   '#ec4899',
   '#a78bfa',
 ] as const;
-
-/** Threshold HR ratio für FTP-Schätzung. */
-export const THRESHOLD_HR_RATIO = 1.08;

@@ -1,4 +1,4 @@
-import { COMPARISON_SIMPLIFY, THRESHOLD_HR_RATIO } from '@/lib/config';
+import { COMPARISON_SIMPLIFY } from '@/lib/config';
 import { useConfig } from '@/lib/config-context';
 import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
@@ -60,16 +60,6 @@ const HR_ZONES = [
   { zone: 'Z3 · Tempo',        range: '70–80 %',  color: '#facc15' },
   { zone: 'Z4 · Schwelle',     range: '80–90 %',  color: '#fb923c' },
   { zone: 'Z5 · VO2max',       range: '90–100 %', color: '#ef4444' },
-];
-
-const POWER_ZONES = [
-  { zone: 'Z1 · Active Recovery', range: '0–55 %',    color: '#60a5fa' },
-  { zone: 'Z2 · Endurance',       range: '55–75 %',   color: '#4ade80' },
-  { zone: 'Z3 · Tempo',           range: '75–90 %',   color: '#a3e635' },
-  { zone: 'Z4 · Schwelle',        range: '90–105 %',  color: '#facc15' },
-  { zone: 'Z5 · VO2max',          range: '105–120 %', color: '#fb923c' },
-  { zone: 'Z6 · Anaerob',         range: '120–150 %', color: '#f87171' },
-  { zone: 'Z7 · Neuromuskulär',   range: '> 150 %',   color: '#c084fc' },
 ];
 
 export default function BerechnungenPage() {
@@ -157,46 +147,6 @@ export default function BerechnungenPage() {
         </InfoBox>
       </Section>
 
-      {/* ── FTP-Schätzung ── */}
-      <Section title="FTP-Schätzung (HR-korrigiert)">
-        <p>
-          Mangels Leistungsmesser wird die FTP aus durchschnittlicher Leistung (Garmin-Summendaten) und Herzfrequenz extrapoliert.
-          Basis: lineare Power/HR-Beziehung, extrapoliert zur Schwellen-HR.
-        </p>
-        <InfoBox>
-          <ParamRow label="Ride-Filter" value={<>Nur Rides mit Leistungsdaten und Dauer <Code>45–75 min (2 700–4 500 s)</Code></>} />
-          <ParamRow label="HR-Filter" value={<>Nur Rides mit avg_hr ≥ 65 % HRmax (<Code>MIN_HR_RATIO = 0.65</Code>)</>} />
-          <ParamRow
-            label="Formel (mit HR)"
-            value={<Code>FTP = avg_power × {THRESHOLD_HR_RATIO} / (avg_hr / HRmax)</Code>}
-          />
-          <ParamRow
-            label="Faktor erklärt"
-            value={<><Code>{THRESHOLD_HR_RATIO} = 0.90 × 1.20</Code> – Schwellen-HR bei 90 % HRmax + 20 % Korrekturfaktor</>}
-          />
-          <ParamRow
-            label="Formel (ohne HR)"
-            value={<Code>FTP = avg_power × 1.38</Code>}
-            note="(1.15 × 1.20)"
-          />
-          <ParamRow label="HRmax" value={<>Globales Maximum aller Aktivitäten (<Code>MAX(max_hr)</Code>)</>} />
-          <ParamRow label="Darstellung" value="Trend-Chart: gleitende Schätzung pro Ride über Zeit; aktueller FTP = Mittelwert der letzten 90 Tage" />
-        </InfoBox>
-      </Section>
-
-      {/* ── VO2max ── */}
-      <Section title="VO2max-Schätzung">
-        <p>
-          Näherungsformel nach Coggan aus dem FTP-Wert und Körpergewicht.
-          Nur eine grobe Einschätzung – kein Ersatz für einen Labortest.
-        </p>
-        <InfoBox>
-          <ParamRow label="Formel" value={<Code>VO2max = (FTP_W / Gewicht_kg) × 10.8 + 7</Code>} />
-          <ParamRow label="Einheit" value="ml/min/kg" />
-          <ParamRow label="Basis" value="Manuelles FTP (wenn gesetzt) oder geschätztes FTP; Gewicht aus Einstellungen" />
-        </InfoBox>
-      </Section>
-
       {/* ── HR-Zonen ── */}
       <Section title="Zeit in Zonen – Herzfrequenz">
         <p>5 Zonen basierend auf % HRmax. HRmax = globales Maximum aller Aktivitäten.</p>
@@ -212,20 +162,6 @@ export default function BerechnungenPage() {
             <span className="text-muted-foreground w-52 shrink-0">Zeitdelta-Cap</span>
             <span>Max. <Code>10 s</Code> zwischen aufeinanderfolgenden Track-Punkten (verhindert Lücken-Artefakte)</span>
           </div>
-        </InfoBox>
-      </Section>
-
-      {/* ── Power-Zonen ── */}
-      <Section title="Zeit in Zonen – Leistung (Coggan)">
-        <p>7 Zonen nach Coggan, basierend auf % FTP. FTP = manueller Wert (Einstellungen) oder Schätzung.</p>
-        <InfoBox>
-          {POWER_ZONES.map(({ zone, range, color }) => (
-            <div key={zone} className="flex gap-3 items-center text-sm">
-              <span className="w-3 h-3 rounded-sm shrink-0" style={{ background: color }} />
-              <span className="text-foreground w-44 shrink-0">{zone}</span>
-              <Code>{range} FTP</Code>
-            </div>
-          ))}
         </InfoBox>
       </Section>
 

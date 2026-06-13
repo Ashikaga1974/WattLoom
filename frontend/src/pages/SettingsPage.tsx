@@ -11,7 +11,6 @@ export default function SettingsPage() {
   // Einstellungen-Felder
   const [weightInput, setWeightInput]     = useState('');
   const [birthYearInput, setBirthYearInput] = useState('');
-  const [ftpInput, setFtpInput]           = useState('');
   const [tzInput, setTzInput]             = useState('auto');
   const [saved, setSaved]                 = useState<Settings | null>(null);
   const [saving, setSaving]               = useState(false);
@@ -112,7 +111,6 @@ export default function SettingsPage() {
         setSaved(res);
         if (res.weight_kg != null)  setWeightInput(String(res.weight_kg));
         if (res.birth_year != null) setBirthYearInput(String(res.birth_year));
-        if (res.ftp_manual != null) setFtpInput(String(res.ftp_manual));
         setTzInput(res.tz_offset != null ? String(res.tz_offset) : 'auto');
         setBezierInput(String(res.bezier_tension      ?? CONFIG_DEFAULTS.bezier_tension));
         setSparklineInput(String(res.sparkline_weeks  ?? CONFIG_DEFAULTS.sparkline_weeks));
@@ -151,11 +149,6 @@ export default function SettingsPage() {
       setSaveError('Geburtsjahr muss zwischen 1920 und 2010 liegen');
       return;
     }
-    const ftp = ftpInput ? parseInt(ftpInput) : null;
-    if (ftp !== null && (ftp < 50 || ftp > 600)) {
-      setSaveError('FTP muss zwischen 50 und 600 Watt liegen');
-      return;
-    }
     setSaving(true);
     setSaveError(null);
     try {
@@ -163,7 +156,6 @@ export default function SettingsPage() {
       const res = await api.saveSettings({
         weight_kg:  weightInput ? kg : undefined,
         birth_year: year ?? undefined,
-        ftp_manual: ftp ?? undefined,
         tz_offset:  tz,
       });
       setSaved(res);
@@ -294,7 +286,7 @@ export default function SettingsPage() {
       <Card>
         <CardHeader className="border-b border-border pb-3">
           <CardTitle className="text-sm font-semibold">Persönliche Daten</CardTitle>
-          <p className="text-xs text-muted-foreground">Für w/kg- und VO2max-Berechnungen auf der FTP-Seite</p>
+          <p className="text-xs text-muted-foreground">Für w/kg-Berechnungen</p>
         </CardHeader>
         <CardContent className="pt-5 space-y-5">
           {loadingSettings ? (
@@ -304,7 +296,7 @@ export default function SettingsPage() {
             </div>
           ) : (
             <>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                 {/* Gewicht */}
                 <div>
                   <label className="block text-xs text-muted-foreground uppercase tracking-wider mb-2">
@@ -349,32 +341,6 @@ export default function SettingsPage() {
                     <p className="text-xs text-muted-foreground/60 mt-1.5">
                       {saved.birth_year} · {new Date().getFullYear() - saved.birth_year} Jahre
                     </p>
-                  )}
-                </div>
-
-                {/* Manuelle FTP */}
-                <div>
-                  <label className="block text-xs text-muted-foreground uppercase tracking-wider mb-2">
-                    FTP <span className="text-muted-foreground/50 normal-case tracking-normal">(aus eigenem Test)</span>
-                  </label>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="number"
-                      step="1"
-                      min="50"
-                      max="600"
-                      value={ftpInput}
-                      onChange={(e) => setFtpInput(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && save()}
-                      placeholder="220"
-                      className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-colors"
-                    />
-                    <span className="text-xs text-muted-foreground">W</span>
-                  </div>
-                  {saved?.ftp_manual != null ? (
-                    <p className="text-xs text-muted-foreground/60 mt-1.5">{saved.ftp_manual} W gespeichert</p>
-                  ) : (
-                    <p className="text-xs text-muted-foreground/40 mt-1.5">20-min-Test × 0,95</p>
                   )}
                 </div>
 
