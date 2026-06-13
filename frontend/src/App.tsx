@@ -11,7 +11,6 @@ import BestPage from '@/pages/BestPage';
 import BikesPage from '@/pages/BikesPage';
 import BikeComparePage from '@/pages/BikeComparePage';
 import CalendarPage from '@/pages/CalendarPage';
-import ComparePage from '@/pages/ComparePage';
 import FormPage from '@/pages/FormPage';
 import FtpPage from '@/pages/FtpPage';
 import HeatmapPage from '@/pages/HeatmapPage';
@@ -21,8 +20,6 @@ import SettingsPage from '@/pages/SettingsPage';
 import RoutesPage from '@/pages/RoutesPage';
 import StreckenPage from '@/pages/StreckenPage';
 import TempCorrPage from '@/pages/TempCorrPage';
-import TimeHeatmapPage from '@/pages/TimeHeatmapPage';
-import TrainingPage from '@/pages/TrainingPage';
 import WrappedPage from '@/pages/WrappedPage';
 import BerechnungenPage from '@/pages/BerechnungenPage';
 import CadencePage from '@/pages/CadencePage';
@@ -47,7 +44,7 @@ export default function App() {
                 <Route path="/bikes" element={<BikesPage />} />
                 <Route path="/bikes/compare" element={<BikeComparePage />} />
                 <Route path="/calendar" element={<CalendarPage />} />
-                <Route path="/compare" element={<ComparePage />} />
+                <Route path="/compare" element={<Navigate to="/progress?tab=vergleich" replace />} />
                 <Route path="/form" element={<FormPage />} />
                 <Route path="/ftp" element={<FtpPage />} />
                 <Route path="/heatmap" element={<HeatmapPage />} />
@@ -59,8 +56,8 @@ export default function App() {
                 <Route path="/strecken" element={<StreckenPage />} />
                 <Route path="/strecken/:id" element={<StreckenPage />} />
                 <Route path="/tempcorr" element={<TempCorrPage />} />
-                <Route path="/timeheatmap" element={<TimeHeatmapPage />} />
-                <Route path="/training" element={<TrainingPage />} />
+                <Route path="/timeheatmap" element={<Navigate to="/progress?tab=tageszeit" replace />} />
+                <Route path="/training" element={<Navigate to="/progress?tab=volumen" replace />} />
                 <Route path="/wrapped" element={<WrappedPage />} />
                 <Route path="/berechnungen" element={<BerechnungenPage />} />
                 <Route path="/cadence" element={<CadencePage />} />

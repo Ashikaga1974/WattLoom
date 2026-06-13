@@ -80,11 +80,9 @@ const navGroups: NavGroup[] = [
     href: '/progress',
     label: 'Analyse',
     icon: <BarChart2 size={16} />,
-    prefixes: ['/progress', '/training', '/compare', '/fatigue', '/ftp', '/hrcurve', '/cadence', '/form', '/tempcorr', '/timeheatmap', '/stats', '/wrapped', '/calories', '/speed-trend'],
+    prefixes: ['/progress', '/fatigue', '/ftp', '/hrcurve', '/cadence', '/form', '/tempcorr', '/stats', '/wrapped', '/calories', '/speed-trend'],
     children: [
-      { href: '/progress',      label: 'Jahresfortschritt', icon: <TrendingUp size={13} /> },
-      { href: '/training',      label: 'Training', icon: <BarChart size={13} /> },
-      { href: '/compare',       label: 'Jahresvergleich', icon: <GitCompare size={13} /> },
+      { href: '/progress',      label: 'Jahresübersicht', icon: <TrendingUp size={13} /> },
       { href: '/fatigue', label: 'Ermüdung', icon: <Flame size={13} /> },
       { href: '/ftp',           label: 'FTP', icon: <Zap size={13} /> },
       { href: '/hrcurve',       label: 'HR-Analyse', icon: <Heart size={13} /> },

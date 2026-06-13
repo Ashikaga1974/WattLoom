@@ -18,25 +18,20 @@ Lokale Web-App zur Analyse von Strava-Exportdaten. Kein Strava-API-Zugriff nöti
 | **Aktivitätsliste** | Tabs: Radtouren (Filter/Sort/Paginierung) + Workouts (Sportart-Badges, Kalorien farbig); einzelne Aktivitäten löschbar |
 | **Aktivitätsdetail** | Karte (Leaflet), Höhenprofil, Geschwindigkeits-Profil (Farben synchron mit Karten-Gradient), HR-Profil, Wetterkachel, Fotos |
 | **Jahresrückblick** | „Wrapped"-Style: beste Rides, stärkste Monate, Tages-/Stunden-Heatmaps |
-| **Jahresfortschritt** | Kumulative km pro Kalendarjahr mit Prognose |
+| **Jahresübersicht** | 4 Tabs: Fortschritt (kumulierte km + Prognose) · Jahresvergleich (km/Monat je Jahr) · Volumen (Wochentraining gestapelt) · Tageszeit-Heatmap |
+| **HR-Analyse** | 2 Tabs: HR-Kurve (beste Ø-HF je Zeitfenster 1–60 min, Schwellen-HF, monatlicher HR-Trend) · Aerobe Effizienz (km/h ÷ bpm monatlich, Jahresvergleich) |
 | **Heatmap** | Alle Tracks als interaktive Karte, filterbar nach Jahr |
-| **Aerobe Effizienz** | Monatliche Effizienz-Trendlinie (Geschwindigkeit ÷ HF), Jahresvergleich |
-| **HR-Kurve** | Beste Durchschnitts-HF über verschiedene Dauern (1–60 min); monatlicher HR-Verlauf mit 3M-Ø und Regressionstrend |
 | **Tempoentwicklung** | Scatter + 20-Rides-Rolling-Ø, Jahresvergleich, Saison-Heatmap (Monat × Jahr) |
 | **Kalorien** | Energieverbrauch aus Rides + Workouts; KPI-Kacheln, gestapelter Monatsverlauf mit 3M-gleitendem Ø, Jahresvergleich |
 | **Wetter & Leistung** | Ø-Speed nach Temperatur-Buckets, Wind-Impact-Chart; Wetterdaten via Open-Meteo (abrufbar per Knopfdruck) |
 | **FTP** | HR-korrigierte FTP-Schätzung, Trend, VO2max-Näherung |
 | **Formkurve (PMC)** | CTL/ATL/TSB nach Trainingstagebuch-Methodik, hrTSS, Einschätzungs-Banner |
-| **Training** | Wochentraining-Chart inkl. andere Sportarten |
 | **Bestzeiten** | Rekorde und Top-Leistungen |
-| **Jahresvergleich** | Jahre direkt gegenüberstellen |
-| **Bikes** | Kilometerstand und Statistiken je Fahrrad |
-| **Bike-Vergleich** | Bikes gegenüberstellen (km, Speed, Höhenmeter, Jahresverlauf) |
+| **Bikes** | Kilometerstand und Statistiken je Fahrrad; Bike-Vergleich (km, Speed, Höhenmeter, Jahresverlauf) |
 | **Top-Strecken** | Greedy-Clustering aller Rides (2 km Startradius, ±10 % Distanz), Zeitchart mit PR-Markierung, Trend, Karte |
 | **Streckenvergleich** | Ähnliche Rides finden (Haversine-Radius + Distanzabgleich) |
 | **Kadenz-Analyse** | Radiales Verteilungsdiagramm (Polar-Chart), 6 Kadenz-Zonen, Monatstrend, Effizienz-Sweetspot |
-| **Ermüdungsindex** | Speed 1. vs. 2. Hälfte pro Ride – Histogramm, Steigerung/Ermüdung, Monatstrend; auch nach Strecke und Einzelfahrt |
-| **Zeit-Heatmap** | Aktivitäten nach Wochentag/Uhrzeit (Browser-Timezone-korrigiert) |
+| **Ermüdungsindex** | 3 Tabs: Übersicht (Speed H1 vs. H2, Histogramm, Trend) · Strecke (nach Route-Cluster) · Einzelfahrt (Karte + 10-Segment-Chart) |
 | **Kalender** | Monatskalender: Radtouren + Workouts (grau markiert), Ring-Indikator bei Kombi-Tagen |
 | **Berechnungen** | Dokumentation aller verwendeten Formeln und Parameter |
 | **Einstellungen** | Gewicht, Geburtsjahr, manueller FTP, Zeitzone; FIT-Einzelimport (Amazfit, Garmin ohne Strava); Wetterdaten-Abruf |
@@ -164,33 +159,27 @@ MyBiking/
 │       │   └── ui/                     # shadcn/ui base-nova Komponenten
 │       ├── hooks/
 │       │   └── use-mobile.ts
-│       └── pages/                      # 24 Seiten als .tsx
+│       └── pages/                      # 22 Seiten als .tsx (Tab-Container bündeln verwandte Ansichten)
 │           ├── DashboardPage.tsx
 │           ├── ActivitiesPage.tsx
 │           ├── ActivityDetailPage.tsx
 │           ├── BestPage.tsx
-│           ├── BikesPage.tsx
-│           ├── BikeComparePage.tsx
+│           ├── BikesPage.tsx           # Tab: Übersicht
+│           ├── BikeComparePage.tsx     # Tab: Bike-Vergleich  (direkt unter /bikes/compare)
 │           ├── CalendarPage.tsx
-│           ├── ComparePage.tsx
 │           ├── FormPage.tsx
 │           ├── FtpPage.tsx
 │           ├── HeatmapPage.tsx
-│           ├── HrCurvePage.tsx
-│           ├── ProgressPage.tsx
+│           ├── HrCurvePage.tsx         # Tabs: HR-Kurve · Aerobe Effizienz (/hrcurve?tab=kurve|effizienz)
+│           ├── ProgressPage.tsx        # Tabs: Fortschritt · Jahresvergleich · Volumen · Tageszeit (/progress?tab=…)
 │           ├── SettingsPage.tsx
 │           ├── RoutesPage.tsx
-│           ├── SpeedHrPage.tsx
 │           ├── StreckenPage.tsx
 │           ├── TempCorrPage.tsx
-│           ├── TimeHeatmapPage.tsx
-│           ├── TrainingPage.tsx
 │           ├── WrappedPage.tsx
 │           ├── BerechnungenPage.tsx
 │           ├── CadencePage.tsx
-│           ├── FatigueIndexPage.tsx
-│           ├── FatigueTrackPage.tsx
-│           ├── FatigueActivityPage.tsx
+│           ├── FatiguePage.tsx         # Tabs: Übersicht · Strecke · Einzelfahrt (/fatigue?tab=…)
 │           ├── CaloriesPage.tsx
 │           └── SpeedTrendPage.tsx
 ├── data/
