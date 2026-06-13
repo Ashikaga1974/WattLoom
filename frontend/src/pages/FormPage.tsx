@@ -33,8 +33,8 @@ const cW = W - PAD.left - PAD.right;
 const cH = H - PAD.top - PAD.bottom;
 
 // Chart-Dimensionen Volumen
-const VW = 1000, VH = 180;
-const VPAD = { top: 16, right: 16, bottom: 32, left: 52 };
+const VW = 1000, VH = 210;
+const VPAD = { top: 16, right: 16, bottom: 44, left: 52 };
 const vcW = VW - VPAD.left - VPAD.right;
 const vcH = VH - VPAD.top - VPAD.bottom;
 
@@ -199,7 +199,7 @@ export default function FormPage() {
   })();
 
   function volXOf(i: number, total: number) {
-    return VPAD.left + (i / Math.max(total - 1, 1)) * vcW;
+    return VPAD.left + ((i + 0.5) / Math.max(total, 1)) * vcW;
   }
   function volYOf(minutes: number) {
     return VPAD.top + vcH - (minutes / volMaxMin.maxMin) * vcH;
@@ -226,7 +226,7 @@ export default function FormPage() {
   const volYTicks: number[] = [];
   for (let v = 0; v <= volMaxMin.maxMin; v += volMaxMin.step) volYTicks.push(v);
 
-  const bW = volWeeks.length > 1 ? Math.max(2, (vcW / (volWeeks.length - 1)) * 0.65) : vcW * 0.65;
+  const bW = volWeeks.length > 0 ? Math.max(2, (vcW / volWeeks.length) * 0.65) : vcW * 0.65;
 
   if (loading) {
     return (
@@ -369,7 +369,7 @@ export default function FormPage() {
           onMouseMove={onMouseMove}
           onMouseLeave={() => setHoverIdx(null)}
         >
-          <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ height: 280 }}>
+          <svg viewBox={`0 0 ${W} ${H}`} className="w-full">
             {/* Trainingspausen */}
             {pauses.map((p, i) => (
               <rect
@@ -507,7 +507,7 @@ export default function FormPage() {
         </div>
 
         {weeklyVolumeData.length ? (
-          <svg viewBox={`0 0 ${VW} ${VH}`} className="w-full" style={{ height: 180 }}>
+          <svg viewBox={`0 0 ${VW} ${VH}`} className="w-full">
             {volYTicks.map(v => (
               <g key={v}>
                 <line
