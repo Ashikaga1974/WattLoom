@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { AppSidebar } from '@/components/layout/AppSidebar';
@@ -19,7 +19,6 @@ import HrCurvePage from '@/pages/HrCurvePage';
 import ProgressPage from '@/pages/ProgressPage';
 import SettingsPage from '@/pages/SettingsPage';
 import RoutesPage from '@/pages/RoutesPage';
-import SpeedHrPage from '@/pages/SpeedHrPage';
 import StreckenPage from '@/pages/StreckenPage';
 import TempCorrPage from '@/pages/TempCorrPage';
 import TimeHeatmapPage from '@/pages/TimeHeatmapPage';
@@ -27,9 +26,7 @@ import TrainingPage from '@/pages/TrainingPage';
 import WrappedPage from '@/pages/WrappedPage';
 import BerechnungenPage from '@/pages/BerechnungenPage';
 import CadencePage from '@/pages/CadencePage';
-import FatigueIndexPage from '@/pages/FatigueIndexPage';
-import FatigueTrackPage from '@/pages/FatigueTrackPage';
-import FatigueActivityPage from '@/pages/FatigueActivityPage';
+import FatiguePage from '@/pages/FatiguePage';
 import CaloriesPage from '@/pages/CaloriesPage';
 import SpeedTrendPage from '@/pages/SpeedTrendPage';
 
@@ -58,7 +55,7 @@ export default function App() {
                 <Route path="/progress" element={<ProgressPage />} />
                 <Route path="/settings" element={<SettingsPage />} />
                 <Route path="/routes" element={<RoutesPage />} />
-                <Route path="/speedhr" element={<SpeedHrPage />} />
+                <Route path="/speedhr" element={<Navigate to="/hrcurve?tab=effizienz" replace />} />
                 <Route path="/strecken" element={<StreckenPage />} />
                 <Route path="/strecken/:id" element={<StreckenPage />} />
                 <Route path="/tempcorr" element={<TempCorrPage />} />
@@ -67,9 +64,10 @@ export default function App() {
                 <Route path="/wrapped" element={<WrappedPage />} />
                 <Route path="/berechnungen" element={<BerechnungenPage />} />
                 <Route path="/cadence" element={<CadencePage />} />
-                <Route path="/fatigue-index" element={<FatigueIndexPage />} />
-                <Route path="/fatigue-track" element={<FatigueTrackPage />} />
-                <Route path="/fatigue-activity" element={<FatigueActivityPage />} />
+                <Route path="/fatigue" element={<FatiguePage />} />
+                <Route path="/fatigue-index"    element={<Navigate to="/fatigue" replace />} />
+                <Route path="/fatigue-track"    element={<Navigate to="/fatigue?tab=strecke" replace />} />
+                <Route path="/fatigue-activity" element={<Navigate to="/fatigue?tab=einzelfahrt" replace />} />
                 <Route path="/calories" element={<CaloriesPage />} />
                 <Route path="/speed-trend" element={<SpeedTrendPage />} />
               </Routes>

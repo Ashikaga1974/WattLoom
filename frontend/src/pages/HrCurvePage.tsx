@@ -1,21 +1,20 @@
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { PageHeader } from '@/components/ui/page-header';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select';
 import { api } from '@/lib/api';
 import {
   ComposedChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, ReferenceLine,
 } from 'recharts';
 
-const MONTHS_SHORT = ['Jan','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'];
+// ─── Shared helpers ──────────────────────────────────────────────────────────
 
-interface TrendPoint {
-  month: string;
-  label: string;
-  avg_hr: number;
-  rolling_avg: number;
-  trend_line: number;
-}
+const MONTHS_SHORT = ['Jan','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'];
 
 function linReg(values: number[]): { slope: number; intercept: number } {
   const n = values.length;
@@ -29,13 +28,22 @@ function linReg(values: number[]): { slope: number; intercept: number } {
   return { slope, intercept };
 }
 
+// ─── HR-Kurve Tab ─────────────────────────────────────────────────────────────
+
+interface TrendPoint {
+  month: string;
+  label: string;
+  avg_hr: number;
+  rolling_avg: number;
+  trend_line: number;
+}
+
 interface CurveData {
   durations_s: number[];
   labels: string[];
   best_hr: number[];
 }
 
-// Kontext je Zeitfenster (5 feste Fenster)
 const CONTEXT = [
   {
     short: 'Maximalsprint',
@@ -71,7 +79,7 @@ function buildAreaPath(pts: { x: number; y: number }[], baseY: number): string {
   return d;
 }
 
-export default function HrCurvePage() {
+function HrKurveTab() {
   const [data, setData] = useState<CurveData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -81,6 +89,11 @@ export default function HrCurvePage() {
   const [trendData, setTrendData] = useState<TrendPoint[]>([]);
   const [trendBpm, setTrendBpm] = useState<number | null>(null);
 
+  const W = 960, H = 220;
+  const PAD = { top: 24, right: 32, bottom: 48, left: 52 };
+  const cW = W - PAD.left - PAD.right;
+  const cH = H - PAD.top - PAD.bottom;
+
   useEffect(() => {
     api.activityStats()
       .then(stats => {
@@ -89,7 +102,6 @@ export default function HrCurvePage() {
       .catch(() => {});
     loadCurve(null);
 
-    // HR-Verlauf: Speed-HR-Daten monatlich aggregieren
     api.speedHr().then(res => {
       const byMonth: Record<string, number[]> = {};
       for (const p of res.points) {
@@ -108,14 +120,13 @@ export default function HrCurvePage() {
           rolling_avg: 0,
         };
       });
-      // 3-Monats-gleitender Durchschnitt + lineare Regression
       const { slope, intercept } = linReg(base.map(d => d.avg_hr));
       const withRolling: TrendPoint[] = base.map((d, i) => {
         const slice = base.slice(Math.max(0, i - 2), i + 1);
         const avg = slice.reduce((s, x) => s + x.avg_hr, 0) / slice.length;
         return { ...d, rolling_avg: Math.round(avg), trend_line: Math.round(intercept + slope * i) };
       });
-      setTrendBpm(Math.round(slope * 12)); // bpm pro Jahr
+      setTrendBpm(Math.round(slope * 12));
       setTrendData(withRolling);
     }).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -134,13 +145,12 @@ export default function HrCurvePage() {
     }
   }
 
-  function handleYearChange(year: string | null) {
-    const y = year === 'all' ? null : year;
+  function handleYearChange(val: string | null) {
+    const y = val === 'all' ? null : val;
     setFilterYear(y);
     loadCurve(y);
   }
 
-  // Index des 20-min-Fensters (1200s)
   const thresholdIdx = data ? data.durations_s.findIndex(d => d === 1200) : -1;
   const thresholdHR = thresholdIdx >= 0 && data ? data.best_hr[thresholdIdx] : null;
 
@@ -153,22 +163,12 @@ export default function HrCurvePage() {
         })()
       : null;
 
-  // Chart-Geometrie
-  const W = 960, H = 220;
-  const PAD = { top: 24, right: 32, bottom: 48, left: 52 };
-  const cW = W - PAD.left - PAD.right;
-  const cH = H - PAD.top - PAD.bottom;
-
   const minHR = data ? Math.floor(Math.min(...data.best_hr) / 5) * 5 - 5 : 100;
   const maxHR = data ? Math.ceil(Math.max(...data.best_hr) / 5) * 5 + 5 : 180;
   const hrRange = maxHR - minHR;
 
-  function xOf(i: number, n: number) {
-    return PAD.left + (i / (n - 1)) * cW;
-  }
-  function yOf(hr: number) {
-    return PAD.top + cH - ((hr - minHR) / hrRange) * cH;
-  }
+  function xOf(i: number, n: number) { return PAD.left + (i / (n - 1)) * cW; }
+  function yOf(hr: number) { return PAD.top + cH - ((hr - minHR) / hrRange) * cH; }
 
   const points = data
     ? data.best_hr.map((hr, i) => ({
@@ -189,13 +189,22 @@ export default function HrCurvePage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="HR-Kurve"
-        subtitle="Beste Herzfrequenz je Zeitfenster — gleitendes Maximum über alle Aktivitäten"
-        years={availableYears}
-        selectedYear={filterYear}
-        onYearChange={handleYearChange}
-      />
+      {/* Jahresfilter */}
+      {availableYears.length > 0 && (
+        <div className="flex justify-end">
+          <Select value={filterYear ?? 'all'} onValueChange={handleYearChange}>
+            <SelectTrigger className="w-36">
+              <SelectValue>{filterYear ?? 'Alle Jahre'}</SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Alle Jahre</SelectItem>
+              {availableYears.map(y => (
+                <SelectItem key={y} value={y}>{y}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
 
       {/* Erklär-Box */}
       <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 px-4 py-3 text-sm space-y-1">
@@ -251,7 +260,6 @@ export default function HrCurvePage() {
             ))}
           </div>
 
-          {/* Erklärtext der angeklickten Kachel */}
           {hoveredIdx !== null && (
             <div className="rounded-lg border bg-card px-4 py-3 text-sm text-foreground">
               <span className="font-medium">{points[hoveredIdx].label} — {points[hoveredIdx].ctx.short}:</span>{' '}
@@ -458,7 +466,6 @@ export default function HrCurvePage() {
                         label={{ value: 'Schwelle', position: 'insideTopRight', fontSize: 10, fill: '#f97316' }}
                       />
                     )}
-                    {/* Monatliche Ø-HR – grau, dünn */}
                     <Line
                       dataKey="avg_hr"
                       type="monotone"
@@ -468,7 +475,6 @@ export default function HrCurvePage() {
                       activeDot={{ r: 4 }}
                       legendType="none"
                     />
-                    {/* 3-Monats-gleitender Durchschnitt – rot, dick */}
                     <Line
                       dataKey="rolling_avg"
                       type="monotone"
@@ -477,7 +483,6 @@ export default function HrCurvePage() {
                       dot={false}
                       legendType="none"
                     />
-                    {/* Lineare Regressionslinie – gestrichelt, gelb */}
                     <Line
                       dataKey="trend_line"
                       type="monotone"
@@ -502,6 +507,414 @@ export default function HrCurvePage() {
           )}
         </>
       ) : null}
+    </div>
+  );
+}
+
+// ─── Aerobe Effizienz Tab ─────────────────────────────────────────────────────
+
+const EFF_PALETTE = ['#60a5fa', '#4ade80', '#fb923c', '#c084fc', '#facc15', '#f472b6'];
+
+interface SpeedHrPoint {
+  year: number;
+  month: string;
+  speed_kmh: number;
+  hr: number;
+  dist_km: number;
+}
+
+interface SpeedMonthAgg {
+  month: string;
+  label: string;
+  avgSpeed: number;
+  avgHr: number;
+  eff: number;
+  count: number;
+  year: number;
+}
+
+interface SpeedYearAgg {
+  year: number;
+  avgSpeed: number;
+  avgHr: number;
+  eff: number;
+  count: number;
+}
+
+function effLinePath(pts: { x: number; y: number }[]): string {
+  if (!pts.length) return '';
+  let d = `M${pts[0].x.toFixed(1)},${pts[0].y.toFixed(1)}`;
+  for (let i = 1; i < pts.length; i++) {
+    const prev = pts[i - 1], cur = pts[i];
+    const cpx = (prev.x + cur.x) / 2;
+    d += ` C${cpx.toFixed(1)},${prev.y.toFixed(1)} ${cpx.toFixed(1)},${cur.y.toFixed(1)} ${cur.x.toFixed(1)},${cur.y.toFixed(1)}`;
+  }
+  return d;
+}
+
+function effAreaPath(pts: { x: number; y: number }[], baseY: number): string {
+  if (!pts.length) return '';
+  const line = effLinePath(pts);
+  const last = pts[pts.length - 1];
+  const first = pts[0];
+  return `${line} L${last.x.toFixed(1)},${baseY.toFixed(1)} L${first.x.toFixed(1)},${baseY.toFixed(1)} Z`;
+}
+
+function EffizienzTab() {
+  const EFF_W = 900, EFF_H = 220;
+  const EFF_PAD = { top: 20, right: 20, bottom: 40, left: 44 };
+  const EFF_CW = EFF_W - EFF_PAD.left - EFF_PAD.right;
+  const EFF_CH = EFF_H - EFF_PAD.top - EFF_PAD.bottom;
+
+  const [allPoints, setAllPoints] = useState<SpeedHrPoint[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [hoverIdx, setHoverIdx] = useState<number | null>(null);
+  const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
+
+  useEffect(() => {
+    api.speedHr()
+      .then(res => setAllPoints(res.points.filter(p => p.year >= 2020)))
+      .catch(e => setError(e instanceof Error ? e.message : 'Fehler'))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const years = [...new Set(allPoints.map(p => p.year))].sort();
+
+  function yearColor(year: number): string {
+    return EFF_PALETTE[years.indexOf(year) % EFF_PALETTE.length];
+  }
+
+  const monthly: SpeedMonthAgg[] = (() => {
+    const groups: Record<string, SpeedHrPoint[]> = {};
+    allPoints.forEach(p => { (groups[p.month] ??= []).push(p); });
+    return Object.entries(groups)
+      .filter(([, pts]) => pts.length >= 2)
+      .map(([month, pts]) => {
+        const avgSpeed = pts.reduce((s, p) => s + p.speed_kmh, 0) / pts.length;
+        const avgHr = pts.reduce((s, p) => s + p.hr, 0) / pts.length;
+        const [y, m] = month.split('-');
+        const label = new Date(Number(y), Number(m) - 1, 1).toLocaleDateString('de-DE', {
+          month: 'short', year: '2-digit',
+        });
+        return { month, label, avgSpeed, avgHr, eff: avgSpeed / avgHr * 100, count: pts.length, year: Number(y) };
+      })
+      .sort((a, b) => a.month.localeCompare(b.month));
+  })();
+
+  const yearlyAgg: SpeedYearAgg[] = years.map(y => {
+    const pts = allPoints.filter(p => p.year === y);
+    const avgSpeed = pts.reduce((s, p) => s + p.speed_kmh, 0) / pts.length;
+    const avgHr = pts.reduce((s, p) => s + p.hr, 0) / pts.length;
+    return { year: y, avgSpeed, avgHr, eff: avgSpeed / avgHr * 100, count: pts.length };
+  });
+
+  const insight: string = (() => {
+    if (yearlyAgg.length < 2) return '';
+    const cur = yearlyAgg[yearlyAgg.length - 1];
+    const prev = yearlyAgg[yearlyAgg.length - 2];
+    const dS = cur.avgSpeed - prev.avgSpeed;
+    const dH = cur.avgHr - prev.avgHr;
+    const dE = cur.eff - prev.eff;
+    const sDir = dS >= 0.2 ? `${dS.toFixed(1)} km/h schneller` : dS <= -0.2 ? `${Math.abs(dS).toFixed(1)} km/h langsamer` : 'gleich schnell';
+    const hDir = dH <= -1 ? `bei ${Math.abs(dH).toFixed(0)} bpm niedrigerem Puls` : dH >= 1 ? `bei ${dH.toFixed(0)} bpm höherem Puls` : 'bei ähnlichem Puls';
+    if (dE >= 0.5) return `${cur.year} fährst du im Schnitt ${sDir} ${hDir} als ${prev.year} – deine aerobe Effizienz steigt.`;
+    if (dE <= -0.5) return `${cur.year} bist du ${sDir} ${hDir} als ${prev.year} – die Effizienz ist leicht gesunken.`;
+    return `${cur.year} und ${prev.year} liegen dicht beieinander – stabile Effizienz auf gutem Niveau.`;
+  })();
+
+  const effValues = monthly.map(m => m.eff);
+  const effMin = effValues.length ? Math.floor(Math.min(...effValues) - 1) : 14;
+  const effMax = effValues.length ? Math.ceil(Math.max(...effValues) + 1) : 22;
+  const effRange = effMax - effMin;
+
+  function xOf(i: number, n: number) { return EFF_PAD.left + (i / Math.max(n - 1, 1)) * EFF_CW; }
+  function yOf(v: number) { return EFF_PAD.top + EFF_CH - ((v - effMin) / effRange) * EFF_CH; }
+
+  const chartPoints = monthly.map((d, i) => ({ x: xOf(i, monthly.length), y: yOf(d.eff) }));
+
+  const xLabels: { x: number; label: string; year: number }[] = [];
+  {
+    let lastYear = -1;
+    monthly.forEach((d, i) => {
+      if (d.year !== lastYear) {
+        xLabels.push({ x: xOf(i, monthly.length), label: String(d.year), year: d.year });
+        lastYear = d.year;
+      }
+    });
+  }
+
+  const yTicks: number[] = [];
+  const tickStep = effRange > 6 ? 2 : 1;
+  for (let v = Math.ceil(effMin); v <= effMax; v += tickStep) yTicks.push(v);
+
+  return (
+    <div className="space-y-6">
+      {error && (
+        <div className="rounded border border-destructive/50 bg-destructive/10 p-4 text-destructive text-sm">
+          {error}
+        </div>
+      )}
+
+      {loading ? (
+        <div className="h-64 rounded-xl bg-muted animate-pulse" />
+      ) : allPoints.length ? (
+        <>
+          {insight && (
+            <div className="rounded-xl bg-primary/10 border border-primary/20 px-5 py-3">
+              <p className="text-sm" style={{ color: '#fb923c' }}>{insight}</p>
+            </div>
+          )}
+
+          <div className="rounded-xl border bg-card shadow-sm p-5">
+            <div className="flex items-center justify-between mb-1">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Effizienz pro Monat</p>
+              <p className="text-xs text-muted-foreground/50">= Ø km/h ÷ Ø bpm × 100 · mindestens 2 Rides</p>
+            </div>
+
+            <div
+              className="relative"
+              onMouseMove={e => {
+                if (!monthly.length) return;
+                const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                const svgX = (e.clientX - rect.left) / rect.width * EFF_W;
+                const raw = (svgX - EFF_PAD.left) / EFF_CW * (monthly.length - 1);
+                setHoverIdx(Math.max(0, Math.min(monthly.length - 1, Math.round(raw))));
+                setTooltipPos({ x: e.clientX, y: e.clientY });
+              }}
+              onMouseLeave={() => setHoverIdx(null)}
+            >
+              <svg viewBox={`0 0 ${EFF_W} ${EFF_H}`} className="w-full" style={{ height: EFF_H }}>
+                <defs>
+                  <linearGradient id="effGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#fb923c" stopOpacity={0.6} />
+                    <stop offset="100%" stopColor="#fb923c" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+
+                {yTicks.map(v => (
+                  <g key={v}>
+                    <line
+                      x1={EFF_PAD.left} y1={yOf(v)}
+                      x2={EFF_W - EFF_PAD.right} y2={yOf(v)}
+                      stroke="hsl(var(--border))" strokeWidth={0.7}
+                    />
+                    <text x={EFF_PAD.left - 6} y={yOf(v) + 4} fontSize={11}
+                      fill="hsl(var(--muted-foreground))" textAnchor="end">
+                      {v}
+                    </text>
+                  </g>
+                ))}
+
+                {xLabels.map((lbl, li) => {
+                  const nextX = li + 1 < xLabels.length ? xLabels[li + 1].x : EFF_W - EFF_PAD.right;
+                  const col = yearColor(lbl.year);
+                  return (
+                    <g key={lbl.year}>
+                      <rect x={lbl.x} y={EFF_PAD.top} width={nextX - lbl.x} height={EFF_CH}
+                        fill={col} fillOpacity={0.04} />
+                      <line x1={lbl.x} y1={EFF_PAD.top} x2={lbl.x} y2={EFF_PAD.top + EFF_CH}
+                        stroke={col} strokeWidth={1} strokeOpacity={0.25} />
+                      <text x={lbl.x + 6} y={EFF_PAD.top + 13} fontSize={11} fontWeight={600}
+                        fill={col} fillOpacity={0.7}>
+                        {lbl.label}
+                      </text>
+                    </g>
+                  );
+                })}
+
+                <path d={effAreaPath(chartPoints, EFF_PAD.top + EFF_CH)} fill="url(#effGrad)" opacity={0.35} />
+                <path d={effLinePath(chartPoints)} fill="none" stroke="#fb923c" strokeWidth={2.5} strokeLinejoin="round" />
+
+                {monthly.map((d, i) => {
+                  const cx = xOf(i, monthly.length);
+                  const cy = yOf(d.eff);
+                  const active = hoverIdx === i;
+                  return (
+                    <circle
+                      key={i}
+                      cx={cx} cy={cy}
+                      r={active ? 5 : 3}
+                      fill={active ? '#fb923c' : yearColor(d.year)}
+                      fillOpacity={active ? 1 : 0.5}
+                      stroke={active ? 'white' : 'none'}
+                      strokeWidth={1.5}
+                    />
+                  );
+                })}
+
+                {hoverIdx !== null && (
+                  <line
+                    x1={xOf(hoverIdx, monthly.length)} y1={EFF_PAD.top}
+                    x2={xOf(hoverIdx, monthly.length)} y2={EFF_PAD.top + EFF_CH}
+                    stroke="white" strokeWidth={1} opacity={0.2}
+                  />
+                )}
+
+                <line
+                  x1={EFF_PAD.left} y1={EFF_PAD.top + EFF_CH}
+                  x2={EFF_W - EFF_PAD.right} y2={EFF_PAD.top + EFF_CH}
+                  stroke="hsl(var(--border))" strokeWidth={1}
+                />
+
+                {xLabels.map(lbl => (
+                  <text
+                    key={lbl.year}
+                    x={lbl.x} y={EFF_H - 8}
+                    fontSize={11} fill={yearColor(lbl.year)}
+                    textAnchor="middle" fontWeight={600}
+                  >
+                    {lbl.label}
+                  </text>
+                ))}
+
+                <text
+                  x={12} y={EFF_PAD.top + EFF_CH / 2}
+                  fontSize={10} fill="hsl(var(--muted-foreground))"
+                  textAnchor="middle"
+                  transform={`rotate(-90, 12, ${EFF_PAD.top + EFF_CH / 2})`}
+                >
+                  Effizienz
+                </text>
+              </svg>
+            </div>
+          </div>
+
+          {/* Jahreskarten */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {yearlyAgg.map((s, i) => {
+              const col = yearColor(s.year);
+              const prev = i > 0 ? yearlyAgg[i - 1] : null;
+              const dS = prev ? s.avgSpeed - prev.avgSpeed : null;
+              const dH = prev ? s.avgHr - prev.avgHr : null;
+              const dE = prev ? s.eff - prev.eff : null;
+
+              return (
+                <div
+                  key={s.year}
+                  className="rounded-xl p-4 border"
+                  style={{ borderColor: `${col}33`, background: `${col}0d` }}
+                >
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-sm font-bold" style={{ color: col }}>{s.year}</span>
+                    <span className="text-xs text-muted-foreground">{s.count} Rides</span>
+                  </div>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between items-baseline">
+                      <span className="text-muted-foreground text-xs">Ø Speed</span>
+                      <span className="font-semibold text-foreground">
+                        {s.avgSpeed.toFixed(1)}{' '}
+                        <span className="text-xs font-normal text-muted-foreground">km/h</span>{' '}
+                        {dS !== null && (
+                          <span className={`text-xs ${Math.abs(dS) < 0.2 ? 'text-muted-foreground/40' : dS > 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                            {dS > 0 ? '+' : ''}{dS.toFixed(1)}
+                          </span>
+                        )}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-baseline">
+                      <span className="text-muted-foreground text-xs">Ø HR</span>
+                      <span className="font-semibold text-foreground">
+                        {s.avgHr.toFixed(0)}{' '}
+                        <span className="text-xs font-normal text-muted-foreground">bpm</span>{' '}
+                        {dH !== null && (
+                          <span className={`text-xs ${Math.abs(dH) < 0.5 ? 'text-muted-foreground/40' : dH < 0 ? 'text-emerald-400' : 'text-orange-400'}`}>
+                            {dH > 0 ? '+' : ''}{dH.toFixed(1)}
+                          </span>
+                        )}
+                      </span>
+                    </div>
+                    <div className="border-t border-border/50 pt-2 flex justify-between items-baseline">
+                      <span className="text-muted-foreground text-xs">Effizienz</span>
+                      <span className="font-bold" style={{ color: col }}>
+                        {s.eff.toFixed(1)}{' '}
+                        {dE !== null && (
+                          <span className={`text-xs font-normal ${Math.abs(dE) < 0.2 ? 'text-muted-foreground/40' : dE > 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                            {dE > 0 ? '+' : ''}{dE.toFixed(1)}
+                          </span>
+                        )}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Erklärung */}
+          <div className="rounded-xl border bg-card shadow-sm px-5 py-4 text-sm text-muted-foreground space-y-1">
+            <p className="text-foreground font-medium">Was ist die Effizienz-Zahl?</p>
+            <p>
+              <span className="font-mono text-xs bg-muted px-1.5 py-0.5 rounded text-orange-400">
+                Effizienz = Ø km/h ÷ Ø bpm × 100
+              </span>{' '}
+              – je höher, desto mehr Geschwindigkeit bekommst du pro Herzschlag.
+            </p>
+            <p>
+              Ein Anstieg bedeutet: dein Herz-Kreislauf-System wird ökonomischer.
+              Die Kurve kann trotz weniger Training steigen (bessere Erholung, leichtere Strecken) –
+              deshalb immer zusammen mit den Volumen-Daten betrachten.
+            </p>
+          </div>
+        </>
+      ) : (
+        <p className="text-muted-foreground text-sm">Keine Daten mit HR + Geschwindigkeit gefunden.</p>
+      )}
+
+      {hoverIdx !== null && monthly[hoverIdx] && (() => {
+        const d = monthly[hoverIdx];
+        return (
+          <div
+            className="fixed z-50 pointer-events-none rounded-lg bg-card/95 border border-border px-3 py-2.5 text-xs shadow-xl"
+            style={{ left: tooltipPos.x + 14, top: tooltipPos.y - 80, minWidth: 160 }}
+          >
+            <p className="font-semibold text-foreground mb-2">{d.label} · {d.count} Rides</p>
+            <div className="space-y-1">
+              <div className="flex justify-between gap-4">
+                <span className="text-muted-foreground">Ø Speed</span>
+                <span className="text-foreground font-mono">{d.avgSpeed.toFixed(1)} km/h</span>
+              </div>
+              <div className="flex justify-between gap-4">
+                <span className="text-muted-foreground">Ø HR</span>
+                <span className="text-foreground font-mono">{d.avgHr.toFixed(0)} bpm</span>
+              </div>
+              <div className="flex justify-between gap-4 pt-1.5 border-t border-border/50">
+                <span className="text-orange-400">Effizienz</span>
+                <span className="text-orange-300 font-mono font-bold">{d.eff.toFixed(2)}</span>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+    </div>
+  );
+}
+
+// ─── Container ────────────────────────────────────────────────────────────────
+
+export default function HrCurvePage() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tab = searchParams.get('tab') ?? 'kurve';
+
+  return (
+    <div className="space-y-6">
+      <PageHeader
+        title="HR-Analyse"
+        subtitle="Herzfrequenz-Kurve und aerobe Effizienz"
+      />
+
+      <Tabs value={tab} onValueChange={t => setSearchParams({ tab: t }, { replace: true })}>
+        <TabsList>
+          <TabsTrigger value="kurve">HR-Kurve</TabsTrigger>
+          <TabsTrigger value="effizienz">Aerobe Effizienz</TabsTrigger>
+        </TabsList>
+        <TabsContent value="kurve" className="mt-6">
+          <HrKurveTab />
+        </TabsContent>
+        <TabsContent value="effizienz" className="mt-6">
+          <EffizienzTab />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
