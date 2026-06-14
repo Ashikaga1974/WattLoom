@@ -26,7 +26,7 @@ Lokale Web-App zur Analyse von Strava-Exportdaten. Kein Strava-API-Zugriff nöti
 | **Wetter & Leistung** | Ø-Speed nach Temperatur-Buckets, Wind-Impact-Chart; Wetterdaten via Open-Meteo (abrufbar per Knopfdruck) |
 | **Formkurve (PMC)** | CTL/ATL/TSB nach Trainingstagebuch-Methodik, hrTSS, 28-Tage-CTL-Trend, Ride- und Workout-Marker, Einschätzungs-Banner |
 | **Bestzeiten** | Rekorde und Top-Leistungen |
-| **Bikes** | 2 Tabs: Übersicht (Kennzahlen je Bike, Verschleiß-Tracker mit Fortschrittsbalken je Komponente) · Vergleich (km, Speed, Höhenmeter, Jahresverlauf, Distanzhistogramm) |
+| **Bikes** | 2 Tabs: Übersicht (Foto-Thumbnail, Kennzahlen, Verschleiß-Tracker mit Fortschrittsbalken, geschätztem Wartungsdatum, Hersteller, Preis, Bestelllink, Inline-Edit, Inaktiv-Schalter) · Vergleich (km, Speed, Höhenmeter, Jahresverlauf, Distanzhistogramm) |
 | **Workout-Detail** | Detailansicht je Workout: Sport-Hero, 4 KPI-Kacheln, SVG-Intensitätsgauge (Ø HR / Max HR), Verlaufschart, Ø-Vergleich |
 | **Wochentag-Analyse** | Werktag (Mo–Fr) vs. Wochenende (Sa–So): Duell-Karte mit Gewinner-Indikatoren, Rides/Wochentag-Balken, Monatsverlauf |
 | **Top-Strecken** | Greedy-Clustering aller Rides (2 km Startradius, ±10 % Distanz), Zeitchart mit PR-Markierung, Trend, Karte |
@@ -230,8 +230,16 @@ GET  /weather/status
 POST /weather/fetch-all             → Wetterdaten für alle Aktivitäten via Open-Meteo (Background-Job)
 
 GET  /bikes
-GET  /bikes/{id}
+GET  /bikes/{id}                   → inkl. current_km, components (km_since_service, pct_used, estimated_service_date)
+PUT  /bikes/{id}                   → { name } Bikenamen umbenennen
 GET  /bikes/compare
+PUT  /bikes/{id}/toggle-retired    → aktiv ↔ inaktiv
+GET  /bikes/{id}/image
+POST /bikes/{id}/image             → Foto hochladen (multipart)
+POST /bikes/{id}/components        → Komponente hinzufügen (brand, price, purchase_url, installed_at)
+PUT  /bikes/{id}/components/{cid}  → Komponente editieren
+PUT  /bikes/{id}/components/{cid}/retire → Komponente inaktiv schalten
+DELETE /bikes/{id}/components/{cid}
 GET  /tracks/heatmap                ?simplify, year
 GET  /settings
 POST /settings

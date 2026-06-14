@@ -72,10 +72,46 @@ function ComponentRow({
   const pct = comp.pct_used ?? 0;
   const color = wearColor(pct);
   const [busy, setBusy] = useState(false);
+  const [editing, setEditing] = useState(false);
 
-  async function handleReset() {
+  // Edit-State
+  const [editType, setEditType] = useState(comp.type);
+  const [editBrand, setEditBrand] = useState(comp.brand ?? '');
+  const [editPrice, setEditPrice] = useState(comp.price != null ? String(comp.price) : '');
+  const [editUrl, setEditUrl] = useState(comp.purchase_url ?? '');
+  const [editThreshold, setEditThreshold] = useState(comp.km_threshold ?? 2000);
+  const [editDate, setEditDate] = useState(comp.added_at ?? new Date().toISOString().slice(0, 10));
+
+  function openEdit() {
+    setEditType(comp.type);
+    setEditBrand(comp.brand ?? '');
+    setEditPrice(comp.price != null ? String(comp.price) : '');
+    setEditUrl(comp.purchase_url ?? '');
+    setEditThreshold(comp.km_threshold ?? 2000);
+    setEditDate(comp.added_at ?? new Date().toISOString().slice(0, 10));
+    setEditing(true);
+  }
+
+  async function handleSave() {
     setBusy(true);
-    try { await api.resetBikeComponent(bikeId, comp.id); onChanged(); }
+    try {
+      await api.updateBikeComponent(bikeId, comp.id, {
+        type: editType,
+        km_threshold: editThreshold,
+        brand: editBrand.trim() || undefined,
+        price: editPrice !== '' ? parseFloat(editPrice) : undefined,
+        purchase_url: editUrl.trim() || undefined,
+        installed_at: editDate,
+      });
+      setEditing(false);
+      onChanged();
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function handleRetire() {
+    setBusy(true);
+    try { await api.retireBikeComponent(bikeId, comp.id); onChanged(); }
     finally { setBusy(false); }
   }
   async function handleDelete() {
@@ -88,12 +124,64 @@ function ComponentRow({
     ? new Date(comp.added_at + 'T00:00:00').toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })
     : null;
 
+  const inputCls = "text-xs rounded border border-border bg-background px-2 py-0.5 focus:outline-none";
+
+  if (editing) {
+    return (
+      <div className="space-y-1.5 py-1 border-l-2 pl-2" style={{ borderColor: 'var(--primary)' }}>
+        <div className="flex flex-wrap gap-1.5">
+          <select value={editType} onChange={e => setEditType(e.target.value)} className={inputCls}>
+            {COMPONENT_TYPES.map(c => <option key={c.type} value={c.type}>{c.type}</option>)}
+          </select>
+          <input type="text" value={editBrand} onChange={e => setEditBrand(e.target.value)}
+            placeholder="Hersteller" className={`${inputCls} w-24`} />
+          <input type="number" value={editPrice} onChange={e => setEditPrice(e.target.value)}
+            placeholder="Preis €" className={`${inputCls} w-16`} min={0} step={0.01} />
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          <input type="url" value={editUrl} onChange={e => setEditUrl(e.target.value)}
+            placeholder="Bestelllink" className={`${inputCls} w-52`} />
+        </div>
+        <div className="flex flex-wrap items-center gap-1.5">
+          <input type="number" value={editThreshold} onChange={e => setEditThreshold(Number(e.target.value))}
+            className={`${inputCls} w-20`} min={100} step={100} />
+          <span className="text-[10px] text-muted-foreground">km</span>
+          <span className="text-[10px] text-muted-foreground">·</span>
+          <input type="date" value={editDate} onChange={e => setEditDate(e.target.value)} className={inputCls} />
+        </div>
+        <div className="flex gap-2">
+          <button onClick={handleSave} disabled={busy}
+            className="text-[10px] px-2 py-0.5 rounded font-medium disabled:opacity-40"
+            style={{ background: 'var(--primary)', color: 'var(--primary-foreground)' }}>
+            Speichern
+          </button>
+          <button onClick={() => setEditing(false)}
+            className="text-[10px] text-muted-foreground hover:underline">
+            Abbrechen
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex items-center gap-2">
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between mb-0.5">
-          <div className="flex items-center gap-1.5 min-w-0">
+          <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
             <span className="text-xs font-medium truncate">{comp.type}</span>
+            {comp.brand && (
+              <span className="text-[10px] text-muted-foreground shrink-0">{comp.brand}</span>
+            )}
+            {comp.price != null && (
+              <span className="text-[10px] text-muted-foreground shrink-0">{fmtNum(comp.price, 2)} €</span>
+            )}
+            {comp.purchase_url && (
+              <a href={comp.purchase_url} target="_blank" rel="noopener noreferrer"
+                className="text-[10px] text-primary hover:underline shrink-0" title="Bestelllink öffnen">
+                ↗ Link
+              </a>
+            )}
             {installedLabel && (
               <span className="text-[10px] text-muted-foreground shrink-0">seit {installedLabel}</span>
             )}
@@ -103,29 +191,33 @@ function ComponentRow({
           </span>
         </div>
         <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-          <div
-            className="h-full rounded-full transition-all duration-500"
-            style={{ width: `${Math.min(pct, 100)}%`, background: color }}
-          />
+          <div className="h-full rounded-full transition-all duration-500"
+            style={{ width: `${Math.min(pct, 100)}%`, background: color }} />
         </div>
-        {pct >= 100 && (
-          <p className="text-[10px] mt-0.5 font-semibold" style={{ color }}>Wartung fällig!</p>
-        )}
+        <div className="flex items-center justify-between mt-0.5 min-h-[14px]">
+          {pct >= 100
+            ? <p className="text-[10px] font-semibold" style={{ color }}>Wartung fällig!</p>
+            : comp.estimated_service_date
+              ? <p className="text-[10px] text-muted-foreground">
+                  ca. {new Date(comp.estimated_service_date + 'T00:00:00').toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                </p>
+              : <span />
+          }
+        </div>
       </div>
-      <button
-        onClick={handleReset}
-        disabled={busy}
+      <button onClick={openEdit} disabled={busy}
         className="text-[10px] px-2 py-0.5 rounded border border-border hover:bg-muted shrink-0 disabled:opacity-40"
-        title="Als gewartet markieren"
-      >
-        Gewartet
+        title="Bearbeiten">
+        ✎
       </button>
-      <button
-        onClick={handleDelete}
-        disabled={busy}
+      <button onClick={handleRetire} disabled={busy}
+        className="text-[10px] px-2 py-0.5 rounded border border-border hover:bg-muted text-muted-foreground shrink-0 disabled:opacity-40"
+        title="Komponente inaktiv schalten">
+        Inaktiv
+      </button>
+      <button onClick={handleDelete} disabled={busy}
         className="text-muted-foreground hover:text-destructive shrink-0 text-base leading-none disabled:opacity-40 px-0.5"
-        title="Komponente entfernen"
-      >
+        title="Komponente entfernen">
         ×
       </button>
     </div>
@@ -136,6 +228,9 @@ function AddComponentForm({ bikeId, onAdded }: { bikeId: string; onAdded: () => 
   const [open, setOpen] = useState(false);
   const [selectedType, setSelectedType] = useState(COMPONENT_TYPES[0].type);
   const [threshold, setThreshold] = useState(COMPONENT_TYPES[0].threshold);
+  const [brand, setBrand] = useState('');
+  const [price, setPrice] = useState('');
+  const [purchaseUrl, setPurchaseUrl] = useState('');
   const [installedAt, setInstalledAt] = useState(new Date().toISOString().slice(0, 10));
   const [busy, setBusy] = useState(false);
 
@@ -151,9 +246,15 @@ function AddComponentForm({ bikeId, onAdded }: { bikeId: string; onAdded: () => 
       await api.addBikeComponent(bikeId, {
         type: selectedType,
         km_threshold: threshold,
+        brand: brand.trim() || undefined,
+        price: price !== '' ? parseFloat(price) : undefined,
+        purchase_url: purchaseUrl.trim() || undefined,
         installed_at: installedAt,
       });
       setOpen(false);
+      setBrand('');
+      setPrice('');
+      setPurchaseUrl('');
       onAdded();
     } finally {
       setBusy(false);
@@ -168,36 +269,66 @@ function AddComponentForm({ bikeId, onAdded }: { bikeId: string; onAdded: () => 
     );
   }
 
+  const inputCls = "text-xs rounded border border-border bg-background px-2 py-1 focus:outline-none";
+
   return (
     <div className="space-y-2 pt-1">
       <div className="flex flex-wrap items-center gap-2">
         <select
           value={selectedType}
           onChange={e => handleTypeChange(e.target.value)}
-          className="text-xs rounded border border-border bg-background px-2 py-1 focus:outline-none"
+          className={inputCls}
         >
           {COMPONENT_TYPES.map(c => (
             <option key={c.type} value={c.type}>{c.type}</option>
           ))}
         </select>
         <input
+          type="text"
+          value={brand}
+          onChange={e => setBrand(e.target.value)}
+          placeholder="Hersteller"
+          className={`${inputCls} w-28`}
+        />
+        <input
+          type="number"
+          value={price}
+          onChange={e => setPrice(e.target.value)}
+          placeholder="Preis €"
+          className={`${inputCls} w-20 tabular-nums`}
+          min={0}
+          step={0.01}
+        />
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <input
+          type="url"
+          value={purchaseUrl}
+          onChange={e => setPurchaseUrl(e.target.value)}
+          placeholder="Bestelllink (optional)"
+          className={`${inputCls} w-56`}
+        />
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <input
           type="number"
           value={threshold}
           onChange={e => setThreshold(Number(e.target.value))}
-          className="text-xs rounded border border-border bg-background px-2 py-1 w-24 focus:outline-none tabular-nums"
+          className={`${inputCls} w-24 tabular-nums`}
           min={100}
           step={100}
         />
-        <span className="text-xs text-muted-foreground">km</span>
-      </div>
-      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-xs text-muted-foreground">km bis Wartung</span>
+        <span className="text-xs text-muted-foreground">·</span>
         <span className="text-xs text-muted-foreground">Eingebaut am</span>
         <input
           type="date"
           value={installedAt}
           onChange={e => setInstalledAt(e.target.value)}
-          className="text-xs rounded border border-border bg-background px-2 py-1 focus:outline-none"
+          className={inputCls}
         />
+      </div>
+      <div className="flex items-center gap-2">
         <button
           onClick={handleAdd}
           disabled={busy}
@@ -221,6 +352,7 @@ function UebersichtTab() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [editingName, setEditingName] = useState<{ bikeId: string; value: string } | null>(null);
 
   function reload() { setRefreshKey(k => k + 1); }
 
@@ -231,6 +363,13 @@ function UebersichtTab() {
 
   async function handleImageUpload(bikeId: string, file: File) {
     await api.uploadBikeImage(bikeId, file);
+    reload();
+  }
+
+  async function handleSaveName(bikeId: string, name: string) {
+    if (!name.trim()) { setEditingName(null); return; }
+    await api.updateBike(bikeId, name.trim());
+    setEditingName(null);
     reload();
   }
 
@@ -258,64 +397,87 @@ function UebersichtTab() {
     <div className="grid gap-4 md:grid-cols-2">
       {bikes.map(bike => (
         <Card key={bike.id} className="shadow-sm overflow-hidden">
-          {/* Bike-Bild */}
-          <div className="relative h-44 bg-muted/40 overflow-hidden">
-            {bike.image_filename ? (
-              <img
-                src={api.bikeImageUrl(bike.id)}
-                alt={bike.name}
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <div className="flex items-center justify-center h-full">
-                <span className="text-7xl opacity-20 select-none">🚴</span>
-              </div>
-            )}
-            {/* Foto-Upload-Button */}
-            <label className="absolute bottom-2 right-2 cursor-pointer">
-              <input
-                type="file"
-                accept="image/*"
-                className="sr-only"
-                onChange={e => {
-                  const f = e.target.files?.[0];
-                  if (f) handleImageUpload(bike.id, f);
-                  e.target.value = '';
-                }}
-              />
-              <span className="text-[11px] px-2 py-1 rounded bg-black/55 text-white hover:bg-black/75 transition-colors">
-                {bike.image_filename ? 'Foto ändern' : 'Foto hochladen'}
-              </span>
-            </label>
-          </div>
-
           <CardContent className="p-6 flex flex-col gap-4">
-            {/* Kopfzeile */}
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <h2 className="text-xl font-bold truncate">{bike.name}</h2>
-                {(bike.brand || bike.model) &&
-                  `${bike.brand ?? ''} ${bike.model ?? ''}`.trim() !== bike.name && (
-                    <p className="mt-0.5 text-sm text-muted-foreground">
-                      {[bike.brand, bike.model].filter(Boolean).join(' ')}
-                    </p>
-                  )}
-                {bike.description && (
-                  <p className="mt-1 text-sm text-muted-foreground">{bike.description}</p>
+            {/* Kopfzeile: Titel + Thumbnail + Toggle */}
+            <div className="flex items-start gap-4">
+              {/* Bike-Thumbnail */}
+              <div className="relative shrink-0 w-24 h-20 rounded-lg overflow-hidden bg-muted/40">
+                {bike.image_filename ? (
+                  <img
+                    src={api.bikeImageUrl(bike.id)}
+                    alt={bike.name}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="flex items-center justify-center h-full">
+                    <span className="text-3xl opacity-20 select-none">🚴</span>
+                  </div>
                 )}
+                {/* Foto-Upload-Button */}
+                <label className="absolute inset-0 flex items-end justify-center cursor-pointer opacity-0 hover:opacity-100 transition-opacity bg-black/30">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="sr-only"
+                    onChange={e => {
+                      const f = e.target.files?.[0];
+                      if (f) handleImageUpload(bike.id, f);
+                      e.target.value = '';
+                    }}
+                  />
+                  <span className="text-[9px] px-1.5 py-0.5 mb-1 rounded bg-black/70 text-white">
+                    {bike.image_filename ? 'Ändern' : 'Hochladen'}
+                  </span>
+                </label>
               </div>
-              {/* Aktiv/Inaktiv-Toggle */}
-              <button
-                onClick={() => handleToggleRetired(bike.id)}
-                className="shrink-0 text-xs px-2.5 py-1 rounded-full font-semibold transition-all border"
-                style={bike.retired
-                  ? { background: 'var(--muted)', color: 'var(--muted-foreground)', borderColor: 'var(--border)' }
-                  : { background: 'rgba(34,197,94,0.1)', color: '#22c55e', borderColor: 'rgba(34,197,94,0.3)' }
-                }
-                title="Klicken um Status zu wechseln"
-              >
-                {bike.retired ? 'Inaktiv' : '● Aktiv'}
-              </button>
+
+              {/* Name + Meta + Toggle */}
+              <div className="flex-1 min-w-0 flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  {editingName?.bikeId === bike.id ? (
+                    <input
+                      autoFocus
+                      value={editingName.value}
+                      onChange={e => setEditingName({ bikeId: bike.id, value: e.target.value })}
+                      onBlur={() => handleSaveName(bike.id, editingName.value)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') handleSaveName(bike.id, editingName.value);
+                        if (e.key === 'Escape') setEditingName(null);
+                      }}
+                      className="text-xl font-bold w-full rounded border border-primary bg-background px-1 focus:outline-none"
+                    />
+                  ) : (
+                    <h2
+                      className="text-xl font-bold truncate cursor-pointer hover:text-primary transition-colors"
+                      title="Klicken zum Bearbeiten"
+                      onClick={() => setEditingName({ bikeId: bike.id, value: bike.name })}
+                    >
+                      {bike.name}
+                    </h2>
+                  )}
+                  {(bike.brand || bike.model) &&
+                    `${bike.brand ?? ''} ${bike.model ?? ''}`.trim() !== bike.name && (
+                      <p className="mt-0.5 text-sm text-muted-foreground">
+                        {[bike.brand, bike.model].filter(Boolean).join(' ')}
+                      </p>
+                    )}
+                  {bike.description && (
+                    <p className="mt-1 text-sm text-muted-foreground">{bike.description}</p>
+                  )}
+                </div>
+                {/* Aktiv/Inaktiv-Toggle */}
+                <button
+                  onClick={() => handleToggleRetired(bike.id)}
+                  className="shrink-0 text-xs px-2.5 py-1 rounded-full font-semibold transition-all border"
+                  style={bike.retired
+                    ? { background: 'var(--muted)', color: 'var(--muted-foreground)', borderColor: 'var(--border)' }
+                    : { background: 'rgba(34,197,94,0.1)', color: '#22c55e', borderColor: 'rgba(34,197,94,0.3)' }
+                  }
+                  title="Klicken um Status zu wechseln"
+                >
+                  {bike.retired ? 'Inaktiv' : '● Aktiv'}
+                </button>
+              </div>
             </div>
 
             {/* Stats */}

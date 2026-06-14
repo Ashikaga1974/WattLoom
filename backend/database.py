@@ -215,6 +215,10 @@ def init_db() -> None:
             conn.execute("ALTER TABLE bike_components ADD COLUMN km_threshold REAL")
         if "km_at_service" not in comp_cols:
             conn.execute("ALTER TABLE bike_components ADD COLUMN km_at_service REAL DEFAULT 0")
+        if "price" not in comp_cols:
+            conn.execute("ALTER TABLE bike_components ADD COLUMN price REAL")
+        if "purchase_url" not in comp_cols:
+            conn.execute("ALTER TABLE bike_components ADD COLUMN purchase_url TEXT")
 
         # Migration: Bike-Bild
         bike_cols = [r[1] for r in conn.execute("PRAGMA table_info(bikes)").fetchall()]

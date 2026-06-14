@@ -11,8 +11,8 @@ init_db()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:4173"],
-    allow_methods=["GET", "POST", "DELETE", "PATCH"],
+    allow_origins=["http://localhost:5173", "http://localhost:5174", "http://localhost:4173"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH"],
     allow_headers=["*"],
 )
 

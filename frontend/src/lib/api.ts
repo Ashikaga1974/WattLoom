@@ -117,13 +117,14 @@ export interface BikeComponent {
   bike_id: string;
   type: string;
   brand: string | null;
-  model: string | null;
-  description: string | null;
+  price: number | null;
+  purchase_url: string | null;
   km_threshold: number | null;
   km_at_service: number;
   km_since_service: number;
   pct_used: number | null;
   added_at: string | null;
+  estimated_service_date: string | null;
 }
 
 export interface Bike {
@@ -693,8 +694,20 @@ export const api = {
     });
   },
 
-  addBikeComponent: (bikeId: string, data: { type: string; km_threshold: number; installed_at?: string }) =>
+  updateBike: (bikeId: string, name: string): Promise<{ ok: boolean }> =>
+    fetch(`${BASE}/bikes/${bikeId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) })
+      .then(r => { if (!r.ok) throw new Error(`Fehler ${r.status}`); return r.json(); }),
+
+  addBikeComponent: (bikeId: string, data: { type: string; km_threshold: number; brand?: string; price?: number; purchase_url?: string; installed_at?: string }) =>
     post<{ ok: boolean }>(`/bikes/${bikeId}/components`, data),
+
+  updateBikeComponent: (bikeId: string, compId: number, data: { type: string; km_threshold: number; brand?: string; price?: number; purchase_url?: string; installed_at?: string }) =>
+    fetch(`${BASE}/bikes/${bikeId}/components/${compId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })
+      .then(r => { if (!r.ok) throw new Error(`Fehler ${r.status}`); return r.json(); }),
+
+  retireBikeComponent: (bikeId: string, compId: number): Promise<{ ok: boolean }> =>
+    fetch(`${BASE}/bikes/${bikeId}/components/${compId}/retire`, { method: 'PUT' })
+      .then(r => { if (!r.ok) throw new Error(`Fehler ${r.status}`); return r.json(); }),
 
   resetBikeComponent: (bikeId: string, compId: number): Promise<{ ok: boolean }> =>
     fetch(`${BASE}/bikes/${bikeId}/components/${compId}/reset`, { method: 'PUT' })

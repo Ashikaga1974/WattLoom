@@ -1,5 +1,5 @@
 import uuid
-from datetime import date as Date
+from datetime import date as Date, timedelta
 from pathlib import Path
 
 from fastapi import APIRouter, File, HTTPException, UploadFile
@@ -22,22 +22,39 @@ def _current_bike_km(conn, bike_id: str) -> float:
     return round(float(row["km"]) if row else 0.0, 1)
 
 
-def _enrich_component(comp: dict, current_km: float) -> dict:
-    """Berechnet km_since_service und pct_used für eine Komponente."""
+def _enrich_component(comp: dict, current_km: float, avg_km_per_day: float | None) -> dict:
+    """Berechnet km_since_service, pct_used und geschätztes Wartungsdatum."""
     km_at = float(comp.get("km_at_service") or 0)
     threshold = comp.get("km_threshold")
     km_since = round(max(0.0, current_km - km_at), 1)
     pct = round(min(km_since / threshold * 100, 200), 1) if threshold and threshold > 0 else None
-    return {**comp, "km_since_service": km_since, "pct_used": pct}
+    estimated_date = None
+    if threshold and threshold > 0 and avg_km_per_day and avg_km_per_day > 0:
+        remaining_km = max(0.0, threshold - km_since)
+        days = remaining_km / avg_km_per_day
+        estimated_date = (Date.today() + timedelta(days=days)).isoformat()
+    return {**comp, "km_since_service": km_since, "pct_used": pct, "estimated_service_date": estimated_date}
 
 
 class ComponentCreate(BaseModel):
     type: str
     km_threshold: float
     brand: str | None = None
-    model: str | None = None
-    description: str | None = None
+    price: float | None = None
+    purchase_url: str | None = None
     installed_at: str | None = None   # ISO-Datum YYYY-MM-DD; fehlt → heute
+
+
+def _avg_km_per_day(conn, bike_id: str, days: int = 90) -> float | None:
+    """Durchschnittliche Tages-km des Bikes über die letzten `days` Tage."""
+    row = conn.execute(
+        """SELECT COALESCE(SUM(distance_m), 0) / 1000.0 AS km
+           FROM activities
+           WHERE bike_id = ? AND DATE(start_date) >= DATE('now', ?)""",
+        (bike_id, f"-{days} days"),
+    ).fetchone()
+    km = float(row["km"]) if row else 0.0
+    return round(km / days, 4) if km > 0 else None
 
 
 @router.get("")
@@ -56,12 +73,13 @@ def list_bikes():
             b = dict(bike)
             current_km = bike_km.get(bike["id"], 0.0)
             b["current_km"] = current_km
+            avg = _avg_km_per_day(conn, bike["id"])
 
             components = conn.execute(
                 "SELECT * FROM bike_components WHERE bike_id = ? AND retired_at IS NULL ORDER BY added_at",
                 (bike["id"],),
             ).fetchall()
-            b["components"] = [_enrich_component(dict(c), current_km) for c in components]
+            b["components"] = [_enrich_component(dict(c), current_km, avg) for c in components]
 
             b["ride_count"] = conn.execute(
                 "SELECT COUNT(*) FROM activities WHERE bike_id = ?", (bike["id"],)
@@ -215,7 +233,8 @@ def get_bike(bike_id: str):
             "SELECT * FROM bike_components WHERE bike_id = ? AND retired_at IS NULL ORDER BY added_at",
             (bike_id,),
         ).fetchall()
-        result["components"] = [_enrich_component(dict(c), current_km) for c in components]
+        avg = _avg_km_per_day(conn, bike_id)
+        result["components"] = [_enrich_component(dict(c), current_km, avg) for c in components]
         result["ride_count"] = conn.execute(
             "SELECT COUNT(*) FROM activities WHERE bike_id = ?", (bike_id,)
         ).fetchone()[0]
@@ -228,14 +247,20 @@ def add_component(bike_id: str, body: ComponentCreate):
         bike = conn.execute("SELECT id FROM bikes WHERE id = ?", (bike_id,)).fetchone()
         if bike is None:
             raise HTTPException(status_code=404, detail="Bike not found")
-        current_km = _current_bike_km(conn, bike_id)
         added_at = body.installed_at or Date.today().isoformat()
+        # Km-Stand des Bikes AN DEM Einbaudatum berechnen (nicht aktuell),
+        # damit km_since_service die seit dem Einbau gefahrenen km korrekt widerspiegelt.
+        row = conn.execute(
+            "SELECT COALESCE(SUM(distance_m), 0) / 1000.0 AS km FROM activities WHERE bike_id = ? AND DATE(start_date) <= ?",
+            (bike_id, added_at),
+        ).fetchone()
+        km_at_service = round(float(row["km"]) if row else 0.0, 1)
         conn.execute(
             """INSERT INTO bike_components
-               (bike_id, type, brand, model, description, km_threshold, km_at_service, added_at)
+               (bike_id, type, brand, price, purchase_url, km_threshold, km_at_service, added_at)
                VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
-            (bike_id, body.type, body.brand, body.model, body.description,
-             body.km_threshold, current_km, added_at),
+            (bike_id, body.type, body.brand, body.price, body.purchase_url,
+             body.km_threshold, km_at_service, added_at),
         )
         conn.commit()
         return {"ok": True}
@@ -254,6 +279,62 @@ def reset_component(bike_id: str, comp_id: int):
             raise HTTPException(status_code=404, detail="Component not found")
         conn.commit()
         return {"ok": True, "km_at_service": current_km}
+
+
+class BikeUpdate(BaseModel):
+    name: str
+
+
+@router.put("/{bike_id}")
+def update_bike(bike_id: str, body: BikeUpdate):
+    with db_connection() as conn:
+        rows = conn.execute(
+            "UPDATE bikes SET name = ? WHERE id = ?", (body.name.strip(), bike_id)
+        ).rowcount
+        if rows == 0:
+            raise HTTPException(status_code=404, detail="Bike not found")
+        conn.commit()
+        return {"ok": True}
+
+
+@router.put("/{bike_id}/components/{comp_id}")
+def update_component(bike_id: str, comp_id: int, body: ComponentCreate):
+    """Aktualisiert eine Komponente. Wenn installed_at geändert wird, wird km_at_service neu berechnet."""
+    with db_connection() as conn:
+        existing = conn.execute(
+            "SELECT * FROM bike_components WHERE id = ? AND bike_id = ?", (comp_id, bike_id)
+        ).fetchone()
+        if existing is None:
+            raise HTTPException(status_code=404, detail="Component not found")
+        added_at = body.installed_at or existing["added_at"] or Date.today().isoformat()
+        row = conn.execute(
+            "SELECT COALESCE(SUM(distance_m), 0) / 1000.0 AS km FROM activities WHERE bike_id = ? AND DATE(start_date) <= ?",
+            (bike_id, added_at),
+        ).fetchone()
+        km_at_service = round(float(row["km"]) if row else 0.0, 1)
+        conn.execute(
+            """UPDATE bike_components
+               SET type=?, brand=?, price=?, purchase_url=?, km_threshold=?, km_at_service=?, added_at=?
+               WHERE id=? AND bike_id=?""",
+            (body.type, body.brand, body.price, body.purchase_url,
+             body.km_threshold, km_at_service, added_at, comp_id, bike_id),
+        )
+        conn.commit()
+        return {"ok": True}
+
+
+@router.put("/{bike_id}/components/{comp_id}/retire")
+def retire_component(bike_id: str, comp_id: int):
+    """Schaltet eine Komponente inaktiv (setzt retired_at auf heute)."""
+    with db_connection() as conn:
+        rows = conn.execute(
+            "UPDATE bike_components SET retired_at = ? WHERE id = ? AND bike_id = ? AND retired_at IS NULL",
+            (Date.today().isoformat(), comp_id, bike_id),
+        ).rowcount
+        if rows == 0:
+            raise HTTPException(status_code=404, detail="Component not found or already retired")
+        conn.commit()
+        return {"ok": True}
 
 
 @router.delete("/{bike_id}/components/{comp_id}")
