@@ -1,6 +1,7 @@
 import math
 from fastapi import APIRouter, Query
 from backend.database import db_connection
+from backend.utils import haversine_km
 
 router = APIRouter(prefix="/analytics", tags=["analytics"])
 
@@ -694,14 +695,7 @@ def route_clusters(min_rides: int = Query(3)):
     DIST_TOLERANCE   = 0.10  # ±10 % Distanztoleranz
     WP_RADIUS_KM     = 3.0   # Wegpunkt-Radius für 25 %/50 %/75 %-Checks
 
-    def haversine(lat1, lon1, lat2, lon2):
-        R = 6371.0
-        dlat = math.radians(lat2 - lat1)
-        dlon = math.radians(lon2 - lon1)
-        a = (math.sin(dlat / 2) ** 2
-             + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2))
-             * math.sin(dlon / 2) ** 2)
-        return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+    haversine = haversine_km
 
     ph = ','.join('?' * len(RIDE_TYPES))
 

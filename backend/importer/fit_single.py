@@ -4,7 +4,6 @@ Erkennt anhand des Sport-Typs selbst, ob die Aktivität als Radfahrt (activities
 oder als sonstiges Workout (other_activities) gespeichert wird.
 """
 import io
-import math
 import sqlite3
 from datetime import datetime, timezone
 from typing import Any
@@ -12,6 +11,7 @@ from typing import Any
 import fitparse
 
 from backend.importer.fit import _SafeProcessor, _val, import_fit
+from backend.utils import haversine_m
 
 
 # Sportarten die als Radfahrt in activities landen
@@ -37,14 +37,6 @@ _SPORT_LABELS: dict[str, str] = {
     "fitness_equipment": "Fitness",
 }
 
-
-def haversine_m(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
-    R = 6_371_000.0
-    phi1, phi2 = math.radians(lat1), math.radians(lat2)
-    dphi = phi2 - phi1
-    dlam = math.radians(lon2 - lon1)
-    a = math.sin(dphi / 2) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(dlam / 2) ** 2
-    return 2.0 * R * math.asin(math.sqrt(max(0.0, min(1.0, a))))
 
 
 def import_single_fit(conn: sqlite3.Connection, fit_bytes: bytes, bike_id: str | None = None) -> dict:

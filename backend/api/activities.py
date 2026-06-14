@@ -1,19 +1,10 @@
-import math
 from pathlib import Path
 
 from fastapi import APIRouter, Query, HTTPException
 from backend.database import db_connection
+from backend.utils import haversine_km as _haversine_km
 
 MEDIA_DIR = Path(__file__).parent.parent.parent / "data" / "media"
-
-
-def _haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
-    R = 6371
-    lat1_r, lat2_r = math.radians(lat1), math.radians(lat2)
-    dlat = math.radians(lat2 - lat1)
-    dlon = math.radians(lon2 - lon1)
-    a = math.sin(dlat / 2) ** 2 + math.cos(lat1_r) * math.cos(lat2_r) * math.sin(dlon / 2) ** 2
-    return R * 2 * math.asin(math.sqrt(a))
 
 router = APIRouter(prefix="/activities", tags=["activities"])
 
