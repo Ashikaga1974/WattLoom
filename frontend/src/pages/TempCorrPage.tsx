@@ -55,9 +55,9 @@ function buildWindBuckets(pts: WindPt[]): WindBucket[] {
   return raw;
 }
 
-function WindTooltip({ active, payload, label }: { active?: boolean; payload?: any[]; label?: string }) {
+function WindTooltip({ active, payload, label }: { active?: boolean; payload?: { payload: WindBucket }[]; label?: string }) {
   if (!active || !payload?.length) return null;
-  const d = payload[0]?.payload as WindBucket;
+  const d = payload[0].payload;
   return (
     <div className="rounded-lg border border-border bg-background/95 px-3 py-2 text-sm shadow-md backdrop-blur">
       <p className="font-semibold mb-1.5">{label}</p>
@@ -121,9 +121,9 @@ function buildBuckets(pts: Pt[]): Bucket[] {
   return raw;
 }
 
-function MainTooltip({ active, payload, label }: { active?: boolean; payload?: any[]; label?: string }) {
+function MainTooltip({ active, payload, label }: { active?: boolean; payload?: { payload: Bucket }[]; label?: string }) {
   if (!active || !payload?.length) return null;
-  const d = payload[0]?.payload as Bucket;
+  const d = payload[0].payload;
   return (
     <div className="rounded-lg border border-border bg-background/95 px-3 py-2 text-sm shadow-md backdrop-blur">
       <p className="font-semibold mb-1.5">{label}</p>
@@ -136,12 +136,12 @@ function MainTooltip({ active, payload, label }: { active?: boolean; payload?: a
   );
 }
 
-function EffTooltip({ active, payload, label }: { active?: boolean; payload?: any[]; label?: string }) {
+function EffTooltip({ active, payload, label }: { active?: boolean; payload?: { value?: number }[]; label?: string }) {
   if (!active || !payload?.length) return null;
   return (
     <div className="rounded-lg border border-border bg-background/95 px-3 py-2 text-sm shadow-md backdrop-blur">
       <p className="font-semibold mb-1">{label}</p>
-      <p className="text-xs" style={{ color: 'var(--primary)' }}>Effizienz: {Number(payload[0]?.value).toFixed(2)}</p>
+      <p className="text-xs" style={{ color: 'var(--primary)' }}>Effizienz: {Number(payload[0].value).toFixed(2)}</p>
     </div>
   );
 }

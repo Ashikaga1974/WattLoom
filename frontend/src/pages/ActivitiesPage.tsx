@@ -87,9 +87,13 @@ export default function ActivitiesPage() {
   };
 
   async function loadMeta() {
-    const [s, b] = await Promise.all([api.activityStats(), api.bikes()]);
-    setAvailableYears(s.available_years);
-    setBikes(b);
+    try {
+      const [s, b] = await Promise.all([api.activityStats(), api.bikes()]);
+      setAvailableYears(s.available_years);
+      setBikes(b);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Filterdaten konnten nicht geladen werden');
+    }
   }
 
   async function load(newOffset = offset) {
@@ -128,9 +132,6 @@ export default function ActivitiesPage() {
     loadMeta().then(() => {
       load(0);
       loadWorkouts();
-    }).catch(() => {
-      setError('Fehler beim Laden der Filterdaten');
-      setLoading(false);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

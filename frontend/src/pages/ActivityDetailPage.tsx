@@ -11,7 +11,7 @@ import {
 } from 'recharts';
 
 import { api, type ActivityDetail, type TrackPoint, type ActivityZones, type SimilarActivity } from '@/lib/api';
-import { fmtKm, fmtTime, fmtDate, fmtSpeed } from '@/lib/format';
+import { fmtKm, fmtTime, fmtDate, fmtSpeed, fmtHm } from '@/lib/format';
 import { useConfig } from '@/lib/config-context';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -24,13 +24,6 @@ import type { SetHoverFn } from '@/components/LeafletMap';
 const LeafletMap = lazy(() => import('@/components/LeafletMap'));
 
 // --- Hilfsfunktionen ---
-
-function fmtHm(s: number): string {
-  const h = Math.floor(s / 3600);
-  const m = Math.floor((s % 3600) / 60);
-  const sec = s % 60;
-  return h > 0 ? `${h}h ${m}m` : `${m}m ${sec}s`;
-}
 
 function StatTile({
   label,
@@ -257,9 +250,9 @@ function SpeedChart({ points, onHover, activeDist }: { points: TrackPoint[]; onH
     origIdx: i,
   }));
 
-  const speeds = data.map(d => d.speed);
-  const minSpd = Math.min(...speeds);
-  const maxSpd = Math.max(...speeds);
+  // Loop statt Spread-Operator: bei vielen Track-Punkten würde ...speeds den Call-Stack sprengen
+  let minSpd = Infinity, maxSpd = -Infinity;
+  for (const d of data) { if (d.speed < minSpd) minSpd = d.speed; if (d.speed > maxSpd) maxSpd = d.speed; }
   const maxDist = data[data.length - 1].dist;
 
   // Max. 80 Gradient-Stops – mehr wäre DOM-Overhead ohne sichtbaren Gewinn

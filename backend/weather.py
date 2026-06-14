@@ -8,6 +8,8 @@ import json
 import urllib.parse
 import urllib.request
 from datetime import datetime, timezone
+
+from backend.utils import MS_TO_KMH
 from typing import Optional
 
 ARCHIVE_URL = "https://archive-api.open-meteo.com/v1/archive"
@@ -70,7 +72,7 @@ def fetch_weather(lat: float, lon: float, start_date_utc: str) -> Optional[dict]
 
     wind_kmh = safe(winds_kmh, idx)
     # Open-Meteo liefert km/h → intern als m/s speichern (einheitlich mit avg_speed_ms)
-    wind_ms = round(wind_kmh / 3.6, 2) if wind_kmh is not None else None
+    wind_ms = round(wind_kmh / MS_TO_KMH, 2) if wind_kmh is not None else None
 
     return {
         "temp_c": safe(temps, idx),

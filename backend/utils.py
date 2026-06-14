@@ -1,6 +1,7 @@
 import math
 
 _R_KM = 6_371.0
+MS_TO_KMH = 3.6
 
 
 def haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:

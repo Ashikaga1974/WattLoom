@@ -1,7 +1,7 @@
 import math
 from fastapi import APIRouter, Query
 from backend.database import db_connection
-from backend.utils import haversine_km
+from backend.utils import haversine_km, MS_TO_KMH
 
 router = APIRouter(prefix="/analytics", tags=["analytics"])
 
@@ -449,7 +449,7 @@ def get_wrapped(year: int = None, tz_offset: int = Query(None, ge=-14, le=14)):
             "id": fast_row["id"],
             "name": fast_row["name"],
             "date": fast_row["start_date_local"],
-            "avg_speed_kmh": round((fast_row["avg_speed_ms"] or 0) * 3.6, 1),
+            "avg_speed_kmh": round((fast_row["avg_speed_ms"] or 0) * MS_TO_KMH, 1),
             "distance_km": round((fast_row["distance_m"] or 0) / 1000, 1),
         } if fast_row else None
 
@@ -660,7 +660,7 @@ def best_by_distance():
             if row:
                 results.append({
                     'distance_km':        d_km,
-                    'best_speed_kmh':     round(row['avg_speed_ms'] * 3.6, 1),
+                    'best_speed_kmh':     round(row['avg_speed_ms'] * MS_TO_KMH, 1),
                     'best_time_s':        row['moving_time_s'],
                     'activity_id':        row['id'],
                     'activity_name':      row['name'],
@@ -1019,8 +1019,8 @@ def fatigue_index(year: int = Query(None)):
             "date":          r["date"],
             "dist_km":       round(r["dist_km"], 1),
             "fatigue_pct":   round(r["fatigue_pct"], 1),
-            "spd_h1_kmh":    round(r["spd_h1"] * 3.6, 1),
-            "spd_h2_kmh":    round(r["spd_h2"] * 3.6, 1),
+            "spd_h1_kmh":    round(r["spd_h1"] * MS_TO_KMH, 1),
+            "spd_h2_kmh":    round(r["spd_h2"] * MS_TO_KMH, 1),
             "wind_ms":       round(r["weather_wind_ms"], 1) if r["weather_wind_ms"] is not None else None,
             "wind_deg":      round(r["weather_wind_deg"]) if r["weather_wind_deg"] is not None else None,
             "headwind_ms":    round(hw, 2) if hw is not None else None,
@@ -1049,8 +1049,8 @@ def fatigue_index(year: int = Query(None)):
             "activity_name": r["name"],
             "date":          r["date"][:10] if r["date"] else None,
             "dist_km":       round(r["dist_km"], 1),
-            "spd_h1_kmh":    round(r["spd_h1"] * 3.6, 1),
-            "spd_h2_kmh":    round(r["spd_h2"] * 3.6, 1),
+            "spd_h1_kmh":    round(r["spd_h1"] * MS_TO_KMH, 1),
+            "spd_h2_kmh":    round(r["spd_h2"] * MS_TO_KMH, 1),
         }
 
     # --- Verteilung: 5%-Buckets von −50 bis +30 (Ermüdungen negativ, Steigerungen positiv) ---
@@ -1198,8 +1198,8 @@ def fatigue_index_track(activity_ids: str = Query(...)):
             "date":          r["date"],
             "dist_km":       round(r["dist_km"], 1),
             "fatigue_pct":   round(r["fatigue_pct"], 1),
-            "spd_h1_kmh":    round(r["spd_h1"] * 3.6, 1),
-            "spd_h2_kmh":    round(r["spd_h2"] * 3.6, 1),
+            "spd_h1_kmh":    round(r["spd_h1"] * MS_TO_KMH, 1),
+            "spd_h2_kmh":    round(r["spd_h2"] * MS_TO_KMH, 1),
         }
         for r in rows
     ]
@@ -1224,8 +1224,8 @@ def fatigue_index_track(activity_ids: str = Query(...)):
             "activity_name": r["name"],
             "date":          r["date"][:10] if r["date"] else None,
             "dist_km":       round(r["dist_km"], 1),
-            "spd_h1_kmh":    round(r["spd_h1"] * 3.6, 1),
-            "spd_h2_kmh":    round(r["spd_h2"] * 3.6, 1),
+            "spd_h1_kmh":    round(r["spd_h1"] * MS_TO_KMH, 1),
+            "spd_h2_kmh":    round(r["spd_h2"] * MS_TO_KMH, 1),
         }
 
     from collections import defaultdict
