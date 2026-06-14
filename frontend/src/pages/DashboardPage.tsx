@@ -15,6 +15,7 @@ import { fmtKm, fmtTime, fmtDate, fmtNum, fmtSpeed, fmtWeekday } from '@/lib/for
 import { useConfig } from '@/lib/config-context';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ChartTooltip } from '@/components/ui/chart-tooltip';
 
 const MONTHS = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
 const VOL_WEEKS = 8;
@@ -178,6 +179,22 @@ function HeroBanner({ activity, loading }: { activity: Activity | null; loading:
         </div>
       </div>
     </Link>
+  );
+}
+
+function DistanzSparkTooltip({ active, payload, label }: { active?: boolean; payload?: any[]; label?: string }) {
+  if (!active || !payload?.length) return null;
+  const d = payload[0]?.payload;
+  return (
+    <ChartTooltip
+      active={active}
+      label={label}
+      rows={[
+        { label: 'Distanz', value: `${d?.km ?? 0} km` },
+        { label: 'Rides', value: `${d?.count ?? 0}` },
+        ...(d?.hm > 0 ? [{ label: 'Höhenmeter', value: `${fmtNum(d.hm)} m` }] : []),
+      ]}
+    />
   );
 }
 
@@ -394,15 +411,7 @@ export default function DashboardPage() {
                   axisLine={false}
                   tickLine={false}
                 />
-                <Tooltip
-                  contentStyle={{
-                    background: 'var(--card)',
-                    border: '1px solid var(--border)',
-                    borderRadius: 8,
-                    fontSize: 12,
-                  }}
-                  formatter={(v: unknown) => [`${v} km`, 'Distanz']}
-                />
+                <Tooltip content={<DistanzSparkTooltip />} />
                 <Bar dataKey="km" fill="url(#barGrad)" radius={[4, 4, 0, 0]} maxBarSize={28} />
               </BarChart>
             </ResponsiveContainer>

@@ -7,13 +7,14 @@ import {
 } from '@/lib/api';
 import { PageHeader } from '@/components/ui/page-header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { ChartTooltip } from '@/components/ui/chart-tooltip';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
-  ReferenceLine, Cell, ResponsiveContainer,
+  ReferenceLine, Cell, ResponsiveContainer, ComposedChart, Line,
 } from 'recharts';
 import { fmtDate } from '@/lib/format';
 
@@ -120,78 +121,19 @@ interface CommonFatigueData {
   worst_ermuedung: FatigueRideDetail | null;
 }
 
-function StatsKacheln({ data }: { data: CommonFatigueData }) {
-  const avg = data.stats.avg_fatigue_pct;
+function HistoTooltip({ active, payload }: { active?: boolean; payload?: any[] }) {
+  if (!active || !payload?.length) return null;
+  const d = payload[0]?.payload;
+  const b: number = d?.bucket ?? 0;
+  const rangeLabel = `${b >= 0 ? '+' : ''}${b}% bis ${b + 5 >= 0 ? '+' : ''}${b + 5}%`;
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-      <Card className="shadow-sm border">
-        <CardContent className="px-4 py-3 space-y-1">
-          <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Ø Ermüdung</p>
-          {avg !== null ? (
-            <>
-              <p className={`text-2xl font-bold ${fatigueTextColor(avg)}`}>{fmtPct(avg)}</p>
-              <p className="text-[10px] text-muted-foreground">
-                {avg > 0 ? 'Im Schnitt Steigerung' : avg > -5 ? 'Fast kein Ermüdungseffekt' : 'Durchschnittliche Ermüdung'}
-              </p>
-            </>
-          ) : (
-            <p className="text-2xl font-bold text-muted-foreground">–</p>
-          )}
-        </CardContent>
-      </Card>
-
-      <Card className="shadow-sm border">
-        <CardContent className="px-4 py-3 space-y-1">
-          <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Steigerungen</p>
-          <p className="text-2xl font-bold text-blue-500">{data.stats.steigerung_count}</p>
-          <p className="text-[10px] text-muted-foreground">von {data.stats.rides_analyzed} Rides</p>
-          <div className="h-1.5 bg-muted rounded-full overflow-hidden mt-1">
-            <div
-              className="h-full bg-blue-500 rounded-full transition-all"
-              style={{ width: `${Math.round(data.stats.steigerung_count / data.stats.rides_analyzed * 100)}%` }}
-            />
-          </div>
-        </CardContent>
-      </Card>
-
-      {data.best_steigerung ? (
-        <Card className="shadow-sm" style={{ borderColor: 'rgba(59,130,246,0.25)', background: 'rgba(59,130,246,0.05)' }}>
-          <CardContent className="px-4 py-3 space-y-1">
-            <p className="text-[10px] uppercase tracking-wide text-blue-500">Beste Steigerung</p>
-            <p className="text-2xl font-bold text-blue-500">{fmtPct(data.best_steigerung.fatigue_pct)}</p>
-            <Link to={`/activities/${data.best_steigerung.activity_id}`} className="text-[10px] text-blue-400 hover:text-blue-300 truncate block transition-colors">
-              {data.best_steigerung.activity_name} · {fmtDate(data.best_steigerung.date)}
-            </Link>
-          </CardContent>
-        </Card>
-      ) : (
-        <Card className="shadow-sm border">
-          <CardContent className="px-4 py-3">
-            <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Beste Steigerung</p>
-            <p className="text-2xl font-bold text-muted-foreground">–</p>
-          </CardContent>
-        </Card>
-      )}
-
-      {data.worst_ermuedung ? (
-        <Card className="shadow-sm" style={{ borderColor: 'rgba(239,68,68,0.25)', background: 'rgba(239,68,68,0.05)' }}>
-          <CardContent className="px-4 py-3 space-y-1">
-            <p className="text-[10px] uppercase tracking-wide text-red-500">Größte Ermüdung</p>
-            <p className="text-2xl font-bold text-red-500">{data.worst_ermuedung.fatigue_pct.toFixed(1)}%</p>
-            <Link to={`/activities/${data.worst_ermuedung.activity_id}`} className="text-[10px] text-red-400 hover:text-red-300 truncate block transition-colors">
-              {data.worst_ermuedung.activity_name} · {fmtDate(data.worst_ermuedung.date)}
-            </Link>
-          </CardContent>
-        </Card>
-      ) : (
-        <Card className="shadow-sm border">
-          <CardContent className="px-4 py-3">
-            <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Größte Ermüdung</p>
-            <p className="text-2xl font-bold text-muted-foreground">–</p>
-          </CardContent>
-        </Card>
-      )}
-    </div>
+    <ChartTooltip
+      active={active}
+      label={rangeLabel}
+      rows={[
+        { label: 'Rides', value: `${d?.count} Ride${d?.count !== 1 ? 's' : ''}` },
+      ]}
+    />
   );
 }
 
@@ -204,18 +146,12 @@ function HistoChart({ distribution, avgFatigue }: { distribution: { bucket: numb
         <p className="text-xs text-muted-foreground mt-0.5">Rides je Ermüdungs-Bucket (5%-Schritte) — grün/blau = Steigerung, amber/rot = Ermüdung</p>
       </CardHeader>
       <CardContent className="pt-4">
-        <ResponsiveContainer width="100%" height={220}>
+        <ResponsiveContainer width="100%" height={180}>
           <BarChart data={histoData} margin={{ top: 8, right: 16, bottom: 24, left: 8 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
             <XAxis dataKey="label" tick={{ fontSize: 9 }} interval={1} angle={-45} textAnchor="end" height={40} />
             <YAxis tick={{ fontSize: 11 }} width={32} allowDecimals={false} />
-            <Tooltip
-              formatter={(value, _name, props) => {
-                const b = props.payload.bucket;
-                return [`${value} Ride${Number(value) !== 1 ? 's' : ''}`, `${b >= 0 ? '+' : ''}${b}% bis ${b + 5 >= 0 ? '+' : ''}${b + 5}%`];
-              }}
-              contentStyle={{ fontSize: 12, backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))' }}
-            />
+            <Tooltip content={<HistoTooltip />} />
             <ReferenceLine x="0%" stroke="hsl(var(--foreground))" strokeDasharray="6 4" strokeOpacity={0.6}
               label={{ value: 'Ausgeglichenes Pacing (0 %)', fontSize: 9, fill: 'hsl(var(--foreground))', position: 'insideTopRight' }} />
             {avgFatigue !== null && (
@@ -372,55 +308,234 @@ function RideTable({ rides, title, subtitle }: { rides: FatigueRide[]; title: st
 }
 
 // ---------------------------------------------------------------------------
-// Tab: Übersicht
+// Custom Tooltips
 // ---------------------------------------------------------------------------
 
-type InsightType = 'positive' | 'neutral' | 'warning';
-interface Insight { text: string; type: InsightType }
-
-function buildInsights(data: FatigueData): Insight[] {
-  const insights: Insight[] = [];
-  const avg = data.stats.avg_fatigue_pct;
-  if (avg === null) return insights;
-  const steigerungPct = Math.round(data.stats.steigerung_count / data.stats.rides_analyzed * 100);
-
-  if (avg > 0) insights.push({ text: `Im Schnitt fährst du mit Steigerung (${fmtPct(avg)}) – sehr gleichmäßiges bis aufbauendes Pacing.`, type: 'positive' });
-  else if (avg > -5) insights.push({ text: `Dein Pacing ist sehr ausgeglichen (Ø ${fmtPct(avg)}) – kaum Ermüdungseffekt.`, type: 'positive' });
-  else if (avg > -10) insights.push({ text: `Du wirst leicht ermüdet (Ø ${fmtPct(avg)}) – für Freizeitradler ein normaler Wert.`, type: 'neutral' });
-  else if (avg > -20) insights.push({ text: `Du ermüdest spürbar (Ø ${fmtPct(avg)}) – du startest häufig etwas zu schnell.`, type: 'warning' });
-  else insights.push({ text: `Starke Ermüdung im Schnitt (Ø ${fmtPct(avg)}) – deutlicher Einbruch in der zweiten Hälfte.`, type: 'warning' });
-
-  if (steigerungPct >= 40) insights.push({ text: `${steigerungPct} % deiner Rides endest du mit Steigerung – sehr konstantes Pacing.`, type: 'positive' });
-  else if (steigerungPct >= 20) insights.push({ text: `${steigerungPct} % deiner Rides endest du mit Steigerung – etwa jeder 5. Ride.`, type: 'neutral' });
-  else insights.push({ text: `Nur ${steigerungPct} % deiner Rides endest du mit Steigerung (${data.stats.steigerung_count} von ${data.stats.rides_analyzed}).`, type: 'neutral' });
-
-  const shortBucket = data.by_distance.find(b => b.label === '< 20 km');
-  if (shortBucket?.avg_fatigue_pct !== undefined && shortBucket.avg_fatigue_pct !== null && shortBucket.rides >= 5 && shortBucket.avg_fatigue_pct > 0)
-    insights.push({ text: `Kurze Rides (< 20 km) endest du im Schnitt mit Steigerung (${fmtPct(shortBucket.avg_fatigue_pct)}).`, type: 'positive' });
-
-  const midBucket  = data.by_distance.find(b => b.label === '20–40 km');
-  const longBucket = data.by_distance.find(b => b.label === '40–60 km');
-  if (midBucket?.avg_fatigue_pct !== null && longBucket?.avg_fatigue_pct !== null && longBucket && longBucket.rides >= 5 && longBucket.avg_fatigue_pct! > midBucket!.avg_fatigue_pct!)
-    insights.push({ text: `Paradox: Rides über 40 km pacst du gleichmäßiger (${fmtPct(longBucket.avg_fatigue_pct!)}) als kürzere Rides (${fmtPct(midBucket!.avg_fatigue_pct!)}).`, type: 'positive' });
-
-  if (data.worst_ermuedung && data.worst_ermuedung.dist_km < 15)
-    insights.push({ text: `Der Ausreißer mit ${fmtPct(data.worst_ermuedung.fatigue_pct)} Ermüdung war nur ${data.worst_ermuedung.dist_km} km lang – vermutlich kein typischer Ride.`, type: 'neutral' });
-
-  const validMonths = data.monthly.filter(m => m.rides >= 2);
-  if (validMonths.length >= 3) {
-    const bestMonth  = validMonths.reduce((a, b) => a.avg_fatigue_pct > b.avg_fatigue_pct ? a : b);
-    const worstMonth = validMonths.reduce((a, b) => a.avg_fatigue_pct < b.avg_fatigue_pct ? a : b);
-    insights.push({ text: `Bester Monat: ${fmtMonth(bestMonth.month)} (${fmtPct(bestMonth.avg_fatigue_pct)}), schlechtester: ${fmtMonth(worstMonth.month)} (${fmtPct(worstMonth.avg_fatigue_pct)}).`, type: 'neutral' });
-  }
-  return insights;
+function MonthTooltip({ active, payload, label }: { active?: boolean; payload?: { dataKey: string; value: number | null; payload: { rides: number; neg_split_pct: number; avg: number } }[]; label?: string }) {
+  if (!active || !payload?.length) return null;
+  const bar  = payload.find(p => p.dataKey === 'avg');
+  const line = payload.find(p => p.dataKey === 'rollingAvg');
+  if (!bar || bar.value == null) return null;
+  const d = bar.payload;
+  return (
+    <div className="bg-background border border-border rounded-lg px-3 py-2.5 text-xs shadow-md space-y-1.5 min-w-[160px]">
+      <p className="font-semibold text-foreground border-b border-border pb-1.5 mb-1">{label}</p>
+      <div className="flex justify-between gap-4">
+        <span className="text-muted-foreground">Ø Ermüdung</span>
+        <span className={`font-bold ${fatigueTextColor(bar.value)}`}>{fmtPct(bar.value)}</span>
+      </div>
+      <div className="flex justify-between gap-4">
+        <span className="text-muted-foreground">Rides</span>
+        <span className="font-medium text-foreground">{d.rides}</span>
+      </div>
+      <div className="flex justify-between gap-4">
+        <span className="text-muted-foreground">Steigerungen</span>
+        <span className="font-medium text-foreground">{d.neg_split_pct.toFixed(0)} %</span>
+      </div>
+      {line?.value != null && (
+        <div className="flex justify-between gap-4 border-t border-border pt-1.5 mt-0.5">
+          <span className="text-muted-foreground">3-Monats-Ø</span>
+          <span className="font-medium" style={{ color: '#a78bfa' }}>{fmtPct(line.value)}</span>
+        </div>
+      )}
+    </div>
+  );
 }
 
-function OverviewTab() {
-  const [data, setData]                 = useState<FatigueData | null>(null);
-  const [loading, setLoading]           = useState(true);
-  const [error, setError]               = useState<string | null>(null);
+function WeatherTooltip({ active, payload }: { active?: boolean; payload?: { payload: WeatherBucket }[] }) {
+  if (!active || !payload?.length) return null;
+  const d = payload[0]?.payload;
+  if (!d || d.avg === null) return null;
+  return (
+    <div className="bg-background border border-border rounded-lg px-3 py-2.5 text-xs shadow-md space-y-1.5 min-w-[140px]">
+      <p className="font-semibold text-foreground border-b border-border pb-1.5 mb-1">{d.label.replace('\n', ' ')}</p>
+      <div className="flex justify-between gap-4">
+        <span className="text-muted-foreground">Ø Ermüdung</span>
+        <span className={`font-bold ${fatigueTextColor(d.avg)}`}>{fmtPct(d.avg)}</span>
+      </div>
+      <div className="flex justify-between gap-4">
+        <span className="text-muted-foreground">Rides</span>
+        <span className="font-medium text-foreground">{d.rides}</span>
+      </div>
+    </div>
+  );
+}
+
+function TrackTrendTooltip({ active, payload }: { active?: boolean; payload?: any[] }) {
+  if (!active || !payload?.length) return null;
+  const d = payload[0]?.payload;
+  return (
+    <ChartTooltip
+      active={active}
+      label={d?.label}
+      rows={[
+        { label: 'Ermüdungsindex', value: fmtPct(Number(d?.avg)), className: fatigueTextColor(Number(d?.avg)) },
+      ]}
+    />
+  );
+}
+
+function PacingTooltip({ active, payload }: { active?: boolean; payload?: any[] }) {
+  if (!active || !payload?.length) return null;
+  const d = payload[0]?.payload;
+  const dev: number = d?.deviation_pct ?? 0;
+  return (
+    <ChartTooltip
+      active={active}
+      label={d?.label}
+      rows={[
+        { label: 'Ø Geschwindigkeit', value: `${d?.avg_kmh} km/h` },
+        { label: 'vs. Start', value: `${dev >= 0 ? '+' : ''}${dev.toFixed(1)}%` },
+      ]}
+    />
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Wind / Pearson helpers (nur noch intern im TrendTab genutzt)
+// ---------------------------------------------------------------------------
+
+function pearsonR(pairs: { x: number; y: number }[]): number | null {
+  const n = pairs.length;
+  if (n < 3) return null;
+  const mx = pairs.reduce((s, p) => s + p.x, 0) / n;
+  const my = pairs.reduce((s, p) => s + p.y, 0) / n;
+  const num = pairs.reduce((s, p) => s + (p.x - mx) * (p.y - my), 0);
+  const den = Math.sqrt(
+    pairs.reduce((s, p) => s + (p.x - mx) ** 2, 0) *
+    pairs.reduce((s, p) => s + (p.y - my) ** 2, 0),
+  );
+  return den === 0 ? null : num / den;
+}
+
+// ---------------------------------------------------------------------------
+// Tab: Trend (ehemals Übersicht)
+// ---------------------------------------------------------------------------
+
+// Wetter-Kategorien
+const TEMP_CATS = [
+  { label: '< 5°C',   min: -Infinity, max: 5,        color: '#60a5fa' },
+  { label: '5–15°C',  min: 5,         max: 15,       color: '#10b981' },
+  { label: '15–25°C', min: 15,        max: 25,       color: '#f59e0b' },
+  { label: '> 25°C',  min: 25,        max: Infinity,  color: '#ef4444' },
+];
+
+const WIND_CATS = [
+  { label: 'Starker\nRW',   min: -Infinity, max: -4,       color: '#3b82f6' },
+  { label: 'Leichter\nRW',  min: -4,        max: -1,       color: '#10b981' },
+  { label: 'Neutral',        min: -1,        max: 1,        color: '#94a3b8' },
+  { label: 'Leichter\nGW',  min: 1,         max: 4,        color: '#f59e0b' },
+  { label: 'Starker\nGW',   min: 4,         max: Infinity,  color: '#ef4444' },
+];
+
+const PRECIP_CATS = [
+  { label: 'Trocken\n(0 mm)',   min: -0.001, max: 0.1,      color: '#60a5fa' },
+  { label: 'Leichter\nRegen',   min: 0.1,    max: 3,        color: '#f59e0b' },
+  { label: 'Starker\nRegen',    min: 3,      max: Infinity,  color: '#94a3b8' },
+];
+
+interface WeatherBucket { label: string; avg: number | null; rides: number; color: string }
+
+function buildWeatherBuckets<T extends { label: string; min: number; max: number; color: string }>(
+  rides: FatigueRide[],
+  cats: T[],
+  getValue: (r: FatigueRide) => number | null,
+): WeatherBucket[] {
+  const withData = rides.filter(r => getValue(r) !== null);
+  return cats.map(cat => {
+    const bucket = withData.filter(r => {
+      const v = getValue(r) as number;
+      return v >= cat.min && v < cat.max;
+    });
+    const avg = bucket.length > 0
+      ? parseFloat((bucket.reduce((s, r) => s + r.fatigue_pct, 0) / bucket.length).toFixed(1))
+      : null;
+    return { label: cat.label, avg, rides: bucket.length, color: cat.color };
+  });
+}
+
+function SmallBarChart({
+  data, title, subtitle, extraSubtitle,
+}: {
+  data: WeatherBucket[];
+  title: string;
+  subtitle: string;
+  extraSubtitle?: string;
+}) {
+  const withData = data.filter(d => d.avg !== null);
+  if (withData.length < 2) return null;
+
+  return (
+    <Card className="shadow-sm border overflow-hidden">
+      <CardHeader className="pb-1 border-b">
+        <CardTitle className="text-sm font-semibold">{title}</CardTitle>
+        <p className="text-xs text-muted-foreground">
+          {subtitle}
+          {extraSubtitle && <span className="ml-1 font-medium text-foreground">{extraSubtitle}</span>}
+        </p>
+      </CardHeader>
+      <CardContent className="pt-3 pb-3">
+        <ResponsiveContainer width="100%" height={160}>
+          <BarChart data={data} margin={{ top: 6, right: 12, bottom: 16, left: 4 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+            <XAxis
+              dataKey="label"
+              tick={{ fontSize: 9, whiteSpace: 'pre-wrap' }}
+              interval={0}
+              height={36}
+            />
+            <YAxis
+              tickFormatter={v => `${v >= 0 ? '+' : ''}${v}%`}
+              tick={{ fontSize: 9 }}
+              width={44}
+            />
+            <Tooltip content={<WeatherTooltip />} />
+            <ReferenceLine y={0} stroke="hsl(var(--muted-foreground))" strokeWidth={1.5} />
+            <Bar dataKey="avg" name="Ø Ermüdung" radius={[3, 3, 0, 0]} isAnimationActive={false}>
+              {data.map((entry, i) => (
+                <Cell key={i} fill={entry.color} fillOpacity={entry.avg !== null ? 0.8 : 0.25} />
+              ))}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </CardContent>
+    </Card>
+  );
+}
+
+// Jahresvergleich aus monthly-Daten berechnen
+function computeYearTrend(monthly: FatigueData['monthly'], filterYear: string | null): { arrow: string; label: string; cls: string } | null {
+  if (filterYear !== null) return null;
+  if (monthly.length < 2) return null;
+
+  const byYear = new Map<string, number[]>();
+  for (const m of monthly) {
+    const y = m.month.slice(0, 4);
+    if (!byYear.has(y)) byYear.set(y, []);
+    byYear.get(y)!.push(m.avg_fatigue_pct);
+  }
+  const years = Array.from(byYear.keys()).sort();
+  if (years.length < 2) return null;
+
+  const thisYear = years[years.length - 1];
+  const prevYear = years[years.length - 2];
+  const avgThis = byYear.get(thisYear)!.reduce((a, b) => a + b, 0) / byYear.get(thisYear)!.length;
+  const avgPrev = byYear.get(prevYear)!.reduce((a, b) => a + b, 0) / byYear.get(prevYear)!.length;
+  const diff = avgThis - avgPrev;
+
+  if (diff > 0) {
+    return { arrow: '↑', label: `+${diff.toFixed(1)}% vs. ${prevYear}`, cls: 'text-emerald-500' };
+  }
+  return { arrow: '↓', label: `${diff.toFixed(1)}% vs. ${prevYear}`, cls: 'text-orange-500' };
+}
+
+function TrendTab() {
+  const [data, setData]                     = useState<FatigueData | null>(null);
+  const [loading, setLoading]               = useState(true);
+  const [error, setError]                   = useState<string | null>(null);
   const [availableYears, setAvailableYears] = useState<string[]>([]);
-  const [filterYear, setFilterYear]     = useState<string | null>(null);
+  const [filterYear, setFilterYear]         = useState<string | null>(null);
+  const [showExplanation, setShowExplanation] = useState(false);
 
   useEffect(() => {
     api.activityStats()
@@ -445,36 +560,84 @@ function OverviewTab() {
     reload(y);
   }
 
-  const monthData = useMemo(() =>
-    data?.monthly?.map(m => ({
+  // Monatsdaten mit Rolling-Average
+  const monthData = useMemo(() => {
+    const base = data?.monthly?.map(m => ({
       month: m.month.slice(0, 7),
       avg: m.avg_fatigue_pct,
       rides: m.rides,
       neg_split_pct: m.neg_split_pct,
       color: m.avg_fatigue_pct > 0 ? '#3b82f6' : m.avg_fatigue_pct > -10 ? '#f59e0b' : '#ef4444',
-    })) ?? [], [data]);
+    })) ?? [];
+    return base.map((entry, i, arr) => ({
+      ...entry,
+      rollingAvg: i >= 2 ? (arr[i].avg + arr[i - 1].avg + arr[i - 2].avg) / 3 : null,
+    }));
+  }, [data]);
+
+  // Jahresvergleichs-Delta
+  const yearTrend = useMemo(
+    () => (data ? computeYearTrend(data.monthly, filterYear) : null),
+    [data, filterYear],
+  );
+
+  // Wetter-Buckets
+  const tempBuckets  = useMemo(() => data ? buildWeatherBuckets(data.rides, TEMP_CATS,  r => r.weather_temp_c) : [], [data]);
+  const windBuckets  = useMemo(() => data ? buildWeatherBuckets(data.rides, WIND_CATS,  r => r.headwind_ms)    : [], [data]);
+  const precipBuckets = useMemo(() => data ? buildWeatherBuckets(data.rides, PRECIP_CATS, r => r.weather_precip_mm) : [], [data]);
+
+  const windR = useMemo(() => {
+    if (!data) return null;
+    return pearsonR(data.rides.filter(r => r.headwind_ms !== null).map(r => ({ x: r.headwind_ms as number, y: r.fatigue_pct })));
+  }, [data]);
+
+  // Wetter-Block nur anzeigen wenn ≥ 2 von 3 Kategorien mindestens 3 Rides mit Daten haben
+  const showWeather = useMemo(() => {
+    const hasTemp   = tempBuckets.filter(b => b.rides >= 3).length > 0;
+    const hasWind   = windBuckets.filter(b => b.rides >= 3).length > 0;
+    const hasPrecip = precipBuckets.filter(b => b.rides >= 3).length > 0;
+    return [hasTemp, hasWind, hasPrecip].filter(Boolean).length >= 2;
+  }, [tempBuckets, windBuckets, precipBuckets]);
+
+  const windRLabel = windR !== null
+    ? `r = ${windR.toFixed(2)}`
+    : undefined;
+
+  // XAxis interval dynamisch
+  const xAxisInterval = useMemo(
+    () => monthData.length > 24 ? Math.floor(monthData.length / 12) : 2,
+    [monthData.length],
+  );
 
   if (loading) return (
     <div className="space-y-4 mt-4">
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">{Array.from({ length: 4 }).map((_, i) => <div key={i} className="h-24 bg-muted animate-pulse rounded-xl" />)}</div>
-      <div className="h-56 bg-muted animate-pulse rounded-xl" />
+      <div className="grid grid-cols-3 gap-3">{Array.from({ length: 3 }).map((_, i) => <div key={i} className="h-28 bg-muted animate-pulse rounded-xl" />)}</div>
+      <div className="h-72 bg-muted animate-pulse rounded-xl" />
     </div>
   );
   if (error) return <div className="mt-4 rounded border border-destructive/50 bg-destructive/10 p-4 text-destructive text-sm">{error}</div>;
   if (!data || data.stats.rides_analyzed === 0) return (
     <div className="space-y-4 mt-4">
-      <PageHeader title="" subtitle="" years={availableYears} selectedYear={filterYear} onYearChange={handleYearChange} />
+      <div className="flex flex-wrap gap-1.5">
+        <button onClick={() => handleYearChange(null)} className={`px-2.5 py-0.5 rounded-full text-xs font-medium transition-colors ${!filterYear ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/80'}`}>Alle</button>
+        {availableYears.map(y => (
+          <button key={y} onClick={() => handleYearChange(y)} className={`px-2.5 py-0.5 rounded-full text-xs font-medium transition-colors ${filterYear === y ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/80'}`}>{y}</button>
+        ))}
+      </div>
       <div className="rounded-xl border bg-card px-6 py-10 text-center text-muted-foreground text-sm">
         Keine auswertbaren Rides gefunden.{filterYear && ` Für ${filterYear} liegen keine Tracks mit ausreichend Datenpunkten vor.`}
       </div>
     </div>
   );
 
-  const insights = buildInsights(data);
+  const avg = data.stats.avg_fatigue_pct;
+  const steigerungPct = data.stats.rides_analyzed > 0
+    ? Math.round(data.stats.steigerung_count / data.stats.rides_analyzed * 100)
+    : 0;
 
   return (
     <div className="space-y-4 mt-4">
-      {/* Jahresfilter */}
+      {/* 1. Jahresfilter */}
       <div className="flex flex-wrap gap-1.5">
         <button onClick={() => handleYearChange(null)} className={`px-2.5 py-0.5 rounded-full text-xs font-medium transition-colors ${!filterYear ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/80'}`}>Alle</button>
         {availableYears.map(y => (
@@ -482,80 +645,178 @@ function OverviewTab() {
         ))}
       </div>
 
-      <ExplanationCard />
-      <StatsKacheln data={data} />
-
-      {insights.length > 0 && (
+      {/* 2. Hero-Row */}
+      <div className="grid grid-cols-3 gap-3">
+        {/* Card 1: Ø Ermüdung */}
         <Card className="shadow-sm border">
-          <CardHeader className="pb-1 border-b">
-            <CardTitle className="text-base font-semibold">Einschätzung</CardTitle>
-            <p className="text-xs text-muted-foreground mt-0.5">Automatisch aus deinen Rides abgeleitet</p>
-          </CardHeader>
-          <CardContent className="pt-4">
-            <ul className="space-y-2.5">
-              {insights.map((ins, i) => (
-                <li key={i} className="flex items-start gap-2.5 text-sm">
-                  <span className={`mt-0.5 shrink-0 font-bold leading-none ${ins.type === 'positive' ? 'text-green-500' : ins.type === 'warning' ? 'text-orange-500' : 'text-muted-foreground'}`}>
-                    {ins.type === 'positive' ? '↑' : ins.type === 'warning' ? '↓' : '·'}
-                  </span>
-                  <span className="text-muted-foreground leading-snug">{ins.text}</span>
-                </li>
-              ))}
-            </ul>
+          <CardContent className="px-4 py-3 space-y-1">
+            <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Ø Ermüdung</p>
+            {avg !== null ? (
+              <>
+                <p className={`text-2xl font-bold ${fatigueTextColor(avg)}`}>{fmtPct(avg)}</p>
+                {yearTrend ? (
+                  <p className={`text-[10px] font-medium ${yearTrend.cls}`}>{yearTrend.arrow} {yearTrend.label}</p>
+                ) : (
+                  <p className="text-[10px] text-muted-foreground">
+                    {avg > 0 ? 'Im Schnitt Steigerung' : avg > -5 ? 'Fast kein Ermüdungseffekt' : 'Durchschnittliche Ermüdung'}
+                  </p>
+                )}
+              </>
+            ) : (
+              <p className="text-2xl font-bold text-muted-foreground">–</p>
+            )}
           </CardContent>
         </Card>
-      )}
 
-      {data.distribution?.length > 0 && <HistoChart distribution={data.distribution} avgFatigue={data.stats.avg_fatigue_pct} />}
+        {/* Card 2: Steigerungen */}
+        <Card className="shadow-sm border">
+          <CardContent className="px-4 py-3 space-y-1">
+            <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Steigerungen</p>
+            <p className="text-2xl font-bold text-blue-500">{data.stats.steigerung_count}</p>
+            <p className="text-[10px] text-muted-foreground">{steigerungPct}% aller Rides</p>
+            <div className="h-1.5 bg-muted rounded-full overflow-hidden mt-1">
+              <div
+                className="h-full bg-blue-500 rounded-full transition-all"
+                style={{ width: `${steigerungPct}%` }}
+              />
+            </div>
+          </CardContent>
+        </Card>
 
-      <BestWorstDetailCards data={data} />
+        {/* Card 3: Analysierte Rides */}
+        <Card className="shadow-sm border">
+          <CardContent className="px-4 py-3 space-y-1">
+            <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Analysierte Rides</p>
+            <p className="text-2xl font-bold">{data.stats.rides_analyzed}</p>
+            <p className="text-[10px] text-muted-foreground">mit GPS-Track</p>
+          </CardContent>
+        </Card>
+      </div>
 
+      {/* 3. Monatlicher Trend (prominent) */}
       {monthData.length > 0 && (
         <Card className="shadow-sm border overflow-hidden">
           <CardHeader className="pb-1 border-b">
             <CardTitle className="text-base font-semibold">Monatlicher Trend</CardTitle>
-            <p className="text-xs text-muted-foreground mt-0.5">Ø Ermüdungsindex je Monat — blau = Steigerung, amber/rot = Ermüdung</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Ø Ermüdungsindex je Monat — blau = Steigerung, amber/rot = Ermüdung ·
+              <span className="ml-1" style={{ color: '#a78bfa' }}>gestrichelt = 3-Monats-Ø</span>
+            </p>
           </CardHeader>
           <CardContent className="pt-4">
-            <ResponsiveContainer width="100%" height={200}>
-              <BarChart data={monthData} margin={{ top: 8, right: 16, bottom: 24, left: 8 }}>
+            <ResponsiveContainer width="100%" height={280}>
+              <ComposedChart data={monthData} margin={{ top: 8, right: 16, bottom: 24, left: 8 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-                <XAxis dataKey="month" tick={{ fontSize: 9 }} interval={2} angle={-45} textAnchor="end" height={40} />
-                <YAxis tickFormatter={v => `${v >= 0 ? '+' : ''}${v}%`} tick={{ fontSize: 10 }} width={48} />
-                <Tooltip
-                  formatter={(value, _name, props) => [`${fmtPct(Number(value))} · ${props.payload.rides} Rides · ${props.payload.neg_split_pct.toFixed(0)} % Steigerung`, props.payload.month]}
-                  contentStyle={{ fontSize: 12, backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))' }}
+                <XAxis
+                  dataKey="month"
+                  tick={{ fontSize: 9 }}
+                  interval={xAxisInterval}
+                  angle={-45}
+                  textAnchor="end"
+                  height={40}
                 />
+                <YAxis tickFormatter={v => `${v >= 0 ? '+' : ''}${v}%`} tick={{ fontSize: 10 }} width={48} />
+                <Tooltip content={<MonthTooltip />} />
                 <ReferenceLine y={0} stroke="hsl(var(--muted-foreground))" strokeWidth={1.5} />
+                {/* Jahres-Trennlinien */}
+                {monthData
+                  .filter(m => m.month.slice(5, 7) === '01')
+                  .map(m => (
+                    <ReferenceLine
+                      key={m.month}
+                      x={m.month}
+                      stroke="hsl(var(--border))"
+                      strokeDasharray="4 3"
+                      strokeOpacity={0.7}
+                      label={{ value: m.month.slice(0, 4), fontSize: 9, fill: 'hsl(var(--muted-foreground))', position: 'insideTopLeft' }}
+                    />
+                  ))}
                 <Bar dataKey="avg" name="Ø Ermüdung" radius={[2, 2, 0, 0]} isAnimationActive={false}>
                   {monthData.map((entry, i) => <Cell key={i} fill={entry.color} fillOpacity={0.8} />)}
                 </Bar>
-              </BarChart>
+                <Line
+                  type="monotone"
+                  dataKey="rollingAvg"
+                  stroke="#a78bfa"
+                  strokeWidth={2}
+                  strokeDasharray="6 3"
+                  dot={false}
+                  isAnimationActive={false}
+                  connectNulls={false}
+                />
+              </ComposedChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
       )}
 
-      {data.by_distance.length > 0 && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {data.by_distance.map(bucket => (
-            <Card key={bucket.label} className="shadow-sm border">
-              <CardContent className="px-4 py-3 text-center space-y-1">
-                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{bucket.label}</p>
-                {bucket.avg_fatigue_pct !== null ? (
-                  <>
-                    <p className={`text-2xl font-bold ${fatigueTextColor(bucket.avg_fatigue_pct)}`}>{fmtPct(bucket.avg_fatigue_pct)}</p>
-                    <div className="h-1 rounded-full mt-1" style={{ background: fatigueColor(bucket.avg_fatigue_pct), opacity: 0.7 }} />
-                  </>
-                ) : <p className="text-2xl font-bold text-muted-foreground">–</p>}
-                <p className="text-[10px] text-muted-foreground">{bucket.rides} Ride{bucket.rides !== 1 ? 's' : ''}</p>
-              </CardContent>
-            </Card>
-          ))}
+      {/* 4. Wetter-Korrelation */}
+      {showWeather && (
+        <div className="space-y-2">
+          <p className="text-sm font-semibold px-0.5">Wetter & Pacing</p>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <SmallBarChart
+              data={tempBuckets}
+              title="Temperatur"
+              subtitle="Ø Ermüdung nach Temperatur"
+            />
+            <SmallBarChart
+              data={windBuckets}
+              title="Gegenwind"
+              subtitle="Ø Ermüdung nach Gegenwind"
+              extraSubtitle={windRLabel ? `· ${windRLabel}` : undefined}
+            />
+            <SmallBarChart
+              data={precipBuckets}
+              title="Niederschlag"
+              subtitle="Ø Ermüdung nach Niederschlag"
+            />
+          </div>
         </div>
       )}
 
+      {/* 5. Verteilung */}
+      {data.distribution?.length > 0 && (
+        <HistoChart distribution={data.distribution} avgFatigue={data.stats.avg_fatigue_pct} />
+      )}
+
+      {/* 6. Beste / Schlechteste Rides */}
+      <BestWorstDetailCards data={data} />
+
+      {/* 7. Distanz-Analyse (kompakt) */}
+      {data.by_distance.length > 0 && (
+        <Card className="shadow-sm border">
+          <CardHeader className="pb-1 border-b">
+            <CardTitle className="text-base font-semibold">Nach Distanz</CardTitle>
+          </CardHeader>
+          <div className="grid grid-cols-4 divide-x divide-border">
+            {data.by_distance.map(bucket => (
+              <div key={bucket.label} className="px-4 py-3 text-center space-y-0.5">
+                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{bucket.label}</p>
+                {bucket.avg_fatigue_pct !== null
+                  ? <p className={`text-xl font-bold ${fatigueTextColor(bucket.avg_fatigue_pct)}`}>{fmtPct(bucket.avg_fatigue_pct)}</p>
+                  : <p className="text-xl font-bold text-muted-foreground">–</p>}
+                <p className="text-[10px] text-muted-foreground">{bucket.rides} Rides</p>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      {/* 8. Ride-Tabelle */}
       <RideTable rides={data.rides.slice(0, 30)} title="Letzte Rides" subtitle="Sortiert nach Datum — neueste zuerst" />
+
+      {/* 9. Erklärungsbox (ausklappbar) */}
+      <div>
+        <button
+          onClick={() => setShowExplanation(v => !v)}
+          className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"
+        >
+          <span>{showExplanation ? '▾' : '▸'}</span>
+          Wie wird der Ermüdungsindex berechnet?
+        </button>
+        {showExplanation && <div className="mt-3"><ExplanationCard /></div>}
+      </div>
     </div>
   );
 }
@@ -675,7 +936,59 @@ function TrackTab() {
       {!loading && data && data.stats.rides_analyzed > 0 && (
         <>
           <ExplanationCard />
-          <StatsKacheln data={data} />
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <Card className="shadow-sm border">
+              <CardContent className="px-4 py-3 space-y-1">
+                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Ø Ermüdung</p>
+                {avgFatigue !== null ? (
+                  <>
+                    <p className={`text-2xl font-bold ${fatigueTextColor(avgFatigue)}`}>{fmtPct(avgFatigue)}</p>
+                    <p className="text-[10px] text-muted-foreground">
+                      {avgFatigue > 0 ? 'Im Schnitt Steigerung' : avgFatigue > -5 ? 'Fast kein Ermüdungseffekt' : 'Durchschnittliche Ermüdung'}
+                    </p>
+                  </>
+                ) : (
+                  <p className="text-2xl font-bold text-muted-foreground">–</p>
+                )}
+              </CardContent>
+            </Card>
+            <Card className="shadow-sm border">
+              <CardContent className="px-4 py-3 space-y-1">
+                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Steigerungen</p>
+                <p className="text-2xl font-bold text-blue-500">{data.stats.steigerung_count}</p>
+                <p className="text-[10px] text-muted-foreground">von {data.stats.rides_analyzed} Rides</p>
+                <div className="h-1.5 bg-muted rounded-full overflow-hidden mt-1">
+                  <div className="h-full bg-blue-500 rounded-full transition-all" style={{ width: `${Math.round(data.stats.steigerung_count / data.stats.rides_analyzed * 100)}%` }} />
+                </div>
+              </CardContent>
+            </Card>
+            {data.best_steigerung ? (
+              <Card className="shadow-sm" style={{ borderColor: 'rgba(59,130,246,0.25)', background: 'rgba(59,130,246,0.05)' }}>
+                <CardContent className="px-4 py-3 space-y-1">
+                  <p className="text-[10px] uppercase tracking-wide text-blue-500">Beste Steigerung</p>
+                  <p className="text-2xl font-bold text-blue-500">{fmtPct(data.best_steigerung.fatigue_pct)}</p>
+                  <Link to={`/activities/${data.best_steigerung.activity_id}`} className="text-[10px] text-blue-400 hover:text-blue-300 truncate block transition-colors">
+                    {data.best_steigerung.activity_name} · {fmtDate(data.best_steigerung.date)}
+                  </Link>
+                </CardContent>
+              </Card>
+            ) : (
+              <Card className="shadow-sm border"><CardContent className="px-4 py-3"><p className="text-[10px] uppercase tracking-wide text-muted-foreground">Beste Steigerung</p><p className="text-2xl font-bold text-muted-foreground">–</p></CardContent></Card>
+            )}
+            {data.worst_ermuedung ? (
+              <Card className="shadow-sm" style={{ borderColor: 'rgba(239,68,68,0.25)', background: 'rgba(239,68,68,0.05)' }}>
+                <CardContent className="px-4 py-3 space-y-1">
+                  <p className="text-[10px] uppercase tracking-wide text-red-500">Größte Ermüdung</p>
+                  <p className="text-2xl font-bold text-red-500">{data.worst_ermuedung.fatigue_pct.toFixed(1)}%</p>
+                  <Link to={`/activities/${data.worst_ermuedung.activity_id}`} className="text-[10px] text-red-400 hover:text-red-300 truncate block transition-colors">
+                    {data.worst_ermuedung.activity_name} · {fmtDate(data.worst_ermuedung.date)}
+                  </Link>
+                </CardContent>
+              </Card>
+            ) : (
+              <Card className="shadow-sm border"><CardContent className="px-4 py-3"><p className="text-[10px] uppercase tracking-wide text-muted-foreground">Größte Ermüdung</p><p className="text-2xl font-bold text-muted-foreground">–</p></CardContent></Card>
+            )}
+          </div>
 
           {allTracks && allTracks.length > 0 && (
             <Card className="shadow-sm border overflow-hidden">
@@ -705,10 +1018,7 @@ function TrackTab() {
                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
                     <XAxis dataKey="label" tick={{ fontSize: 9 }} interval={Math.max(0, Math.floor(trendData.length / 15) - 1)} angle={-45} textAnchor="end" height={44} />
                     <YAxis tickFormatter={v => `${v >= 0 ? '+' : ''}${v}%`} tick={{ fontSize: 10 }} width={48} />
-                    <Tooltip
-                      formatter={(value, _name, props) => [fmtPct(Number(value)), props.payload.label]}
-                      contentStyle={{ fontSize: 12, backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))' }}
-                    />
+                    <Tooltip content={<TrackTrendTooltip />} />
                     <ReferenceLine y={0} stroke="hsl(var(--muted-foreground))" strokeWidth={1.5} />
                     <Bar dataKey="avg" name="Ermüdung" radius={[2, 2, 0, 0]} isAnimationActive={false}>
                       {trendData.map((entry, i) => <Cell key={i} fill={entry.color} fillOpacity={0.85} />)}
@@ -966,10 +1276,7 @@ function ActivityTab() {
                   <XAxis dataKey="label" tick={{ fontSize: 10 }} />
                   <YAxis tickFormatter={v => `${v} km/h`} tick={{ fontSize: 10 }} width={64}
                     domain={[(dataMin: number) => Math.max(0, Math.floor(dataMin * 0.9)), (dataMax: number) => Math.ceil(dataMax * 1.05)]} />
-                  <Tooltip
-                    formatter={(value, _name, props) => [`${value} km/h (${props.payload.deviation_pct >= 0 ? '+' : ''}${props.payload.deviation_pct.toFixed(1)}% vs. Start)`, props.payload.label]}
-                    contentStyle={{ fontSize: 12, backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))' }}
-                  />
+                  <Tooltip content={<PacingTooltip />} />
                   <ReferenceLine y={fatigueResult.overall_avg_kmh} stroke="hsl(var(--muted-foreground))" strokeDasharray="5 3" strokeWidth={1.5}
                     label={{ value: `Ø ${fatigueResult.overall_avg_kmh} km/h`, fontSize: 9, fill: 'hsl(var(--muted-foreground))', position: 'insideTopRight' }} />
                   <Bar dataKey="avg_kmh" name="Ø Speed" radius={[3, 3, 0, 0]} isAnimationActive={false}>
@@ -1015,14 +1322,14 @@ function ActivityTab() {
 // Main Page
 // ---------------------------------------------------------------------------
 
-type FatigueTab = 'uebersicht' | 'strecke' | 'einzelfahrt';
+type FatigueTab = 'trend' | 'strecke' | 'einzelfahrt';
 
 export default function FatiguePage() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const activeTab = (searchParams.get('tab') as FatigueTab) ?? 'uebersicht';
+  const activeTab = (searchParams.get('tab') as FatigueTab) ?? 'trend';
 
   function changeTab(tab: string) {
-    if (tab === 'uebersicht') setSearchParams({});
+    if (tab === 'trend') setSearchParams({});
     else setSearchParams({ tab });
   }
 
@@ -1031,11 +1338,11 @@ export default function FatiguePage() {
       <PageHeader title="Ermüdung" subtitle="Pacing-Analyse: erste vs. zweite Hälfte deiner Rides" />
       <Tabs value={activeTab} onValueChange={changeTab}>
         <TabsList>
-          <TabsTrigger value="uebersicht">Übersicht</TabsTrigger>
+          <TabsTrigger value="trend">Trend</TabsTrigger>
           <TabsTrigger value="strecke">Strecke</TabsTrigger>
           <TabsTrigger value="einzelfahrt">Einzelfahrt</TabsTrigger>
         </TabsList>
-        <TabsContent value="uebersicht"><OverviewTab /></TabsContent>
+        <TabsContent value="trend"><TrendTab /></TabsContent>
         <TabsContent value="strecke"><TrackTab /></TabsContent>
         <TabsContent value="einzelfahrt"><ActivityTab /></TabsContent>
       </Tabs>

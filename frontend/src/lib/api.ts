@@ -316,6 +316,11 @@ export interface FatigueRide {
   fatigue_pct: number;
   spd_h1_kmh: number;
   spd_h2_kmh: number;
+  wind_ms: number | null;
+  wind_deg: number | null;
+  headwind_ms: number | null;
+  weather_temp_c: number | null;
+  weather_precip_mm: number | null;
 }
 
 export interface FatigueRideDetail {

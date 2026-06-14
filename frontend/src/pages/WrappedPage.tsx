@@ -14,6 +14,7 @@ import { api, type WrappedData } from '@/lib/api';
 import { fmtDate, fmtNum } from '@/lib/format';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ChartTooltip } from '@/components/ui/chart-tooltip';
 
 const MONTH_NAMES = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
 const WEEKDAY_NAMES = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
@@ -49,6 +50,20 @@ function BigStatCard({ label, value, unit, delta }: { label: string; value: stri
         {delta !== undefined && delta !== null && <PctBadge pct={delta} />}
       </CardContent>
     </Card>
+  );
+}
+
+function MonthlyKmTooltip({ active, payload, label }: { active?: boolean; payload?: any[]; label?: string }) {
+  if (!active || !payload?.length) return null;
+  const d = payload[0]?.payload;
+  return (
+    <ChartTooltip
+      active={active}
+      label={label}
+      rows={[
+        { label: 'Distanz', value: `${Number(d?.km ?? 0).toFixed(0)} km`, color: d?.isBest ? ORANGE : BLUE },
+      ]}
+    />
   );
 }
 
@@ -248,10 +263,7 @@ export default function WrappedPage() {
             <BarChart data={monthlyChartData} barSize={28}>
               <XAxis dataKey="name" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fontSize: 11 }} axisLine={false} tickLine={false} width={40} unit=" km" />
-              <Tooltip
-                formatter={(v) => [`${Number(v).toFixed(0)} km`, 'km']}
-                contentStyle={{ fontSize: 12 }}
-              />
+              <Tooltip content={<MonthlyKmTooltip />} />
               <Bar dataKey="km" radius={[3, 3, 0, 0]}>
                 {monthlyChartData.map((entry, i) => (
                   <Cell key={i} fill={entry.isBest ? ORANGE : BLUE} fillOpacity={entry.isBest ? 1 : 0.7} />

@@ -7,6 +7,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import { api } from '@/lib/api';
+import { ChartTooltip } from '@/components/ui/chart-tooltip';
 import {
   ComposedChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, ReferenceLine,
@@ -43,6 +44,25 @@ interface CurveData {
   labels: string[];
   best_hr: number[];
 }
+
+// ─── Custom Tooltips ─────────────────────────────────────────────────────────
+
+function HrVerlaufTooltip({ active, payload, label }: { active?: boolean; payload?: any[]; label?: string }) {
+  if (!active || !payload?.length) return null;
+  const d = payload[0]?.payload as TrendPoint;
+  return (
+    <ChartTooltip
+      active={active}
+      label={label}
+      rows={[
+        { label: 'Ø HR', value: `${d.avg_hr} bpm`, color: '#94a3b8' },
+        { label: '3M-Ø', value: `${d.rolling_avg} bpm`, color: '#f87171' },
+      ]}
+    />
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 const CONTEXT = [
   {
@@ -444,19 +464,7 @@ function HrKurveTab() {
                       width={36}
                       unit=" bpm"
                     />
-                    <Tooltip
-                      content={({ active, payload, label }) => {
-                        if (!active || !payload?.length) return null;
-                        const d = payload[0]?.payload as TrendPoint;
-                        return (
-                          <div className="rounded-lg border border-border bg-background/95 px-3 py-2 text-xs shadow-md">
-                            <p className="font-semibold mb-1">{label}</p>
-                            <p style={{ color: '#94a3b8' }}>Ø HR: {d.avg_hr} bpm</p>
-                            <p style={{ color: '#f87171' }}>3M-Ø: {d.rolling_avg} bpm</p>
-                          </div>
-                        );
-                      }}
-                    />
+                    <Tooltip content={<HrVerlaufTooltip />} />
                     {thresholdHR !== null && (
                       <ReferenceLine
                         y={Math.round(thresholdHR)}

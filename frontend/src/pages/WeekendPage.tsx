@@ -8,6 +8,7 @@ import { api } from '@/lib/api';
 import { PageHeader } from '@/components/ui/page-header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { fmtNum } from '@/lib/format';
+import { ChartTooltip } from '@/components/ui/chart-tooltip';
 
 type WwData = Awaited<ReturnType<typeof api.weekendWeekday>>;
 
@@ -111,6 +112,55 @@ function DuelCard({ data }: { data: WwData }) {
   );
 }
 
+// ─── Custom Tooltips ──────────────────────────────────────────────────────────
+
+function WochentagTooltip({ active, payload, label }: { active?: boolean; payload?: any[]; label?: string }) {
+  if (!active || !payload?.length) return null;
+  const d = payload[0]?.payload;
+  return (
+    <ChartTooltip
+      active={active}
+      label={label}
+      rows={[
+        { label: 'Rides', value: `${d?.rides ?? 0}` },
+        { label: 'Ø Distanz', value: `${d?.avg_km?.toFixed(1) ?? '–'} km` },
+        { label: 'Ø Speed', value: `${d?.avg_kmh?.toFixed(1) ?? '–'} km/h` },
+      ]}
+    />
+  );
+}
+
+function DistanzTooltip({ active, payload, label }: { active?: boolean; payload?: any[]; label?: string }) {
+  if (!active || !payload?.length) return null;
+  const d = payload[0]?.payload;
+  return (
+    <ChartTooltip
+      active={active}
+      label={label}
+      rows={[
+        { label: 'Ø Distanz', value: `${fmtNum(d?.avg_km ?? 0, 1)} km` },
+        { label: 'Ø Speed', value: `${fmtNum(d?.avg_kmh ?? 0, 1)} km/h` },
+      ]}
+    />
+  );
+}
+
+function MonatsverlaufTooltip({ active, payload, label }: { active?: boolean; payload?: any[]; label?: string }) {
+  if (!active || !payload?.length) return null;
+  const weekday = payload.find((p: any) => p.dataKey === 'weekday_km');
+  const weekend = payload.find((p: any) => p.dataKey === 'weekend_km');
+  return (
+    <ChartTooltip
+      active={active}
+      label={label}
+      rows={[
+        { label: 'Werktag', value: weekday ? `${fmtNum(weekday.value, 0)} km` : null, color: COLOR_WEEKDAY },
+        { label: 'Wochenende', value: weekend ? `${fmtNum(weekend.value, 0)} km` : null, color: COLOR_WEEKEND },
+      ]}
+    />
+  );
+}
+
 // ─── Wochentag-Chart ──────────────────────────────────────────────────────────
 
 function WochentagChart({ data }: { data: WwData['by_weekday'] }) {
@@ -138,17 +188,7 @@ function WochentagChart({ data }: { data: WwData['by_weekday'] }) {
             <CartesianGrid strokeDasharray="3 3" stroke="currentColor" strokeOpacity={0.08} vertical={false} />
             <XAxis dataKey="label" tick={{ fontSize: 12, fill: '#9ca3af' }} tickLine={false} axisLine={false} />
             <YAxis tick={{ fontSize: 11, fill: '#9ca3af' }} tickLine={false} axisLine={false} width={28} />
-            <Tooltip
-              contentStyle={{ fontSize: 12, borderRadius: 8 }}
-              formatter={(v: number, name: string) => {
-                if (name === 'rides') return [`${v} Rides`, 'Anzahl'];
-                return [v, name];
-              }}
-              labelFormatter={(label: string) => {
-                const d = chartData.find(c => c.label === label);
-                return `${label} · Ø ${d?.avg_km?.toFixed(1)} km · Ø ${d?.avg_kmh?.toFixed(1)} km/h`;
-              }}
-            />
+            <Tooltip content={<WochentagTooltip />} />
             <Bar dataKey="rides" radius={[4, 4, 0, 0]} maxBarSize={48}>
               {chartData.map((entry, i) => (
                 <Cell key={i} fill={entry.isWeekend ? COLOR_WEEKEND : COLOR_WEEKDAY}
@@ -200,13 +240,7 @@ function MonatsverlaufChart({ data }: { data: WwData['monthly'] }) {
               interval={Math.floor(chartData.length / 12)} />
             <YAxis tick={{ fontSize: 11, fill: '#9ca3af' }} tickLine={false} axisLine={false} width={36}
               tickFormatter={v => `${v}`} />
-            <Tooltip
-              contentStyle={{ fontSize: 12, borderRadius: 8 }}
-              formatter={(v: number, name: string) => [
-                `${fmtNum(v, 0)} km`,
-                name === 'weekday_km' ? 'Werktag' : 'Wochenende',
-              ]}
-            />
+            <Tooltip content={<MonatsverlaufTooltip />} />
             <Legend
               formatter={(value) => value === 'weekday_km' ? 'Werktag' : 'Wochenende'}
               wrapperStyle={{ fontSize: 12 }}
@@ -303,13 +337,7 @@ export default function WeekendPage() {
                 <XAxis dataKey="label" tick={{ fontSize: 12, fill: '#9ca3af' }} tickLine={false} axisLine={false} />
                 <YAxis tick={{ fontSize: 11, fill: '#9ca3af' }} tickLine={false} axisLine={false} width={32}
                   tickFormatter={v => `${v}`} />
-                <Tooltip
-                  contentStyle={{ fontSize: 12, borderRadius: 8 }}
-                  formatter={(v: number, name: string) => [
-                    `${fmtNum(v, 1)} ${name === 'avg_km' ? 'km' : 'km/h'}`,
-                    name === 'avg_km' ? 'Ø Distanz' : 'Ø Speed',
-                  ]}
-                />
+                <Tooltip content={<DistanzTooltip />} />
                 <Bar dataKey="avg_km" radius={[4, 4, 0, 0]} maxBarSize={48} name="avg_km">
                   {WEEKDAY_LABELS.map((_, i) => (
                     <Cell key={i} fill={IS_WEEKEND[i] ? COLOR_WEEKEND : COLOR_WEEKDAY} fillOpacity={0.85} />

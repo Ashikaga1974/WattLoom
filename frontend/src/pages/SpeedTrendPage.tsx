@@ -17,6 +17,7 @@ import {
 import { api, type SpeedTrendData } from '@/lib/api';
 import { PageHeader } from '@/components/ui/page-header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { ChartTooltip } from '@/components/ui/chart-tooltip';
 import { fmtDate } from '@/lib/format';
 
 // Farbskala blau → grün → orange (konsistent mit LeafletMap/SpeedChart)
@@ -108,19 +109,32 @@ function TrendTooltip({ active, payload }: { active?: boolean; payload?: any[] }
   const rolling = payload.find((p: any) => p.dataKey === 'rolling_kmh');
 
   return (
-    <div className="rounded-lg border bg-background shadow-lg p-3 text-xs space-y-1.5 max-w-[220px]">
-      {point.name && (
-        <p className="font-semibold text-foreground truncate">{point.name}</p>
-      )}
-      <p className="text-muted-foreground">{fmtDate(point.date)}</p>
-      <p className="font-medium text-foreground">{point.speed_kmh} km/h · {point.dist_km} km</p>
-      {point.elevation_m > 0 && (
-        <p className="text-muted-foreground">+{point.elevation_m} m Hm</p>
-      )}
-      {rolling?.value != null && (
-        <p className="text-primary">Gleitender Ø (20): <span className="font-semibold">{Number(rolling.value).toFixed(1)} km/h</span></p>
-      )}
-    </div>
+    <ChartTooltip
+      active={active}
+      label={point.name ? `${point.name} · ${fmtDate(point.date)}` : fmtDate(point.date)}
+      rows={[
+        { label: 'Geschwindigkeit', value: `${point.speed_kmh} km/h` },
+        { label: 'Distanz', value: `${point.dist_km} km` },
+        ...(point.elevation_m > 0 ? [{ label: 'Höhenmeter', value: `+${point.elevation_m} m` }] : []),
+        ...(rolling?.value != null ? [{ label: 'Gleitender Ø (20)', value: `${Number(rolling.value).toFixed(1)} km/h`, color: 'var(--primary)', separator: true }] : []),
+      ]}
+    />
+  );
+}
+
+// --- Custom Tooltip für Jahresvergleich-Chart ---
+function YearTooltip({ active, payload, label }: { active?: boolean; payload?: any[]; label?: string }) {
+  if (!active || !payload?.length) return null;
+  const d = payload[0]?.payload;
+  return (
+    <ChartTooltip
+      active={active}
+      label={label}
+      rows={[
+        { label: 'Ø Geschwindigkeit', value: `${Number(d?.avg_kmh).toFixed(1)} km/h` },
+        { label: 'Rides', value: d?.rides },
+      ]}
+    />
   );
 }
 
@@ -399,17 +413,7 @@ export default function SpeedTrendPage() {
                   width={52}
                   unit=" km/h"
                 />
-                <Tooltip
-                  formatter={(value, _name, props) => [
-                    `${Number(value).toFixed(1)} km/h · ${props.payload.rides} Rides`,
-                    'Ø Geschwindigkeit',
-                  ]}
-                  contentStyle={{
-                    fontSize: 12,
-                    backgroundColor: 'var(--background)',
-                    border: '1px solid var(--border)',
-                  }}
-                />
+                <Tooltip content={<YearTooltip />} />
                 <Bar dataKey="avg_kmh" radius={[4, 4, 0, 0]} isAnimationActive={false}>
                   {by_year.map((entry, i) => (
                     <Cell key={i} fill={speedColor(entry.avg_kmh, yearMin, yearMax, 52)} fillOpacity={0.85} />

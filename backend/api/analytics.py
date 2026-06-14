@@ -1,3 +1,4 @@
+import math
 from fastapi import APIRouter, Query
 from backend.database import db_connection
 
@@ -898,7 +899,11 @@ def fatigue_index(year: int = Query(None)):
                     MAX(tp.distance_m) OVER (PARTITION BY tp.activity_id) AS max_dist,
                     a.start_date_local,
                     a.name,
-                    a.id AS act_id
+                    a.id AS act_id,
+                    a.weather_wind_ms,
+                    a.weather_wind_deg,
+                    a.weather_temp_c,
+                    a.weather_precip_mm
                 FROM track_points tp
                 JOIN activities a ON a.id = tp.activity_id
                 WHERE tp.speed_ms > 0
@@ -915,7 +920,11 @@ def fatigue_index(year: int = Query(None)):
                     AVG(CASE WHEN distance_m <= max_dist / 2.0 THEN speed_ms END) AS spd_h1,
                     AVG(CASE WHEN distance_m >  max_dist / 2.0 THEN speed_ms END) AS spd_h2,
                     MAX(max_dist) / 1000.0 AS dist_km,
-                    COUNT(*) AS pts
+                    COUNT(*) AS pts,
+                    MAX(weather_wind_ms)   AS weather_wind_ms,
+                    MAX(weather_wind_deg)  AS weather_wind_deg,
+                    MAX(weather_temp_c)    AS weather_temp_c,
+                    MAX(weather_precip_mm) AS weather_precip_mm
                 FROM ranked
                 GROUP BY activity_id
                 HAVING pts >= 60
@@ -927,7 +936,11 @@ def fatigue_index(year: int = Query(None)):
                 ROUND(dist_km, 1) AS dist_km,
                 spd_h1,
                 spd_h2,
-                (spd_h2 - spd_h1) / spd_h1 * 100 AS fatigue_pct
+                (spd_h2 - spd_h1) / spd_h1 * 100 AS fatigue_pct,
+                weather_wind_ms,
+                weather_wind_deg,
+                weather_temp_c,
+                weather_precip_mm
             FROM halves
             WHERE spd_h1 IS NOT NULL AND spd_h2 IS NOT NULL
             ORDER BY date DESC
@@ -951,17 +964,74 @@ def fatigue_index(year: int = Query(None)):
             "by_distance": [],
         }
 
+    # --- Start/End-Koordinaten für Gegenwind-Berechnung ---
+    def _bearing(lat1, lon1, lat2, lon2):
+        """Fahrtrichtung (Grad) vom Start- zum Endpunkt."""
+        r1, o1, r2, o2 = map(math.radians, [lat1, lon1, lat2, lon2])
+        x = math.sin(o2 - o1) * math.cos(r2)
+        y = math.cos(r1) * math.sin(r2) - math.sin(r1) * math.cos(r2) * math.cos(o2 - o1)
+        return (math.degrees(math.atan2(x, y)) + 360) % 360
+
+    def _headwind(wind_deg, wind_ms, bearing):
+        """Gegenwind-Komponente in m/s. Positiv = Gegenwind, Negativ = Rückenwind."""
+        return wind_ms * math.cos(math.radians(wind_deg - bearing))
+
+    wind_ids = [r["activity_id"] for r in rows if r["weather_wind_ms"] is not None]
+    headwind_map: dict[int, float] = {}
+    if wind_ids:
+        ph2 = ','.join('?' * len(wind_ids))
+        with db_connection() as conn2:
+            start_rows = conn2.execute(f"""
+                SELECT t.activity_id, t.lat, t.lon
+                FROM track_points t
+                JOIN (SELECT activity_id, MIN(distance_m) AS min_d
+                      FROM track_points
+                      WHERE activity_id IN ({ph2}) AND lat IS NOT NULL AND lon IS NOT NULL
+                      GROUP BY activity_id) m
+                  ON t.activity_id = m.activity_id AND t.distance_m = m.min_d
+                WHERE t.lat IS NOT NULL
+            """, wind_ids).fetchall()
+            end_rows = conn2.execute(f"""
+                SELECT t.activity_id, t.lat, t.lon
+                FROM track_points t
+                JOIN (SELECT activity_id, MAX(distance_m) AS max_d
+                      FROM track_points
+                      WHERE activity_id IN ({ph2}) AND lat IS NOT NULL AND lon IS NOT NULL
+                      GROUP BY activity_id) m
+                  ON t.activity_id = m.activity_id AND t.distance_m = m.max_d
+                WHERE t.lat IS NOT NULL
+            """, wind_ids).fetchall()
+        start_map = {r["activity_id"]: (r["lat"], r["lon"]) for r in start_rows}
+        end_map   = {r["activity_id"]: (r["lat"], r["lon"]) for r in end_rows}
+        for r in rows:
+            act_id = r["activity_id"]
+            if r["weather_wind_ms"] is None or act_id not in start_map or act_id not in end_map:
+                continue
+            s, e = start_map[act_id], end_map[act_id]
+            if abs(s[0] - e[0]) < 1e-6 and abs(s[1] - e[1]) < 1e-6:
+                headwind_map[act_id] = 0.0  # Rundkurs
+            else:
+                b = _bearing(s[0], s[1], e[0], e[1])
+                headwind_map[act_id] = _headwind(r["weather_wind_deg"], r["weather_wind_ms"], b)
+
     # --- Rides-Liste aufbauen ---
     rides = []
     for r in rows:
+        act_id = r["activity_id"]
+        hw = headwind_map.get(act_id)
         rides.append({
-            "activity_id":   r["activity_id"],
+            "activity_id":   act_id,
             "activity_name": r["name"],
             "date":          r["date"],
             "dist_km":       round(r["dist_km"], 1),
             "fatigue_pct":   round(r["fatigue_pct"], 1),
             "spd_h1_kmh":    round(r["spd_h1"] * 3.6, 1),
             "spd_h2_kmh":    round(r["spd_h2"] * 3.6, 1),
+            "wind_ms":       round(r["weather_wind_ms"], 1) if r["weather_wind_ms"] is not None else None,
+            "wind_deg":      round(r["weather_wind_deg"]) if r["weather_wind_deg"] is not None else None,
+            "headwind_ms":    round(hw, 2) if hw is not None else None,
+            "weather_temp_c":    round(r["weather_temp_c"], 1) if r["weather_temp_c"] is not None else None,
+            "weather_precip_mm": round(r["weather_precip_mm"], 2) if r["weather_precip_mm"] is not None else None,
         })
 
     fatigue_vals = [r["fatigue_pct"] for r in rows]

@@ -24,8 +24,7 @@ Lokale Web-App zur Analyse von Strava-Exportdaten. Kein Strava-API-Zugriff nöti
 | **Tempoentwicklung** | Scatter + 20-Rides-Rolling-Ø, Jahresvergleich, Saison-Heatmap (Monat × Jahr) |
 | **Kalorien** | Energieverbrauch aus Rides + Workouts; KPI-Kacheln, gestapelter Monatsverlauf mit 3M-gleitendem Ø, Jahresvergleich |
 | **Wetter & Leistung** | Ø-Speed nach Temperatur-Buckets, Wind-Impact-Chart; Wetterdaten via Open-Meteo (abrufbar per Knopfdruck) |
-| **FTP** | HR-korrigierte FTP-Schätzung, Trend, VO2max-Näherung |
-| **Formkurve (PMC)** | CTL/ATL/TSB nach Trainingstagebuch-Methodik, hrTSS, Einschätzungs-Banner |
+| **Formkurve (PMC)** | CTL/ATL/TSB nach Trainingstagebuch-Methodik, hrTSS, 28-Tage-CTL-Trend, Ride- und Workout-Marker, Einschätzungs-Banner |
 | **Bestzeiten** | Rekorde und Top-Leistungen |
 | **Bikes** | 2 Tabs: Übersicht (Kennzahlen je Bike) · Vergleich (km, Speed, Höhenmeter, Jahresverlauf, Distanzhistogramm) |
 | **Workout-Detail** | Detailansicht je Workout: Sport-Hero, 4 KPI-Kacheln, SVG-Intensitätsgauge (Ø HR / Max HR), Verlaufschart, Ø-Vergleich |
@@ -36,7 +35,7 @@ Lokale Web-App zur Analyse von Strava-Exportdaten. Kein Strava-API-Zugriff nöti
 | **Ermüdungsindex** | 3 Tabs: Übersicht (Speed H1 vs. H2, Histogramm, Trend) · Strecke (nach Route-Cluster) · Einzelfahrt (Karte + 10-Segment-Chart) |
 | **Kalender** | Monatskalender: Radtouren + Workouts (grau markiert), Ring-Indikator bei Kombi-Tagen |
 | **Berechnungen** | Dokumentation aller verwendeten Formeln und Parameter |
-| **Einstellungen** | Gewicht, Geburtsjahr, manueller FTP, Zeitzone; FIT-Einzelimport (Amazfit, Garmin ohne Strava); Wetterdaten-Abruf |
+| **Einstellungen** | Gewicht, Geburtsjahr, Zeitzone; FIT-Einzelimport (Amazfit, Garmin ohne Strava); Wetterdaten-Abruf |
 
 ---
 
@@ -129,11 +128,11 @@ MyBiking/
 │   ├── database.py          # SQLite-Schema, init_db()
 │   ├── api/
 │   │   ├── activities.py    # /activities/*
-│   │   ├── analytics.py     # /analytics/* (FTP, PMC, Wrapped, …)
+│   │   ├── analytics.py     # /analytics/* (PMC, Wrapped, Kalorien, Ermüdung, …)
 │   │   ├── bikes.py         # /bikes, /bikes/{id}, /bikes/compare
 │   │   ├── heatmap.py       # /tracks/heatmap
 │   │   ├── segments.py      # /segments
-│   │   ├── settings.py      # /settings (Gewicht, Geburtsjahr, FTP, Timezone)
+│   │   ├── settings.py      # /settings (Gewicht, Geburtsjahr, Timezone)
 │   │   ├── importer.py      # /import/start|status|reset|fit-file
 │   │   ├── tracks.py        # /activities/{id}/track
 │   │   └── weather.py       # /weather/status, /weather/fetch-all (Open-Meteo)
@@ -161,7 +160,7 @@ MyBiking/
 │       │   └── ui/                     # shadcn/ui base-nova Komponenten
 │       ├── hooks/
 │       │   └── use-mobile.ts
-│       └── pages/                      # 22 Seiten als .tsx (Tab-Container bündeln verwandte Ansichten)
+│       └── pages/                      # 21 Seiten als .tsx (Tab-Container bündeln verwandte Ansichten)
 │           ├── DashboardPage.tsx
 │           ├── ActivitiesPage.tsx
 │           ├── ActivityDetailPage.tsx
@@ -171,7 +170,6 @@ MyBiking/
 │           ├── WeekendPage.tsx         # Wochentag-Analyse (/weekend)
 │           ├── CalendarPage.tsx
 │           ├── FormPage.tsx
-│           ├── FtpPage.tsx
 │           ├── HeatmapPage.tsx
 │           ├── HrCurvePage.tsx         # Tabs: HR-Kurve · Aerobe Effizienz (/hrcurve?tab=kurve|effizienz)
 │           ├── ProgressPage.tsx        # Tabs: Fortschritt · Jahresvergleich · Volumen · Tageszeit (/progress?tab=…)
@@ -217,7 +215,6 @@ GET  /analytics/time-heatmap        ?year, tz_offset
 GET  /analytics/speed-hr                       → per Ride: month, speed_kmh, hr, dist_km
 GET  /analytics/speed-trend         ?year      → Scatter, Rolling-Ø, Jahres-Aggregate, Monats-Heatmap
 GET  /analytics/temp-correlation
-GET  /analytics/ftp
 GET  /analytics/hr-curve            ?year
 GET  /analytics/pmc                            → CTL/ATL/TSB + hrTSS
 GET  /analytics/wrapped             ?year, tz_offset
@@ -264,8 +261,6 @@ Alle verwendeten Formeln sind auf der Seite `/berechnungen` dokumentiert und wer
 
 | Kennzahl | Formel |
 |----------|--------|
-| **FTP-Schätzung** | `avg_power × (0.90 × 1.20) / (avg_hr / hr_max)` |
-| **VO2max** | `(FTP_W / weight_kg) × 10.8 + 7` (Coggan) |
 | **hrTSS** | `(dauer_h × hr_ratio² / 0.81) × 100` |
 | **CTL** | 42-Tage EMA, K = 2/43 |
 | **ATL** | 7-Tage EMA, K = 2/8 |

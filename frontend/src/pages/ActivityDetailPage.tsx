@@ -16,6 +16,7 @@ import { useConfig } from '@/lib/config-context';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ChartTooltip } from '@/components/ui/chart-tooltip';
 
 import type { SetHoverFn } from '@/components/LeafletMap';
 
@@ -97,6 +98,44 @@ function ZoneBar({ label, pct, color, seconds }: { label: string; pct: number; c
 
 type HoverFn = (pt: { lat: number; lon: number } | null) => void;
 
+// Custom Tooltips für die Profil-Charts
+
+function ElevationTooltip({ active, payload }: { active?: boolean; payload?: any[] }) {
+  if (!active || !payload?.length) return null;
+  const d = payload[0]?.payload;
+  return (
+    <ChartTooltip
+      active={active}
+      label={d?.dist != null ? `${d.dist} km` : undefined}
+      rows={[{ label: 'Höhe', value: d?.alt != null ? `${d.alt} m` : null }]}
+    />
+  );
+}
+
+function HRTooltip({ active, payload }: { active?: boolean; payload?: any[] }) {
+  if (!active || !payload?.length) return null;
+  const d = payload[0]?.payload;
+  return (
+    <ChartTooltip
+      active={active}
+      label={d?.dist != null ? `${d.dist} km` : undefined}
+      rows={[{ label: 'Herzrate', value: d?.hr != null ? `${d.hr} bpm` : null, color: '#ef4444' }]}
+    />
+  );
+}
+
+function SpeedTooltip({ active, payload }: { active?: boolean; payload?: any[] }) {
+  if (!active || !payload?.length) return null;
+  const d = payload[0]?.payload;
+  return (
+    <ChartTooltip
+      active={active}
+      label={d?.dist != null ? `${d.dist} km` : undefined}
+      rows={[{ label: 'Geschw.', value: d?.speed != null ? `${d.speed} km/h` : null }]}
+    />
+  );
+}
+
 function closestTrackPointIdx(points: TrackPoint[], lat: number, lon: number): number {
   let bestIdx = 0;
   let bestDist = Infinity;
@@ -153,11 +192,7 @@ function ElevationChart({ points, onHover, activeDist }: { points: TrackPoint[];
           </defs>
           <XAxis dataKey="dist" type="number" domain={[0, 'dataMax']} hide />
           <YAxis tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }} axisLine={false} tickLine={false} />
-          <Tooltip
-            contentStyle={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 11 }}
-            formatter={(v: unknown) => `${v} m`}
-            labelFormatter={l => `${l} km`}
-          />
+          <Tooltip content={<ElevationTooltip />} />
           {activeDist != null && (
             <ReferenceLine x={activeDist} stroke="var(--primary)" strokeWidth={1.5} strokeDasharray="4 2" />
           )}
@@ -195,11 +230,7 @@ function HRChart({ points, onHover, activeDist }: { points: TrackPoint[]; onHove
           </defs>
           <XAxis dataKey="dist" type="number" domain={[0, 'dataMax']} hide />
           <YAxis tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }} axisLine={false} tickLine={false} />
-          <Tooltip
-            contentStyle={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 11 }}
-            formatter={(v: unknown) => `${v} bpm`}
-            labelFormatter={l => `${l} km`}
-          />
+          <Tooltip content={<HRTooltip />} />
           {activeDist != null && (
             <ReferenceLine x={activeDist} stroke="#ef4444" strokeWidth={1.5} strokeDasharray="4 2" />
           )}
@@ -260,11 +291,7 @@ function SpeedChart({ points, onHover, activeDist }: { points: TrackPoint[]; onH
           </defs>
           <XAxis dataKey="dist" type="number" domain={[0, 'dataMax']} hide />
           <YAxis tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }} axisLine={false} tickLine={false} />
-          <Tooltip
-            contentStyle={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 11 }}
-            formatter={(v: unknown) => `${v} km/h`}
-            labelFormatter={l => `${l} km`}
-          />
+          <Tooltip content={<SpeedTooltip />} />
           {activeDist != null && (
             <ReferenceLine x={activeDist} stroke="var(--primary)" strokeWidth={1.5} strokeDasharray="4 2" />
           )}

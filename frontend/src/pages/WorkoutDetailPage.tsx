@@ -9,6 +9,7 @@ import { api, type WorkoutDetail } from '@/lib/api';
 import { fmtTime } from '@/lib/format';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
+import { ChartTooltip } from '@/components/ui/chart-tooltip';
 
 // ─── Sport-Typ Konfiguration ──────────────────────────────────────────────────
 
@@ -197,6 +198,21 @@ function Delta({ label, current, avg, unit, isTime = false }: {
 
 type ChartMetric = 'dauer' | 'kalorien';
 
+function VerlaufTooltip({ active, payload, metric }: { active?: boolean; payload?: any[]; metric: ChartMetric }) {
+  if (!active || !payload?.length) return null;
+  const d = payload[0]?.payload;
+  const value = metric === 'dauer'
+    ? (d?.dauer != null ? `${d.dauer} min` : null)
+    : (d?.kalorien != null ? `${d.kalorien} kcal` : null);
+  return (
+    <ChartTooltip
+      active={active}
+      label={d?.date ?? undefined}
+      rows={[{ label: metric === 'dauer' ? 'Dauer' : 'Kalorien', value }]}
+    />
+  );
+}
+
 function VerlaufChart({ history, currentId }: { history: WorkoutDetail['history']; currentId: number }) {
   const [metric, setMetric] = useState<ChartMetric>('dauer');
 
@@ -243,11 +259,7 @@ function VerlaufChart({ history, currentId }: { history: WorkoutDetail['history'
             <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#9ca3af' }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
             <YAxis tick={{ fontSize: 10, fill: '#9ca3af' }} tickLine={false} axisLine={false} width={36}
               tickFormatter={v => metric === 'dauer' ? `${v}m` : `${v}`} />
-            <Tooltip
-              contentStyle={{ fontSize: 12, borderRadius: 8 }}
-              formatter={(v: number) => metric === 'dauer' ? [`${v} min`, 'Dauer'] : [`${v} kcal`, 'Kalorien']}
-              labelFormatter={(_: unknown, p) => p[0]?.payload?.date ?? ''}
-            />
+            <Tooltip content={(props) => <VerlaufTooltip {...props} metric={metric} />} />
             <Line
               type="monotone" dataKey={yKey} dot={false}
               stroke="hsl(var(--primary))" strokeWidth={2}

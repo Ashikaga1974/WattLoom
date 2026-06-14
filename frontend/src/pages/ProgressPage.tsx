@@ -14,6 +14,89 @@ import {
   ComposedChart,
 } from 'recharts';
 import { fmtNum } from '@/lib/format';
+import { ChartTooltip } from '@/components/ui/chart-tooltip';
+
+// ─── Custom Tooltips ─────────────────────────────────────────────────────────
+
+function JahresfortschrittTooltip({ active, payload, label }: { active?: boolean; payload?: any[]; label?: string }) {
+  if (!active || !payload?.length) return null;
+  return (
+    <ChartTooltip
+      active={active}
+      label={doyToLabel(Number(label))}
+      rows={payload.map(p => ({
+        label: String(p.name),
+        value: p.value != null ? `${Number(p.value).toFixed(0)} km` : null,
+        color: p.color as string,
+      }))}
+    />
+  );
+}
+
+function JahresbalkenTooltip({ active, payload }: { active?: boolean; payload?: any[] }) {
+  if (!active || !payload?.length) return null;
+  const d = payload[0]?.payload as { year: string; km: number; projected?: number };
+  return (
+    <ChartTooltip
+      active={active}
+      label={d.year}
+      rows={[
+        { label: 'Ist', value: `${d.km.toFixed(0)} km` },
+        ...(d.projected != null ? [{ label: 'Prognose', value: `${d.projected.toFixed(0)} km`, color: '#fc4c02' }] : []),
+      ]}
+    />
+  );
+}
+
+function MonatsverlaufTooltip({ active, payload, label }: { active?: boolean; payload?: any[]; label?: string }) {
+  if (!active || !payload?.length) return null;
+  const km = payload.find(p => p.dataKey === 'km');
+  return (
+    <ChartTooltip
+      active={active}
+      label={label}
+      rows={[
+        { label: 'Distanz', value: km?.value != null ? `${Number(km.value).toFixed(0)} km` : null },
+      ]}
+    />
+  );
+}
+
+function VergleichTooltip({ active, payload, label, years }: { active?: boolean; payload?: any[]; label?: string; years: number[] }) {
+  if (!active || !payload?.length) return null;
+  return (
+    <ChartTooltip
+      active={active}
+      label={label}
+      rows={payload.map(p => ({
+        label: String(p.name),
+        value: `${Number(p.value).toFixed(0)} km`,
+        color: compYearColor(years, Number(p.name)),
+      }))}
+    />
+  );
+}
+
+function VolumenTooltip({ active, payload }: { active?: boolean; payload?: any[] }) {
+  if (!active || !payload?.length) return null;
+  const d = payload[0]?.payload as { label: string; week_start?: string; Radfahren: number; Workout: number; Kraft: number };
+  let weekLabel = `Woche ${d.label}`;
+  if (d.week_start) {
+    const date = new Date(d.week_start.endsWith('Z') ? d.week_start : d.week_start + 'Z');
+    weekLabel = `Woche ${date.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })}`;
+  }
+  return (
+    <ChartTooltip
+      active={active}
+      label={weekLabel}
+      rows={[
+        { label: 'Radfahren', value: `${d.Radfahren} min`, color: '#fc4c02' },
+        { label: 'Workout', value: `${d.Workout} min`, color: '#60a5fa' },
+        { label: 'Kraft', value: `${d.Kraft} min`, color: '#4ade80' },
+      ]}
+    />
+  );
+}
 
 // ─── Shared ──────────────────────────────────────────────────────────────────
 
@@ -183,11 +266,7 @@ function FortschrittTab() {
                   tick={{ fontSize: 11 }}
                   width={48}
                 />
-                <Tooltip
-                  labelFormatter={v => doyToLabel(Number(v))}
-                  formatter={(value, name) => [`${Number(value).toFixed(0)} km`, name]}
-                  contentStyle={{ fontSize: 12, backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))' }}
-                />
+                <Tooltip content={<JahresfortschrittTooltip />} />
                 <Legend />
                 <ReferenceLine
                   x={doy}
@@ -229,10 +308,7 @@ function FortschrittTab() {
                   tick={{ fontSize: 11 }}
                   width={48}
                 />
-                <Tooltip
-                  formatter={(value, name) => [`${Number(value).toFixed(0)} km`, name === 'km' ? 'Ist' : 'Prognose']}
-                  contentStyle={{ fontSize: 12, backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))' }}
-                />
+                <Tooltip content={<JahresbalkenTooltip />} />
                 <Bar dataKey="km" name="km" radius={[3, 3, 0, 0]} fill="#fc4c02" isAnimationActive={false}>
                   {barData.map(entry => (
                     <rect key={entry.year} fill={entry.color} fillOpacity={entry.year === currentYear ? 1 : 0.65} />
@@ -271,10 +347,7 @@ function FortschrittTab() {
                   tick={{ fontSize: 11 }}
                   width={48}
                 />
-                <Tooltip
-                  formatter={(value) => [`${Number(value).toFixed(0)} km`, 'Distanz']}
-                  contentStyle={{ fontSize: 12, backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))' }}
-                />
+                <Tooltip content={<MonatsverlaufTooltip />} />
                 <Area type="monotone" dataKey="km" stroke="#fc4c02" strokeWidth={1.5} fill="url(#monthGrad)" dot={false} isAnimationActive={false} />
               </AreaChart>
             </ResponsiveContainer>
@@ -423,10 +496,7 @@ function VergleichTab() {
                   width={48}
                   unit=" km"
                 />
-                <Tooltip
-                  formatter={(value, name) => [`${Number(value).toFixed(0)} km`, name]}
-                  contentStyle={{ fontSize: 12, backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))' }}
-                />
+                <Tooltip content={<VergleichTooltip years={sortedSelected} />} />
                 <Legend wrapperStyle={{ fontSize: 12 }} />
                 {sortedSelected.map(year => (
                   <Area
@@ -545,18 +615,7 @@ function VolumenTab() {
                 height={chartData.length > 30 ? 40 : 20}
               />
               <YAxis tickFormatter={v => `${v}min`} tick={{ fontSize: 11 }} width={52} />
-              <Tooltip
-                formatter={(value, name) => [`${value} min`, name]}
-                labelFormatter={(label, payload) => {
-                  const ws = (payload?.[0]?.payload as { week_start?: string })?.week_start;
-                  if (ws) {
-                    const d = new Date(ws.endsWith('Z') ? ws : ws + 'Z');
-                    return `Woche ${d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })}`;
-                  }
-                  return `Woche ${label}`;
-                }}
-                contentStyle={{ fontSize: 12, backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))' }}
-              />
+              <Tooltip content={<VolumenTooltip />} />
               <Legend wrapperStyle={{ fontSize: 12 }} />
               <Bar dataKey="Radfahren" stackId="a" fill="#fc4c02" fillOpacity={0.85} isAnimationActive={false} />
               <Bar dataKey="Workout" stackId="a" fill="#60a5fa" fillOpacity={0.85} isAnimationActive={false} />

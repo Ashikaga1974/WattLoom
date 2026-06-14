@@ -3,6 +3,7 @@ import { api } from '@/lib/api';
 import { PageHeader } from '@/components/ui/page-header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ChartTooltip } from '@/components/ui/chart-tooltip';
 import {
   ComposedChart, BarChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Cell, Legend,
@@ -41,31 +42,16 @@ function MonthTooltip({ active, payload, label }: { active?: boolean; payload?: 
   const d = payload[0]?.payload;
   const total = (d?.kcal ?? 0) + (d?.kcal_workouts ?? 0);
   return (
-    <div className="rounded-lg border border-border bg-background/95 px-3 py-2 text-sm shadow-md backdrop-blur">
-      <p className="font-semibold mb-1.5">{label}</p>
-      <div className="flex flex-col gap-1 text-xs">
-        {d?.kcal > 0 && (
-          <span style={{ color: COLOR_RIDES }}>
-            Radtouren: {d.kcal.toLocaleString()} kcal · {d.rides} Rides
-          </span>
-        )}
-        {d?.kcal_workouts > 0 && (
-          <span style={{ color: COLOR_WORKOUTS }}>
-            Workouts: {d.kcal_workouts.toLocaleString()} kcal · {d.workouts}×
-          </span>
-        )}
-        {d?.kcal > 0 && d?.kcal_workouts > 0 && (
-          <span className="text-muted-foreground border-t border-border/60 pt-1 mt-0.5">
-            Gesamt: {total.toLocaleString()} kcal
-          </span>
-        )}
-        {d?.rolling_avg > 0 && (
-          <span className="text-muted-foreground">
-            3M-Ø: {d.rolling_avg.toLocaleString()} kcal
-          </span>
-        )}
-      </div>
-    </div>
+    <ChartTooltip
+      active={active}
+      label={label}
+      rows={[
+        ...(d?.kcal > 0 ? [{ label: `Radtouren · ${d.rides} Rides`, value: `${d.kcal.toLocaleString()} kcal`, color: COLOR_RIDES }] : []),
+        ...(d?.kcal_workouts > 0 ? [{ label: `Workouts · ${d.workouts}×`, value: `${d.kcal_workouts.toLocaleString()} kcal`, color: COLOR_WORKOUTS }] : []),
+        ...(d?.kcal > 0 && d?.kcal_workouts > 0 ? [{ label: 'Gesamt', value: `${total.toLocaleString()} kcal`, separator: true }] : []),
+        ...(d?.rolling_avg > 0 ? [{ label: '3M-Ø', value: `${d.rolling_avg.toLocaleString()} kcal` }] : []),
+      ]}
+    />
   );
 }
 
@@ -74,26 +60,15 @@ function YearTooltip({ active, payload, label }: { active?: boolean; payload?: a
   const d = payload[0]?.payload;
   const total = (d?.kcal ?? 0) + (d?.kcal_workouts ?? 0);
   return (
-    <div className="rounded-lg border border-border bg-background/95 px-3 py-2 text-sm shadow-md backdrop-blur">
-      <p className="font-semibold mb-1.5">{label}</p>
-      <div className="flex flex-col gap-1 text-xs">
-        {d?.kcal > 0 && (
-          <span style={{ color: COLOR_RIDES }}>
-            Radtouren: {d.kcal.toLocaleString()} kcal · {d.rides} Rides
-          </span>
-        )}
-        {d?.kcal_workouts > 0 && (
-          <span style={{ color: COLOR_WORKOUTS }}>
-            Workouts: {d.kcal_workouts.toLocaleString()} kcal · {d.workouts}×
-          </span>
-        )}
-        {d?.kcal > 0 && d?.kcal_workouts > 0 && (
-          <span className="text-muted-foreground border-t border-border/60 pt-1 mt-0.5">
-            Gesamt: {total.toLocaleString()} kcal
-          </span>
-        )}
-      </div>
-    </div>
+    <ChartTooltip
+      active={active}
+      label={label}
+      rows={[
+        ...(d?.kcal > 0 ? [{ label: `Radtouren · ${d.rides} Rides`, value: `${d.kcal.toLocaleString()} kcal`, color: COLOR_RIDES }] : []),
+        ...(d?.kcal_workouts > 0 ? [{ label: `Workouts · ${d.workouts}×`, value: `${d.kcal_workouts.toLocaleString()} kcal`, color: COLOR_WORKOUTS }] : []),
+        ...(d?.kcal > 0 && d?.kcal_workouts > 0 ? [{ label: 'Gesamt', value: `${total.toLocaleString()} kcal`, separator: true }] : []),
+      ]}
+    />
   );
 }
 
