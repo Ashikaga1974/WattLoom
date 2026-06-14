@@ -325,4 +325,4 @@ In [frontend/src/lib/config.ts](frontend/src/lib/config.ts):
 
 ## Lizenz
 
-Privates Projekt – kein offizieller Open-Source-Release. Keine Garantien.
+[MIT License](LICENSE) – Copyright (c) 2026 Ashikaga1974
