@@ -39,11 +39,13 @@
 			]);
 			activities = res.items;
 
-			// Andere Aktivitäten nach Datum gruppieren
+			// Andere Aktivitäten nach lokalem Datum gruppieren (dateKey wie bei Rides)
 			const map = new Map<string, OtherActivity[]>();
 			for (const a of otherActs) {
-				if (!map.has(a.date)) map.set(a.date, []);
-				map.get(a.date)!.push(a);
+				// a.date ist UTC-Datum (YYYY-MM-DD) aus DB → T12:00:00 vermeidet Tagsgrenzen-Probleme
+				const key = dateKey(a.date + 'T12:00:00', tzStore.offset);
+				if (!map.has(key)) map.set(key, []);
+				map.get(key)!.push(a);
 			}
 			otherByDate = map;
 
@@ -53,6 +55,11 @@
 		} finally {
 			loading = false;
 		}
+	}
+
+	// Lokales Datum als YYYY-MM-DD ohne UTC-Konvertierung
+	function localDateStr(d: Date): string {
+		return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 	}
 
 	function buildCalendar() {
@@ -85,7 +92,9 @@
 			for (let dow = 0; dow < 7; dow++) {
 				const inYear = cursor.getFullYear() === selectedYear;
 				if (inYear) {
-					const dateStr = cursor.toISOString().slice(0, 10);
+					// localDateStr statt toISOString(): cursor ist lokale Mitternacht,
+			// toISOString() würde in UTC+2 den Vortag liefern → Kalender um 1 Tag versetzt
+			const dateStr = localDateStr(cursor);
 					const acts = byDate.get(dateStr) ?? [];
 					const km = acts.reduce((s, a) => s + (a.distance_m ?? 0) / 1000, 0);
 					week.push({ date: dateStr, km, acts });

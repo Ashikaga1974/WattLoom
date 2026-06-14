@@ -7,6 +7,12 @@ const WEEKDAYS = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
 const MONTHS_SHORT = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
 const MONTHS_FULL = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
 
+// toISOString() gibt immer UTC zurück – bei UTC+2 ist lokale Mitternacht = UTC Vortag 22:00,
+// wodurch alle Kalender-Zellen einen Tag zu früh landen. Daher lokale Datumsmethoden nutzen.
+function localDateStr(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 interface DayCell {
   date: string;   // YYYY-MM-DD
   km: number;
@@ -34,15 +40,17 @@ function buildCalendar(year: number, activities: Activity[], workouts: OtherActi
   const byDate = new Map<string, Activity[]>();
   for (const act of activities) {
     const d = new Date(act.start_date.endsWith('Z') ? act.start_date : act.start_date + 'Z');
-    const key = d.toISOString().slice(0, 10);
+    const key = localDateStr(d);
     if (!byDate.has(key)) byDate.set(key, []);
     byDate.get(key)!.push(act);
   }
 
   const workoutsByDate = new Map<string, OtherActivity[]>();
   for (const w of workouts) {
-    if (!workoutsByDate.has(w.date)) workoutsByDate.set(w.date, []);
-    workoutsByDate.get(w.date)!.push(w);
+    // w.date ist UTC-Datum aus DB ("YYYY-MM-DD") → mittags parsen verhindert Tagsgrenzen-Probleme
+    const localKey = localDateStr(new Date(w.date + 'T12:00:00Z'));
+    if (!workoutsByDate.has(localKey)) workoutsByDate.set(localKey, []);
+    workoutsByDate.get(localKey)!.push(w);
   }
 
   const end = new Date(year, 11, 31);
@@ -62,7 +70,7 @@ function buildCalendar(year: number, activities: Activity[], workouts: OtherActi
     for (let dow = 0; dow < 7; dow++) {
       const inYear = cursor.getFullYear() === year;
       if (inYear) {
-        const dateStr = cursor.toISOString().slice(0, 10);
+        const dateStr = localDateStr(cursor);
         const acts = byDate.get(dateStr) ?? [];
         const km = acts.reduce((s, a) => s + a.distance_m / 1000, 0);
         const dayWorkouts = workoutsByDate.get(dateStr) ?? [];
@@ -138,7 +146,7 @@ export default function CalendarPage() {
   const { weeks, monthLabels } = buildCalendar(selectedYear, activities, workouts);
   const activeDays = new Set(activities.map(a => {
     const d = new Date(a.start_date.endsWith('Z') ? a.start_date : a.start_date + 'Z');
-    return d.toISOString().slice(0, 10);
+    return localDateStr(d);
   })).size;
   const totalKm = activities.reduce((s, a) => s + a.distance_m / 1000, 0);
 
