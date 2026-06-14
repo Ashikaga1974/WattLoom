@@ -3,7 +3,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
-from backend.api import activities, tracks, bikes, segments, heatmap, analytics, settings, importer, zones, weather
+from backend.api import activities, tracks, bikes, heatmap, analytics, settings, importer, zones, weather
 from backend.database import init_db
 
 app = FastAPI(title="MyBiking API", version="0.1.0")
@@ -19,7 +19,6 @@ app.add_middleware(
 app.include_router(activities.router)
 app.include_router(tracks.router)
 app.include_router(bikes.router)
-app.include_router(segments.router)
 app.include_router(heatmap.router)
 app.include_router(analytics.router)
 app.include_router(settings.router)
