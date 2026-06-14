@@ -62,28 +62,44 @@ def list_bikes():
     with db_connection() as conn:
         bikes = conn.execute("SELECT * FROM bikes ORDER BY retired, name").fetchall()
 
-        km_rows = conn.execute("""
-            SELECT bike_id, COALESCE(SUM(distance_m), 0) / 1000.0 AS total_km
+        # Gesamt-km + Ride-Anzahl je Bike in einer Query
+        stats_rows = conn.execute("""
+            SELECT bike_id,
+                   COALESCE(SUM(distance_m), 0) / 1000.0 AS total_km,
+                   COUNT(*) AS ride_count
             FROM activities GROUP BY bike_id
         """).fetchall()
-        bike_km = {r["bike_id"]: round(float(r["total_km"]), 1) for r in km_rows}
+        bike_stats = {r["bike_id"]: (round(float(r["total_km"]), 1), r["ride_count"]) for r in stats_rows}
+
+        # Ø-km/Tag (letzte 90 Tage) für alle Bikes auf einmal
+        avg_rows = conn.execute("""
+            SELECT bike_id, COALESCE(SUM(distance_m), 0) / 1000.0 AS km
+            FROM activities
+            WHERE DATE(start_date) >= DATE('now', '-90 days')
+            GROUP BY bike_id
+        """).fetchall()
+        bike_avg = {r["bike_id"]: (round(float(r["km"]) / 90, 4) if r["km"] > 0 else None)
+                    for r in avg_rows}
+
+        # Alle aktiven Komponenten in einer Query, dann in Python gruppieren
+        comp_rows = conn.execute(
+            "SELECT * FROM bike_components WHERE retired_at IS NULL ORDER BY bike_id, added_at"
+        ).fetchall()
+        comp_by_bike: dict[str, list] = {}
+        for c in comp_rows:
+            comp_by_bike.setdefault(c["bike_id"], []).append(dict(c))
 
         result = []
         for bike in bikes:
             b = dict(bike)
-            current_km = bike_km.get(bike["id"], 0.0)
+            current_km, ride_count = bike_stats.get(bike["id"], (0.0, 0))
             b["current_km"] = current_km
-            avg = _avg_km_per_day(conn, bike["id"])
-
-            components = conn.execute(
-                "SELECT * FROM bike_components WHERE bike_id = ? AND retired_at IS NULL ORDER BY added_at",
-                (bike["id"],),
-            ).fetchall()
-            b["components"] = [_enrich_component(dict(c), current_km, avg) for c in components]
-
-            b["ride_count"] = conn.execute(
-                "SELECT COUNT(*) FROM activities WHERE bike_id = ?", (bike["id"],)
-            ).fetchone()[0]
+            b["ride_count"] = ride_count
+            avg = bike_avg.get(bike["id"])
+            b["components"] = [
+                _enrich_component(c, current_km, avg)
+                for c in comp_by_bike.get(bike["id"], [])
+            ]
             result.append(b)
         return result
 
