@@ -10,7 +10,7 @@ import {
   CartesianGrid,
 } from 'recharts';
 
-import { api, type ActivityStats, type Bike, type Activity, type WeeklyStats, type MonthlyStats, type WeeklyVolume } from '@/lib/api';
+import { api, type ActivityStats, type Bike, type Activity, type WeeklyStats, type MonthlyStats, type WeeklyVolume, type PmcDay } from '@/lib/api';
 import { fmtKm, fmtTime, fmtDate, fmtNum, fmtSpeed, fmtWeekday } from '@/lib/format';
 import { useConfig } from '@/lib/config-context';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -182,6 +182,46 @@ function HeroBanner({ activity, loading }: { activity: Activity | null; loading:
   );
 }
 
+function tsbInfo(tsb: number): { label: string; text: string; color: string; bg: string } {
+  if (tsb >= 10)  return { label: 'Frisch',     text: 'Intensives Training möglich',      color: '#22c55e', bg: 'rgba(34,197,94,0.07)'  };
+  if (tsb >= 0)   return { label: 'Erholt',     text: 'Normales Training, gute Form',     color: '#3b82f6', bg: 'rgba(59,130,246,0.07)' };
+  if (tsb >= -10) return { label: 'Müde',       text: 'Locker bleiben, Tempo reduzieren', color: '#f59e0b', bg: 'rgba(245,158,11,0.07)' };
+  return              { label: 'Erschöpft', text: 'Ruhetag oder lockere Regeneration', color: '#ef4444', bg: 'rgba(239,68,68,0.07)'  };
+}
+
+function TsbWidget({ current }: { current: PmcDay }) {
+  const info = tsbInfo(current.tsb);
+  const tsbStr = current.tsb > 0 ? `+${current.tsb}` : String(current.tsb);
+  return (
+    <div
+      className="rounded-2xl border px-5 py-4 flex items-center justify-between gap-4 flex-wrap"
+      style={{ borderColor: `${info.color}50`, background: info.bg }}
+    >
+      <div>
+        <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground mb-0.5">
+          Trainingsform heute
+        </p>
+        <p className="text-sm font-semibold" style={{ color: info.color }}>{info.label}</p>
+        <p className="text-xs text-muted-foreground mt-0.5">{info.text}</p>
+      </div>
+      <div className="flex items-center gap-6 shrink-0">
+        <div className="text-center">
+          <p className="text-2xl font-black tabular-nums" style={{ color: info.color }}>{tsbStr}</p>
+          <p className="text-[10px] text-muted-foreground uppercase tracking-wider mt-0.5">TSB</p>
+        </div>
+        <div className="text-center">
+          <p className="text-xl font-bold tabular-nums text-foreground">{Math.round(current.ctl)}</p>
+          <p className="text-[10px] text-muted-foreground uppercase tracking-wider mt-0.5">CTL</p>
+        </div>
+        <div className="text-center">
+          <p className="text-xl font-bold tabular-nums text-foreground">{Math.round(current.atl)}</p>
+          <p className="text-[10px] text-muted-foreground uppercase tracking-wider mt-0.5">ATL</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function DistanzSparkTooltip({ active, payload, label }: { active?: boolean; payload?: any[]; label?: string }) {
   if (!active || !payload?.length) return null;
   const d = payload[0]?.payload;
@@ -206,6 +246,7 @@ export default function DashboardPage() {
   const [sparkData, setSparkData] = useState<(WeeklyStats | MonthlyStats)[]>([]);
   const [sparkLabels, setSparkLabels] = useState<string[]>([]);
   const [weeklyVol, setWeeklyVol] = useState<WeeklyVolume[]>([]);
+  const [pmcCurrent, setPmcCurrent] = useState<PmcDay | null>(null);
   const [selectedYear, setSelectedYear] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -249,6 +290,10 @@ export default function DashboardPage() {
   }
 
   useEffect(() => { load(null); }, []);
+  // PMC einmalig laden – unabhängig vom Jahresfilter
+  useEffect(() => {
+    api.pmc().then(d => setPmcCurrent(d.current)).catch(() => {});
+  }, []);
 
   function handleYearChange(year: string | null) {
     setSelectedYear(year);
@@ -292,6 +337,9 @@ export default function DashboardPage() {
 
       {/* ── Hero: Letzter Ride ── */}
       <HeroBanner activity={recentActivities[0] ?? null} loading={loading} />
+
+      {/* ── Trainingsform (TSB) ── */}
+      {pmcCurrent && pmcCurrent.ctl > 0 && <TsbWidget current={pmcCurrent} />}
 
       {/* ── KPI-Block ── */}
       <Card className="overflow-hidden p-0 gap-0">

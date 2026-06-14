@@ -1,10 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { api, type Bike, type BikeCompareData } from '@/lib/api';
+import { api, type Bike, type BikeCompareData, type BikeComponent } from '@/lib/api';
 import { PageHeader } from '@/components/ui/page-header';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { fmtNum } from '@/lib/format';
 
 // ─── Vergleich-Hilfsfunktionen ────────────────────────────────────────────────
@@ -41,19 +40,207 @@ const ROWS = [
   { label: 'Ø Höhenmeter/Ride', key: 'avg_elevation_m',   fmt: (v: number) => fmtNum(v),    unit: ' m' },
 ];
 
+// ─── Verschleiß-Hilfsfunktionen ──────────────────────────────────────────────
+
+const COMPONENT_TYPES: { type: string; threshold: number }[] = [
+  { type: 'Kette',         threshold: 2000  },
+  { type: 'Kassette',      threshold: 8000  },
+  { type: 'Reifen vorne',  threshold: 5000  },
+  { type: 'Reifen hinten', threshold: 5000  },
+  { type: 'Bremsbeläge',   threshold: 5000  },
+  { type: 'Kabel',         threshold: 10000 },
+  { type: 'Schaltwerk',    threshold: 20000 },
+  { type: 'Sonstiges',     threshold: 5000  },
+];
+
+function wearColor(pct: number): string {
+  if (pct >= 100) return '#ef4444';
+  if (pct >= 80)  return '#f97316';
+  if (pct >= 60)  return '#f59e0b';
+  return '#22c55e';
+}
+
+function ComponentRow({
+  comp,
+  bikeId,
+  onChanged,
+}: {
+  comp: BikeComponent;
+  bikeId: string;
+  onChanged: () => void;
+}) {
+  const pct = comp.pct_used ?? 0;
+  const color = wearColor(pct);
+  const [busy, setBusy] = useState(false);
+
+  async function handleReset() {
+    setBusy(true);
+    try { await api.resetBikeComponent(bikeId, comp.id); onChanged(); }
+    finally { setBusy(false); }
+  }
+  async function handleDelete() {
+    setBusy(true);
+    try { await api.deleteBikeComponent(bikeId, comp.id); onChanged(); }
+    finally { setBusy(false); }
+  }
+
+  const installedLabel = comp.added_at
+    ? new Date(comp.added_at + 'T00:00:00').toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })
+    : null;
+
+  return (
+    <div className="flex items-center gap-2">
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center justify-between mb-0.5">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <span className="text-xs font-medium truncate">{comp.type}</span>
+            {installedLabel && (
+              <span className="text-[10px] text-muted-foreground shrink-0">seit {installedLabel}</span>
+            )}
+          </div>
+          <span className="text-[11px] text-muted-foreground ml-2 shrink-0 tabular-nums">
+            {fmtNum(Math.round(comp.km_since_service))} / {fmtNum(comp.km_threshold ?? 0)} km
+          </span>
+        </div>
+        <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+          <div
+            className="h-full rounded-full transition-all duration-500"
+            style={{ width: `${Math.min(pct, 100)}%`, background: color }}
+          />
+        </div>
+        {pct >= 100 && (
+          <p className="text-[10px] mt-0.5 font-semibold" style={{ color }}>Wartung fällig!</p>
+        )}
+      </div>
+      <button
+        onClick={handleReset}
+        disabled={busy}
+        className="text-[10px] px-2 py-0.5 rounded border border-border hover:bg-muted shrink-0 disabled:opacity-40"
+        title="Als gewartet markieren"
+      >
+        Gewartet
+      </button>
+      <button
+        onClick={handleDelete}
+        disabled={busy}
+        className="text-muted-foreground hover:text-destructive shrink-0 text-base leading-none disabled:opacity-40 px-0.5"
+        title="Komponente entfernen"
+      >
+        ×
+      </button>
+    </div>
+  );
+}
+
+function AddComponentForm({ bikeId, onAdded }: { bikeId: string; onAdded: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [selectedType, setSelectedType] = useState(COMPONENT_TYPES[0].type);
+  const [threshold, setThreshold] = useState(COMPONENT_TYPES[0].threshold);
+  const [installedAt, setInstalledAt] = useState(new Date().toISOString().slice(0, 10));
+  const [busy, setBusy] = useState(false);
+
+  function handleTypeChange(t: string) {
+    setSelectedType(t);
+    const def = COMPONENT_TYPES.find(c => c.type === t);
+    if (def) setThreshold(def.threshold);
+  }
+
+  async function handleAdd() {
+    setBusy(true);
+    try {
+      await api.addBikeComponent(bikeId, {
+        type: selectedType,
+        km_threshold: threshold,
+        installed_at: installedAt,
+      });
+      setOpen(false);
+      onAdded();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (!open) {
+    return (
+      <button onClick={() => setOpen(true)} className="text-xs text-primary hover:underline text-left">
+        + Komponente hinzufügen
+      </button>
+    );
+  }
+
+  return (
+    <div className="space-y-2 pt-1">
+      <div className="flex flex-wrap items-center gap-2">
+        <select
+          value={selectedType}
+          onChange={e => handleTypeChange(e.target.value)}
+          className="text-xs rounded border border-border bg-background px-2 py-1 focus:outline-none"
+        >
+          {COMPONENT_TYPES.map(c => (
+            <option key={c.type} value={c.type}>{c.type}</option>
+          ))}
+        </select>
+        <input
+          type="number"
+          value={threshold}
+          onChange={e => setThreshold(Number(e.target.value))}
+          className="text-xs rounded border border-border bg-background px-2 py-1 w-24 focus:outline-none tabular-nums"
+          min={100}
+          step={100}
+        />
+        <span className="text-xs text-muted-foreground">km</span>
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-xs text-muted-foreground">Eingebaut am</span>
+        <input
+          type="date"
+          value={installedAt}
+          onChange={e => setInstalledAt(e.target.value)}
+          className="text-xs rounded border border-border bg-background px-2 py-1 focus:outline-none"
+        />
+        <button
+          onClick={handleAdd}
+          disabled={busy}
+          className="text-xs px-2.5 py-1 rounded font-medium disabled:opacity-40"
+          style={{ background: 'var(--primary)', color: 'var(--primary-foreground)' }}
+        >
+          Hinzufügen
+        </button>
+        <button onClick={() => setOpen(false)} className="text-xs text-muted-foreground hover:underline">
+          Abbrechen
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ─── Übersicht-Tab ────────────────────────────────────────────────────────────
 
 function UebersichtTab() {
   const [bikes, setBikes] = useState<Bike[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  function reload() { setRefreshKey(k => k + 1); }
+
+  async function handleToggleRetired(bikeId: string) {
+    await api.toggleBikeRetired(bikeId);
+    reload();
+  }
+
+  async function handleImageUpload(bikeId: string, file: File) {
+    await api.uploadBikeImage(bikeId, file);
+    reload();
+  }
 
   useEffect(() => {
+    setLoading(true);
     api.bikes()
       .then(setBikes)
       .catch(e => setError(e instanceof Error ? e.message : 'Fehler'))
       .finally(() => setLoading(false));
-  }, []);
+  }, [refreshKey]);
 
   if (error) {
     return <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive">{error}</div>;
@@ -68,59 +255,109 @@ function UebersichtTab() {
   }
 
   return (
-    <>
-      <div className="grid gap-4 md:grid-cols-2">
-        {bikes.map(bike => (
-          <Card key={bike.id} className="shadow-sm">
-            <CardContent className="p-6 flex flex-col gap-4">
-              <div className="flex items-start justify-between">
-                <div>
-                  <h2 className="text-xl font-bold">{bike.name}</h2>
-                  {(bike.brand || bike.model) &&
-                    `${bike.brand ?? ''} ${bike.model ?? ''}`.trim() !== bike.name && (
-                      <p className="mt-0.5 text-sm text-muted-foreground">
-                        {[bike.brand, bike.model].filter(Boolean).join(' ')}
-                      </p>
-                    )}
-                  {bike.description && (
-                    <p className="mt-1 text-sm text-muted-foreground">{bike.description}</p>
+    <div className="grid gap-4 md:grid-cols-2">
+      {bikes.map(bike => (
+        <Card key={bike.id} className="shadow-sm overflow-hidden">
+          {/* Bike-Bild */}
+          <div className="relative h-44 bg-muted/40 overflow-hidden">
+            {bike.image_filename ? (
+              <img
+                src={api.bikeImageUrl(bike.id)}
+                alt={bike.name}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <div className="flex items-center justify-center h-full">
+                <span className="text-7xl opacity-20 select-none">🚴</span>
+              </div>
+            )}
+            {/* Foto-Upload-Button */}
+            <label className="absolute bottom-2 right-2 cursor-pointer">
+              <input
+                type="file"
+                accept="image/*"
+                className="sr-only"
+                onChange={e => {
+                  const f = e.target.files?.[0];
+                  if (f) handleImageUpload(bike.id, f);
+                  e.target.value = '';
+                }}
+              />
+              <span className="text-[11px] px-2 py-1 rounded bg-black/55 text-white hover:bg-black/75 transition-colors">
+                {bike.image_filename ? 'Foto ändern' : 'Foto hochladen'}
+              </span>
+            </label>
+          </div>
+
+          <CardContent className="p-6 flex flex-col gap-4">
+            {/* Kopfzeile */}
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <h2 className="text-xl font-bold truncate">{bike.name}</h2>
+                {(bike.brand || bike.model) &&
+                  `${bike.brand ?? ''} ${bike.model ?? ''}`.trim() !== bike.name && (
+                    <p className="mt-0.5 text-sm text-muted-foreground">
+                      {[bike.brand, bike.model].filter(Boolean).join(' ')}
+                    </p>
                   )}
-                </div>
-                {bike.retired ? (
-                  <Badge variant="secondary">Ausgemustert</Badge>
-                ) : (
-                  <Badge className="bg-primary/10 text-primary border-primary/20">Aktiv</Badge>
+                {bike.description && (
+                  <p className="mt-1 text-sm text-muted-foreground">{bike.description}</p>
                 )}
               </div>
+              {/* Aktiv/Inaktiv-Toggle */}
+              <button
+                onClick={() => handleToggleRetired(bike.id)}
+                className="shrink-0 text-xs px-2.5 py-1 rounded-full font-semibold transition-all border"
+                style={bike.retired
+                  ? { background: 'var(--muted)', color: 'var(--muted-foreground)', borderColor: 'var(--border)' }
+                  : { background: 'rgba(34,197,94,0.1)', color: '#22c55e', borderColor: 'rgba(34,197,94,0.3)' }
+                }
+                title="Klicken um Status zu wechseln"
+              >
+                {bike.retired ? 'Inaktiv' : '● Aktiv'}
+              </button>
+            </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div className="rounded-lg bg-muted/60 px-4 py-3">
-                  <p className="text-xs uppercase tracking-wider text-muted-foreground">Rides</p>
-                  <p className="mt-0.5 text-2xl font-bold text-primary">{bike.ride_count}</p>
-                </div>
-                <div className="rounded-lg bg-muted/60 px-4 py-3">
-                  <p className="text-xs uppercase tracking-wider text-muted-foreground">Aktivitäten</p>
-                  <p className="mt-0.5 text-2xl font-bold">{bike.ride_count} <span className="text-sm font-normal text-muted-foreground">Rides</span></p>
-                </div>
+            {/* Stats */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="rounded-lg bg-muted/60 px-4 py-3">
+                <p className="text-xs uppercase tracking-wider text-muted-foreground">Rides</p>
+                <p className="mt-0.5 text-2xl font-bold text-primary">{bike.ride_count}</p>
               </div>
-
-              <div className="flex items-center gap-4 mt-auto">
-                <Link
-                  to={`/activities?bike=${bike.id}`}
-                  className="text-sm text-primary hover:underline"
-                >
-                  Alle Aktivitäten →
-                </Link>
+              <div className="rounded-lg bg-muted/60 px-4 py-3">
+                <p className="text-xs uppercase tracking-wider text-muted-foreground">Gesamt km</p>
+                <p className="mt-0.5 text-2xl font-bold">{fmtNum(Math.round(bike.current_km))}</p>
               </div>
-            </CardContent>
-          </Card>
-        ))}
+            </div>
 
-        {bikes.length === 0 && (
-          <p className="col-span-2 text-muted-foreground">Keine Bikes gefunden.</p>
-        )}
-      </div>
-    </>
+            {/* Verschleiß */}
+            <div className="border-t border-border pt-3 space-y-2">
+              <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+                Verschleiß
+              </p>
+              {bike.components.length === 0 && (
+                <p className="text-xs text-muted-foreground">Keine Komponenten erfasst.</p>
+              )}
+              {bike.components.map(comp => (
+                <ComponentRow key={comp.id} comp={comp} bikeId={bike.id} onChanged={reload} />
+              ))}
+              <AddComponentForm bikeId={bike.id} onAdded={reload} />
+            </div>
+
+            <Link
+              to={`/activities?bike=${bike.id}`}
+              className="text-sm text-primary hover:underline mt-auto"
+            >
+              Alle Aktivitäten →
+            </Link>
+          </CardContent>
+        </Card>
+      ))}
+
+      {bikes.length === 0 && (
+        <p className="col-span-2 text-muted-foreground">Keine Bikes gefunden.</p>
+      )}
+    </div>
   );
 }
 

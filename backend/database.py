@@ -209,6 +209,18 @@ def init_db() -> None:
             if col not in cols:
                 conn.execute(f"ALTER TABLE activities ADD COLUMN {col} {typ}")
 
+        # Migration: bike_components Verschleiß-Tracking
+        comp_cols = [r[1] for r in conn.execute("PRAGMA table_info(bike_components)").fetchall()]
+        if "km_threshold" not in comp_cols:
+            conn.execute("ALTER TABLE bike_components ADD COLUMN km_threshold REAL")
+        if "km_at_service" not in comp_cols:
+            conn.execute("ALTER TABLE bike_components ADD COLUMN km_at_service REAL DEFAULT 0")
+
+        # Migration: Bike-Bild
+        bike_cols = [r[1] for r in conn.execute("PRAGMA table_info(bikes)").fetchall()]
+        if "image_filename" not in bike_cols:
+            conn.execute("ALTER TABLE bikes ADD COLUMN image_filename TEXT")
+
     print(f"DB initialisiert: {DB_PATH}")
 
 
