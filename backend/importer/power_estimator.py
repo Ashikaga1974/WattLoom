@@ -24,6 +24,7 @@ _G = 9.81  # m/s²
 DEFAULT_CRR      = 0.004   # Rollwiderstandskoeffizient: Rennreifen auf Asphalt
 DEFAULT_CDA      = 0.32    # CdA (m²): Rennposition / Drops; Hoods ~0.36
 DEFAULT_BIKE_KG  = 8.0     # Fahrradgewicht inkl. Anbauteile (kg)
+DEFAULT_ALT_M    = 200.0   # Fallback-Höhe wenn kein Höhenprofil (z.B. Amazfit): Flachland, ~mittlere DE-Höhe
 MIN_SPEED_MS     = 0.5     # < 1.8 km/h → Stillstand, kein Treten
 NP_WINDOW_S      = 30      # Coggan Normalized-Power-Fenster (Sekunden)
 ALT_SMOOTH_WIN   = 7       # Glättungsfenster für GPS-Höhenrauschen (Punkte)
@@ -153,18 +154,17 @@ def estimate_power(
         (activity_id,),
     ).fetchall()
 
-    # Validiere Punkte: alle vier Felder müssen vorhanden und plausibel sein
+    # Validiere Punkte: lat/lon/speed Pflicht; altitude_m optional (Fallback: Flachland)
     pts = []
     for r in rows:
         if (r["lat"] is not None and r["lon"] is not None
-                and r["altitude_m"] is not None
                 and r["speed_ms"] is not None
                 and r["speed_ms"] >= 0):
             pts.append({
                 "ts":  _parse_ts(r["timestamp"]),
                 "lat": r["lat"],
                 "lon": r["lon"],
-                "alt": r["altitude_m"],
+                "alt": r["altitude_m"],  # kann None sein (z.B. Amazfit ohne Barometer)
                 "v":   r["speed_ms"],
             })
 
@@ -183,7 +183,9 @@ def estimate_power(
     total_mass = weight_kg + bike_kg
 
     # Höhe glätten – reduziert GPS-Rauschen deutlich (~1–2 m Amplitudenfehler)
-    alts = _smooth([p["alt"] for p in pts], window=ALT_SMOOTH_WIN)
+    # Fehlende Höhenwerte (kein Barometer/GPS-Höhe) → DEFAULT_ALT_M; gradient bleibt 0
+    raw_alts = [p["alt"] if p["alt"] is not None else DEFAULT_ALT_M for p in pts]
+    alts = _smooth(raw_alts, window=ALT_SMOOTH_WIN)
 
     powers: list[float] = []
     times:  list[float | None] = []

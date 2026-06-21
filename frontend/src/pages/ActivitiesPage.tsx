@@ -390,8 +390,15 @@ export default function ActivitiesPage() {
                               className="w-16 text-right bg-muted border border-border rounded px-1 py-0.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
                             />
                           ) : act.manual ? (
-                            <span className="cursor-pointer underline decoration-dotted hover:text-foreground" title="Klicken zum Bearbeiten">
-                              {act.avg_power_w != null ? `${Math.round(act.avg_power_w)} W` : '+ W'}
+                            <span className="flex flex-col items-end leading-tight">
+                              <span className="cursor-pointer underline decoration-dotted hover:text-foreground" title="Klicken zum Bearbeiten">
+                                {act.avg_power_w != null ? `${Math.round(act.avg_power_w)} W` : act.est_avg_power_w ? `~${Math.round(act.est_avg_power_w)} W` : '+ W'}
+                              </span>
+                              {act.est_norm_power_w && (
+                                <span className="text-muted-foreground/60 text-xs" title="Normalized Power (Schätzung)">
+                                  NP ~{Math.round(act.est_norm_power_w)}
+                                </span>
+                              )}
                             </span>
                           ) : act.avg_power_w ? (
                             <span className="flex flex-col items-end leading-tight">
