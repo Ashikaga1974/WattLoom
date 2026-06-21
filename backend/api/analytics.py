@@ -5,6 +5,9 @@ from backend.utils import haversine_km, MS_TO_KMH
 
 router = APIRouter(prefix="/analytics", tags=["analytics"])
 
+# Fallback-HRmax wenn keine Aktivitäten mit HR-Daten vorhanden sind
+_HR_MAX_FALLBACK = 185.0
+
 
 @router.get("/time-heatmap")
 def time_heatmap(year: int = Query(None), tz_offset: int = Query(None, ge=-14, le=14)):
@@ -176,7 +179,7 @@ def performance_management_chart():
         max_hr_row = conn.execute(
             "SELECT MAX(max_hr) AS v FROM activities WHERE max_hr > 0"
         ).fetchone()
-        global_max_hr = float(max_hr_row["v"]) if max_hr_row and max_hr_row["v"] else 185.0
+        global_max_hr = float(max_hr_row["v"]) if max_hr_row and max_hr_row["v"] else _HR_MAX_FALLBACK
         threshold_hr = 0.85 * global_max_hr
 
         rows = conn.execute("""

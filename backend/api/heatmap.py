@@ -3,11 +3,14 @@ from backend.database import db_connection
 
 router = APIRouter(prefix="/tracks", tags=["heatmap"])
 
+# Höherer Default als bei Einzeltrack (5) – Heatmap zeigt alle Tracks gleichzeitig
+_HEATMAP_SIMPLIFY_DEFAULT = 20
+
 
 @router.get("/heatmap")
 def get_heatmap(
     simplify: int = Query(
-        20,
+        _HEATMAP_SIMPLIFY_DEFAULT,
         ge=1,
         le=100,
         description="Jeden n-ten Punkt zurückgeben; Standard 20 (~83k Punkte)",

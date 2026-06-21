@@ -1,19 +1,8 @@
-import math
-
 from fastapi import APIRouter, HTTPException, Query
 from backend.database import db_connection
+from backend.utils import haversine_m
 
 router = APIRouter(prefix="/activities", tags=["tracks"])
-
-
-def _haversine_m(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
-    """Entfernung zwischen zwei GPS-Punkten in Metern (Haversine)."""
-    R = 6_371_000
-    lat1_r, lat2_r = math.radians(lat1), math.radians(lat2)
-    dlat = math.radians(lat2 - lat1)
-    dlon = math.radians(lon2 - lon1)
-    a = math.sin(dlat / 2) ** 2 + math.cos(lat1_r) * math.cos(lat2_r) * math.sin(dlon / 2) ** 2
-    return R * 2 * math.asin(math.sqrt(a))
 
 
 @router.get("/{activity_id}/track")
@@ -88,7 +77,7 @@ def get_track(
             lat, lon = p.get("lat"), p.get("lon")
             if lat is not None and lon is not None:
                 if prev_lat is not None:
-                    cum += _haversine_m(prev_lat, prev_lon, lat, lon)
+                    cum += haversine_m(prev_lat, prev_lon, lat, lon)
                 prev_lat, prev_lon = lat, lon
             p["distance_m"] = round(cum, 1)
 
