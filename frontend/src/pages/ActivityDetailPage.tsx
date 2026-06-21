@@ -559,7 +559,8 @@ export default function ActivityDetailPage() {
       </div>
 
       {/* Sekundärstats */}
-      {(activity.avg_hr || activity.avg_power_w || activity.max_speed_ms || activity.calories ||
+      {(activity.avg_hr || activity.avg_power_w || activity.est_avg_power_w ||
+        activity.max_speed_ms || activity.calories ||
         activity.avg_cadence || activity.avg_temp_c) && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {activity.avg_hr && (
@@ -576,6 +577,21 @@ export default function ActivityDetailPage() {
               sub={activity.max_power_w ? `max ${Math.round(activity.max_power_w)} W` : undefined}
             />
           )}
+          {/* Physikalische Leistungsschätzung (immer anzeigen wenn vorhanden) */}
+          {activity.est_avg_power_w && (() => {
+            const parts: string[] = [];
+            if (activity.est_norm_power_w)
+              parts.push(`NP ~${Math.round(activity.est_norm_power_w)} W`);
+            if (config.weight_kg && config.weight_kg > 0)
+              parts.push(`${(activity.est_avg_power_w / config.weight_kg).toFixed(2)} W/kg`);
+            return (
+              <StatTileSecondary
+                label="~ Leistung"
+                value={`~${Math.round(activity.est_avg_power_w)} W`}
+                sub={parts.length > 0 ? parts.join(' · ') : undefined}
+              />
+            );
+          })()}
           {activity.max_speed_ms && (
             <StatTileSecondary
               label="Max. Geschw."

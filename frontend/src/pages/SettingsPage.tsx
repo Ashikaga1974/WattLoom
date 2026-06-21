@@ -56,6 +56,11 @@ export default function SettingsPage() {
   const [weatherFetching, setWeatherFetching] = useState(false);
   const weatherPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // Leistungsschätzung
+  const [powerBusy, setPowerBusy]     = useState(false);
+  const [powerMsg, setPowerMsg]       = useState<string | null>(null);
+  const [powerError, setPowerError]   = useState<string | null>(null);
+
   // Import-Sicherheitsabfrage
   const [importConfirm, setImportConfirm] = useState(false);
 
@@ -94,6 +99,24 @@ export default function SettingsPage() {
       weatherPollRef.current = setInterval(refreshWeatherStatus, 2000);
     } catch {
       setWeatherFetching(false);
+    }
+  }
+
+  async function startPowerRecalc() {
+    setPowerBusy(true);
+    setPowerMsg(null);
+    setPowerError(null);
+    try {
+      const res = await api.recalculatePower();
+      if (res.ok) {
+        setPowerMsg(res.message);
+      } else {
+        setPowerError(res.message);
+      }
+    } catch (e: unknown) {
+      setPowerError(e instanceof Error ? e.message : 'Unbekannter Fehler');
+    } finally {
+      setPowerBusy(false);
     }
   }
 
@@ -774,6 +797,30 @@ export default function SettingsPage() {
           {weatherStatus?.with_weather === weatherStatus?.total_activities && weatherStatus?.total_activities > 0 && !weatherStatus?.running && (
             <p className="text-xs text-green-600">Alle Aktivitäten haben Wetterdaten.</p>
           )}
+        </CardContent>
+      </Card>
+
+      {/* ── Leistungsschätzung ── */}
+      <Card>
+        <CardHeader className="border-b border-border pb-3">
+          <CardTitle className="text-sm font-semibold">Leistung schätzen</CardTitle>
+          <p className="text-xs text-muted-foreground">
+            Berechnet Durchschnittsleistung und Normalized Power aus GPS + Höhenprofil für alle Radtouren
+            mit Track-Daten. Physikalisches Modell: Rollwiderstand (Crr 0.004), Luftwiderstand (CdA 0.32 m²),
+            Steigungsarbeit. Genauigkeit ca. ±15 % – Wind wird nicht berücksichtigt.
+            Setzt voraus, dass Körpergewicht gesetzt ist.
+          </p>
+        </CardHeader>
+        <CardContent className="pt-5 space-y-4">
+          {powerMsg && <p className="text-sm text-green-600">{powerMsg} – läuft im Hintergrund.</p>}
+          {powerError && <p className="text-sm text-red-500">{powerError}</p>}
+          <button
+            onClick={startPowerRecalc}
+            disabled={powerBusy}
+            className="rounded-md px-5 py-2 text-sm font-medium bg-orange-500 hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-white cursor-pointer"
+          >
+            {powerBusy ? 'Startet…' : 'Leistung für alle Fahrten schätzen'}
+          </button>
         </CardContent>
       </Card>
 

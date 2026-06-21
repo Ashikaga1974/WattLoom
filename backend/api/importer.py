@@ -108,8 +108,20 @@ async def import_fit_file(
     # Wetter direkt nach dem Import für neue Radtouren abrufen
     if result.get("is_ride"):
         _fetch_weather_for_activity(result["activity_id"])
+        _estimate_power_for_activity(result["activity_id"])
 
     return result
+
+
+def _estimate_power_for_activity(activity_id: int) -> None:
+    """Schätzt Leistung für eine importierte Radtour und speichert das Ergebnis."""
+    from backend.database import db_connection
+    from backend.importer.power_estimator import estimate_and_store
+    try:
+        with db_connection() as conn:
+            estimate_and_store(conn, activity_id)
+    except Exception as exc:
+        logger.error("Leistungsschätzung für activity %s fehlgeschlagen: %s", activity_id, exc)
 
 
 def _fetch_weather_for_activity(activity_id: int) -> None:
@@ -178,8 +190,52 @@ async def import_tcx_file(
 
     if result.get("is_ride"):
         _fetch_weather_for_activity(result["activity_id"])
+        _estimate_power_for_activity(result["activity_id"])
 
     return result
+
+
+@router.post("/recalculate-power")
+def recalculate_power():
+    """
+    Schätzt Leistung für alle Radtouren mit Track-Daten (background-Thread).
+    Überschreibt bestehende Schätzungen; echte avg_power_w-Werte bleiben unberührt.
+    Gibt sofort Status-Info zurück; Fortschritt wird nicht weiter gemeldet.
+    """
+    from backend.database import db_connection
+    from backend.importer.power_estimator import estimate_and_store, _get_weight_kg
+
+    with db_connection() as conn:
+        weight_kg = _get_weight_kg(conn)
+
+    if weight_kg is None:
+        return {"ok": False, "message": "Körpergewicht nicht gesetzt – bitte zuerst in den Einstellungen eintragen"}
+
+    def _run():
+        from backend.database import db_connection
+        from backend.importer.power_estimator import estimate_and_store
+
+        with db_connection() as conn:
+            ids = [
+                r[0]
+                for r in conn.execute(
+                    "SELECT id FROM activities WHERE has_track = 1 ORDER BY start_date DESC"
+                ).fetchall()
+            ]
+
+        done = 0
+        for activity_id in ids:
+            try:
+                with db_connection() as conn:
+                    if estimate_and_store(conn, activity_id):
+                        done += 1
+            except Exception as exc:
+                logger.error("Leistungsschätzung activity %s: %s", activity_id, exc)
+
+        logger.info("Leistungsschätzung abgeschlossen: %d/%d Aktivitäten", done, len(ids))
+
+    threading.Thread(target=_run, daemon=True).start()
+    return {"ok": True, "message": "Leistungsschätzung gestartet"}
 
 
 @router.post("/reset")

@@ -186,8 +186,15 @@ def init_db() -> None:
         )
         conn.commit()
 
-        # Migration: smart_device-Spalte hinzufügen falls nicht vorhanden
+        # Migrations: activities-Spalten einmalig einlesen
         cols = [r[1] for r in conn.execute("PRAGMA table_info(activities)").fetchall()]
+
+        # Migration: Leistungsschätzung
+        for col, typ in [("est_avg_power_w", "REAL"), ("est_norm_power_w", "REAL")]:
+            if col not in cols:
+                conn.execute(f"ALTER TABLE activities ADD COLUMN {col} {typ}")
+
+        # Migration: smart_device-Spalte hinzufügen falls nicht vorhanden
         if "smart_device" not in cols:
             conn.execute("ALTER TABLE activities ADD COLUMN smart_device TEXT")
             conn.execute("""

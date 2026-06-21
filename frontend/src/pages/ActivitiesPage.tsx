@@ -393,9 +393,25 @@ export default function ActivitiesPage() {
                             <span className="cursor-pointer underline decoration-dotted hover:text-foreground" title="Klicken zum Bearbeiten">
                               {act.avg_power_w != null ? `${Math.round(act.avg_power_w)} W` : '+ W'}
                             </span>
-                          ) : (
-                            act.avg_power_w ? `${Math.round(act.avg_power_w)} W` : '–'
-                          )}
+                          ) : act.avg_power_w ? (
+                            <span className="flex flex-col items-end leading-tight">
+                              <span>{Math.round(act.avg_power_w)} W</span>
+                              {act.est_norm_power_w && (
+                                <span className="text-muted-foreground/60 text-xs" title="Normalized Power (Schätzung)">
+                                  NP ~{Math.round(act.est_norm_power_w)}
+                                </span>
+                              )}
+                            </span>
+                          ) : act.est_avg_power_w ? (
+                            <span className="flex flex-col items-end leading-tight" title="Physikalische Schätzung">
+                              <span className="text-muted-foreground">~{Math.round(act.est_avg_power_w)} W</span>
+                              {act.est_norm_power_w && (
+                                <span className="text-muted-foreground/60 text-xs">
+                                  NP ~{Math.round(act.est_norm_power_w)}
+                                </span>
+                              )}
+                            </span>
+                          ) : '–'}
                         </td>
                         <td className="px-4 py-3 text-right whitespace-nowrap" onClick={e => e.stopPropagation()}>
                           {confirmingId === act.id ? (

@@ -19,6 +19,8 @@ export interface Activity {
   has_track: number;
   manual: number;
   smart_device: string | null;
+  est_avg_power_w: number | null;
+  est_norm_power_w: number | null;
 }
 
 export interface ActivitiesResponse {
@@ -56,6 +58,8 @@ export interface ActivityDetail extends Activity {
   weather_wind_ms: number | null;
   weather_wind_deg: number | null;
   weather_precip_mm: number | null;
+  est_avg_power_w: number | null;
+  est_norm_power_w: number | null;
 }
 
 export interface WeatherStatus {
@@ -703,6 +707,10 @@ export const api = {
       return r.json() as Promise<{ activity_id: number; name: string; is_ride: boolean }>;
     });
   },
+
+  recalculatePower: (): Promise<{ ok: boolean; message: string }> =>
+    fetch(`${BASE}/import/recalculate-power`, { method: 'POST' })
+      .then(r => { if (!r.ok) throw new Error(`Fehler ${r.status}`); return r.json(); }),
 
   updateBike: (bikeId: string, name: string): Promise<{ ok: boolean }> =>
     fetch(`${BASE}/bikes/${bikeId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) })
