@@ -4,6 +4,7 @@ Reihenfolge: bikes → activities (CSV) → track-Dateien (FIT/TCX/GPX) → rout
 """
 
 import csv
+import logging
 import zipfile
 import io
 from datetime import datetime, timezone
@@ -11,6 +12,8 @@ from pathlib import Path
 from typing import Any
 
 from backend.database import db_connection, init_db
+
+logger = logging.getLogger(__name__)
 
 DOWNLOAD_DIR = Path(__file__).parent.parent.parent / "download"
 
@@ -271,6 +274,7 @@ def import_tracks(zf: zipfile.ZipFile, rides: list[dict]) -> None:
                     data = raw.read()
             except KeyError:
                 print(f"  WARN: {filename} nicht in ZIP")
+                logger.warning("Track-Datei nicht in ZIP: %s (activity %s)", filename, activity_id)
                 err += 1
                 continue
 
@@ -298,6 +302,7 @@ def import_tracks(zf: zipfile.ZipFile, rides: list[dict]) -> None:
                     print(f"  … {ok}/{total} Tracks importiert ({err} Fehler)")
             except Exception as exc:
                 print(f"  ERR [{filename}]: {exc}")
+                logger.error("Track-Import fehlgeschlagen [%s, activity %s]: %s", filename, activity_id, exc, exc_info=True)
                 err += 1
 
     print(f"  Tracks: {ok} OK, {err} Fehler, {skip} übersprungen")

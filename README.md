@@ -6,8 +6,6 @@ Lokale Web-App zur Analyse von Strava-Exportdaten. Kein Strava-API-Zugriff nöti
 ![Stack](https://img.shields.io/badge/Frontend-React%2019%20%2B%20Vite%20%2B%20shadcn%2Fui-orange)
 ![Platform](https://img.shields.io/badge/Platform-Linux%20%2F%20macOS-lightgrey)
 
-> **Branch `design-refresh`** – React 19 + Vite + shadcn/ui base-nova. Der stabile SvelteKit-Stand ist im Branch `main`.
-
 ---
 
 ## Features
@@ -131,11 +129,11 @@ MyBiking/
 │   │   ├── analytics.py     # /analytics/* (PMC, Wrapped, Kalorien, Ermüdung, …)
 │   │   ├── bikes.py         # /bikes, /bikes/{id}, /bikes/compare
 │   │   ├── heatmap.py       # /tracks/heatmap
-│   │   ├── segments.py      # /segments
 │   │   ├── settings.py      # /settings (Gewicht, Geburtsjahr, Timezone)
 │   │   ├── importer.py      # /import/start|status|reset|fit-file
 │   │   ├── tracks.py        # /activities/{id}/track
 │   │   └── weather.py       # /weather/status, /weather/fetch-all (Open-Meteo)
+│   ├── utils.py             # Shared: haversine_km(), haversine_m(), MS_TO_KMH
 │   ├── importer/
 │   │   ├── pipeline.py      # run_import() – Haupteinstieg
 │   │   ├── fit.py           # FIT-Parser (Garmin, mit _SafeProcessor)
@@ -151,7 +149,7 @@ MyBiking/
 │       ├── lib/
 │       │   ├── api.ts                  # Typisierter API-Client
 │       │   ├── config.ts               # Zentrale Parameter (Glättung, Vereinfachung, …)
-│       │   ├── format.ts               # fmtKm, fmtSpeed, fmtTime, fmtDate, fmtNum
+│       │   ├── format.ts               # fmtKm, fmtSpeed, fmtTime, fmtDate, fmtNum, fmtHm
 │       │   └── utils.ts                # cn() Tailwind-Merge-Helper
 │       ├── components/
 │       │   ├── layout/

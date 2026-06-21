@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -5,6 +6,17 @@ from fastapi.responses import FileResponse
 
 from backend.api import activities, tracks, bikes, heatmap, analytics, settings, importer, zones, weather
 from backend.database import init_db
+
+_LOG_FILE = Path(__file__).parent.parent / "data" / "mybiking.log"
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)-8s %(name)s  %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+    handlers=[
+        logging.FileHandler(_LOG_FILE, encoding="utf-8"),
+        logging.StreamHandler(),
+    ],
+)
 
 app = FastAPI(title="MyBiking API", version="0.1.0")
 init_db()

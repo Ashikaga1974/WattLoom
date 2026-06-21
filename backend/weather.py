@@ -5,12 +5,15 @@ https://archive-api.open-meteo.com
 """
 
 import json
+import logging
 import urllib.parse
 import urllib.request
 from datetime import datetime, timezone
+from typing import Optional
 
 from backend.utils import MS_TO_KMH
-from typing import Optional
+
+logger = logging.getLogger(__name__)
 
 ARCHIVE_URL = "https://archive-api.open-meteo.com/v1/archive"
 
@@ -46,7 +49,8 @@ def fetch_weather(lat: float, lon: float, start_date_utc: str) -> Optional[dict]
     try:
         with urllib.request.urlopen(url, timeout=10) as resp:
             data = json.loads(resp.read())
-    except Exception:
+    except Exception as exc:
+        logger.warning("fetch_weather(%s, %s, %s) fehlgeschlagen: %s", lat, lon, start_date_utc, exc)
         return None
 
     hourly = data.get("hourly", {})

@@ -1,8 +1,10 @@
+import logging
 import threading
 import sys
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 
 router = APIRouter(prefix="/import", tags=["import"])
+logger = logging.getLogger(__name__)
 
 _state: dict = {
     "status": "idle",   # idle | running | done | error
@@ -45,6 +47,7 @@ def _run_import() -> None:
             _state["status"] = "done"
     except Exception as exc:
         sys.stdout = old_stdout
+        logger.error("ZIP-Import fehlgeschlagen: %s", exc, exc_info=True)
         with _lock:
             _state["log"].append(f"FEHLER: {exc}")
             _state["status"] = "error"
@@ -100,7 +103,51 @@ async def import_fit_file(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+    logger.info("FIT-Import: %s (activity %s, is_ride=%s)", file.filename, result["activity_id"], result["is_ride"])
+
+    # Wetter direkt nach dem Import für neue Radtouren abrufen
+    if result.get("is_ride"):
+        _fetch_weather_for_activity(result["activity_id"])
+
     return result
+
+
+def _fetch_weather_for_activity(activity_id: int) -> None:
+    """Holt Wetter für eine neu importierte Radtour. Fehler werden nur geloggt."""
+    from backend.database import db_connection
+    from backend.weather import fetch_weather
+
+    try:
+        with db_connection() as conn:
+            row = conn.execute(
+                """SELECT a.start_date, tp.lat, tp.lon
+                   FROM activities a
+                   JOIN track_points tp ON tp.activity_id = a.id
+                   WHERE a.id = ? AND tp.lat IS NOT NULL AND tp.lon IS NOT NULL
+                   ORDER BY tp.timestamp LIMIT 1""",
+                (activity_id,),
+            ).fetchone()
+
+        if not row:
+            logger.info("Kein Track-Punkt mit Koordinaten für activity %s – Wetter übersprungen", activity_id)
+            return
+
+        weather = fetch_weather(row["lat"], row["lon"], row["start_date"])
+        if weather is None:
+            return
+
+        with db_connection() as conn:
+            with conn:
+                conn.execute(
+                    """UPDATE activities
+                       SET weather_temp_c=?, weather_wind_ms=?, weather_wind_deg=?, weather_precip_mm=?
+                       WHERE id=?""",
+                    (weather["temp_c"], weather["wind_ms"], weather["wind_deg"], weather["precip_mm"], activity_id),
+                )
+        logger.info("Wetter für activity %s: %.1f°C, %.1f m/s", activity_id, weather["temp_c"] or 0, weather["wind_ms"] or 0)
+
+    except Exception as exc:
+        logger.error("Wetter-Fetch für activity %s fehlgeschlagen: %s", activity_id, exc)
 
 
 @router.post("/reset")

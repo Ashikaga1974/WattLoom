@@ -2,6 +2,7 @@
 Wetter-API: Daten von Open-Meteo für alle Aktivitäten abrufen.
 """
 
+import logging
 import time
 
 from fastapi import APIRouter, BackgroundTasks
@@ -10,6 +11,7 @@ from backend.database import db_connection
 from backend.weather import fetch_weather
 
 router = APIRouter(tags=["weather"])
+logger = logging.getLogger(__name__)
 
 # In-Memory-Status des laufenden Fetch-Jobs
 _job: dict = {
@@ -55,6 +57,7 @@ def _fetch_all_job() -> None:
         weather = fetch_weather(lat, lon, row["start_date"])
 
         if weather is None:
+            logger.warning("Wetter-Fetch fehlgeschlagen: activity %s (lat=%s, lon=%s)", row["id"], lat, lon)
             _job["errors"] += 1
         else:
             with db_connection() as conn:
