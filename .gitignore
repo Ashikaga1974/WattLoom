@@ -8,6 +8,7 @@ __pycache__/
 
 # Datenbank & persönliche Daten
 data/mybiking.db
+data/mybiking.log
 data/media/*
 !data/media/.gitkeep
 

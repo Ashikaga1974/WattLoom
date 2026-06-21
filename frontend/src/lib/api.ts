@@ -694,6 +694,16 @@ export const api = {
     });
   },
 
+  importTcxFile: (file: File, bikeId?: string): Promise<{ activity_id: number; name: string; is_ride: boolean }> => {
+    const form = new FormData();
+    form.append('file', file);
+    if (bikeId) form.append('bike_id', bikeId);
+    return fetch(`${BASE}/import/tcx-file`, { method: 'POST', body: form }).then(r => {
+      if (!r.ok) return r.json().then(j => { throw new Error(j.detail ?? `Fehler ${r.status}`); });
+      return r.json() as Promise<{ activity_id: number; name: string; is_ride: boolean }>;
+    });
+  },
+
   updateBike: (bikeId: string, name: string): Promise<{ ok: boolean }> =>
     fetch(`${BASE}/bikes/${bikeId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) })
       .then(r => { if (!r.ok) throw new Error(`Fehler ${r.status}`); return r.json(); }),

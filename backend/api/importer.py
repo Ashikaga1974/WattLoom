@@ -150,6 +150,38 @@ def _fetch_weather_for_activity(activity_id: int) -> None:
         logger.error("Wetter-Fetch für activity %s fehlgeschlagen: %s", activity_id, exc)
 
 
+@router.post("/tcx-file")
+async def import_tcx_file(
+    file: UploadFile = File(...),
+    bike_id: str | None = Form(None),
+) -> dict:
+    """
+    Importiert eine einzelne .tcx-Datei direkt in die DB.
+    bike_id ist nur für Radtouren (Sport: biking/cycling) erforderlich;
+    Workouts werden ohne Rad in other_activities gespeichert.
+    """
+    if not file.filename or not file.filename.lower().endswith(".tcx"):
+        raise HTTPException(status_code=400, detail="Nur .tcx-Dateien werden unterstützt")
+
+    data = await file.read()
+
+    from backend.database import db_connection
+    from backend.importer.tcx_single import import_single_tcx
+
+    try:
+        with db_connection() as conn:
+            result = import_single_tcx(conn, data, bike_id or None)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    logger.info("TCX-Import: %s (activity %s, is_ride=%s)", file.filename, result["activity_id"], result["is_ride"])
+
+    if result.get("is_ride"):
+        _fetch_weather_for_activity(result["activity_id"])
+
+    return result
+
+
 @router.post("/reset")
 def reset_db():
     """Löscht alle importierten Daten, behält nur die config-Tabelle (Gewicht etc.)."""

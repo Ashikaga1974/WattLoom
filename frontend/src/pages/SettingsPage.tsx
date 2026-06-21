@@ -31,6 +31,14 @@ export default function SettingsPage() {
   const [fitResult, setFitResult]         = useState<{ activity_id: number; name: string; is_ride: boolean } | null>(null);
   const [fitError, setFitError]           = useState<string | null>(null);
   const fitInputRef                       = useRef<HTMLInputElement>(null);
+
+  // TCX-Einzelimport
+  const [tcxFile, setTcxFile]             = useState<File | null>(null);
+  const [tcxBikeId, setTcxBikeId]         = useState('');
+  const [tcxUploading, setTcxUploading]   = useState(false);
+  const [tcxResult, setTcxResult]         = useState<{ activity_id: number; name: string; is_ride: boolean } | null>(null);
+  const [tcxError, setTcxError]           = useState<string | null>(null);
+  const tcxInputRef                       = useRef<HTMLInputElement>(null);
   const navigate                          = useNavigate();
 
   // App-Konfiguration
@@ -125,7 +133,7 @@ export default function SettingsPage() {
       try {
         const b = await api.bikes();
         setBikes(b);
-        if (b.length > 0) setFitBikeId(b[0].id);
+        if (b.length > 0) { setFitBikeId(b[0].id); setTcxBikeId(b[0].id); }
       } catch { /* ignorieren */ }
     }
     init();
@@ -265,6 +273,24 @@ export default function SettingsPage() {
       setFitError(err instanceof Error ? err.message : 'Unbekannter Fehler');
     } finally {
       setFitUploading(false);
+    }
+  }
+
+  async function doTcxUpload(e: React.FormEvent) {
+    e.preventDefault();
+    if (!tcxFile) return;
+    setTcxUploading(true);
+    setTcxResult(null);
+    setTcxError(null);
+    try {
+      const res = await api.importTcxFile(tcxFile, tcxBikeId || undefined);
+      setTcxResult(res);
+      setTcxFile(null);
+      if (tcxInputRef.current) tcxInputRef.current.value = '';
+    } catch (err) {
+      setTcxError(err instanceof Error ? err.message : 'Unbekannter Fehler');
+    } finally {
+      setTcxUploading(false);
     }
   }
 
@@ -612,6 +638,96 @@ export default function SettingsPage() {
 
               {fitError && (
                 <span className="text-sm text-red-500">{fitError}</span>
+              )}
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+
+      {/* ── TCX-Datei Einzelimport ── */}
+      <Card>
+        <CardHeader className="border-b border-border pb-3">
+          <CardTitle className="text-sm font-semibold">TCX-Datei importieren</CardTitle>
+          <p className="text-xs text-muted-foreground">
+            Einzelne .tcx-Datei von Amazfit/Mi Fitness, Garmin oder anderen Geräten direkt importieren.
+          </p>
+        </CardHeader>
+        <CardContent className="pt-5">
+          <form onSubmit={doTcxUpload} className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Datei-Auswahl */}
+              <div>
+                <label className="block text-xs text-muted-foreground uppercase tracking-wider mb-2">
+                  TCX-Datei
+                </label>
+                <input
+                  ref={tcxInputRef}
+                  type="file"
+                  accept=".tcx"
+                  onChange={e => {
+                    setTcxFile(e.target.files?.[0] ?? null);
+                    setTcxResult(null);
+                    setTcxError(null);
+                  }}
+                  className="w-full text-sm text-muted-foreground file:mr-3 file:py-1.5 file:px-3 file:rounded file:border-0 file:text-xs file:font-medium file:bg-muted file:text-foreground hover:file:bg-muted/80 cursor-pointer"
+                />
+              </div>
+
+              {/* Bike-Dropdown (optional – nur für Radtouren) */}
+              <div>
+                <label className="block text-xs text-muted-foreground uppercase tracking-wider mb-2">
+                  Bike <span className="normal-case font-normal">(optional, nur für Radtouren)</span>
+                </label>
+                <select
+                  value={tcxBikeId}
+                  onChange={e => setTcxBikeId(e.target.value)}
+                  className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-colors"
+                >
+                  <option value="">– kein Rad / Workout –</option>
+                  {bikes.map(b => (
+                    <option key={b.id} value={b.id}>{b.name}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-4 flex-wrap">
+              <button
+                type="submit"
+                disabled={!tcxFile || tcxUploading}
+                className="rounded-md px-5 py-2 text-sm font-medium bg-orange-500 hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-white cursor-pointer"
+              >
+                {tcxUploading ? 'Importiere…' : 'Importieren'}
+              </button>
+
+              {tcxResult && (
+                <div className="flex items-center gap-3">
+                  <span className="text-sm text-green-600">
+                    Importiert: <span className="font-medium">{tcxResult.name}</span>
+                  </span>
+                  {tcxResult.is_ride && (
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/activities/${tcxResult.activity_id}`)}
+                      className="text-xs text-orange-500 hover:text-orange-400 underline underline-offset-2 transition-colors"
+                    >
+                      Aktivität öffnen →
+                    </button>
+                  )}
+                  {!tcxResult.is_ride && (
+                    <button
+                      type="button"
+                      onClick={() => navigate('/activities?tab=workouts')}
+                      className="text-xs text-orange-500 hover:text-orange-400 underline underline-offset-2 transition-colors"
+                    >
+                      Workouts öffnen →
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {tcxError && (
+                <span className="text-sm text-red-500">{tcxError}</span>
               )}
             </div>
           </form>

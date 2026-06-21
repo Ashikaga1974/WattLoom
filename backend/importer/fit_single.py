@@ -28,6 +28,7 @@ _SUB_SPORT_LABELS: dict[str, str] = {
 }
 
 _SPORT_LABELS: dict[str, str] = {
+    "generic":   "Training",
     "training":  "Training",
     "running":   "Laufen",
     "walking":   "Gehen",
@@ -82,14 +83,17 @@ def import_single_fit(conn: sqlite3.Connection, fit_bytes: bytes, bike_id: str |
     sport_raw = sv("sport")
     sport_str = str(sport_raw).lower() if sport_raw is not None else "cycling"
 
+    # "generic" ohne bike_id → als Workout importieren (z.B. Morgentraining von Amazfit)
+    # "cycling" ohne bike_id → Fehler (expliziter Rad-Sport braucht Bike-Zuweisung)
     if sport_str in _CYCLING_SPORTS:
-        if not bike_id:
+        if bike_id:
+            return _import_as_ride(conn, fit, fit_bytes, session_msg, sv,
+                                   activity_id, start_date, local_date, device_hint, bike_id)
+        if sport_str != "generic":
             raise ValueError("bike_id ist für Radtouren erforderlich")
-        return _import_as_ride(conn, fit, fit_bytes, session_msg, sv,
-                               activity_id, start_date, local_date, device_hint, bike_id)
-    else:
-        return _import_as_workout(conn, session_msg, sv,
-                                  activity_id, start_date, local_date, device_hint, sport_str)
+
+    return _import_as_workout(conn, session_msg, sv,
+                              activity_id, start_date, local_date, device_hint, sport_str)
 
 
 # ── interne Helfer ────────────────────────────────────────────────────────────
