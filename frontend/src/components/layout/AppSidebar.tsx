@@ -31,6 +31,7 @@ import {
   GitCompare,
   Cookie,
   SunMoon,
+  Fingerprint,
 } from 'lucide-react';
 
 interface NavSubItem {
@@ -80,8 +81,9 @@ const navGroups: NavGroup[] = [
     href: '/progress',
     label: 'Analyse',
     icon: <BarChart2 size={16} />,
-    prefixes: ['/progress', '/fatigue', '/hrcurve', '/cadence', '/form', '/tempcorr', '/stats', '/wrapped', '/calories', '/speed-trend', '/weekend'],
+    prefixes: ['/progress', '/fatigue', '/hrcurve', '/cadence', '/form', '/tempcorr', '/stats', '/wrapped', '/calories', '/speed-trend', '/weekend', '/fitness'],
     children: [
+      { href: '/fitness',       label: 'Fitness-Score',    icon: <Fingerprint size={13} /> },
       { href: '/progress',      label: 'Jahresübersicht', icon: <TrendingUp size={13} /> },
       { href: '/fatigue', label: 'Ermüdung', icon: <Flame size={13} /> },
       { href: '/hrcurve',       label: 'HR-Analyse', icon: <Heart size={13} /> },

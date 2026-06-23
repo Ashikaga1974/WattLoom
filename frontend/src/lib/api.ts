@@ -482,6 +482,28 @@ export interface Settings {
   track_simplify_m: number;
 }
 
+export interface FitnessComponent {
+  score: number;
+  max: number;
+  value: number | null;
+  percentile?: number | null;
+  label: string;
+}
+
+export interface FitnessFingerprint {
+  score: number;
+  level: string;
+  components: {
+    ctl: FitnessComponent;
+    efficiency: FitnessComponent;
+    form: FitnessComponent;
+    consistency: FitnessComponent;
+  };
+  trend: 'up' | 'down' | 'neutral';
+  insight: string;
+  history: { month: string; score: number; level: string }[];
+}
+
 async function get<T>(path: string): Promise<T> {
   const res = await fetch(`${BASE}${path}`);
   if (!res.ok) throw new Error(`API ${path} → ${res.status}`);
@@ -687,6 +709,9 @@ export const api = {
       by_weekday: { weekday_idx: number; rides: number; avg_km: number; avg_kmh: number }[];
       monthly: { month: string; weekend_km: number; weekday_km: number; weekend_rides: number; weekday_rides: number }[];
     }>(`/analytics/weekend-weekday${buildQuery({ year })}`),
+
+  fitnessFingerprint: (): Promise<FitnessFingerprint> =>
+    get('/analytics/fitness-fingerprint'),
 
   importFitFile: (file: File, bikeId?: string): Promise<{ activity_id: number; name: string; is_ride: boolean }> => {
     const form = new FormData();

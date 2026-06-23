@@ -90,7 +90,16 @@ npm run dev
 
 App öffnen: **http://localhost:5173**
 
-### 5. Daten importieren
+### 5. Tests ausführen
+
+```bash
+source .venv/bin/activate
+python -m pytest tests/ -v
+```
+
+78 Tests in `tests/` (pytest): Haversine, Physik-Engine, hrTSS/CTL/ATL, FIT- und TCX-Importer.
+
+### 6. Daten importieren
 
 Im Browser: **Einstellungen → Import starten** – der Importer liest die ZIP, parst alle FIT/TCX/GPX-Dateien und befüllt die SQLite-Datenbank.
 
