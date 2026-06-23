@@ -30,6 +30,7 @@ Lokale Web-App zur Analyse von Strava-Exportdaten. Kein Strava-API-Zugriff nöti
 | **Top-Strecken** | Greedy-Clustering aller Rides (2 km Startradius, ±10 % Distanz), Zeitchart mit PR-Markierung, Trend, Karte |
 | **Streckenvergleich** | Ähnliche Rides finden (Haversine-Radius + Distanzabgleich) |
 | **Kadenz-Analyse** | Radiales Verteilungsdiagramm (Polar-Chart), 6 Kadenz-Zonen, Monatstrend, Effizienz-Sweetspot |
+| **Fitness-Fingerprint** | Gesamtscore 0–100 aus CTL, Aerober Effizienz, Form (TSB) und Kontinuität; Arc-Gauge, Stärken-Radar, 4 Komponenten-Karten, 13-Monats-Verlauf, Level-System (Einsteiger → Elite) |
 | **Ermüdungsindex** | 3 Tabs: Trend (Monatsverlauf, YoY-Hero, Wetter-Korrelation, Distanz-Tabelle) · Strecke (nach Route-Cluster) · Einzelfahrt (Karte + 10-Segment-Chart) |
 | **Kalender** | Monatskalender: Radtouren + Workouts (grau markiert), Ring-Indikator bei Kombi-Tagen |
 | **Berechnungen** | Dokumentation aller verwendeten Formeln und Parameter |
@@ -189,7 +190,8 @@ MyBiking/
 │           ├── CadencePage.tsx
 │           ├── FatiguePage.tsx         # Tabs: Übersicht · Strecke · Einzelfahrt (/fatigue?tab=…)
 │           ├── CaloriesPage.tsx
-│           └── SpeedTrendPage.tsx      # Tempoentwicklung (/speed-trend)
+│           ├── SpeedTrendPage.tsx      # Tempoentwicklung (/speed-trend)
+│           └── FitnessPage.tsx         # Fitness-Fingerprint (/fitness)
 ├── data/
 │   └── mybiking.db          # SQLite-Datenbank (wird beim Import erstellt)
 ├── download/                # Strava-Export-ZIP ablegen
@@ -232,6 +234,7 @@ GET  /analytics/cadence             ?year      → Distribution, Zonen, Monatsve
 GET  /analytics/fatigue-index       ?year      → Ermüdungsindex (H1 vs. H2 Speed) je Ride + Trend
 GET  /analytics/fatigue-index-track ?activity_ids → Ermüdungsindex für kommaseparierte IDs
 GET  /analytics/calories            ?year      → total_kcal, rides + workouts, monatlich/jährlich
+GET  /analytics/fitness-fingerprint            → Score 0–100 aus CTL, Effizienz, Form, Kontinuität + History
 
 GET  /weather/status
 POST /weather/fetch-all             → Wetterdaten für alle Aktivitäten via Open-Meteo (Background-Job)
