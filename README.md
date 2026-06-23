@@ -13,8 +13,8 @@ Lokale Web-App zur Analyse von Strava-Exportdaten. Kein Strava-API-Zugriff nöti
 | Bereich | Was es kann |
 |---------|-------------|
 | **Dashboard** | Hero-Banner (letzter Ride), Trainingsform-Widget (TSB/CTL/ATL mit Empfehlung), animierte KPI-Zahlen (count-up), Distanz-Chart, Trainingsvolumen, letzte Aktivitäten, Bike-Progress |
-| **Aktivitätsliste** | Tabs: Radtouren (Filter/Sort/Paginierung) + Workouts (Sportart-Badges, Kalorien farbig); einzelne Aktivitäten löschbar |
-| **Aktivitätsdetail** | Karte (Leaflet), Höhenprofil, Geschwindigkeits-Profil (Farben synchron mit Karten-Gradient), HR-Profil, Wetterkachel, Fotos |
+| **Aktivitätsliste** | Tabs: Radtouren (Filter/Sort/Paginierung) + Workouts (Sportart-Badges, Kalorien farbig); Watt-Spalte zeigt Leistung + NP-Zeile; einzelne Aktivitäten löschbar |
+| **Aktivitätsdetail** | Karte (Leaflet), Höhenprofil, Geschwindigkeits-Profil (Farben synchron mit Karten-Gradient), HR-Profil, Wetterkachel, Fotos; Kachel „~ Leistung" (physikalische Schätzung ~W + NP + W/kg) |
 | **Jahresrückblick** | „Wrapped"-Style: beste Rides, stärkste Monate, Tages-/Stunden-Heatmaps |
 | **Jahresübersicht** | 4 Tabs: Fortschritt (kumulierte km + Prognose) · Jahresvergleich (km/Monat je Jahr) · Volumen (Wochentraining gestapelt) · Tageszeit-Heatmap |
 | **HR-Analyse** | 2 Tabs: HR-Kurve (beste Ø-HF je Zeitfenster 1–60 min, Schwellen-HF, monatlicher HR-Trend) · Aerobe Effizienz (km/h ÷ bpm monatlich, Jahresvergleich) |
@@ -33,7 +33,7 @@ Lokale Web-App zur Analyse von Strava-Exportdaten. Kein Strava-API-Zugriff nöti
 | **Ermüdungsindex** | 3 Tabs: Trend (Monatsverlauf, YoY-Hero, Wetter-Korrelation, Distanz-Tabelle) · Strecke (nach Route-Cluster) · Einzelfahrt (Karte + 10-Segment-Chart) |
 | **Kalender** | Monatskalender: Radtouren + Workouts (grau markiert), Ring-Indikator bei Kombi-Tagen |
 | **Berechnungen** | Dokumentation aller verwendeten Formeln und Parameter |
-| **Einstellungen** | Gewicht, Geburtsjahr, Zeitzone; FIT-Einzelimport (Amazfit, Garmin ohne Strava); Wetterdaten-Abruf |
+| **Einstellungen** | Gewicht, Geburtsjahr, Zeitzone; FIT/TCX-Einzelimport (Amazfit, Garmin ohne Strava); Wetterdaten-Abruf; Leistung für alle Rides neu berechnen |
 
 ---
 
