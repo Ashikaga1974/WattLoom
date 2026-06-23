@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from pydantic import BaseModel
+from pydantic import create_model
 from backend.database import db_connection
 
 router = APIRouter(prefix="/settings", tags=["settings"])
@@ -9,6 +9,7 @@ _FIELDS: dict[str, tuple[type, object]] = {
     "weight_kg":           (float, None),
     "birth_year":          (int,   None),
     "tz_offset":           (int,   None),
+    "hr_max":              (int,   185),
     "bezier_tension":      (float, 0.2),
     "sparkline_weeks":     (int,   8),
     "speed_color_buckets": (int,   20),
@@ -16,14 +17,11 @@ _FIELDS: dict[str, tuple[type, object]] = {
 }
 
 
-class SettingsUpdate(BaseModel):
-    weight_kg:           float | None = None
-    birth_year:          int   | None = None
-    tz_offset:           int   | None = None
-    bezier_tension:      float | None = None
-    sparkline_weeks:     int   | None = None
-    speed_color_buckets: int   | None = None
-    track_simplify_m:    int   | None = None
+# Pydantic-Modell aus _FIELDS abgeleitet – Typen nur einmal definiert
+SettingsUpdate = create_model(
+    "SettingsUpdate",
+    **{k: (t | None, None) for k, (t, _) in _FIELDS.items()},
+)
 
 
 def _load_settings(conn) -> dict:

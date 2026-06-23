@@ -1,4 +1,4 @@
-import { TRACK_SIMPLIFY_M } from './config';
+import { TRACK_SIMPLIFY_M, COMPARISON_SIMPLIFY } from './config';
 
 const BASE = 'http://localhost:8000';
 
@@ -476,6 +476,7 @@ export interface Settings {
   weight_kg: number | null;
   birth_year: number | null;
   tz_offset: number | null;
+  hr_max: number;
   bezier_tension: number;
   sparkline_weeks: number;
   speed_color_buckets: number;
@@ -570,7 +571,7 @@ export const api = {
   bike: (id: string) =>
     get<Bike>(`/bikes/${id}`),
 
-  heatmap: (simplify = 20, year?: number) =>
+  heatmap: (simplify = COMPARISON_SIMPLIFY, year?: number) =>
     get<{ count: number; points: [number, number][] }>(`/tracks/heatmap${buildQuery({ simplify, year })}`),
 
   hrCurve: (year?: number) =>

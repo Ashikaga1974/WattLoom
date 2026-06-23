@@ -5,8 +5,10 @@ from backend.utils import haversine_km, MS_TO_KMH
 
 router = APIRouter(prefix="/analytics", tags=["analytics"])
 
-# Fallback-HRmax wenn keine Aktivitäten mit HR-Daten vorhanden sind
-_HR_MAX_FALLBACK = 185.0
+def _hr_max_fallback(conn) -> float:
+    """Liest hr_max aus der Config (Einstellungen); Standard 185 wenn nicht gesetzt."""
+    row = conn.execute("SELECT value FROM config WHERE key = 'hr_max'").fetchone()
+    return float(row["value"]) if row else 185.0
 
 
 @router.get("/time-heatmap")
@@ -179,7 +181,7 @@ def performance_management_chart():
         max_hr_row = conn.execute(
             "SELECT MAX(max_hr) AS v FROM activities WHERE max_hr > 0"
         ).fetchone()
-        global_max_hr = float(max_hr_row["v"]) if max_hr_row and max_hr_row["v"] else _HR_MAX_FALLBACK
+        global_max_hr = float(max_hr_row["v"]) if max_hr_row and max_hr_row["v"] else _hr_max_fallback(conn)
         threshold_hr = 0.85 * global_max_hr
 
         rows = conn.execute("""
@@ -1840,7 +1842,7 @@ def fitness_fingerprint():
             "SELECT MAX(max_hr) AS v FROM activities WHERE max_hr > 0"
         ).fetchone()
         global_max_hr = (
-            float(max_hr_row["v"]) if max_hr_row and max_hr_row["v"] else _HR_MAX_FALLBACK
+            float(max_hr_row["v"]) if max_hr_row and max_hr_row["v"] else _hr_max_fallback(conn)
         )
         threshold_hr = 0.85 * global_max_hr
 

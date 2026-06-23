@@ -139,7 +139,7 @@ MyBiking/
 │   │   ├── analytics.py     # /analytics/* (PMC, Wrapped, Kalorien, Ermüdung, …)
 │   │   ├── bikes.py         # /bikes, /bikes/{id}, /bikes/compare
 │   │   ├── heatmap.py       # /tracks/heatmap
-│   │   ├── settings.py      # /settings (Gewicht, Geburtsjahr, Timezone)
+│   │   ├── settings.py      # /settings (Gewicht, Geburtsjahr, HRmax, Timezone)
 │   │   ├── importer.py      # /import/start|status|reset|fit-file
 │   │   ├── tracks.py        # /activities/{id}/track
 │   │   └── weather.py       # /weather/status, /weather/fetch-all (Open-Meteo)
@@ -298,8 +298,8 @@ In [frontend/src/lib/config.ts](frontend/src/lib/config.ts):
 | `BEZIER_TENSION` | `0.2` | Kurvenglättung (0 = gerade, 0.5 = stark) |
 | `SPARKLINE_WEEKS` | `8` | Wochen im Dashboard-Sparkline |
 | `SPEED_COLOR_BUCKETS` | `20` | Farbstufen auf der Geschwindigkeitskarte |
-| `TRACK_SIMPLIFY_M` | `5` | RDP-Toleranz in Metern beim Track-Laden |
-| `COMPARISON_SIMPLIFY` | `20` | Vereinfachung beim Streckenvergleich |
+| `TRACK_SIMPLIFY_M` | `5` | Schritt beim rowid-Downsampling für Einzeltrack |
+| `COMPARISON_SIMPLIFY` | `20` | Schritt für Multi-Track (Vergleich + Heatmap) |
 
 ---
 

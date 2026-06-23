@@ -4,8 +4,7 @@ import { api, type ActivityDetail, type SimilarActivity, type TrackPoint } from 
 import { PageHeader } from '@/components/ui/page-header';
 import { Card, CardContent } from '@/components/ui/card';
 import { fmtDate, fmtKm, fmtTime } from '@/lib/format';
-
-const COMPARISON_SIMPLIFY = 20;
+import { COMPARISON_SIMPLIFY } from '@/lib/config';
 const COMPARISON_COLORS = ['#f97316', '#3b82f6', '#22c55e', '#a855f7', '#eab308'];
 
 function fmtSpeed(ms: number | null) { return ms != null ? (ms * 3.6).toFixed(1) + ' km/h' : '–'; }

@@ -11,6 +11,7 @@ export default function SettingsPage() {
   // Einstellungen-Felder
   const [weightInput, setWeightInput]     = useState('');
   const [birthYearInput, setBirthYearInput] = useState('');
+  const [hrMaxInput, setHrMaxInput]       = useState('185');
   const [tzInput, setTzInput]             = useState('auto');
   const [saved, setSaved]                 = useState<Settings | null>(null);
   const [saving, setSaving]               = useState(false);
@@ -142,6 +143,7 @@ export default function SettingsPage() {
         setSaved(res);
         if (res.weight_kg != null)  setWeightInput(String(res.weight_kg));
         if (res.birth_year != null) setBirthYearInput(String(res.birth_year));
+        setHrMaxInput(String(res.hr_max ?? 185));
         setTzInput(res.tz_offset != null ? String(res.tz_offset) : 'auto');
         setBezierInput(String(res.bezier_tension      ?? CONFIG_DEFAULTS.bezier_tension));
         setSparklineInput(String(res.sparkline_weeks  ?? CONFIG_DEFAULTS.sparkline_weeks));
@@ -180,6 +182,11 @@ export default function SettingsPage() {
       setSaveError('Geburtsjahr muss zwischen 1920 und 2010 liegen');
       return;
     }
+    const hrMax = parseInt(hrMaxInput);
+    if (isNaN(hrMax) || hrMax < 100 || hrMax > 240) {
+      setSaveError('HRmax muss zwischen 100 und 240 bpm liegen');
+      return;
+    }
     setSaving(true);
     setSaveError(null);
     try {
@@ -187,6 +194,7 @@ export default function SettingsPage() {
       const res = await api.saveSettings({
         weight_kg:  weightInput ? kg : undefined,
         birth_year: year ?? undefined,
+        hr_max:     hrMax,
         tz_offset:  tz,
       });
       setSaved(res);
@@ -391,6 +399,28 @@ export default function SettingsPage() {
                       {saved.birth_year} · {new Date().getFullYear() - saved.birth_year} Jahre
                     </p>
                   )}
+                </div>
+
+                {/* HRmax */}
+                <div>
+                  <label className="block text-xs text-muted-foreground uppercase tracking-wider mb-2">
+                    HRmax
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      step="1"
+                      min="100"
+                      max="240"
+                      value={hrMaxInput}
+                      onChange={(e) => setHrMaxInput(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && save()}
+                      placeholder="185"
+                      className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-colors"
+                    />
+                    <span className="text-xs text-muted-foreground whitespace-nowrap">bpm</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground/50 mt-1.5">Für hrTSS- und PMC-Berechnungen (Standard 185)</p>
                 </div>
 
                 {/* Zeitzone */}
