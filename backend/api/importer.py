@@ -32,8 +32,42 @@ class _ListStream:
         pass
 
 
+def _run_power_estimation() -> None:
+    """Schätzt Leistung für alle Radtouren mit Track-Daten (bulk, inline)."""
+    from backend.database import db_connection
+    from backend.importer.power_estimator import estimate_and_store, _get_weight_kg
+
+    with db_connection() as conn:
+        weight_kg = _get_weight_kg(conn)
+
+    if weight_kg is None:
+        print("  Leistungsschätzung übersprungen – kein Körpergewicht in Einstellungen")
+        return
+
+    with db_connection() as conn:
+        ids = [
+            r[0]
+            for r in conn.execute(
+                "SELECT id FROM activities WHERE has_track = 1 ORDER BY start_date DESC"
+            ).fetchall()
+        ]
+
+    done = 0
+    for activity_id in ids:
+        try:
+            with db_connection() as conn:
+                if estimate_and_store(conn, activity_id):
+                    done += 1
+        except Exception as exc:
+            logger.error("Leistungsschätzung activity %s: %s", activity_id, exc)
+
+    print(f"  Leistungsschätzung: {done}/{len(ids)} Aktivitäten geschätzt")
+    logger.info("Leistungsschätzung abgeschlossen: %d/%d Aktivitäten", done, len(ids))
+
+
 def _run_import() -> None:
     from backend.importer.pipeline import run_import, _find_latest_zip
+    from backend.api.weather import _fetch_all_job
 
     stream = _ListStream()
     old_stdout = sys.stdout
@@ -43,6 +77,13 @@ def _run_import() -> None:
         with _lock:
             _state["zip_name"] = zip_path.name
         run_import(zip_path)
+
+        print("→ Wetter abrufen …")
+        _fetch_all_job()
+
+        print("→ Leistung schätzen …")
+        _run_power_estimation()
+
         with _lock:
             _state["status"] = "done"
     except Exception as exc:
@@ -244,30 +285,7 @@ def recalculate_power():
     if weight_kg is None:
         return {"ok": False, "message": "Körpergewicht nicht gesetzt – bitte zuerst in den Einstellungen eintragen"}
 
-    def _run():
-        from backend.database import db_connection
-        from backend.importer.power_estimator import estimate_and_store
-
-        with db_connection() as conn:
-            ids = [
-                r[0]
-                for r in conn.execute(
-                    "SELECT id FROM activities WHERE has_track = 1 ORDER BY start_date DESC"
-                ).fetchall()
-            ]
-
-        done = 0
-        for activity_id in ids:
-            try:
-                with db_connection() as conn:
-                    if estimate_and_store(conn, activity_id):
-                        done += 1
-            except Exception as exc:
-                logger.error("Leistungsschätzung activity %s: %s", activity_id, exc)
-
-        logger.info("Leistungsschätzung abgeschlossen: %d/%d Aktivitäten", done, len(ids))
-
-    threading.Thread(target=_run, daemon=True).start()
+    threading.Thread(target=_run_power_estimation, daemon=True).start()
     return {"ok": True, "message": "Leistungsschätzung gestartet"}
 
 

@@ -11,6 +11,31 @@ from lxml import etree
 
 from backend.utils import haversine_m
 
+# ---------------------------------------------------------------------------
+# Geräteerkennung
+# ---------------------------------------------------------------------------
+
+# Strava generiert GPX-Dateien ohne echtes Gerät – diese Strings normalisieren
+_STRAVA_CREATOR_PREFIXES = ("stravagpx", "strava")
+
+
+def read_gpx_device(data: bytes, *, compressed: bool) -> str:
+    """Liest Gerätenamen aus dem creator-Attribut des GPX-Wurzelelements.
+    Strava-generierte Dateien werden als 'Strava' normalisiert."""
+    try:
+        raw = gzip.decompress(data) if compressed else data
+        root = etree.fromstring(raw.lstrip())
+        creator = root.get("creator", "").strip()
+        if creator:
+            # "StravaGPX", "StravaGPX Consent Strip" → "Strava"
+            if creator.lower().startswith(_STRAVA_CREATOR_PREFIXES):
+                return "Strava"
+            return creator
+    except Exception:
+        pass
+    return "Unbekannt"
+
+
 NS = {
     "gpx": "http://www.topografix.com/GPX/1/1",
     "gpxdata": "http://www.cluetrust.com/XML/GPXDATA/1/0",

@@ -10,7 +10,7 @@ from typing import Any
 
 import fitparse
 
-from backend.importer.fit import _SafeProcessor, _val, import_fit
+from backend.importer.fit import _SafeProcessor, _val, import_fit, read_fit_device
 from backend.utils import haversine_m
 
 
@@ -160,7 +160,7 @@ def _import_as_ride(
             bike_id,
             0, 0, 1, None, 0,
             datetime.now(timezone.utc).isoformat(),
-            "Amazfit",
+            read_fit_device(fit_bytes, compressed=False),
         ))
 
     import_fit(conn, activity_id, fit_bytes, compressed=False)

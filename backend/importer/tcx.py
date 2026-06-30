@@ -9,6 +9,30 @@ import sqlite3
 from lxml import etree
 
 
+# ---------------------------------------------------------------------------
+# Geräteerkennung
+# ---------------------------------------------------------------------------
+
+def read_tcx_device(data: bytes, *, compressed: bool) -> str:
+    """Liest Gerätenamen aus dem Creator-Element einer TCX-Datei.
+    Garmin TCX: <Activity><Creator><Name> hat Vorrang vor root-Attribut."""
+    _NS = {"ns": "http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2"}
+    try:
+        raw = gzip.decompress(data) if compressed else data
+        root = etree.fromstring(raw.lstrip())
+        # Creator-Name innerhalb der ersten Activity (zuverlässigster Ort)
+        names = root.xpath(".//ns:Creator/ns:Name", namespaces=_NS)
+        if names and names[0].text and names[0].text.strip():
+            return names[0].text.strip()
+        # Fallback: root-Attribut (ältere TCX-Dateien)
+        creator = root.get("creator", "").strip()
+        if creator:
+            return creator
+    except Exception:
+        pass
+    return "Unbekannt"
+
+
 def _haversine_m(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     """Luftlinien-Distanz zwischen zwei GPS-Punkten in Metern."""
     R = 6_371_000

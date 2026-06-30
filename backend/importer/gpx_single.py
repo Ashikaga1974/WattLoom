@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 
 from lxml import etree
 
-from backend.importer.gpx import NS, _attr_float, _text_str, _text_float, _text_int, import_gpx
+from backend.importer.gpx import NS, _attr_float, _text_str, _text_float, _text_int, import_gpx, read_gpx_device
 from backend.utils import haversine_m
 
 # Sport-Strings die als Radfahrt in activities landen (case-insensitive)
@@ -209,7 +209,7 @@ def _import_as_ride(
             None, None, bike_id,
             0, 0, 1, None, 0,
             datetime.now(timezone.utc).isoformat(),
-            device_hint.strip(" ()") or None,
+            read_gpx_device(gpx_bytes, compressed=False),
         ))
 
     import_gpx(conn, activity_id, gpx_bytes, compressed=False)

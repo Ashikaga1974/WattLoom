@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 
 from lxml import etree
 
-from backend.importer.tcx import NS, _float, _int, _text, import_tcx
+from backend.importer.tcx import NS, _float, _int, _text, import_tcx, read_tcx_device
 
 
 # Sport-Attribute die als Radfahrt in activities landen (case-insensitive)
@@ -159,7 +159,7 @@ def _import_as_ride(
             None, total_calories, bike_id,
             0, 0, 1, None, 0,
             datetime.now(timezone.utc).isoformat(),
-            device_hint.strip(" ()") or None,
+            read_tcx_device(tcx_bytes, compressed=False),
         ))
 
     import_tcx(conn, activity_id, tcx_bytes, compressed=False)

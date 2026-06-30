@@ -195,12 +195,8 @@ def import_activities_csv(
                     bike_id = DEFAULT_BIKE_ID
 
                 filename = r.get("Filename") or None
-                if filename and filename.endswith(".fit.gz"):
-                    smart_device = "Amazfit"
-                elif filename and filename.endswith(".tcx.gz"):
-                    smart_device = "Cyplus"
-                elif filename:
-                    # GPX oder anderes bekanntes Format – Gerät unbekannt
+                if filename:
+                    # Gerät wird nach dem Track-Import aus der Datei gelesen (import_tracks)
                     smart_device = "Unbekannt"
                 else:
                     # Kein Dateiname im CSV → bestehenden Wert in der DB behalten
@@ -325,22 +321,31 @@ def import_tracks(zf: zipfile.ZipFile, rides: list[dict]) -> None:
             try:
                 if filename.endswith(".fit.gz"):
                     fit.import_fit(conn, activity_id, data, compressed=True)
+                    device = fit.read_fit_device(data, compressed=True)
                 elif filename.endswith(".fit"):
                     fit.import_fit(conn, activity_id, data, compressed=False)
+                    device = fit.read_fit_device(data, compressed=False)
                 elif filename.endswith(".tcx.gz"):
                     tcx.import_tcx(conn, activity_id, data, compressed=True)
+                    device = tcx.read_tcx_device(data, compressed=True)
                 elif filename.endswith(".tcx"):
                     tcx.import_tcx(conn, activity_id, data, compressed=False)
+                    device = tcx.read_tcx_device(data, compressed=False)
                 elif filename.endswith(".gpx.gz"):
                     gpx.import_gpx(conn, activity_id, data, compressed=True)
+                    device = gpx.read_gpx_device(data, compressed=True)
                 elif filename.endswith(".gpx"):
                     gpx.import_gpx(conn, activity_id, data, compressed=False)
+                    device = gpx.read_gpx_device(data, compressed=False)
                 else:
                     skip += 1
                     continue
 
                 with conn:
-                    conn.execute("UPDATE activities SET has_track=1 WHERE id=?", (activity_id,))
+                    conn.execute(
+                        "UPDATE activities SET has_track=1, smart_device=? WHERE id=?",
+                        (device, activity_id),
+                    )
                 ok += 1
                 if ok % 25 == 0:
                     print(f"  … {ok}/{total} Tracks importiert ({err} Fehler)")
