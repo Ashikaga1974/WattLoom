@@ -387,7 +387,7 @@ def recalculate_power():
 
 @router.post("/reset")
 def reset_db():
-    """Löscht alle importierten Daten, behält nur die config-Tabelle (Gewicht etc.)."""
+    """Löscht alle importierten Daten, behält config und bike_components."""
     with _lock:
         if _state["status"] == "running":
             return {"ok": False, "message": "Import läuft gerade – bitte warten"}
@@ -401,7 +401,6 @@ def reset_db():
             DELETE FROM media WHERE activity_id > 0;
             DELETE FROM route_points;
             DELETE FROM routes;
-            DELETE FROM bike_components;
             DELETE FROM activities WHERE id > 0;
             DELETE FROM other_activities;
             DELETE FROM bikes;
