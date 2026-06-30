@@ -24,6 +24,9 @@ frontend_svelte/node_modules/
 # Claude
 .claude/
 
+# Mobile App (separates Repo)
+mybiking-mobile/
+
 # Dokumentation
 *.md
 !README.md

@@ -195,6 +195,39 @@ async def import_tcx_file(
     return result
 
 
+@router.post("/gpx-file")
+async def import_gpx_file(
+    file: UploadFile = File(...),
+    bike_id: str | None = Form(None),
+) -> dict:
+    """
+    Importiert eine einzelne .gpx-Datei direkt in die DB.
+    bike_id ist nur für Radtouren erforderlich (oder als Signal wenn <type> fehlt);
+    Workouts werden ohne Rad in other_activities gespeichert.
+    """
+    if not file.filename or not file.filename.lower().endswith(".gpx"):
+        raise HTTPException(status_code=400, detail="Nur .gpx-Dateien werden unterstützt")
+
+    data = await file.read()
+
+    from backend.database import db_connection
+    from backend.importer.gpx_single import import_single_gpx
+
+    try:
+        with db_connection() as conn:
+            result = import_single_gpx(conn, data, bike_id or None)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    logger.info("GPX-Import: %s (activity %s, is_ride=%s)", file.filename, result["activity_id"], result["is_ride"])
+
+    if result.get("is_ride"):
+        _fetch_weather_for_activity(result["activity_id"])
+        _estimate_power_for_activity(result["activity_id"])
+
+    return result
+
+
 @router.post("/recalculate-power")
 def recalculate_power():
     """

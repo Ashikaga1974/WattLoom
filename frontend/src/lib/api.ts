@@ -734,6 +734,16 @@ export const api = {
     });
   },
 
+  importGpxFile: (file: File, bikeId?: string): Promise<{ activity_id: number; name: string; is_ride: boolean }> => {
+    const form = new FormData();
+    form.append('file', file);
+    if (bikeId) form.append('bike_id', bikeId);
+    return fetch(`${BASE}/import/gpx-file`, { method: 'POST', body: form }).then(r => {
+      if (!r.ok) return r.json().then(j => { throw new Error(j.detail ?? `Fehler ${r.status}`); });
+      return r.json() as Promise<{ activity_id: number; name: string; is_ride: boolean }>;
+    });
+  },
+
   recalculatePower: (): Promise<{ ok: boolean; message: string }> =>
     fetch(`${BASE}/import/recalculate-power`, { method: 'POST' })
       .then(r => { if (!r.ok) throw new Error(`Fehler ${r.status}`); return r.json(); }),

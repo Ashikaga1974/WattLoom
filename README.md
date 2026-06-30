@@ -257,6 +257,7 @@ POST /import/start
 GET  /import/status
 POST /import/reset
 POST /import/fit-file               → multipart: file (.fit) + bike_id
+POST /import/tcx-file               → multipart: file (.tcx) + bike_id
 GET  /media/{filename}
 ```
 

@@ -95,7 +95,9 @@ def import_single_tcx(conn: sqlite3.Connection, tcx_bytes: bytes, bike_id: str |
     max_hr_vals = [_int(lap, "ns:MaximumHeartRateBpm/ns:Value") for lap in laps]
     max_hr = max((v for v in max_hr_vals if v is not None), default=None)
 
-    is_ride = sport_lower in _CYCLING_SPORTS
+    # Mi Fitness und ähnliche Apps setzen Sport="" – wenn bike_id übergeben wurde,
+    # ist das ein hinreichendes Signal dass es eine Radfahrt ist.
+    is_ride = sport_lower in _CYCLING_SPORTS or (sport_lower == "" and bike_id is not None)
 
     if is_ride:
         if not bike_id:

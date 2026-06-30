@@ -6,7 +6,10 @@ import_route() → routes + route_points für gespeicherte Routen
 
 import gzip
 import sqlite3
+from datetime import datetime
 from lxml import etree
+
+from backend.utils import haversine_m
 
 NS = {
     "gpx": "http://www.topografix.com/GPX/1/1",
@@ -46,10 +49,15 @@ def _text_str(el, xpath: str) -> str | None:
 
 def _parse_trackpoints(root) -> list[tuple]:
     points: list[tuple] = []
+    prev_lat: float | None = None
+    prev_lon: float | None = None
+    prev_ts: datetime | None = None
+    cum_dist = 0.0
+
     for tpt in root.xpath(".//gpx:trkpt", namespaces=NS):
         lat = _attr_float(tpt, "lat")
         lon = _attr_float(tpt, "lon")
-        ts = _text_str(tpt, "gpx:time")
+        ts_str = _text_str(tpt, "gpx:time")
         alt = _text_float(tpt, "gpx:ele")
         hr = (
             _text_int(tpt, ".//gpxdata:hr")
@@ -59,7 +67,32 @@ def _parse_trackpoints(root) -> list[tuple]:
             _text_int(tpt, ".//gpxdata:cadence")
             or _text_int(tpt, ".//ns3:TrackPointExtension/ns3:cad")
         )
-        points.append((lat, lon, ts, alt, None, None, hr, None, cadence, None))
+
+        ts_dt: datetime | None = None
+        if ts_str:
+            try:
+                ts_dt = datetime.fromisoformat(ts_str.replace("Z", "+00:00"))
+            except ValueError:
+                pass
+
+        # Geschwindigkeit aus aufeinanderfolgenden GPS-Punkten: Haversine / Zeitdelta
+        speed_ms: float | None = None
+        if lat is not None and lon is not None and prev_lat is not None and prev_lon is not None:
+            segment_m = haversine_m(prev_lat, prev_lon, lat, lon)
+            cum_dist += segment_m
+            if ts_dt is not None and prev_ts is not None:
+                dt_s = (ts_dt - prev_ts).total_seconds()
+                if dt_s > 0:
+                    speed_ms = segment_m / dt_s
+
+        if lat is not None and lon is not None:
+            prev_lat, prev_lon = lat, lon
+        if ts_dt is not None:
+            prev_ts = ts_dt
+
+        distance_m = cum_dist if cum_dist > 0 else None
+        points.append((lat, lon, ts_str, alt, distance_m, speed_ms, hr, None, cadence, None))
+
     return points
 
 
