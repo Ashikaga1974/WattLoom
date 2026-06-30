@@ -269,6 +269,102 @@ async def import_gpx_file(
     return result
 
 
+def _recalculate_one_track_speeds(conn, activity_id: int) -> bool:
+    """Berechnet speed_ms + distance_m aus lat/lon/timestamp für einen Track.
+    Nur Aktivitäten mit mind. einem lat/lon-Punkt ohne speed_ms werden angefasst."""
+    from datetime import datetime
+    from backend.utils import haversine_m, smooth_speeds
+
+    needs = conn.execute(
+        "SELECT 1 FROM track_points WHERE activity_id=? AND lat IS NOT NULL AND speed_ms IS NULL LIMIT 1",
+        (activity_id,),
+    ).fetchone()
+    if not needs:
+        return False
+
+    pts = conn.execute(
+        "SELECT id, lat, lon, timestamp FROM track_points WHERE activity_id=? ORDER BY id",
+        (activity_id,),
+    ).fetchall()
+
+    updates = []
+    cum_dist = 0.0
+    prev_lat = prev_lon = prev_ts = None
+
+    for pt_id, lat, lon, ts_str in pts:
+        ts_dt = None
+        if ts_str:
+            try:
+                ts_dt = datetime.fromisoformat(ts_str)
+            except ValueError:
+                pass
+
+        speed_ms = None
+        if lat is not None and lon is not None:
+            if prev_lat is not None:
+                seg_m = haversine_m(prev_lat, prev_lon, lat, lon)
+                cum_dist += seg_m
+                if ts_dt is not None and prev_ts is not None:
+                    dt_s = (ts_dt - prev_ts).total_seconds()
+                    if dt_s > 0:
+                        raw = seg_m / dt_s
+                        # >40 m/s (144 km/h) = GPS-Artefakt → verwerfen
+                        speed_ms = raw if raw <= 40.0 else None
+            prev_lat, prev_lon = lat, lon
+        if ts_dt is not None:
+            prev_ts = ts_dt
+
+        updates.append((speed_ms, cum_dist if cum_dist > 0 else None, pt_id))
+
+    # GPS-Rauschen glätten
+    raw_speeds = [u[0] for u in updates]
+    smoothed = smooth_speeds(raw_speeds)
+    updates = [(s, u[1], u[2]) for s, u in zip(smoothed, updates)]
+
+    with conn:
+        conn.executemany(
+            "UPDATE track_points SET speed_ms=?, distance_m=? WHERE id=?",
+            updates,
+        )
+    return True
+
+
+def _run_recalculate_track_speeds() -> None:
+    """Backfill: speed_ms + distance_m für alle Tracks ohne Geschwindigkeitsdaten."""
+    from backend.database import db_connection
+
+    with db_connection() as conn:
+        ids = [
+            r[0]
+            for r in conn.execute(
+                "SELECT DISTINCT activity_id FROM track_points WHERE lat IS NOT NULL AND speed_ms IS NULL"
+            ).fetchall()
+        ]
+
+    done = 0
+    for activity_id in ids:
+        try:
+            with db_connection() as conn:
+                if _recalculate_one_track_speeds(conn, activity_id):
+                    done += 1
+        except Exception as exc:
+            logger.error("Track-Speed-Backfill activity %s: %s", activity_id, exc)
+
+    print(f"  Track-Speed-Backfill: {done}/{len(ids)} Aktivitäten aktualisiert")
+    logger.info("Track-Speed-Backfill abgeschlossen: %d/%d", done, len(ids))
+
+
+@router.post("/recalculate-track-speeds")
+def recalculate_track_speeds():
+    """
+    Berechnet speed_ms + distance_m aus lat/lon/timestamp für alle Tracks,
+    bei denen diese Werte fehlen (z.B. GPX-Import vor 2026-06-30).
+    Läuft im Hintergrund.
+    """
+    threading.Thread(target=_run_recalculate_track_speeds, daemon=True).start()
+    return {"ok": True, "message": "Track-Speed-Backfill gestartet"}
+
+
 @router.post("/recalculate-power")
 def recalculate_power():
     """

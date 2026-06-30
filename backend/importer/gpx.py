@@ -9,7 +9,7 @@ import sqlite3
 from datetime import datetime
 from lxml import etree
 
-from backend.utils import haversine_m
+from backend.utils import haversine_m, smooth_speeds
 
 # ---------------------------------------------------------------------------
 # Geräteerkennung
@@ -117,6 +117,11 @@ def _parse_trackpoints(root) -> list[tuple]:
 
         distance_m = cum_dist if cum_dist > 0 else None
         points.append((lat, lon, ts_str, alt, distance_m, speed_ms, hr, None, cadence, None))
+
+    # GPS-Rauschen in Haversine-Geschwindigkeiten glätten
+    raw_speeds = [p[5] for p in points]
+    smoothed = smooth_speeds(raw_speeds)
+    points = [(*p[:5], s, *p[6:]) for p, s in zip(points, smoothed)]
 
     return points
 

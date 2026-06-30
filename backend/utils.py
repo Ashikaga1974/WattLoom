@@ -1,7 +1,26 @@
 import math
+import statistics
 
 _R_KM = 6_371.0
 MS_TO_KMH = 3.6
+
+
+def smooth_speeds(speeds: list[float | None], window: int = 5) -> list[float | None]:
+    """Medianfilter über GPS-abgeleitete Geschwindigkeiten (Halbfenster = window//2).
+    None-Werte bleiben None; nur Nicht-None-Nachbarn fließen in den Median ein."""
+    half = window // 2
+    result: list[float | None] = []
+    for i, v in enumerate(speeds):
+        if v is None:
+            result.append(None)
+            continue
+        neighbours = [
+            speeds[j]
+            for j in range(max(0, i - half), min(len(speeds), i + half + 1))
+            if speeds[j] is not None
+        ]
+        result.append(statistics.median(neighbours))
+    return result
 
 
 def haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
