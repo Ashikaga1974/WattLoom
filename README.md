@@ -313,6 +313,7 @@ In [frontend/src/lib/config.ts](frontend/src/lib/config.ts):
 - Track-Punkte können `lat: null, lon: null` haben (kein GPS-Fix beim Start) → Frontend filtert diese
 - fitparse 1.2.0 liefert component fields als Tupel → `_SafeProcessor` in `fit.py` als Workaround
 - **`Activity Date` im Strava-Export ist UTC** (nicht Lokalzeit) – `start_date_local` in der DB enthält daher ebenfalls UTC; Seiten mit Tageszeit-Auswertung übergeben den Browser-Timezone-Offset an die API
+- **Strava-Export-Sprache**: Spaltennamen und Aktivitätstypen kommen je nach Strava-Konto-Sprache auf Englisch oder Deutsch – der Importer erkennt beide automatisch
 
 ---
 

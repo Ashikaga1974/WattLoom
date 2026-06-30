@@ -56,17 +56,58 @@ def _to_bool(v: Any) -> int:
     return 1 if s in ("true", "1", "1.0") else 0
 
 
-_STRAVA_DATE_FMT = "%b %d, %Y, %I:%M:%S %p"
+_STRAVA_DATE_FMT    = "%b %d, %Y, %I:%M:%S %p"   # englisch: Jun 17, 2023, 8:59:12 AM
+_STRAVA_DATE_FMT_DE = "%d.%m.%Y, %H:%M:%S"        # deutsch:  29.06.2026, 16:23:46
 
 
 def _parse_date(v: str | None) -> str | None:
-    """Strava-Datum ('Jun 17, 2023, 8:59:12 AM') → ISO8601-String."""
+    """Strava-Datum → ISO8601-String. Unterstützt EN- und DE-Format."""
     if not v:
         return None
-    try:
-        return datetime.strptime(v, _STRAVA_DATE_FMT).isoformat()
-    except ValueError:
-        return v  # Fallback: Originalwert behalten
+    for fmt in (_STRAVA_DATE_FMT, _STRAVA_DATE_FMT_DE):
+        try:
+            return datetime.strptime(v, fmt).isoformat()
+        except ValueError:
+            continue
+    return v  # Fallback: Originalwert behalten
+
+
+# Mapping: deutsche Spaltennamen → englische (Strava-Export-Lokalisierung)
+_ACTIVITY_COL_MAP: dict[str, str] = {
+    "Aktivitäts-ID":                    "Activity ID",
+    "Aktivitätsdatum":                  "Activity Date",
+    "Name der Aktivität":               "Activity Name",
+    "Aktivitätsart":                    "Activity Type",
+    "Verstrichene Zeit":                "Elapsed Time",
+    "Distanz":                          "Distance",
+    "Max. Herzfrequenz":                "Max Heart Rate",
+    "Pendeln":                          "Commute",
+    "Aktivitätsausrüstung":             "Activity Gear",
+    "Dateiname":                        "Filename",
+    "Bewegungszeit":                    "Moving Time",
+    "Höchstgeschw.":                    "Max Speed",
+    "Durchschnittliche Geschwindigkeit": "Average Speed",
+    "Höhenzunahme":                     "Elevation Gain",
+    "Höhenunterschied":                 "Elevation Loss",
+    "Durchschnittliche Trittfrequenz":  "Average Cadence",
+    "Durchschnittliche Herzfrequenz":   "Average Heart Rate",
+    "Max. Watt":                        "Max Watts",
+    "Durchschnittliche Watt":           "Average Watts",
+    "Kalorien":                         "Calories",
+    "Durchschnittliche Temperatur":     "Average Temp",
+    "Medien":                           "Media",
+}
+
+_BIKES_COL_MAP: dict[str, str] = {
+    "Fahrradname":   "Bike Name",
+    "Fahrradmarke":  "Bike Brand",
+    "Fahrradmodell": "Bike Model",
+}
+
+
+def _normalize_row(row: dict, col_map: dict[str, str]) -> dict:
+    """Benennt bekannte deutsche Spalten auf englische um; unbekannte bleiben."""
+    return {col_map.get(k, k): v for k, v in row.items()}
 
 
 # ---------------------------------------------------------------------------
@@ -78,7 +119,7 @@ def import_bikes(zf: zipfile.ZipFile) -> dict[str, str]:
     bikes.csv hat keine ID-Spalte – wir nutzen den Namen direkt als ID."""
     with zf.open("bikes.csv") as f:
         reader = csv.DictReader(io.TextIOWrapper(f, encoding="utf-8"))
-        rows = list(reader)
+        rows = [_normalize_row(r, _BIKES_COL_MAP) for r in reader]
 
     name_to_id: dict[str, str] = {}
 
@@ -112,8 +153,10 @@ def import_bikes(zf: zipfile.ZipFile) -> dict[str, str]:
 # Activities (CSV)
 # ---------------------------------------------------------------------------
 
-RIDE_TYPES = {"Ride", "VirtualRide", "EBikeRide", "GravelRide", "MountainBikeRide"}
-OTHER_TYPES = {"Workout", "Weight Training"}
+RIDE_TYPES  = {"Ride", "VirtualRide", "EBikeRide", "GravelRide", "MountainBikeRide",
+               "Radfahrt", "Virtuelles Radfahren", "E-Bike-Fahrt", "Gravelbike-Fahrt", "Mountainbikefahrt"}
+OTHER_TYPES = {"Workout", "Weight Training",
+               "Training", "Gewichtstraining"}
 
 
 def import_activities_csv(
@@ -124,7 +167,7 @@ def import_activities_csv(
     media_map: Dateiname → activity_id für alle Aktivitäten mit Fotos."""
     with zf.open("activities.csv") as f:
         reader = csv.DictReader(io.TextIOWrapper(f, encoding="utf-8"))
-        rows = list(reader)
+        rows = [_normalize_row(r, _ACTIVITY_COL_MAP) for r in reader]
 
     rides = [r for r in rows if r.get("Activity Type") in RIDE_TYPES]
     bike_map = bike_name_to_id or {}
@@ -220,7 +263,8 @@ def import_activities_csv(
 def import_other_activities_csv(zf: zipfile.ZipFile) -> None:
     with zf.open("activities.csv") as f:
         reader = csv.DictReader(io.TextIOWrapper(f, encoding="utf-8"))
-        rows = [r for r in reader if r.get("Activity Type") in OTHER_TYPES]
+        all_rows = [_normalize_row(r, _ACTIVITY_COL_MAP) for r in reader]
+    rows = [r for r in all_rows if r.get("Activity Type") in OTHER_TYPES]
 
     imported = 0
     with db_connection() as conn:
