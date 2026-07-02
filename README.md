@@ -10,6 +10,24 @@ Lokale Web-App zur Analyse von Strava-Exportdaten. Kein Strava-API-Zugriff nöti
 
 ---
 
+## Inhaltsverzeichnis
+
+- [Features](#features)
+- [Voraussetzungen](#voraussetzungen)
+- [Installation & Start](#installation--start)
+- [Autostart via systemd (optional)](#autostart-via-systemd-optional)
+- [Projektstruktur](#projektstruktur)
+- [API-Übersicht](#api-übersicht)
+- [Datenbankschema](#datenbankschema)
+- [Unterstützte Datei-Formate](#unterstützte-datei-formate)
+- [Berechnungen & Formeln](#berechnungen--formeln)
+- [Konfigurierbare Parameter](#konfigurierbare-parameter)
+- [Bekannte Eigenheiten](#bekannte-eigenheiten)
+- [Tech Stack](#tech-stack)
+- [Lizenz](#lizenz)
+
+---
+
 ## Features
 
 | Bereich | Was es kann |

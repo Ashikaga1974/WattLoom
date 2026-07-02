@@ -10,6 +10,24 @@ Local web app for analyzing Strava export data. No Strava API access needed – 
 
 ---
 
+## Table of Contents
+
+- [Features](#features)
+- [Prerequisites](#prerequisites)
+- [Installation & Start](#installation--start)
+- [Autostart via systemd (optional)](#autostart-via-systemd-optional)
+- [Project structure](#project-structure)
+- [API overview](#api-overview)
+- [Database schema](#database-schema)
+- [Supported file formats](#supported-file-formats)
+- [Calculations & formulas](#calculations--formulas)
+- [Configurable parameters](#configurable-parameters)
+- [Known quirks](#known-quirks)
+- [Tech stack](#tech-stack)
+- [License](#license)
+
+---
+
 ## Features
 
 | Area | What it does |
