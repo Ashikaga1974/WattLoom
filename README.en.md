@@ -2,6 +2,8 @@
 
 Local web app for analyzing Strava export data. No Strava API access needed – everything runs locally based on a downloaded ZIP export.
 
+![Dashboard](res/dashboard.png)
+
 > 🇩🇪 [Deutsche README](README.md)
 
 ![Stack](https://img.shields.io/badge/Backend-FastAPI%20%2B%20SQLite-blue)
