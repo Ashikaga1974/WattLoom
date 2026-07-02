@@ -24,7 +24,7 @@ Lokale Web-App zur Analyse von Strava-Exportdaten. Kein Strava-API-Zugriff nöti
 | **Wetter & Leistung** | Ø-Speed nach Temperatur-Buckets, Wind-Impact-Chart; Wetterdaten via Open-Meteo (abrufbar per Knopfdruck) |
 | **Formkurve (PMC)** | CTL/ATL/TSB nach Trainingstagebuch-Methodik, hrTSS, 28-Tage-CTL-Trend, Ride- und Workout-Marker, Einschätzungs-Banner |
 | **Bestzeiten** | Rekorde und Top-Leistungen |
-| **Bikes** | 2 Tabs: Übersicht (Foto-Thumbnail, Kennzahlen, Verschleiß-Tracker mit Fortschrittsbalken, geschätztem Wartungsdatum, Hersteller, Preis, Bestelllink, Inline-Edit, Inaktiv-Schalter) · Vergleich (km, Speed, Höhenmeter, Jahresverlauf, Distanzhistogramm) |
+| **Bikes** | 2 Tabs: Übersicht (Foto-Thumbnail, Kennzahlen, Verschleiß-Tracker als Karten mit Fortschrittsbalken, Einbauen aus Lager inkl. Übernahme der Laufleistung gebrauchter Teile, Ausbauen mit km-Erfassung + automatischer Lagerrückgabe, Inaktiv-Schalter; inaktive Bikes kompakt per Dropdown statt eigener Karte) · Vergleich (km, Speed, Höhenmeter, Jahresverlauf, Distanzhistogramm) · Einkaufs-Lager auf Übersicht (Tabelle: Artikel, Typ, Shop, Preis, Menge/Lagerbestand, Bestelldaten, ±-Korrekturen der Menge, Rückläufer-Historie) |
 | **Workout-Detail** | Detailansicht je Workout: Sport-Hero, 4 KPI-Kacheln, SVG-Intensitätsgauge (Ø HR / Max HR), Verlaufschart, Ø-Vergleich |
 | **Wochentag-Analyse** | Werktag (Mo–Fr) vs. Wochenende (Sa–So): Duell-Karte mit Gewinner-Indikatoren, Rides/Wochentag-Balken, Monatsverlauf |
 | **Top-Strecken** | Greedy-Clustering aller Rides (2 km Startradius, ±10 % Distanz), Zeitchart mit PR-Markierung, Trend, Karte |
@@ -137,7 +137,8 @@ MyBiking/
 │   ├── api/
 │   │   ├── activities.py    # /activities/*
 │   │   ├── analytics.py     # /analytics/* (PMC, Wrapped, Kalorien, Ermüdung, …)
-│   │   ├── bikes.py         # /bikes, /bikes/{id}, /bikes/compare
+│   │   ├── bikes.py         # /bikes, /bikes/{id}, /bikes/compare, Komponenten-Einbau/Ausbau
+│   │   ├── purchases.py     # /purchases – Einkaufs-Lager (installed_count statt used_quantity)
 │   │   ├── heatmap.py       # /tracks/heatmap
 │   │   ├── settings.py      # /settings (Gewicht, Geburtsjahr, HRmax, Timezone)
 │   │   ├── importer.py      # /import/start|status|reset|fit-file
@@ -246,10 +247,17 @@ GET  /bikes/compare
 PUT  /bikes/{id}/toggle-retired    → aktiv ↔ inaktiv
 GET  /bikes/{id}/image
 POST /bikes/{id}/image             → Foto hochladen (multipart)
-POST /bikes/{id}/components        → Komponente hinzufügen (brand, price, purchase_url, installed_at)
+POST /bikes/{id}/components        → Komponente aus Lager einbauen (purchase_id, optional return_id für Vorbelastungs-Übernahme)
 PUT  /bikes/{id}/components/{cid}  → Komponente editieren
-PUT  /bikes/{id}/components/{cid}/retire → Komponente inaktiv schalten
+PUT  /bikes/{id}/components/{cid}/retire        → Komponente inaktiv schalten (kein Lager-Effekt)
+PUT  /bikes/{id}/components/{cid}/uninstall     → {km_ridden, purchase_id?} → bei Lagerbezug: Rückgabe vermerken + Komponente löschen
+PUT  /bikes/{id}/components/{cid}/return-to-stock → {purchase_id} → bereits ausgebaute Komponente nachträglich ins Lager zurücklegen
 DELETE /bikes/{id}/components/{cid}
+GET  /purchases                    → Einkaufs-Lager inkl. installed_count (real verbaute Stückzahl) + returns (Laufleistungs-Historie)
+POST /purchases                    → neuer Einkauf (inkl. component_type)
+PUT  /purchases/{id}               → bearbeiten
+PUT  /purchases/{id}/adjust        → {delta: ±1} → passt Menge an (Untergrenze = installed_count)
+DELETE /purchases/{id}
 GET  /tracks/heatmap                ?simplify, year
 GET  /settings
 POST /settings

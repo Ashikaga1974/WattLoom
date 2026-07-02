@@ -128,6 +128,9 @@ export interface BikeComponent {
   km_since_service: number;
   pct_used: number | null;
   added_at: string | null;
+  retired_at: string | null;
+  purchase_id: number | null;
+  uninstalled_km: number | null;
   estimated_service_date: string | null;
 }
 
@@ -142,6 +145,31 @@ export interface Bike {
   current_km: number;
   image_filename: string | null;
   components: BikeComponent[];
+}
+
+export interface PurchaseReturn {
+  id: number;
+  purchase_id: number;
+  bike_id: string | null;
+  component_type: string | null;
+  km_ridden: number | null;
+  returned_at: string | null;
+  reinstalled_at: string | null;
+}
+
+export interface Purchase {
+  id: number;
+  name: string;
+  shop: string | null;
+  url: string | null;
+  price: number | null;
+  order_date: string | null;
+  delivery_date: string | null;
+  quantity: number;
+  notes: string | null;
+  component_type: string | null;
+  returns: PurchaseReturn[];
+  installed_count: number;
 }
 
 export interface ZoneInfo {
@@ -752,7 +780,7 @@ export const api = {
     fetch(`${BASE}/bikes/${bikeId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) })
       .then(r => { if (!r.ok) throw new Error(`Fehler ${r.status}`); return r.json(); }),
 
-  addBikeComponent: (bikeId: string, data: { type: string; km_threshold: number; brand?: string; price?: number; purchase_url?: string; installed_at?: string }) =>
+  addBikeComponent: (bikeId: string, data: { type: string; km_threshold: number; brand?: string; price?: number; purchase_url?: string; installed_at?: string; purchase_id?: number; return_id?: number }) =>
     post<{ ok: boolean }>(`/bikes/${bikeId}/components`, data),
 
   updateBikeComponent: (bikeId: string, compId: number, data: { type: string; km_threshold: number; brand?: string; price?: number; purchase_url?: string; installed_at?: string }) =>
@@ -761,6 +789,14 @@ export const api = {
 
   retireBikeComponent: (bikeId: string, compId: number): Promise<{ ok: boolean }> =>
     fetch(`${BASE}/bikes/${bikeId}/components/${compId}/retire`, { method: 'PUT' })
+      .then(r => { if (!r.ok) throw new Error(`Fehler ${r.status}`); return r.json(); }),
+
+  uninstallBikeComponent: (bikeId: string, compId: number, kmRidden: number, purchaseId?: number): Promise<{ ok: boolean }> =>
+    fetch(`${BASE}/bikes/${bikeId}/components/${compId}/uninstall`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ km_ridden: kmRidden, purchase_id: purchaseId }) })
+      .then(r => { if (!r.ok) throw new Error(`Fehler ${r.status}`); return r.json(); }),
+
+  returnComponentToStock: (bikeId: string, compId: number, purchaseId: number): Promise<{ ok: boolean }> =>
+    fetch(`${BASE}/bikes/${bikeId}/components/${compId}/return-to-stock`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ purchase_id: purchaseId }) })
       .then(r => { if (!r.ok) throw new Error(`Fehler ${r.status}`); return r.json(); }),
 
   resetBikeComponent: (bikeId: string, compId: number): Promise<{ ok: boolean }> =>
@@ -783,4 +819,23 @@ export const api = {
   },
 
   bikeImageUrl: (bikeId: string) => `${BASE}/bikes/${bikeId}/image`,
+
+  listPurchases: (): Promise<Purchase[]> =>
+    fetch(`${BASE}/purchases`).then(r => { if (!r.ok) throw new Error(`Fehler ${r.status}`); return r.json(); }),
+
+  addPurchase: (data: Omit<Purchase, 'id' | 'used_at' | 'returns' | 'installed_count'>): Promise<Purchase> =>
+    fetch(`${BASE}/purchases`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })
+      .then(r => { if (!r.ok) throw new Error(`Fehler ${r.status}`); return r.json(); }),
+
+  updatePurchase: (id: number, data: Omit<Purchase, 'id' | 'used_at' | 'returns' | 'installed_count'>): Promise<Purchase> =>
+    fetch(`${BASE}/purchases/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })
+      .then(r => { if (!r.ok) throw new Error(`Fehler ${r.status}`); return r.json(); }),
+
+  adjustPurchaseQuantity: (id: number, delta: number): Promise<{ ok: boolean; quantity: number }> =>
+    fetch(`${BASE}/purchases/${id}/adjust`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ delta }) })
+      .then(r => { if (!r.ok) throw new Error(`Fehler ${r.status}`); return r.json(); }),
+
+  deletePurchase: (id: number): Promise<void> =>
+    fetch(`${BASE}/purchases/${id}`, { method: 'DELETE' })
+      .then(r => { if (!r.ok && r.status !== 204) throw new Error(`Fehler ${r.status}`); }),
 };

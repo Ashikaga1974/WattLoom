@@ -226,11 +226,55 @@ def init_db() -> None:
             conn.execute("ALTER TABLE bike_components ADD COLUMN price REAL")
         if "purchase_url" not in comp_cols:
             conn.execute("ALTER TABLE bike_components ADD COLUMN purchase_url TEXT")
+        if "purchase_id" not in comp_cols:
+            conn.execute("ALTER TABLE bike_components ADD COLUMN purchase_id INTEGER")
+        if "uninstalled_km" not in comp_cols:
+            conn.execute("ALTER TABLE bike_components ADD COLUMN uninstalled_km REAL")
 
         # Migration: Bike-Bild
         bike_cols = [r[1] for r in conn.execute("PRAGMA table_info(bikes)").fetchall()]
         if "image_filename" not in bike_cols:
             conn.execute("ALTER TABLE bikes ADD COLUMN image_filename TEXT")
+
+        # Migration: Einkaufs-Lager
+        # Kein used_quantity mehr: die verbaute Stückzahl ergibt sich immer aus
+        # COUNT(bike_components.purchase_id) – ein manuell gepflegter Zähler kann nicht
+        # aus der Reihe laufen, wenn es ihn gar nicht mehr gibt.
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS purchases (
+                id            INTEGER PRIMARY KEY AUTOINCREMENT,
+                name          TEXT NOT NULL,
+                shop          TEXT,
+                url           TEXT,
+                price         REAL,
+                order_date    TEXT,
+                delivery_date TEXT,
+                quantity      INTEGER DEFAULT 1,
+                notes         TEXT
+            )
+        """)
+        pur_cols = [r[1] for r in conn.execute("PRAGMA table_info(purchases)").fetchall()]
+        if "component_type" not in pur_cols:
+            conn.execute("ALTER TABLE purchases ADD COLUMN component_type TEXT")
+        if "used_quantity" in pur_cols:
+            conn.execute("ALTER TABLE purchases DROP COLUMN used_quantity")
+
+        # Migration: Laufleistung von ins Lager zurückgelegten Komponenten
+        # (bike_components-Zeile wird beim Zurücklegen gelöscht, die Laufleistung bleibt hier erhalten)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS purchase_returns (
+                id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                purchase_id     INTEGER REFERENCES purchases(id),
+                bike_id         TEXT,
+                component_type  TEXT,
+                km_ridden       REAL,
+                returned_at     TEXT,
+                reinstalled_at  TEXT
+            )
+        """)
+        pr_cols = [r[1] for r in conn.execute("PRAGMA table_info(purchase_returns)").fetchall()]
+        if "reinstalled_at" not in pr_cols:
+            conn.execute("ALTER TABLE purchase_returns ADD COLUMN reinstalled_at TEXT")
 
     print(f"DB initialisiert: {DB_PATH}")
 

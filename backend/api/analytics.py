@@ -5,6 +5,12 @@ from backend.utils import haversine_km, MS_TO_KMH
 
 router = APIRouter(prefix="/analytics", tags=["analytics"])
 
+# Beide Sprachvarianten (EN + DE Strava-Export)
+RIDE_TYPES = (
+    'Ride', 'VirtualRide', 'EBikeRide', 'GravelRide', 'MountainBikeRide',
+    'Radfahrt', 'Virtuelles Radfahren', 'E-Bike-Fahrt', 'Gravelbike-Fahrt', 'Mountainbikefahrt',
+)
+
 def _hr_max_fallback(conn) -> float:
     """Liest hr_max aus der Config (Einstellungen); Standard 185 wenn nicht gesetzt."""
     row = conn.execute("SELECT value FROM config WHERE key = 'hr_max'").fetchone()
@@ -338,7 +344,7 @@ def weekly_volume(weeks: int = Query(52)):
 def get_wrapped(year: int = None, tz_offset: int = Query(None, ge=-14, le=14)):
     from datetime import datetime, timedelta
 
-    RIDE_TYPES = ('Ride', 'VirtualRide', 'EBikeRide')
+    # RIDE_TYPES: Modul-Konstante oben
     placeholders = ','.join('?' * len(RIDE_TYPES))
 
     with db_connection() as conn:
@@ -639,7 +645,7 @@ def best_by_distance():
     """
     BUCKETS_KM   = [1, 5, 10, 20, 30, 40, 50, 60]
     TOLERANCE    = 0.20
-    RIDE_TYPES   = ('Ride', 'VirtualRide', 'EBikeRide')
+    # RIDE_TYPES: Modul-Konstante oben
     ph           = ','.join('?' * len(RIDE_TYPES))
 
     with db_connection() as conn:
@@ -695,7 +701,7 @@ def route_clusters(min_rides: int = Query(3)):
     """
     import math
 
-    RIDE_TYPES       = ('Ride', 'VirtualRide', 'EBikeRide')
+    # RIDE_TYPES: Modul-Konstante oben
     START_RADIUS_KM  = 2.0
     DIST_TOLERANCE   = 0.10  # ±10 % Distanztoleranz
     WP_RADIUS_KM     = 3.0   # Wegpunkt-Radius für 25 %/50 %/75 %-Checks
@@ -875,7 +881,7 @@ def fatigue_index(year: int = Query(None)):
     Negativ = Ermüdung (langsamer in H2), Positiv = Steigerung (schneller in H2).
     Nur Rides mit ≥ 60 Track-Punkten, speed_ms > 0, distance_m IS NOT NULL.
     """
-    RIDE_TYPES = ('Ride', 'VirtualRide', 'EBikeRide')
+    # RIDE_TYPES: Modul-Konstante oben
 
     # Jahresfilter optional
     year_filter = ""
@@ -1604,7 +1610,7 @@ def speed_trend():
     Liefert: Rides-Liste (Scatter), Rolling-Average (20 Rides), Jahres-Aggregate, Monats-Heatmap.
     Nur Rides ≥ 5 km mit gültigem avg_speed_ms.
     """
-    RIDE_TYPES = ('Ride', 'VirtualRide', 'EBikeRide')
+    # RIDE_TYPES: Modul-Konstante oben
     MIN_DIST_M = 5000
     ROLLING_WINDOW = 20
 
