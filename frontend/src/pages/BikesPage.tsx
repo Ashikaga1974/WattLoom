@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { api, type Bike, type BikeCompareData, type BikeComponent, type Purchase } from '@/lib/api';
+import { api, type Bike, type BikeCompareData, type BikeComponent, type DeletedComponent, type Purchase } from '@/lib/api';
 import { PageHeader } from '@/components/ui/page-header';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Card, CardContent } from '@/components/ui/card';
@@ -108,17 +108,11 @@ function ComponentRow({
 
   // Edit-State
   const [editType, setEditType] = useState(comp.type);
-  const [editBrand, setEditBrand] = useState(comp.brand ?? '');
-  const [editPrice, setEditPrice] = useState(comp.price != null ? String(comp.price) : '');
-  const [editUrl, setEditUrl] = useState(comp.purchase_url ?? '');
   const [editThreshold, setEditThreshold] = useState(comp.km_threshold ?? 2000);
   const [editDate, setEditDate] = useState(comp.added_at ?? new Date().toISOString().slice(0, 10));
 
   function openEdit() {
     setEditType(comp.type);
-    setEditBrand(comp.brand ?? '');
-    setEditPrice(comp.price != null ? String(comp.price) : '');
-    setEditUrl(comp.purchase_url ?? '');
     setEditThreshold(comp.km_threshold ?? 2000);
     setEditDate(comp.added_at ?? new Date().toISOString().slice(0, 10));
     setEditing(true);
@@ -130,9 +124,6 @@ function ComponentRow({
       await api.updateBikeComponent(bikeId, comp.id, {
         type: editType,
         km_threshold: editThreshold,
-        brand: editBrand.trim() || undefined,
-        price: editPrice !== '' ? parseFloat(editPrice) : undefined,
-        purchase_url: editUrl.trim() || undefined,
         installed_at: editDate,
       });
       setEditing(false);
@@ -140,11 +131,6 @@ function ComponentRow({
     } finally {
       setBusy(false);
     }
-  }
-  async function handleRetire() {
-    setBusy(true);
-    try { await api.retireBikeComponent(bikeId, comp.id); onChanged(); }
-    finally { setBusy(false); }
   }
   async function handleUninstall() {
     setBusy(true);
@@ -198,24 +184,9 @@ function ComponentRow({
             </select>
           </label>
           <label className={labelCls}>
-            <span className="block">Hersteller</span>
-            <input type="text" value={editBrand} onChange={e => setEditBrand(e.target.value)}
-              placeholder="z.B. Continental" className={fieldCls} />
-          </label>
-          <label className={labelCls}>
-            <span className="block">Preis (€)</span>
-            <input type="number" value={editPrice} onChange={e => setEditPrice(e.target.value)}
-              placeholder="0,00" className={fieldCls} min={0} step={0.01} />
-          </label>
-          <label className={labelCls}>
             <span className="block">Wartungsintervall (km)</span>
             <input type="number" value={editThreshold} onChange={e => setEditThreshold(Number(e.target.value))}
               className={fieldCls} min={100} step={100} />
-          </label>
-          <label className={`${labelCls} col-span-2`}>
-            <span className="block">Bestelllink</span>
-            <input type="url" value={editUrl} onChange={e => setEditUrl(e.target.value)}
-              placeholder="https://…" className={fieldCls} />
           </label>
           <label className={labelCls}>
             <span className="block">Einbaudatum</span>
@@ -242,14 +213,17 @@ function ComponentRow({
   const panelFieldCls = "w-full rounded-md border border-border bg-background px-2.5 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-amber-500";
 
   return (
-    <div className={`rounded-xl border border-border p-3 space-y-2${isRetired ? ' opacity-60' : ' bg-muted/30'}`}>
+    <div className={`rounded-xl border border-border p-2.5 space-y-1.5${isRetired ? ' opacity-60' : ' bg-muted/30'}`}>
       {/* Titel + Metadaten + Fortschritt in % */}
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-x-2.5 gap-y-1 min-w-0 flex-wrap">
           <span className="text-sm font-semibold truncate">{comp.type}</span>
           {isRetired && <Badge variant="secondary">Inaktiv</Badge>}
-          {comp.brand && <span className="text-sm text-muted-foreground">{comp.brand}</span>}
-          {comp.price != null && <span className="text-sm text-muted-foreground">{fmtNum(comp.price, 2)} €</span>}
+          {comp.purchase_name && (
+            <span className="text-sm text-muted-foreground" title="Verknüpfter Lagerartikel">
+              📦 {comp.purchase_name}
+            </span>
+          )}
           {comp.purchase_url && (
             <a href={comp.purchase_url} target="_blank" rel="noopener noreferrer"
               className="text-sm text-primary hover:underline" title="Bestelllink öffnen">
@@ -290,24 +264,10 @@ function ComponentRow({
           ✎ Bearbeiten
         </button>
         {!isRetired && (
-          <>
-            <button onClick={handleRetire} disabled={busy}
-              className={`${actionBtn} border-border text-muted-foreground hover:bg-muted`}
-              title="Komponente als defekt/verbraucht markieren">
-              Inaktiv
-            </button>
-            <button onClick={() => { setUninstallKm(Math.round(comp.km_since_service)); setUninstalling(v => !v); }} disabled={busy}
-              className={`${actionBtn} border-amber-400 text-amber-600 dark:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-950`}
-              title="Komponente ausbauen und ggf. ins Lager zurücklegen">
-              Ausbauen
-            </button>
-          </>
-        )}
-        {isRetired && comp.uninstalled_km == null && (
           <button onClick={() => { setUninstallKm(Math.round(comp.km_since_service)); setUninstalling(v => !v); }} disabled={busy}
             className={`${actionBtn} border-amber-400 text-amber-600 dark:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-950`}
-            title="Gelaufene km eintragen und ggf. ins Lager zurücklegen">
-            Ins Lager
+            title="Komponente ausbauen und ggf. ins Lager zurücklegen">
+            Ausbauen
           </button>
         )}
         {isRetired && comp.uninstalled_km != null && comp.purchase_item_id == null && (
@@ -540,9 +500,6 @@ function AddComponentForm({
       await api.addBikeComponent(bikeId, {
         type: effectiveType,
         km_threshold: threshold,
-        brand: selectedPurchase?.shop ?? undefined,
-        price: selectedPurchase?.price ?? undefined,
-        purchase_url: selectedPurchase?.url ?? undefined,
         installed_at: installedAt,
         purchase_id: selectedPurchaseId as number,
         return_id: carryOverReturnId === '' ? undefined : carryOverReturnId,
@@ -701,7 +658,7 @@ function BikeCard({
 }) {
   return (
     <Card className={`shadow-sm overflow-hidden${className ? ` ${className}` : ''}`}>
-      <CardContent className="p-5 flex flex-col gap-4">
+      <CardContent className="p-4 flex flex-col gap-3">
         {/* Kopfzeile: Titel + Thumbnail + Toggle */}
         <div className="flex items-start gap-3">
           {/* Bike-Thumbnail */}
@@ -785,19 +742,19 @@ function BikeCard({
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-2 gap-3">
-          <div className="rounded-lg bg-muted/60 px-3 py-2.5">
-            <p className="text-sm uppercase tracking-wider text-muted-foreground">Rides</p>
-            <p className="mt-0.5 text-xl font-bold text-primary">{bike.ride_count}</p>
+        <div className="grid grid-cols-2 gap-2.5">
+          <div className="rounded-lg bg-muted/60 px-3 py-2 flex items-baseline justify-between gap-2">
+            <span className="text-sm uppercase tracking-wider text-muted-foreground">Rides</span>
+            <span className="text-xl font-bold text-primary">{bike.ride_count}</span>
           </div>
-          <div className="rounded-lg bg-muted/60 px-3 py-2.5">
-            <p className="text-sm uppercase tracking-wider text-muted-foreground">Gesamt km</p>
-            <p className="mt-0.5 text-xl font-bold">{fmtNum(Math.round(bike.current_km))}</p>
+          <div className="rounded-lg bg-muted/60 px-3 py-2 flex items-baseline justify-between gap-2">
+            <span className="text-sm uppercase tracking-wider text-muted-foreground">Gesamt km</span>
+            <span className="text-xl font-bold">{fmtNum(Math.round(bike.current_km))}</span>
           </div>
         </div>
 
         {/* Verschleiß */}
-        <div className="border-t border-border pt-4 space-y-2">
+        <div className="border-t border-border pt-3 space-y-1.5">
           <p className="text-sm font-semibold">Verschleiß</p>
           {bike.components.length === 0 && (
             <p className="text-sm text-muted-foreground">Keine Komponenten erfasst.</p>
@@ -810,7 +767,7 @@ function BikeCard({
 
         <Link
           to={`/activities?bike=${bike.id}`}
-          className="w-full text-center text-sm font-medium py-2.5 rounded-xl border border-border text-primary hover:bg-primary/5 transition-colors mt-auto"
+          className="w-full text-center text-sm font-medium py-2 rounded-xl border border-border text-primary hover:bg-primary/5 transition-colors mt-auto"
         >
           Alle Aktivitäten →
         </Link>
@@ -879,7 +836,7 @@ function UebersichtTab() {
 
   return (
     <>
-    <div className="grid gap-6 md:grid-cols-2">
+    <div className="grid gap-4 md:grid-cols-2">
       {activeBikes.map(bike => (
         <BikeCard
           key={bike.id}
@@ -901,8 +858,13 @@ function UebersichtTab() {
       )}
     </div>
 
+    <div className="mt-8 space-y-3">
+      <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">Einkäufe / Lager</h2>
+      <EinkäufeTab externalKey={purchaseRefreshKey} onChanged={reloadAll} />
+    </div>
+
     {inactiveBikes.length > 0 && (
-      <div className="mt-6 rounded-xl border border-border p-4 space-y-4">
+      <div className="mt-8 rounded-xl border border-border p-4 space-y-4">
         <div className="flex items-center gap-3 flex-wrap">
           <span className="text-sm font-medium text-muted-foreground">Inaktive Räder</span>
           <select
@@ -933,11 +895,6 @@ function UebersichtTab() {
         )}
       </div>
     )}
-
-    <div className="mt-8 space-y-3">
-      <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">Einkäufe / Lager</h2>
-      <EinkäufeTab externalKey={purchaseRefreshKey} onChanged={reloadAll} />
-    </div>
     </>
   );
 }
@@ -1545,6 +1502,64 @@ function EinkäufeTab({ externalKey, onChanged }: { externalKey: number; onChang
   );
 }
 
+// ─── Gelöscht-Tab ─────────────────────────────────────────────────────────────
+
+function GeloeschtTab() {
+  const [items, setItems] = useState<DeletedComponent[]>([]);
+  const [bikeNames, setBikeNames] = useState<Record<string, string>>({});
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    api.deletedComponents().then(setItems).finally(() => setLoading(false));
+    api.bikes().then(bikes => setBikeNames(Object.fromEntries(bikes.map(b => [b.id, b.name]))));
+  }, []);
+
+  function fmtDate(iso: string | null) {
+    if (!iso) return '—';
+    return new Date(iso + 'T00:00:00').toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  }
+
+  if (loading) return <p className="text-sm text-muted-foreground">Lädt…</p>;
+  if (items.length === 0) return <p className="text-sm text-muted-foreground">Noch keine Komponenten gelöscht.</p>;
+
+  return (
+    <div className="overflow-x-auto rounded-xl border border-border">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="border-b border-border bg-muted/40">
+            <th className="text-left px-3 py-2 font-semibold text-muted-foreground">Typ</th>
+            <th className="text-left px-3 py-2 font-semibold text-muted-foreground">Bike</th>
+            <th className="text-left px-3 py-2 font-semibold text-muted-foreground">Einkauf</th>
+            <th className="text-right px-3 py-2 font-semibold text-muted-foreground">Gefahren</th>
+            <th className="text-left px-3 py-2 font-semibold text-muted-foreground">Eingebaut</th>
+            <th className="text-left px-3 py-2 font-semibold text-muted-foreground">Gelöscht</th>
+          </tr>
+        </thead>
+        <tbody>
+          {items.map(c => (
+            <tr key={c.id} className="border-b border-border last:border-0 hover:bg-muted/20 transition-colors">
+              <td className="px-3 py-2 font-medium">{c.type}</td>
+              <td className="px-3 py-2 text-muted-foreground">{bikeNames[c.bike_id] ?? c.bike_id}</td>
+              <td className="px-3 py-2 text-muted-foreground">
+                {c.purchase_name ?? '—'}
+                {c.url && (
+                  <>
+                    {' · '}
+                    <a href={c.url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">↗ Link</a>
+                  </>
+                )}
+              </td>
+              <td className="px-3 py-2 text-right tabular-nums">{fmtNum(Math.round(c.km_since_service))} km</td>
+              <td className="px-3 py-2 text-muted-foreground">{fmtDate(c.added_at)}</td>
+              <td className="px-3 py-2 text-muted-foreground">{fmtDate(c.deleted_at)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 // ─── Haupt-Seite ──────────────────────────────────────────────────────────────
 
 export default function BikesPage() {
@@ -1562,11 +1577,16 @@ export default function BikesPage() {
       <Tabs value={tab} onValueChange={handleTabChange}>
         <TabsList>
           <TabsTrigger value="übersicht">Übersicht</TabsTrigger>
+          <TabsTrigger value="gelöscht">Gelöscht</TabsTrigger>
           <TabsTrigger value="vergleich">Vergleich</TabsTrigger>
         </TabsList>
 
         <TabsContent value="übersicht" className="mt-6">
           <UebersichtTab />
+        </TabsContent>
+
+        <TabsContent value="gelöscht" className="mt-6">
+          <GeloeschtTab />
         </TabsContent>
 
         <TabsContent value="vergleich" className="mt-6">

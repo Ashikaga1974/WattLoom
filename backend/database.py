@@ -126,7 +126,6 @@ def init_db() -> None:
                 id              INTEGER PRIMARY KEY AUTOINCREMENT,
                 bike_id         TEXT REFERENCES bikes(id),
                 type            TEXT,
-                brand           TEXT,
                 model           TEXT,
                 description     TEXT,
                 distance_m      REAL,
@@ -222,10 +221,18 @@ def init_db() -> None:
             conn.execute("ALTER TABLE bike_components ADD COLUMN km_threshold REAL")
         if "km_at_service" not in comp_cols:
             conn.execute("ALTER TABLE bike_components ADD COLUMN km_at_service REAL DEFAULT 0")
-        if "price" not in comp_cols:
-            conn.execute("ALTER TABLE bike_components ADD COLUMN price REAL")
-        if "purchase_url" not in comp_cols:
-            conn.execute("ALTER TABLE bike_components ADD COLUMN purchase_url TEXT")
+        # purchase_url wird nicht mehr gespeichert, sondern live über purchase_item_id ->
+        # purchase_items.purchase_id -> purchases.url abgeleitet (war 1:1-Kopie ohne echten
+        # Divergenz-Anwendungsfall, siehe Session 2026-07-02d).
+        if "purchase_url" in comp_cols:
+            conn.execute("ALTER TABLE bike_components DROP COLUMN purchase_url")
+        # brand/price werden auf Komponenten-Ebene nicht mehr benötigt (Sascha, Session
+        # 2026-07-02d) – keine Ableitung über den Einkauf, da brand≠purchases.shop
+        # (Hersteller vs. Händler) und price teils schon vom Einkaufspreis abwich.
+        if "brand" in comp_cols:
+            conn.execute("ALTER TABLE bike_components DROP COLUMN brand")
+        if "price" in comp_cols:
+            conn.execute("ALTER TABLE bike_components DROP COLUMN price")
         if "uninstalled_km" not in comp_cols:
             conn.execute("ALTER TABLE bike_components ADD COLUMN uninstalled_km REAL")
 
@@ -321,6 +328,27 @@ def init_db() -> None:
             conn.execute("ALTER TABLE purchase_returns DROP COLUMN purchase_id")
             if "reinstalled_at" in pr_cols:
                 conn.execute("ALTER TABLE purchase_returns DROP COLUMN reinstalled_at")
+
+        # Migration: Löschungs-Historie für Bike-Komponenten (Session 2026-07-02d) – Snapshot
+        # der bike_components-Zeile zum Löschzeitpunkt, damit gelöschte Komponenten weiterhin
+        # einsehbar bleiben. purchase_item_id bleibt referenziert (nicht kopiert), analog zu
+        # purchase_url/brand/price-Entfernung: Details zu Preis/Shop/Link kommen bei Bedarf über
+        # den Einkauf.
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS deleted_components (
+                id                INTEGER PRIMARY KEY AUTOINCREMENT,
+                bike_id           TEXT,
+                type              TEXT,
+                km_threshold      REAL,
+                km_at_service     REAL,
+                km_since_service  REAL,
+                added_at          TEXT,
+                retired_at        TEXT,
+                uninstalled_km    REAL,
+                purchase_item_id  INTEGER REFERENCES purchase_items(id),
+                deleted_at        TEXT
+            )
+        """)
 
         # db_connection() committet beim Schließen nicht automatisch – ohne diesen commit() würde
         # eine hier noch offene, von INSERT/UPDATE implizit gestartete Transaktion (z.B. die

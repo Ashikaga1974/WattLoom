@@ -2,6 +2,8 @@
 
 Lokale Web-App zur Analyse von Strava-Exportdaten. Kein Strava-API-Zugriff nötig – alles läuft lokal auf Basis eines heruntergeladenen ZIP-Exports.
 
+> 🇬🇧 [English README](README.en.md)
+
 ![Stack](https://img.shields.io/badge/Backend-FastAPI%20%2B%20SQLite-blue)
 ![Stack](https://img.shields.io/badge/Frontend-React%2019%20%2B%20Vite%20%2B%20shadcn%2Fui-orange)
 ![Platform](https://img.shields.io/badge/Platform-Linux%20%2F%20macOS-lightgrey)
@@ -24,7 +26,7 @@ Lokale Web-App zur Analyse von Strava-Exportdaten. Kein Strava-API-Zugriff nöti
 | **Wetter & Leistung** | Ø-Speed nach Temperatur-Buckets, Wind-Impact-Chart; Wetterdaten via Open-Meteo (abrufbar per Knopfdruck) |
 | **Formkurve (PMC)** | CTL/ATL/TSB nach Trainingstagebuch-Methodik, hrTSS, 28-Tage-CTL-Trend, Ride- und Workout-Marker, Einschätzungs-Banner |
 | **Bestzeiten** | Rekorde und Top-Leistungen |
-| **Bikes** | 2 Tabs: Übersicht (Foto-Thumbnail, Kennzahlen, Verschleiß-Tracker als Karten mit Fortschrittsbalken, Einbauen aus Lager inkl. Übernahme der Laufleistung gebrauchter Teile, Ausbauen mit km-Erfassung + automatischer Lagerrückgabe, nachträgliches Verknüpfen verbauter Altbestand-Komponenten mit einem Einkauf, Inaktiv-Schalter; inaktive Bikes kompakt per Dropdown statt eigener Karte) · Vergleich (km, Speed, Höhenmeter, Jahresverlauf, Distanzhistogramm) · Einkaufs-Lager auf Übersicht (Tabelle: Artikel, Typ, Shop, Preis, Menge/Lagerbestand, Bestelldaten, ±-Korrekturen der Menge, Rückläufer-Historie, ausgeschriebene Bearbeiten/Löschen-Buttons) |
+| **Bikes** | 3 Tabs: Übersicht (Foto-Thumbnail, Kennzahlen einzeilig, Verschleiß-Tracker als Karten mit Fortschrittsbalken + verknüpftem Lagerartikel-Namen, Einbauen aus Lager inkl. Übernahme der Laufleistung gebrauchter Teile, Ausbauen mit km-Erfassung + automatischer Lagerrückgabe, nachträgliches Verknüpfen verbauter Altbestand-Komponenten mit einem Einkauf; Einkaufs-Lager-Tabelle darunter, inaktive Bikes per Dropdown ganz unten) · Gelöscht (Historie unwiderruflich gelöschter Komponenten inkl. Lagerbezug, rein informativ) · Vergleich (km, Speed, Höhenmeter, Jahresverlauf, Distanzhistogramm) |
 | **Workout-Detail** | Detailansicht je Workout: Sport-Hero, 4 KPI-Kacheln, SVG-Intensitätsgauge (Ø HR / Max HR), Verlaufschart, Ø-Vergleich |
 | **Wochentag-Analyse** | Werktag (Mo–Fr) vs. Wochenende (Sa–So): Duell-Karte mit Gewinner-Indikatoren, Rides/Wochentag-Balken, Monatsverlauf |
 | **Top-Strecken** | Greedy-Clustering aller Rides (2 km Startradius, ±10 % Distanz), Zeitchart mit PR-Markierung, Trend, Karte |
@@ -174,7 +176,7 @@ MyBiking/
 │           ├── ActivitiesPage.tsx
 │           ├── ActivityDetailPage.tsx
 │           ├── BestPage.tsx
-│           ├── BikesPage.tsx           # Tabs: Übersicht · Vergleich (/bikes?tab=übersicht|vergleich)
+│           ├── BikesPage.tsx           # Tabs: Übersicht · Gelöscht · Vergleich (/bikes?tab=übersicht|gelöscht|vergleich)
 │           ├── WorkoutDetailPage.tsx   # Workout-Detail mit Intensitätsgauge (/workouts/:id)
 │           ├── WeekendPage.tsx         # Wochentag-Analyse (/weekend)
 │           ├── CalendarPage.tsx
@@ -241,19 +243,19 @@ GET  /weather/status
 POST /weather/fetch-all             → Wetterdaten für alle Aktivitäten via Open-Meteo (Background-Job)
 
 GET  /bikes
-GET  /bikes/{id}                   → inkl. current_km, components (km_since_service, pct_used, estimated_service_date)
+GET  /bikes/{id}                   → inkl. current_km, components (km_since_service, pct_used, estimated_service_date, purchase_name, purchase_url live über Lagerbezug abgeleitet)
 PUT  /bikes/{id}                   → { name } Bikenamen umbenennen
 GET  /bikes/compare
-PUT  /bikes/{id}/toggle-retired    → aktiv ↔ inaktiv
+GET  /bikes/deleted-components     → Historie unwiderruflich gelöschter Komponenten (Snapshot + Einkaufsbezug)
+PUT  /bikes/{id}/toggle-retired    → Bike aktiv ↔ inaktiv
 GET  /bikes/{id}/image
 POST /bikes/{id}/image             → Foto hochladen (multipart)
 POST /bikes/{id}/components        → Komponente aus Lager einbauen (purchase_id, optional return_id für Vorbelastungs-Übernahme)
-PUT  /bikes/{id}/components/{cid}  → Komponente editieren
-PUT  /bikes/{id}/components/{cid}/retire        → Komponente inaktiv schalten (kein Lager-Effekt)
+PUT  /bikes/{id}/components/{cid}  → Komponente editieren (type, km_threshold, installed_at)
 PUT  /bikes/{id}/components/{cid}/uninstall     → {km_ridden, purchase_id?} → bei Lagerbezug: Rückgabe vermerken + Komponente löschen
 PUT  /bikes/{id}/components/{cid}/return-to-stock → {purchase_id} → bereits ausgebaute Komponente nachträglich ins Lager zurücklegen
 PUT  /bikes/{id}/components/{cid}/link-purchase   → {purchase_id} → noch verbaute Komponente nachträglich einem Einkauf zuordnen (bleibt verbaut)
-DELETE /bikes/{id}/components/{cid}
+DELETE /bikes/{id}/components/{cid} → löscht unwiderruflich; Snapshot nach deleted_components, verknüpftes purchase_item wird entsorgt (disposed_at) statt ins Lager freigegeben
 GET  /purchases                    → Einkaufs-Lager: 1 purchase_items-Zeile je physischem Teil, quantity/installed_count live daraus abgeleitet + returns (Laufleistungs-Historie)
 POST /purchases                    → neuer Einkauf (quantity legt entsprechend viele purchase_items an, inkl. component_type)
 PUT  /purchases/{id}               → Bestellung bearbeiten (Menge nicht editierbar – nur über /adjust)
@@ -269,6 +271,97 @@ POST /import/fit-file               → multipart: file (.fit) + bike_id
 POST /import/tcx-file               → multipart: file (.tcx) + bike_id
 GET  /media/{filename}
 ```
+
+---
+
+## Datenbankschema
+
+SQLite-Datei unter `data/mybiking.db`, Schema in `backend/database.py` (`init_db()`, additive Migrationen per `ALTER TABLE`/`PRAGMA table_info`-Check). Distanzen sind durchgehend in **Metern**, Geschwindigkeiten in **m/s** gespeichert (Anzeige rechnet auf km/h bzw. km um). Zeiten als ISO8601-Text ohne Zeitzone (siehe „Bekannte Eigenheiten" – de facto UTC).
+
+### `activities` – importierte Radtouren
+| Feld | Bedeutung |
+|------|-----------|
+| `id` | Strava Activity-ID (positiv) oder `-int(start_ts)` bei FIT/TCX/GPX-Einzelimport (negativ) |
+| `name`, `activity_type`, `sport_type` | Bezeichnung + Strava-Typ (normalisiert DE→EN beim CSV-Import) |
+| `start_date`, `start_date_local`, `timezone` | Beide Datumsfelder enthalten UTC (Strava-Export-Artefakt, siehe unten) |
+| `distance_m`, `moving_time_s`, `elapsed_time_s`, `elevation_gain_m`, `elevation_loss_m` | Kernkennzahlen |
+| `avg_speed_ms`, `max_speed_ms`, `avg_hr`, `max_hr`, `avg_power_w`, `max_power_w`, `avg_cadence` | Ø/Max-Werte aus Strava bzw. Track |
+| `avg_temp_c` | **immer NULL** – echte Temperatur liegt in `track_points.temp_c` |
+| `calories` | Kalorienverbrauch |
+| `bike_id` | FK → `bikes.id`; fehlt die Strava-Gear-Zuweisung, greift `DEFAULT_BIKE_ID` |
+| `commute`, `trainer`, `manual` | Boolean-Flags (0/1) aus Strava |
+| `track_file` | relativer Pfad zur Track-Datei im ZIP-Export |
+| `has_track` | 0/1, ob `track_points` existieren |
+| `imported_at` | Zeitpunkt des Imports |
+| `smart_device` | Gerätename, aus Dateiinhalt gelesen (`read_fit/tcx/gpx_device()`), nicht geraten |
+| `weather_temp_c`, `weather_wind_ms`, `weather_wind_deg`, `weather_precip_mm` | Open-Meteo-Nachimport, NULL bis abgerufen |
+| `est_avg_power_w`, `est_norm_power_w` | physikalische Leistungsschätzung (`power_estimator.py`), NULL ohne Track/Gewicht |
+
+### `track_points` – Sekunden-Telemetrie je Aktivität
+`activity_id` (FK), `timestamp`, `lat`/`lon` (können NULL sein bei fehlendem GPS-Fix), `altitude_m`, `distance_m` (kumulativ, bei TCX ggf. Haversine-Fallback), `speed_ms`, `hr`, `power_w` (meist NULL – kein Powermeter), `cadence`, `temp_c`.
+
+### `laps` – Rundensplits (aus FIT/TCX)
+`activity_id` (FK), `lap_number`, `start_time`, `total_time_s`, `distance_m`, `avg_speed_ms`, `max_speed_ms`, `avg_hr`, `max_hr`, `avg_power_w`, `max_power_w`, `avg_cadence`, `elevation_gain_m`.
+
+### `segment_efforts` – Strava-Segment-Versuche (aus FIT)
+`activity_id` (FK), `name`, `start_time`, `elapsed_time_s`, `distance_m`, `avg_speed_ms`, `max_speed_ms`, `avg_hr`, `max_hr`, `avg_power_w`, `max_power_w`, `avg_cadence`, `total_ascent_m`, `rank`, `pr_rank`. Wird beim ZIP-Reset mitgelöscht (`activity_id > 0`).
+
+### `other_activities` – Nicht-Rad-Aktivitäten (Workouts)
+`id` (Strava Activity-ID), `name`, `sport_type`, `start_date_local`, `moving_time_s`, `elapsed_time_s`, `avg_hr`, `max_hr`, `calories`, `imported_at`. Kein `bike_id` – Workouts sind nicht bikebezogen.
+
+### `bikes` – Räder
+| Feld | Bedeutung |
+|------|-----------|
+| `id` | Strava Gear-ID (z.B. `giant_propel`) oder manuell vergeben |
+| `name` | Anzeigename, inline editierbar |
+| `brand`, `model`, `description` | Freitext-Metadaten, Anzeige als Untertitel wenn abweichend vom Namen |
+| `distance_m` | **unbenutzt** (totes Feld aus dem ursprünglichen Strava-Gear-Import) – Kilometerstand wird stattdessen live aus `activities` summiert (`current_km`) |
+| `retired` | 0/1, aktiv/inaktiv (Toggle-Button) |
+| `image_filename` | Dateiname in `data/bike_images/` |
+
+### `bike_components` – Verschleißteile, die aktuell an einem Bike verbaut sind
+| Feld | Bedeutung |
+|------|-----------|
+| `bike_id` | FK → `bikes.id` |
+| `type` | Komponenten-Typ (Kette, Mantel vorne/hinten, …) |
+| `model`, `description`, `distance_m` | **unbenutzt** (Reste aus dem ursprünglichen Schema, nie ans Frontend angebunden) |
+| `added_at` | Einbaudatum (ISO) |
+| `retired_at` | gesetzt beim Ausbau (siehe `uninstall_component`); solange NULL gilt die Komponente als aktiv verbaut |
+| `km_threshold` | Wartungsintervall in km |
+| `km_at_service` | Bike-km-Stand am Einbaudatum (bzw. um Vorbelastung verschoben) – Basis für `km_since_service` |
+| `uninstalled_km` | gefahrene km beim Ausbau **ohne** Lagerbezug (Übergangsfall, Zeile bleibt als Verlauf stehen) |
+| `purchase_item_id` | FK → `purchase_items.id`; NULL = kein Lagerbezug (Altbestand oder noch nicht verknüpft) |
+
+`km_since_service`, `pct_used`, `estimated_service_date`, `purchase_url`, `purchase_name` werden **nicht gespeichert**, sondern bei jedem `GET` live berechnet bzw. über `purchase_item_id → purchase_items.purchase_id → purchases` gejoint.
+
+### `purchases` – Einkäufe (Bestell-Kopfzeile)
+| Feld | Bedeutung |
+|------|-----------|
+| `name` | Artikelbezeichnung (Pflichtfeld) |
+| `shop` | Händler (z.B. „Amazon", „BOC Eschweiler") – **kein** Hersteller-Feld |
+| `url`, `price`, `order_date`, `delivery_date`, `notes` | Freitext-Metadaten der Bestellung |
+| `used_at` | **unbenutzt** (Rest aus einer früheren Schema-Version vor `purchase_items`) |
+| `component_type` | Basis-Typ (z.B. „Mantel") für die Zuordnung im Einbauen-Formular, überschreibt Namens-Erkennung |
+
+`quantity`/`installed_count` werden **nicht gespeichert**, sondern aus `purchase_items` abgeleitet.
+
+### `purchase_items` – 1 Zeile je physisch gekauftem Teil
+`purchase_id` (FK → `purchases.id`, NOT NULL), `disposed_at` (TEXT, NULL = nicht entsorgt). Status wird nie gespeichert, sondern abgeleitet: **verbaut** = eine `bike_components`-Zeile verweist per `purchase_item_id` darauf, **entsorgt** = `disposed_at` gesetzt, sonst **auf Lager**.
+
+### `purchase_returns` – Laufleistungs-Historie zurückgelegter Komponenten
+`purchase_item_id` (FK), `bike_id`, `component_type`, `km_ridden`, `returned_at`. Entsteht beim Zurücklegen einer Komponente mit Lagerbezug ins Lager; wird beim Wiedereinbau mit Vorbelastungs-Übernahme (`return_id`) wieder **gelöscht** (nicht nur markiert) – die km leben dann in der neuen `bike_components`-Zeile weiter.
+
+### `deleted_components` – Historie unwiderruflich gelöschter Komponenten
+Snapshot aller `bike_components`-Felder zum Löschzeitpunkt plus `km_since_service` (berechneter Verschleißstand) und `deleted_at`. `purchase_item_id` bleibt referenziert (nicht kopiert) – Preis/Shop/Link kommen bei Bedarf weiterhin über den Einkauf. Beim Löschen wird ein verknüpftes `purchase_item` **entsorgt** (`disposed_at` gesetzt), nicht wieder freigegeben – die physische Komponente ist weg, nicht zurückgelegt. Rein informativ, kein Wiederherstellen vorgesehen.
+
+### `routes` / `route_points` – importierte GPX-Routen (keine Rides)
+`routes`: `name`, `description`, `distance_m`, `source_file`. `route_points`: `route_id` (FK), `seq`, `lat`, `lon`, `altitude_m`.
+
+### `media` – Fotos zu Aktivitäten
+`activity_id` (FK), `filename` (UUID, Datei in `data/media/`), `taken_at`, `lat`, `lon`.
+
+### `config` – Key-Value-Einstellungen
+`key`/`value` (beide TEXT). Bekannte Keys: `weight_kg`, `birth_year`, `tz_offset`, `hr_max`.
 
 ---
 

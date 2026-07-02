@@ -120,9 +120,8 @@ export interface BikeComponent {
   id: number;
   bike_id: string;
   type: string;
-  brand: string | null;
-  price: number | null;
   purchase_url: string | null;
+  purchase_name: string | null;
   km_threshold: number | null;
   km_at_service: number;
   km_since_service: number;
@@ -132,6 +131,24 @@ export interface BikeComponent {
   purchase_item_id: number | null;
   uninstalled_km: number | null;
   estimated_service_date: string | null;
+}
+
+export interface DeletedComponent {
+  id: number;
+  bike_id: string;
+  type: string;
+  km_threshold: number | null;
+  km_at_service: number;
+  km_since_service: number;
+  added_at: string | null;
+  retired_at: string | null;
+  uninstalled_km: number | null;
+  purchase_item_id: number | null;
+  deleted_at: string;
+  purchase_name: string | null;
+  shop: string | null;
+  url: string | null;
+  price: number | null;
 }
 
 export interface Bike {
@@ -779,15 +796,11 @@ export const api = {
     fetch(`${BASE}/bikes/${bikeId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) })
       .then(r => { if (!r.ok) throw new Error(`Fehler ${r.status}`); return r.json(); }),
 
-  addBikeComponent: (bikeId: string, data: { type: string; km_threshold: number; brand?: string; price?: number; purchase_url?: string; installed_at?: string; purchase_id?: number; return_id?: number }) =>
+  addBikeComponent: (bikeId: string, data: { type: string; km_threshold: number; installed_at?: string; purchase_id?: number; return_id?: number }) =>
     post<{ ok: boolean }>(`/bikes/${bikeId}/components`, data),
 
-  updateBikeComponent: (bikeId: string, compId: number, data: { type: string; km_threshold: number; brand?: string; price?: number; purchase_url?: string; installed_at?: string }) =>
+  updateBikeComponent: (bikeId: string, compId: number, data: { type: string; km_threshold: number; installed_at?: string }) =>
     fetch(`${BASE}/bikes/${bikeId}/components/${compId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })
-      .then(r => { if (!r.ok) throw new Error(`Fehler ${r.status}`); return r.json(); }),
-
-  retireBikeComponent: (bikeId: string, compId: number): Promise<{ ok: boolean }> =>
-    fetch(`${BASE}/bikes/${bikeId}/components/${compId}/retire`, { method: 'PUT' })
       .then(r => { if (!r.ok) throw new Error(`Fehler ${r.status}`); return r.json(); }),
 
   uninstallBikeComponent: (bikeId: string, compId: number, kmRidden: number, purchaseId?: number): Promise<{ ok: boolean }> =>
@@ -813,6 +826,8 @@ export const api = {
   toggleBikeRetired: (bikeId: string): Promise<{ ok: boolean; retired: number }> =>
     fetch(`${BASE}/bikes/${bikeId}/toggle-retired`, { method: 'PUT' })
       .then(r => { if (!r.ok) throw new Error(`Fehler ${r.status}`); return r.json(); }),
+
+  deletedComponents: (): Promise<DeletedComponent[]> => get<DeletedComponent[]>('/bikes/deleted-components'),
 
   uploadBikeImage: (bikeId: string, file: File): Promise<{ ok: boolean; filename: string }> => {
     const form = new FormData();

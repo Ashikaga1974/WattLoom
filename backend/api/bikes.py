@@ -39,9 +39,6 @@ def _enrich_component(comp: dict, current_km: float, avg_km_per_day: float | Non
 class ComponentCreate(BaseModel):
     type: str
     km_threshold: float
-    brand: str | None = None
-    price: float | None = None
-    purchase_url: str | None = None
     installed_at: str | None = None   # ISO-Datum YYYY-MM-DD; fehlt → heute
     purchase_id: int | None = None    # Lager-Einkauf, aus dem die Komponente entnommen wird
     return_id: int | None = None      # purchase_returns-Eintrag, dessen Laufleistung übernommen wird
@@ -85,7 +82,11 @@ def list_bikes():
 
         # Alle aktiven Komponenten in einer Query, dann in Python gruppieren
         comp_rows = conn.execute(
-            "SELECT * FROM bike_components ORDER BY bike_id, retired_at IS NOT NULL, added_at"
+            """SELECT bc.*, p.url AS purchase_url, p.name AS purchase_name
+               FROM bike_components bc
+               LEFT JOIN purchase_items pi ON pi.id = bc.purchase_item_id
+               LEFT JOIN purchases p ON p.id = pi.purchase_id
+               ORDER BY bc.bike_id, bc.retired_at IS NOT NULL, bc.added_at"""
         ).fetchall()
         comp_by_bike: dict[str, list] = {}
         for c in comp_rows:
@@ -190,6 +191,19 @@ def compare_bikes():
         return {"summary": summary, "yearly": yearly, "distances": distances}
 
 
+@router.get("/deleted-components")
+def list_deleted_components():
+    with db_connection() as conn:
+        rows = conn.execute("""
+            SELECT dc.*, p.name AS purchase_name, p.shop, p.url, p.price
+            FROM deleted_components dc
+            LEFT JOIN purchase_items pi ON pi.id = dc.purchase_item_id
+            LEFT JOIN purchases p ON p.id = pi.purchase_id
+            ORDER BY dc.deleted_at DESC, dc.id DESC
+        """).fetchall()
+        return [dict(r) for r in rows]
+
+
 @router.get("/{bike_id}/image")
 def get_bike_image(bike_id: str):
     with db_connection() as conn:
@@ -248,7 +262,12 @@ def get_bike(bike_id: str):
         current_km = _current_bike_km(conn, bike_id)
         result["current_km"] = current_km
         components = conn.execute(
-            "SELECT * FROM bike_components WHERE bike_id = ? ORDER BY retired_at IS NOT NULL, added_at",
+            """SELECT bc.*, p.url AS purchase_url, p.name AS purchase_name
+               FROM bike_components bc
+               LEFT JOIN purchase_items pi ON pi.id = bc.purchase_item_id
+               LEFT JOIN purchases p ON p.id = pi.purchase_id
+               WHERE bc.bike_id = ?
+               ORDER BY bc.retired_at IS NOT NULL, bc.added_at""",
             (bike_id,),
         ).fetchall()
         avg = _avg_km_per_day(conn, bike_id)
@@ -319,9 +338,9 @@ def add_component(bike_id: str, body: ComponentCreate):
 
         conn.execute(
             """INSERT INTO bike_components
-               (bike_id, type, brand, price, purchase_url, km_threshold, km_at_service, added_at, purchase_item_id)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-            (bike_id, body.type, body.brand, body.price, body.purchase_url,
+               (bike_id, type, km_threshold, km_at_service, added_at, purchase_item_id)
+               VALUES (?, ?, ?, ?, ?, ?)""",
+            (bike_id, body.type,
              body.km_threshold, km_at_service, added_at, purchase_item_id),
         )
         conn.commit()
@@ -376,25 +395,11 @@ def update_component(bike_id: str, comp_id: int, body: ComponentCreate):
         km_at_service = round(float(row["km"]) if row else 0.0, 1)
         conn.execute(
             """UPDATE bike_components
-               SET type=?, brand=?, price=?, purchase_url=?, km_threshold=?, km_at_service=?, added_at=?
+               SET type=?, km_threshold=?, km_at_service=?, added_at=?
                WHERE id=? AND bike_id=?""",
-            (body.type, body.brand, body.price, body.purchase_url,
+            (body.type,
              body.km_threshold, km_at_service, added_at, comp_id, bike_id),
         )
-        conn.commit()
-        return {"ok": True}
-
-
-@router.put("/{bike_id}/components/{comp_id}/retire")
-def retire_component(bike_id: str, comp_id: int):
-    """Schaltet eine Komponente inaktiv (setzt retired_at auf heute)."""
-    with db_connection() as conn:
-        rows = conn.execute(
-            "UPDATE bike_components SET retired_at = ? WHERE id = ? AND bike_id = ? AND retired_at IS NULL",
-            (Date.today().isoformat(), comp_id, bike_id),
-        ).rowcount
-        if rows == 0:
-            raise HTTPException(status_code=404, detail="Component not found or already retired")
         conn.commit()
         return {"ok": True}
 
@@ -513,13 +518,32 @@ def return_component_to_stock(bike_id: str, comp_id: int, body: ReturnToStockBod
 
 @router.delete("/{bike_id}/components/{comp_id}")
 def delete_component(bike_id: str, comp_id: int):
+    """Löscht eine Komponente unwiderruflich. Snapshot geht nach deleted_components (Historie),
+    ein verknüpftes purchase_item wird entsorgt statt wieder auf Lager freigegeben – die
+    Komponente ist physisch weg, nicht zurückgelegt."""
     with db_connection() as conn:
-        affected = conn.execute(
-            "DELETE FROM bike_components WHERE id = ? AND bike_id = ?", (comp_id, bike_id)
-        ).rowcount
-        if not affected:
+        comp = conn.execute(
+            "SELECT * FROM bike_components WHERE id = ? AND bike_id = ?", (comp_id, bike_id)
+        ).fetchone()
+        if comp is None:
             raise HTTPException(status_code=404, detail="Component not found")
-        # Das zugehörige purchase_item (falls vorhanden) gilt automatisch wieder als "auf Lager",
-        # sobald keine bike_components-Zeile mehr darauf verweist – nichts mehr zu pflegen.
+        current_km = _current_bike_km(conn, bike_id)
+        km_since_service = round(max(0.0, current_km - float(comp["km_at_service"] or 0)), 1)
+        deleted_at = Date.today().isoformat()
+        conn.execute(
+            """INSERT INTO deleted_components
+               (bike_id, type, km_threshold, km_at_service, km_since_service, added_at,
+                retired_at, uninstalled_km, purchase_item_id, deleted_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (bike_id, comp["type"], comp["km_threshold"], comp["km_at_service"], km_since_service,
+             comp["added_at"], comp["retired_at"], comp["uninstalled_km"], comp["purchase_item_id"],
+             deleted_at),
+        )
+        if comp["purchase_item_id"] is not None:
+            conn.execute(
+                "UPDATE purchase_items SET disposed_at = ? WHERE id = ?",
+                (deleted_at, comp["purchase_item_id"]),
+            )
+        conn.execute("DELETE FROM bike_components WHERE id = ?", (comp_id,))
         conn.commit()
         return {"ok": True}

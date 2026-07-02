@@ -33,6 +33,7 @@ mybiking-mobile/
 # Dokumentation
 *.md
 !README.md
+!README.en.md
 
 # OS
 .DS_Store
