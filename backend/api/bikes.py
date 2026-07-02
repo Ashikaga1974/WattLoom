@@ -273,30 +273,57 @@ def add_component(bike_id: str, body: ComponentCreate):
             (bike_id, added_at),
         ).fetchone()
         km_at_service = round(float(row["km"]) if row else 0.0, 1)
-        # Bereits gelaufene km aus einem früheren Einsatz übernehmen (Rückläufer aus dem Lager):
-        # Referenzpunkt nach vorne verschieben, damit km_since_service die Vorbelastung mitzählt.
-        # Der Rückgabe-Eintrag wird gelöscht statt nur markiert – seine km leben ab jetzt in
-        # km_at_service der neuen Komponente weiter; beim nächsten Ausbau entsteht bei Bedarf
-        # ein neuer Rückgabe-Eintrag mit der dann kompletten (alten + neuen) Laufleistung.
-        if body.return_id is not None:
-            ret = conn.execute(
-                "SELECT purchase_id, km_ridden FROM purchase_returns WHERE id = ?",
-                (body.return_id,),
-            ).fetchone()
-            if ret is None:
-                raise HTTPException(status_code=404, detail="Return record not found")
-            if ret["purchase_id"] != body.purchase_id:
-                raise HTTPException(status_code=409, detail="Return record does not match purchase")
-            km_at_service = round(km_at_service - (ret["km_ridden"] or 0.0), 1)
-            conn.execute("DELETE FROM purchase_returns WHERE id = ?", (body.return_id,))
+
+        # body.purchase_id bezeichnet den Einkauf (die Bestellung); welches konkrete Exemplar
+        # (purchase_item) davon verbaut wird, wird hier aufgelöst – anonym (irgendein passendes
+        # auf Lager) oder gezielt über return_id (Vorbelastung eines bestimmten Rückläufers).
+        purchase_item_id = None
+        if body.purchase_id is not None:
+            if body.return_id is not None:
+                # Vorbelastung übernehmen: gelaufene km aus einem früheren Einsatz auf den
+                # Referenzpunkt aufschlagen, damit km_since_service sie mitzählt. Der
+                # Rückgabe-Eintrag wird gelöscht statt nur markiert – seine km leben ab jetzt in
+                # km_at_service der neuen Komponente weiter; beim nächsten Ausbau entsteht bei
+                # Bedarf ein neuer Rückgabe-Eintrag mit der dann kompletten Laufleistung. Das
+                # Item selbst (seine physische Identität) bleibt dabei erhalten.
+                ret = conn.execute(
+                    "SELECT purchase_item_id, km_ridden FROM purchase_returns WHERE id = ?",
+                    (body.return_id,),
+                ).fetchone()
+                if ret is None:
+                    raise HTTPException(status_code=404, detail="Return record not found")
+                item = conn.execute(
+                    "SELECT id, purchase_id FROM purchase_items WHERE id = ?",
+                    (ret["purchase_item_id"],),
+                ).fetchone()
+                if item is None or item["purchase_id"] != body.purchase_id:
+                    raise HTTPException(status_code=409, detail="Return record does not match purchase")
+                purchase_item_id = item["id"]
+                km_at_service = round(km_at_service - (ret["km_ridden"] or 0.0), 1)
+                conn.execute("DELETE FROM purchase_returns WHERE id = ?", (body.return_id,))
+            else:
+                # Frisches Exemplar: ein noch unverbautes Item dieses Einkaufs ohne offene
+                # Rückgabe wählen (offene Rückgaben nur gezielt über return_id verbaubar,
+                # sonst ginge ihre Laufleistungs-Historie verwaist zurück).
+                item = conn.execute(
+                    """SELECT pi.id FROM purchase_items pi
+                       WHERE pi.purchase_id = ? AND pi.disposed_at IS NULL
+                         AND NOT EXISTS (SELECT 1 FROM bike_components bc WHERE bc.purchase_item_id = pi.id)
+                         AND NOT EXISTS (SELECT 1 FROM purchase_returns pr WHERE pr.purchase_item_id = pi.id)
+                       ORDER BY pi.id LIMIT 1""",
+                    (body.purchase_id,),
+                ).fetchone()
+                if item is None:
+                    raise HTTPException(status_code=409, detail="Kein Lagerbestand für diesen Einkauf verfügbar")
+                purchase_item_id = item["id"]
+
         conn.execute(
             """INSERT INTO bike_components
-               (bike_id, type, brand, price, purchase_url, km_threshold, km_at_service, added_at, purchase_id)
+               (bike_id, type, brand, price, purchase_url, km_threshold, km_at_service, added_at, purchase_item_id)
                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (bike_id, body.type, body.brand, body.price, body.purchase_url,
-             body.km_threshold, km_at_service, added_at, body.purchase_id),
+             body.km_threshold, km_at_service, added_at, purchase_item_id),
         )
-        # Lagerbestand ergibt sich aus COUNT(bike_components.purchase_id) – kein Zähler zu pflegen
         conn.commit()
         return {"ok": True}
 
@@ -384,7 +411,7 @@ def uninstall_component(bike_id: str, comp_id: int, body: UninstallBody):
     sobald sie wieder anonymer Lagerbestand ist). Ohne Lagerbezug bleibt sie als Verlauf stehen."""
     with db_connection() as conn:
         comp = conn.execute(
-            "SELECT type, purchase_id, retired_at, uninstalled_km FROM bike_components WHERE id = ? AND bike_id = ?",
+            "SELECT type, purchase_item_id, retired_at, uninstalled_km FROM bike_components WHERE id = ? AND bike_id = ?",
             (comp_id, bike_id),
         ).fetchone()
         if comp is None:
@@ -395,21 +422,58 @@ def uninstall_component(bike_id: str, comp_id: int, body: UninstallBody):
         retired_at = comp["retired_at"] or Date.today().isoformat()
         km_ridden = round(body.km_ridden, 1)
         # Bestehender Lagerbezug hat Vorrang; fehlt er, kann er hier nachträglich gesetzt werden
-        # (Übergangs-Komponenten aus der Zeit vor dem Einkaufs-Lager)
-        effective_purchase_id = comp["purchase_id"] if comp["purchase_id"] is not None else body.purchase_id
-        if effective_purchase_id is not None:
+        # (Übergangs-Komponenten aus der Zeit vor dem Einkaufs-Lager) – dafür wird ein neues Item
+        # unter dem gewählten Einkauf angelegt, das diese physische Komponente ab jetzt repräsentiert.
+        item_id = comp["purchase_item_id"]
+        if item_id is None and body.purchase_id is not None:
+            item_id = conn.execute(
+                "INSERT INTO purchase_items (purchase_id) VALUES (?)", (body.purchase_id,)
+            ).lastrowid
+        if item_id is not None:
             conn.execute(
-                """INSERT INTO purchase_returns (purchase_id, bike_id, component_type, km_ridden, returned_at)
+                """INSERT INTO purchase_returns (purchase_item_id, bike_id, component_type, km_ridden, returned_at)
                    VALUES (?, ?, ?, ?, ?)""",
-                (effective_purchase_id, bike_id, comp["type"], km_ridden, retired_at),
+                (item_id, bike_id, comp["type"], km_ridden, retired_at),
             )
-            # Löschen der Zeile reicht – der Lagerbestand wird aus COUNT(purchase_id) berechnet
+            # Löschen der Zeile reicht – das Item gilt automatisch wieder als "auf Lager",
+            # sobald keine bike_components-Zeile mehr darauf verweist.
             conn.execute("DELETE FROM bike_components WHERE id = ?", (comp_id,))
         else:
             conn.execute(
                 "UPDATE bike_components SET retired_at = ?, uninstalled_km = ? WHERE id = ?",
                 (retired_at, km_ridden, comp_id),
             )
+        conn.commit()
+        return {"ok": True}
+
+
+class LinkPurchaseBody(BaseModel):
+    purchase_id: int
+
+
+@router.put("/{bike_id}/components/{comp_id}/link-purchase")
+def link_component_purchase(bike_id: str, comp_id: int, body: LinkPurchaseBody):
+    """Verknüpft eine noch verbaute Komponente (aktiv oder inaktiv, aber noch nicht ausgebaut)
+    nachträglich mit einem Einkauf – für Altbestand, der vor dem Lager-Feature eingebaut wurde
+    oder beim Einbau ohne Lagerbezug erfasst wurde. Die Komponente bleibt verbaut, es wird nur
+    ein neues purchase_item unter dem gewählten Einkauf angelegt und referenziert."""
+    with db_connection() as conn:
+        comp = conn.execute(
+            "SELECT purchase_item_id, uninstalled_km FROM bike_components WHERE id = ? AND bike_id = ?",
+            (comp_id, bike_id),
+        ).fetchone()
+        if comp is None:
+            raise HTTPException(status_code=404, detail="Component not found")
+        if comp["purchase_item_id"] is not None:
+            raise HTTPException(status_code=409, detail="Component already linked to a purchase")
+        if comp["uninstalled_km"] is not None:
+            raise HTTPException(status_code=409, detail="Component already uninstalled – use return-to-stock instead")
+        item_id = conn.execute(
+            "INSERT INTO purchase_items (purchase_id) VALUES (?)", (body.purchase_id,)
+        ).lastrowid
+        conn.execute(
+            "UPDATE bike_components SET purchase_item_id = ? WHERE id = ?", (item_id, comp_id)
+        )
         conn.commit()
         return {"ok": True}
 
@@ -425,19 +489,22 @@ def return_component_to_stock(bike_id: str, comp_id: int, body: ReturnToStockBod
     (Übergangsfall: Komponente wurde ausgebaut, bevor das Einkaufs-Lager existierte)."""
     with db_connection() as conn:
         comp = conn.execute(
-            "SELECT type, purchase_id, retired_at, uninstalled_km FROM bike_components WHERE id = ? AND bike_id = ?",
+            "SELECT type, purchase_item_id, retired_at, uninstalled_km FROM bike_components WHERE id = ? AND bike_id = ?",
             (comp_id, bike_id),
         ).fetchone()
         if comp is None:
             raise HTTPException(status_code=404, detail="Component not found")
         if comp["retired_at"] is None:
             raise HTTPException(status_code=409, detail="Component is still active")
-        if comp["purchase_id"] is not None:
+        if comp["purchase_item_id"] is not None:
             raise HTTPException(status_code=409, detail="Component already linked to a purchase")
+        item_id = conn.execute(
+            "INSERT INTO purchase_items (purchase_id) VALUES (?)", (body.purchase_id,)
+        ).lastrowid
         conn.execute(
-            """INSERT INTO purchase_returns (purchase_id, bike_id, component_type, km_ridden, returned_at)
+            """INSERT INTO purchase_returns (purchase_item_id, bike_id, component_type, km_ridden, returned_at)
                VALUES (?, ?, ?, ?, ?)""",
-            (body.purchase_id, bike_id, comp["type"], comp["uninstalled_km"], comp["retired_at"]),
+            (item_id, bike_id, comp["type"], comp["uninstalled_km"], comp["retired_at"]),
         )
         conn.execute("DELETE FROM bike_components WHERE id = ?", (comp_id,))
         conn.commit()
@@ -452,6 +519,7 @@ def delete_component(bike_id: str, comp_id: int):
         ).rowcount
         if not affected:
             raise HTTPException(status_code=404, detail="Component not found")
-        # Lagerbestand ergibt sich aus COUNT(bike_components.purchase_id) – nichts mehr zu pflegen
+        # Das zugehörige purchase_item (falls vorhanden) gilt automatisch wieder als "auf Lager",
+        # sobald keine bike_components-Zeile mehr darauf verweist – nichts mehr zu pflegen.
         conn.commit()
         return {"ok": True}

@@ -226,8 +226,6 @@ def init_db() -> None:
             conn.execute("ALTER TABLE bike_components ADD COLUMN price REAL")
         if "purchase_url" not in comp_cols:
             conn.execute("ALTER TABLE bike_components ADD COLUMN purchase_url TEXT")
-        if "purchase_id" not in comp_cols:
-            conn.execute("ALTER TABLE bike_components ADD COLUMN purchase_id INTEGER")
         if "uninstalled_km" not in comp_cols:
             conn.execute("ALTER TABLE bike_components ADD COLUMN uninstalled_km REAL")
 
@@ -236,10 +234,7 @@ def init_db() -> None:
         if "image_filename" not in bike_cols:
             conn.execute("ALTER TABLE bikes ADD COLUMN image_filename TEXT")
 
-        # Migration: Einkaufs-Lager
-        # Kein used_quantity mehr: die verbaute Stückzahl ergibt sich immer aus
-        # COUNT(bike_components.purchase_id) – ein manuell gepflegter Zähler kann nicht
-        # aus der Reihe laufen, wenn es ihn gar nicht mehr gibt.
+        # Migration: Einkaufs-Lager (Bestell-Kopfzeilen)
         conn.execute("""
             CREATE TABLE IF NOT EXISTS purchases (
                 id            INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -249,7 +244,6 @@ def init_db() -> None:
                 price         REAL,
                 order_date    TEXT,
                 delivery_date TEXT,
-                quantity      INTEGER DEFAULT 1,
                 notes         TEXT
             )
         """)
@@ -259,22 +253,80 @@ def init_db() -> None:
         if "used_quantity" in pur_cols:
             conn.execute("ALTER TABLE purchases DROP COLUMN used_quantity")
 
-        # Migration: Laufleistung von ins Lager zurückgelegten Komponenten
+        # Migration: Laufleistungs-Historie zurückgelegter Komponenten
         # (bike_components-Zeile wird beim Zurücklegen gelöscht, die Laufleistung bleibt hier erhalten)
         conn.execute("""
             CREATE TABLE IF NOT EXISTS purchase_returns (
                 id              INTEGER PRIMARY KEY AUTOINCREMENT,
-                purchase_id     INTEGER REFERENCES purchases(id),
                 bike_id         TEXT,
                 component_type  TEXT,
                 km_ridden       REAL,
-                returned_at     TEXT,
-                reinstalled_at  TEXT
+                returned_at     TEXT
             )
         """)
         pr_cols = [r[1] for r in conn.execute("PRAGMA table_info(purchase_returns)").fetchall()]
-        if "reinstalled_at" not in pr_cols:
-            conn.execute("ALTER TABLE purchase_returns ADD COLUMN reinstalled_at TEXT")
+
+        # Migration: Einkaufs-Lager von "1 Zeile + quantity-Zähler" auf "1 Zeile je physischem
+        # Teil" umgestellt (purchase_items). Grund: ein Einkauf von z.B. 4 Reifen wurde bisher als
+        # eine purchases-Zeile mit quantity=4 abgebildet – verbaut/verfügbar musste über
+        # Zähler-Arithmetik (+/−-Buttons, COUNT(bike_components)) rekonstruiert werden, was schon
+        # einmal (used_quantity) aus dem Ruder lief. Jetzt bildet jede purchase_items-Zeile genau
+        # ein gekauftes Exemplar ab: verbaut = von bike_components referenziert, entsorgt =
+        # disposed_at gesetzt, sonst auf Lager – nichts mehr gezählt, was auseinanderlaufen kann.
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS purchase_items (
+                id           INTEGER PRIMARY KEY AUTOINCREMENT,
+                purchase_id  INTEGER NOT NULL REFERENCES purchases(id),
+                disposed_at  TEXT
+            )
+        """)
+        if "purchase_item_id" not in comp_cols:
+            conn.execute(
+                "ALTER TABLE bike_components ADD COLUMN purchase_item_id INTEGER REFERENCES purchase_items(id)"
+            )
+        if "purchase_item_id" not in pr_cols:
+            conn.execute(
+                "ALTER TABLE purchase_returns ADD COLUMN purchase_item_id INTEGER REFERENCES purchase_items(id)"
+            )
+
+        if "quantity" in pur_cols:
+            # Einmalige Datenübernahme, solange die alte quantity-Spalte noch existiert.
+            # 1) Verbaute Komponenten: je ein "verbautes" Item anlegen und verknüpfen.
+            for c in conn.execute(
+                "SELECT id, purchase_id FROM bike_components WHERE purchase_id IS NOT NULL"
+            ).fetchall():
+                item_id = conn.execute(
+                    "INSERT INTO purchase_items (purchase_id) VALUES (?)", (c["purchase_id"],)
+                ).lastrowid
+                conn.execute(
+                    "UPDATE bike_components SET purchase_item_id = ? WHERE id = ?", (item_id, c["id"])
+                )
+            # 2) Offene Rückgaben: je ein "auf Lager zurückgelegtes" Item anlegen und verknüpfen.
+            for r in conn.execute("SELECT id, purchase_id FROM purchase_returns").fetchall():
+                item_id = conn.execute(
+                    "INSERT INTO purchase_items (purchase_id) VALUES (?)", (r["purchase_id"],)
+                ).lastrowid
+                conn.execute(
+                    "UPDATE purchase_returns SET purchase_item_id = ? WHERE id = ?", (item_id, r["id"])
+                )
+            # 3) Restliche freie Stückzahl je Einkauf auffüllen (quantity − bereits angelegte Items).
+            for p in conn.execute("SELECT id, quantity FROM purchases").fetchall():
+                existing = conn.execute(
+                    "SELECT COUNT(*) AS c FROM purchase_items WHERE purchase_id = ?", (p["id"],)
+                ).fetchone()["c"]
+                for _ in range(max(0, p["quantity"] - existing)):
+                    conn.execute("INSERT INTO purchase_items (purchase_id) VALUES (?)", (p["id"],))
+            conn.execute("ALTER TABLE purchases DROP COLUMN quantity")
+            conn.execute("ALTER TABLE bike_components DROP COLUMN purchase_id")
+            conn.execute("ALTER TABLE purchase_returns DROP COLUMN purchase_id")
+            if "reinstalled_at" in pr_cols:
+                conn.execute("ALTER TABLE purchase_returns DROP COLUMN reinstalled_at")
+
+        # db_connection() committet beim Schließen nicht automatisch – ohne diesen commit() würde
+        # eine hier noch offene, von INSERT/UPDATE implizit gestartete Transaktion (z.B. die
+        # purchase_items-Datenübernahme oben) beim conn.close() stillschweigend zurückgerollt,
+        # obwohl die dazwischenliegenden ALTER TABLE-Statements erfolgreich gelaufen sind.
+        conn.commit()
 
     print(f"DB initialisiert: {DB_PATH}")
 

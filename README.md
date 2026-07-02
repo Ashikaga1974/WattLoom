@@ -24,7 +24,7 @@ Lokale Web-App zur Analyse von Strava-Exportdaten. Kein Strava-API-Zugriff nöti
 | **Wetter & Leistung** | Ø-Speed nach Temperatur-Buckets, Wind-Impact-Chart; Wetterdaten via Open-Meteo (abrufbar per Knopfdruck) |
 | **Formkurve (PMC)** | CTL/ATL/TSB nach Trainingstagebuch-Methodik, hrTSS, 28-Tage-CTL-Trend, Ride- und Workout-Marker, Einschätzungs-Banner |
 | **Bestzeiten** | Rekorde und Top-Leistungen |
-| **Bikes** | 2 Tabs: Übersicht (Foto-Thumbnail, Kennzahlen, Verschleiß-Tracker als Karten mit Fortschrittsbalken, Einbauen aus Lager inkl. Übernahme der Laufleistung gebrauchter Teile, Ausbauen mit km-Erfassung + automatischer Lagerrückgabe, Inaktiv-Schalter; inaktive Bikes kompakt per Dropdown statt eigener Karte) · Vergleich (km, Speed, Höhenmeter, Jahresverlauf, Distanzhistogramm) · Einkaufs-Lager auf Übersicht (Tabelle: Artikel, Typ, Shop, Preis, Menge/Lagerbestand, Bestelldaten, ±-Korrekturen der Menge, Rückläufer-Historie) |
+| **Bikes** | 2 Tabs: Übersicht (Foto-Thumbnail, Kennzahlen, Verschleiß-Tracker als Karten mit Fortschrittsbalken, Einbauen aus Lager inkl. Übernahme der Laufleistung gebrauchter Teile, Ausbauen mit km-Erfassung + automatischer Lagerrückgabe, nachträgliches Verknüpfen verbauter Altbestand-Komponenten mit einem Einkauf, Inaktiv-Schalter; inaktive Bikes kompakt per Dropdown statt eigener Karte) · Vergleich (km, Speed, Höhenmeter, Jahresverlauf, Distanzhistogramm) · Einkaufs-Lager auf Übersicht (Tabelle: Artikel, Typ, Shop, Preis, Menge/Lagerbestand, Bestelldaten, ±-Korrekturen der Menge, Rückläufer-Historie, ausgeschriebene Bearbeiten/Löschen-Buttons) |
 | **Workout-Detail** | Detailansicht je Workout: Sport-Hero, 4 KPI-Kacheln, SVG-Intensitätsgauge (Ø HR / Max HR), Verlaufschart, Ø-Vergleich |
 | **Wochentag-Analyse** | Werktag (Mo–Fr) vs. Wochenende (Sa–So): Duell-Karte mit Gewinner-Indikatoren, Rides/Wochentag-Balken, Monatsverlauf |
 | **Top-Strecken** | Greedy-Clustering aller Rides (2 km Startradius, ±10 % Distanz), Zeitchart mit PR-Markierung, Trend, Karte |
@@ -138,7 +138,7 @@ MyBiking/
 │   │   ├── activities.py    # /activities/*
 │   │   ├── analytics.py     # /analytics/* (PMC, Wrapped, Kalorien, Ermüdung, …)
 │   │   ├── bikes.py         # /bikes, /bikes/{id}, /bikes/compare, Komponenten-Einbau/Ausbau
-│   │   ├── purchases.py     # /purchases – Einkaufs-Lager (installed_count statt used_quantity)
+│   │   ├── purchases.py     # /purchases – Einkaufs-Lager (purchase_items: 1 Zeile je physischem Teil)
 │   │   ├── heatmap.py       # /tracks/heatmap
 │   │   ├── settings.py      # /settings (Gewicht, Geburtsjahr, HRmax, Timezone)
 │   │   ├── importer.py      # /import/start|status|reset|fit-file
@@ -252,12 +252,13 @@ PUT  /bikes/{id}/components/{cid}  → Komponente editieren
 PUT  /bikes/{id}/components/{cid}/retire        → Komponente inaktiv schalten (kein Lager-Effekt)
 PUT  /bikes/{id}/components/{cid}/uninstall     → {km_ridden, purchase_id?} → bei Lagerbezug: Rückgabe vermerken + Komponente löschen
 PUT  /bikes/{id}/components/{cid}/return-to-stock → {purchase_id} → bereits ausgebaute Komponente nachträglich ins Lager zurücklegen
+PUT  /bikes/{id}/components/{cid}/link-purchase   → {purchase_id} → noch verbaute Komponente nachträglich einem Einkauf zuordnen (bleibt verbaut)
 DELETE /bikes/{id}/components/{cid}
-GET  /purchases                    → Einkaufs-Lager inkl. installed_count (real verbaute Stückzahl) + returns (Laufleistungs-Historie)
-POST /purchases                    → neuer Einkauf (inkl. component_type)
-PUT  /purchases/{id}               → bearbeiten
-PUT  /purchases/{id}/adjust        → {delta: ±1} → passt Menge an (Untergrenze = installed_count)
-DELETE /purchases/{id}
+GET  /purchases                    → Einkaufs-Lager: 1 purchase_items-Zeile je physischem Teil, quantity/installed_count live daraus abgeleitet + returns (Laufleistungs-Historie)
+POST /purchases                    → neuer Einkauf (quantity legt entsprechend viele purchase_items an, inkl. component_type)
+PUT  /purchases/{id}               → Bestellung bearbeiten (Menge nicht editierbar – nur über /adjust)
+PUT  /purchases/{id}/adjust        → {delta} → legt |delta| neue Items an (delta>0) bzw. entsorgt |delta| unverbaute Items (delta<0)
+DELETE /purchases/{id}             → 409 falls noch Items verbaut sind oder offene Rückgaben existieren
 GET  /tracks/heatmap                ?simplify, year
 GET  /settings
 POST /settings

@@ -87,16 +87,18 @@ function ComponentRow({
 
   // Nur relevant für Altbestand ohne bestehenden Lagerbezug (Übergang zum Einkaufs-Lager)
   const availableStock = stockItems.filter(p => p.quantity - p.installed_count > 0);
-  const returnsToStock = comp.purchase_id != null || uninstallPurchaseId !== '';
+  const returnsToStock = comp.purchase_item_id != null || uninstallPurchaseId !== '';
 
-  // Legt bei Bedarf einen neuen Lagerartikel an und liefert dessen ID
+  // Legt bei Bedarf einen neuen Lagerartikel an und liefert dessen ID. quantity: 0 – das Item
+  // für diese eine Komponente wird direkt danach vom aufrufenden Uninstall-/Link-Endpunkt
+  // angelegt (der immer ein neues Item erzeugt); mit quantity: 1 hier gäbe es sonst 2 Items.
   async function resolvePurchaseId(selected: string): Promise<number | undefined> {
     if (selected === '') return undefined;
     if (selected === '__new__') {
       if (!newStockName.trim()) return undefined;
       const created = await api.addPurchase({
         name: newStockName.trim(), shop: null, url: null, price: null,
-        order_date: null, delivery_date: null, quantity: 1, notes: null,
+        order_date: null, delivery_date: null, quantity: 0, notes: null,
         component_type: comp.type.replace(/ (vorne|hinten)$/, ''),
       });
       return created.id;
@@ -161,7 +163,10 @@ function ComponentRow({
     try {
       const pid = await resolvePurchaseId(linkPurchaseId);
       if (pid == null) return;
-      await api.returnComponentToStock(bikeId, comp.id, pid);
+      // Bereits ausgebaute Komponente: verknüpfen + zurücklegen. Noch verbaute Komponente
+      // (aktiv oder inaktiv, aber nicht ausgebaut): nur nachträglich verknüpfen, bleibt verbaut.
+      if (comp.uninstalled_km != null) await api.returnComponentToStock(bikeId, comp.id, pid);
+      else await api.linkComponentPurchase(bikeId, comp.id, pid);
       setLinking(false);
       setLinkPurchaseId('');
       setNewStockName('');
@@ -305,11 +310,18 @@ function ComponentRow({
             Ins Lager
           </button>
         )}
-        {isRetired && comp.uninstalled_km != null && comp.purchase_id == null && (
+        {isRetired && comp.uninstalled_km != null && comp.purchase_item_id == null && (
           <button onClick={() => setLinking(v => !v)} disabled={busy}
             className={`${actionBtn} border-amber-400 text-amber-600 dark:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-950`}
             title="Nachträglich einem Lagerartikel zuordnen und zurücklegen">
             Ins Lager
+          </button>
+        )}
+        {comp.uninstalled_km == null && comp.purchase_item_id == null && (
+          <button onClick={() => setLinking(v => !v)} disabled={busy}
+            className={`${actionBtn} border-amber-400 text-amber-600 dark:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-950`}
+            title="Noch verbaute Komponente nachträglich einem Einkauf zuordnen (bleibt verbaut)">
+            Verknüpfen
           </button>
         )}
         <button onClick={handleDelete} disabled={busy}
@@ -333,7 +345,7 @@ function ComponentRow({
                 min={0}
               />
             </label>
-            {comp.purchase_id == null && (
+            {comp.purchase_item_id == null && (
               <label className="space-y-1 flex-1 min-w-[200px]">
                 <span className="block text-sm text-muted-foreground">Lagerbezug (optional)</span>
                 <select
@@ -378,9 +390,14 @@ function ComponentRow({
         </div>
       )}
 
-      {/* Nachträglich ins Lager verknüpfen */}
+      {/* Nachträglich mit Einkauf verknüpfen (verbaut) bzw. ins Lager zurücklegen (ausgebaut) */}
       {linking && (
         <div className="rounded-lg border border-amber-300 dark:border-amber-800 bg-amber-50/60 dark:bg-amber-950/30 p-3 space-y-3">
+          <p className="text-sm text-muted-foreground">
+            {comp.uninstalled_km != null
+              ? 'Ordnet die ausgebaute Komponente einem Einkauf zu und legt sie ins Lager zurück.'
+              : 'Ordnet diese aktuell verbaute Komponente nachträglich einem Einkauf zu – sie bleibt verbaut.'}
+          </p>
           <div className="flex flex-wrap items-end gap-3">
             <label className="space-y-1 flex-1 min-w-[200px]">
               <span className="block text-sm text-muted-foreground">Lagerartikel</span>
@@ -478,13 +495,12 @@ function AddComponentForm({
   const isPositional = detectedBase !== null;
   const effectiveType = isPositional ? `${detectedBase} ${position}` : selectedType;
 
-  // Noch nicht wiedereingebaute Rückläufer dieses Einkaufs (Vorbelastung übernehmbar) – es kann
-  // mehrere gleichzeitig geben (z.B. mehrere gebrauchte Exemplare mit unterschiedlichem km-Stand
-  // neben einem frisch gekauften), daher Auswahl statt einfacher Checkbox.
+  // Rückläufer dieses Einkaufs (Vorbelastung übernehmbar) – Backend liefert hier immer nur noch
+  // nicht wiedereingebaute (offene) Rückgaben, da ein wiedereingebauter Eintrag gelöscht statt
+  // markiert wird. Es kann mehrere gleichzeitig geben (z.B. mehrere gebrauchte Exemplare mit
+  // unterschiedlichem km-Stand neben einem frisch gekauften), daher Auswahl statt Checkbox.
   const openReturns = selectedPurchase
-    ? [...selectedPurchase.returns]
-        .filter(r => r.reinstalled_at == null)
-        .sort((a, b) => (a.returned_at ?? '').localeCompare(b.returned_at ?? ''))
+    ? [...selectedPurchase.returns].sort((a, b) => (a.returned_at ?? '').localeCompare(b.returned_at ?? ''))
     : [];
 
   function handlePurchaseChange(val: string) {
@@ -1282,19 +1298,20 @@ function EinkäufeTab({ externalKey, onChanged }: { externalKey: number; onChang
     if (!form.name.trim()) return;
     setBusy(true);
     try {
-      const payload = {
+      const base = {
         name: form.name.trim(),
         shop: form.shop.trim() || null,
         url: form.url.trim() || null,
         price: form.price !== '' ? parseFloat(form.price) : null,
         order_date: form.order_date || null,
         delivery_date: form.delivery_date || null,
-        quantity: parseInt(form.quantity) || 1,
         notes: form.notes.trim() || null,
         component_type: form.component_type || null,
       };
-      if (editId !== null) await api.updatePurchase(editId, payload);
-      else await api.addPurchase(payload);
+      // Menge ist nur beim Anlegen editierbar (legt so viele purchase_items an) – beim
+      // Bearbeiten einer bestehenden Bestellung läuft jede Mengenänderung über +/− in der Liste.
+      if (editId !== null) await api.updatePurchase(editId, base);
+      else await api.addPurchase({ ...base, quantity: parseInt(form.quantity) || 1 });
       setAddOpen(false);
       reload();
       onChanged();
@@ -1386,8 +1403,14 @@ function EinkäufeTab({ externalKey, onChanged }: { externalKey: number; onChang
               </div>
               <div>
                 <label className="text-sm text-muted-foreground">Menge</label>
-                <input type="number" value={form.quantity} onChange={e => setForm(f => ({ ...f, quantity: e.target.value }))}
-                  min={1} className={inputCls} />
+                {editId !== null ? (
+                  <p className="text-sm text-muted-foreground px-2.5 py-1.5" title="Änderung der Stückzahl nur über +/− in der Liste">
+                    wird über +/− in der Liste angepasst
+                  </p>
+                ) : (
+                  <input type="number" value={form.quantity} onChange={e => setForm(f => ({ ...f, quantity: e.target.value }))}
+                    min={1} className={inputCls} />
+                )}
               </div>
               <div>
                 <label className="text-sm text-muted-foreground">Bestellt am</label>
@@ -1500,10 +1523,16 @@ function EinkäufeTab({ externalKey, onChanged }: { externalKey: number; onChang
                       </span>
                     </td>
                     <td className="px-3 py-2 whitespace-nowrap">
-                      <button onClick={() => openEdit(p)} disabled={busy}
-                        className="text-base px-2 py-0.5 rounded border border-blue-400 text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950 disabled:opacity-40" title="Bearbeiten">✎</button>
-                      <button onClick={() => handleDelete(p.id)} disabled={busy}
-                        className="text-2xl text-red-400 hover:text-red-600 px-1.5 leading-none disabled:opacity-40" title="Löschen">×</button>
+                      <div className="flex items-center gap-1.5">
+                        <button onClick={() => openEdit(p)} disabled={busy}
+                          className="text-sm px-3 py-1.5 rounded-md border font-medium transition-colors disabled:opacity-40 border-blue-400 text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950">
+                          ✎ Bearbeiten
+                        </button>
+                        <button onClick={() => handleDelete(p.id)} disabled={busy}
+                          className="text-sm px-3 py-1.5 rounded-md border font-medium transition-colors disabled:opacity-40 border-red-300 text-red-500 hover:bg-red-50 dark:hover:bg-red-950">
+                          Löschen
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );

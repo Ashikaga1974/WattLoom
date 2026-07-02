@@ -129,7 +129,7 @@ export interface BikeComponent {
   pct_used: number | null;
   added_at: string | null;
   retired_at: string | null;
-  purchase_id: number | null;
+  purchase_item_id: number | null;
   uninstalled_km: number | null;
   estimated_service_date: string | null;
 }
@@ -154,7 +154,6 @@ export interface PurchaseReturn {
   component_type: string | null;
   km_ridden: number | null;
   returned_at: string | null;
-  reinstalled_at: string | null;
 }
 
 export interface Purchase {
@@ -799,6 +798,10 @@ export const api = {
     fetch(`${BASE}/bikes/${bikeId}/components/${compId}/return-to-stock`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ purchase_id: purchaseId }) })
       .then(r => { if (!r.ok) throw new Error(`Fehler ${r.status}`); return r.json(); }),
 
+  linkComponentPurchase: (bikeId: string, compId: number, purchaseId: number): Promise<{ ok: boolean }> =>
+    fetch(`${BASE}/bikes/${bikeId}/components/${compId}/link-purchase`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ purchase_id: purchaseId }) })
+      .then(r => { if (!r.ok) throw new Error(`Fehler ${r.status}`); return r.json(); }),
+
   resetBikeComponent: (bikeId: string, compId: number): Promise<{ ok: boolean }> =>
     fetch(`${BASE}/bikes/${bikeId}/components/${compId}/reset`, { method: 'PUT' })
       .then(r => { if (!r.ok) throw new Error(`Fehler ${r.status}`); return r.json(); }),
@@ -823,11 +826,11 @@ export const api = {
   listPurchases: (): Promise<Purchase[]> =>
     fetch(`${BASE}/purchases`).then(r => { if (!r.ok) throw new Error(`Fehler ${r.status}`); return r.json(); }),
 
-  addPurchase: (data: Omit<Purchase, 'id' | 'used_at' | 'returns' | 'installed_count'>): Promise<Purchase> =>
+  addPurchase: (data: Omit<Purchase, 'id' | 'returns' | 'installed_count'>): Promise<Purchase> =>
     fetch(`${BASE}/purchases`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })
       .then(r => { if (!r.ok) throw new Error(`Fehler ${r.status}`); return r.json(); }),
 
-  updatePurchase: (id: number, data: Omit<Purchase, 'id' | 'used_at' | 'returns' | 'installed_count'>): Promise<Purchase> =>
+  updatePurchase: (id: number, data: Omit<Purchase, 'id' | 'returns' | 'installed_count' | 'quantity'>): Promise<Purchase> =>
     fetch(`${BASE}/purchases/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })
       .then(r => { if (!r.ok) throw new Error(`Fehler ${r.status}`); return r.json(); }),
 
