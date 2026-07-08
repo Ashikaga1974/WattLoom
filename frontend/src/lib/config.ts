@@ -13,6 +13,12 @@ export const SPEED_COLOR_BUCKETS = 20;
 /** Anzahl Wochen im Dashboard-Sparkline. */
 export const SPARKLINE_WEEKS = 8;
 
+/** Einheitliche Chart-Höhen (px) – ersetzt vormals ~12 verschiedene Ad-hoc-Werte je Seite. */
+export const CHART_HEIGHT_MINI = 100;    // winzige Inline-Sparklines (z.B. ActivityDetailPage)
+export const CHART_HEIGHT_COMPACT = 140; // kleine Trend-Charts (z.B. Dashboard, Wrapped)
+export const CHART_HEIGHT = 200;         // Standard-Analyse-Chart
+export const CHART_HEIGHT_DENSE = 220;   // dichte Mehrserien-Charts (Cap nach oben)
+
 /** Farben für den Streckenvergleich (bis zu 5 Aktivitäten). */
 export const COMPARISON_COLORS = [
   '#fc4c02',

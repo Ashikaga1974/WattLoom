@@ -8,6 +8,7 @@ import {
   ComposedChart, BarChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Cell, Legend,
 } from 'recharts';
+import { CHART_HEIGHT, CHART_HEIGHT_DENSE } from '@/lib/config';
 
 interface CaloriesData {
   total_kcal:          number;
@@ -227,7 +228,7 @@ export default function CaloriesPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <ResponsiveContainer width="100%" height={260}>
+                <ResponsiveContainer width="100%" height={CHART_HEIGHT_DENSE}>
                   <ComposedChart data={monthlyFormatted} margin={{ top: 8, right: 10, bottom: 0, left: 0 }}>
                     <CartesianGrid vertical={false} stroke="var(--border)" strokeOpacity={0.5} />
                     <XAxis
@@ -284,7 +285,7 @@ export default function CaloriesPage() {
                 <CardTitle className="text-sm font-medium">Jahresvergleich</CardTitle>
               </CardHeader>
               <CardContent>
-                <ResponsiveContainer width="100%" height={200}>
+                <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
                   <BarChart data={data.yearly} margin={{ top: 8, right: 10, bottom: 0, left: 0 }}>
                     <CartesianGrid vertical={false} stroke="var(--border)" strokeOpacity={0.5} />
                     <XAxis

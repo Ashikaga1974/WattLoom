@@ -21,7 +21,6 @@ import TempCorrPage from '@/pages/TempCorrPage';
 import WrappedPage from '@/pages/WrappedPage';
 import BerechnungenPage from '@/pages/BerechnungenPage';
 import CadencePage from '@/pages/CadencePage';
-import FatiguePage from '@/pages/FatiguePage';
 import CaloriesPage from '@/pages/CaloriesPage';
 import SpeedTrendPage from '@/pages/SpeedTrendPage';
 import WorkoutDetailPage from '@/pages/WorkoutDetailPage';
@@ -61,10 +60,6 @@ export default function App() {
                 <Route path="/wrapped" element={<WrappedPage />} />
                 <Route path="/berechnungen" element={<BerechnungenPage />} />
                 <Route path="/cadence" element={<CadencePage />} />
-                <Route path="/fatigue" element={<FatiguePage />} />
-                <Route path="/fatigue-index"    element={<Navigate to="/fatigue" replace />} />
-                <Route path="/fatigue-track"    element={<Navigate to="/fatigue?tab=strecke" replace />} />
-                <Route path="/fatigue-activity" element={<Navigate to="/fatigue?tab=einzelfahrt" replace />} />
                 <Route path="/calories" element={<CaloriesPage />} />
                 <Route path="/speed-trend" element={<SpeedTrendPage />} />
                 <Route path="/workouts/:id" element={<WorkoutDetailPage />} />

@@ -374,59 +374,6 @@ export interface CadenceData {
   efficiency: CadenceEfficiency[];
 }
 
-export interface FatigueRide {
-  activity_id: number;
-  activity_name: string;
-  date: string;
-  dist_km: number;
-  fatigue_pct: number;
-  spd_h1_kmh: number;
-  spd_h2_kmh: number;
-  wind_ms: number | null;
-  wind_deg: number | null;
-  headwind_ms: number | null;
-  weather_temp_c: number | null;
-  weather_precip_mm: number | null;
-}
-
-export interface FatigueRideDetail {
-  fatigue_pct: number;
-  activity_id: number;
-  activity_name: string;
-  date: string;
-  dist_km: number;
-  spd_h1_kmh: number;
-  spd_h2_kmh: number;
-}
-
-export interface FatigueData {
-  stats: {
-    rides_analyzed: number;
-    avg_fatigue_pct: number | null;
-    steigerung_count: number;
-    ermuedung_count: number;
-  };
-  best_steigerung: FatigueRideDetail | null;
-  worst_ermuedung: FatigueRideDetail | null;
-  distribution: { bucket: number; count: number }[];
-  monthly: { month: string; avg_fatigue_pct: number; rides: number; neg_split_pct: number }[];
-  rides: FatigueRide[];
-  by_distance: { label: string; avg_fatigue_pct: number | null; rides: number }[];
-}
-
-export interface FatigueTrackData {
-  stats: {
-    rides_analyzed: number;
-    avg_fatigue_pct: number | null;
-    steigerung_count: number;
-    ermuedung_count: number;
-  };
-  best_steigerung: FatigueRideDetail | null;
-  worst_ermuedung: FatigueRideDetail | null;
-  distribution: { bucket: number; count: number }[];
-  rides: FatigueRide[];
-}
-
 export interface SpeedTrendRide {
   id: number;
   name: string;
@@ -704,12 +651,6 @@ export const api = {
 
   cadence: (year?: number): Promise<CadenceData> =>
     get(`/analytics/cadence${buildQuery({ year })}`),
-
-  fatigueIndex: (year?: number): Promise<FatigueData> =>
-    get(`/analytics/fatigue-index${buildQuery({ year })}`),
-
-  fatigueIndexTrack: (activityIds: number[]): Promise<FatigueTrackData> =>
-    get(`/analytics/fatigue-index-track?activity_ids=${activityIds.join(',')}`),
 
   updateActivityPower: (id: number, avg_power_w: number | null): Promise<{ ok: boolean; activity_id: number; avg_power_w: number | null }> =>
     fetch(`${BASE}/activities/${id}/power`, {

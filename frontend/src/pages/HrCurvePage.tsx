@@ -7,6 +7,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import { api } from '@/lib/api';
+import { CHART_HEIGHT } from '@/lib/config';
 import { ChartTooltip } from '@/components/ui/chart-tooltip';
 import {
   ComposedChart, Line, XAxis, YAxis, CartesianGrid,
@@ -109,7 +110,7 @@ function HrKurveTab() {
   const [trendData, setTrendData] = useState<TrendPoint[]>([]);
   const [trendBpm, setTrendBpm] = useState<number | null>(null);
 
-  const W = 960, H = 220;
+  const W = 960, H = 200;
   const PAD = { top: 24, right: 32, bottom: 48, left: 52 };
   const cW = W - PAD.left - PAD.right;
   const cH = H - PAD.top - PAD.bottom;
@@ -448,7 +449,7 @@ function HrKurveTab() {
                 </div>
               </CardHeader>
               <CardContent>
-                <ResponsiveContainer width="100%" height={220}>
+                <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
                   <ComposedChart data={trendData} margin={{ top: 8, right: 12, bottom: 0, left: 0 }}>
                     <CartesianGrid vertical={false} stroke="var(--border)" strokeOpacity={0.5} />
                     <XAxis
@@ -569,7 +570,7 @@ function effAreaPath(pts: { x: number; y: number }[], baseY: number): string {
 }
 
 function EffizienzTab() {
-  const EFF_W = 900, EFF_H = 220;
+  const EFF_W = 900, EFF_H = 200;
   const EFF_PAD = { top: 20, right: 20, bottom: 40, left: 44 };
   const EFF_CW = EFF_W - EFF_PAD.left - EFF_PAD.right;
   const EFF_CH = EFF_H - EFF_PAD.top - EFF_PAD.bottom;
@@ -692,7 +693,7 @@ function EffizienzTab() {
               }}
               onMouseLeave={() => setHoverIdx(null)}
             >
-              <svg viewBox={`0 0 ${EFF_W} ${EFF_H}`} className="w-full" style={{ height: EFF_H }}>
+              <svg viewBox={`0 0 ${EFF_W} ${EFF_H}`} width="100%" className="block">
                 <defs>
                   <linearGradient id="effGrad" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%" stopColor="#fb923c" stopOpacity={0.6} />

@@ -933,7 +933,7 @@ function VergleichTab() {
   );
 
   // Balkendiagramm: Rides pro Jahr
-  const BAR_W = 900, BAR_H = 240;
+  const BAR_W = 900, BAR_H = 220;
   const BAR_PAD = { top: 16, right: 16, bottom: 40, left: 48 };
   const barChartW = BAR_W - BAR_PAD.left - BAR_PAD.right;
   const barChartH = BAR_H - BAR_PAD.top - BAR_PAD.bottom;
@@ -963,7 +963,7 @@ function VergleichTab() {
   function barH(v: number) { return (v / maxRides) * barChartH; }
 
   // Liniendiagramm: Ø Speed
-  const LINE_W = 900, LINE_H = 220;
+  const LINE_W = 900, LINE_H = 200;
   const LINE_PAD = { top: 16, right: 16, bottom: 36, left: 52 };
   const lineChartW = LINE_W - LINE_PAD.left - LINE_PAD.right;
   const lineChartH = LINE_H - LINE_PAD.top - LINE_PAD.bottom;
@@ -991,7 +991,7 @@ function VergleichTab() {
   }
 
   // Histogramm: Distanzverteilung
-  const HIST_W = 900, HIST_H = 220;
+  const HIST_W = 900, HIST_H = 200;
   const HIST_PAD = { top: 16, right: 16, bottom: 40, left: 52 };
   const histChartW = HIST_W - HIST_PAD.left - HIST_PAD.right;
   const histChartH = HIST_H - HIST_PAD.top - HIST_PAD.bottom;
@@ -1073,7 +1073,7 @@ function VergleichTab() {
                   </span>
                 ))}
               </div>
-              <svg viewBox={`0 0 ${BAR_W} ${BAR_H}`} className="w-full" style={{ height: BAR_H }}>
+              <svg viewBox={`0 0 ${BAR_W} ${BAR_H}`} width="100%" className="block">
                 {yTicks(maxRides).map(v => (
                   <g key={v}>
                     <line x1={BAR_PAD.left} y1={barY(v)} x2={BAR_W - BAR_PAD.right} y2={barY(v)} stroke="#e5e7eb" strokeWidth={v === 0 ? 1 : 0.7} />
@@ -1124,7 +1124,7 @@ function VergleichTab() {
                   </span>
                 ))}
               </div>
-              <svg viewBox={`0 0 ${LINE_W} ${LINE_H}`} className="w-full" style={{ height: LINE_H }}>
+              <svg viewBox={`0 0 ${LINE_W} ${LINE_H}`} width="100%" className="block">
                 {speedYTicks().map(v => (
                   <g key={v}>
                     <line x1={LINE_PAD.left} y1={lineY(v)} x2={LINE_W - LINE_PAD.right} y2={lineY(v)} stroke="#e5e7eb" strokeWidth={0.7} />
@@ -1179,7 +1179,7 @@ function VergleichTab() {
                   </span>
                 ))}
               </div>
-              <svg viewBox={`0 0 ${HIST_W} ${HIST_H}`} className="w-full" style={{ height: HIST_H }}>
+              <svg viewBox={`0 0 ${HIST_W} ${HIST_H}`} width="100%" className="block">
                 {yTicks(maxHistCount).map(v => (
                   <g key={v}>
                     <line x1={HIST_PAD.left} y1={histBarY(v)} x2={HIST_W - HIST_PAD.right} y2={histBarY(v)} stroke="#e5e7eb" strokeWidth={v === 0 ? 1 : 0.7} />

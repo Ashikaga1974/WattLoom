@@ -45,7 +45,7 @@ Lokale Web-App zur Analyse von Strava-Exportdaten. Kein Strava-API-Zugriff nöti
 | **Kalorien** | Energieverbrauch aus Rides + Workouts; KPI-Kacheln, gestapelter Monatsverlauf mit 3M-gleitendem Ø, Jahresvergleich |
 | **Wetter & Leistung** | Ø-Speed nach Temperatur-Buckets, Wind-Impact-Chart; Wetterdaten via Open-Meteo (abrufbar per Knopfdruck) |
 | **Formkurve (PMC)** | CTL/ATL/TSB nach Trainingstagebuch-Methodik, hrTSS, 28-Tage-CTL-Trend, Ride- und Workout-Marker, Einschätzungs-Banner |
-| **Bestzeiten** | Rekorde und Top-Leistungen |
+| **Bestzeiten** | Rekorde und Top-Leistungen; Best-Effort-Segmente je Distanz (5–70 km, analog Strava) über alle Fahrten hinweg |
 | **Bikes** | 3 Tabs: Übersicht (Foto-Thumbnail, Kennzahlen einzeilig, Verschleiß-Tracker als Karten mit Fortschrittsbalken + verknüpftem Lagerartikel-Namen, Einbauen aus Lager inkl. Übernahme der Laufleistung gebrauchter Teile, Ausbauen mit km-Erfassung + automatischer Lagerrückgabe, nachträgliches Verknüpfen verbauter Altbestand-Komponenten mit einem Einkauf; Einkaufs-Lager-Tabelle darunter, inaktive Bikes per Dropdown ganz unten) · Gelöscht (Historie unwiderruflich gelöschter Komponenten inkl. Lagerbezug, rein informativ) · Vergleich (km, Speed, Höhenmeter, Jahresverlauf, Distanzhistogramm) |
 | **Workout-Detail** | Detailansicht je Workout: Sport-Hero, 4 KPI-Kacheln, SVG-Intensitätsgauge (Ø HR / Max HR), Verlaufschart, Ø-Vergleich |
 | **Wochentag-Analyse** | Werktag (Mo–Fr) vs. Wochenende (Sa–So): Duell-Karte mit Gewinner-Indikatoren, Rides/Wochentag-Balken, Monatsverlauf |
@@ -53,7 +53,6 @@ Lokale Web-App zur Analyse von Strava-Exportdaten. Kein Strava-API-Zugriff nöti
 | **Streckenvergleich** | Ähnliche Rides finden (Haversine-Radius + Distanzabgleich) |
 | **Kadenz-Analyse** | Radiales Verteilungsdiagramm (Polar-Chart), 6 Kadenz-Zonen, Monatstrend, Effizienz-Sweetspot |
 | **Fitness-Fingerprint** | Gesamtscore 0–100 aus CTL, Aerober Effizienz, Form (TSB) und Kontinuität; Arc-Gauge, Stärken-Radar, 4 Komponenten-Karten, 13-Monats-Verlauf, Level-System (Einsteiger → Elite) |
-| **Ermüdungsindex** | 3 Tabs: Trend (Monatsverlauf, YoY-Hero, Wetter-Korrelation, Distanz-Tabelle) · Strecke (nach Route-Cluster) · Einzelfahrt (Karte + 10-Segment-Chart) |
 | **Kalender** | Monatskalender: Radtouren + Workouts (grau markiert), Ring-Indikator bei Kombi-Tagen |
 | **Berechnungen** | Dokumentation aller verwendeten Formeln und Parameter |
 | **Einstellungen** | Gewicht, Geburtsjahr, Zeitzone; FIT/TCX-Einzelimport (Amazfit, Garmin ohne Strava); Wetterdaten-Abruf; Leistung für alle Rides neu berechnen |
@@ -158,7 +157,7 @@ MyBiking/
 │   ├── database.py          # SQLite-Schema, init_db()
 │   ├── api/
 │   │   ├── activities.py    # /activities/*
-│   │   ├── analytics.py     # /analytics/* (PMC, Wrapped, Kalorien, Ermüdung, …)
+│   │   ├── analytics.py     # /analytics/* (PMC, Wrapped, Kalorien, Best-of, …)
 │   │   ├── bikes.py         # /bikes, /bikes/{id}, /bikes/compare, Komponenten-Einbau/Ausbau
 │   │   ├── purchases.py     # /purchases – Einkaufs-Lager (purchase_items: 1 Zeile je physischem Teil)
 │   │   ├── heatmap.py       # /tracks/heatmap
@@ -211,7 +210,6 @@ MyBiking/
 │           ├── WrappedPage.tsx
 │           ├── BerechnungenPage.tsx
 │           ├── CadencePage.tsx
-│           ├── FatiguePage.tsx         # Tabs: Übersicht · Strecke · Einzelfahrt (/fatigue?tab=…)
 │           ├── CaloriesPage.tsx
 │           ├── SpeedTrendPage.tsx      # Tempoentwicklung (/speed-trend)
 │           └── FitnessPage.tsx         # Fitness-Fingerprint (/fitness)
@@ -251,11 +249,9 @@ GET  /analytics/hr-curve            ?year
 GET  /analytics/pmc                            → CTL/ATL/TSB + hrTSS
 GET  /analytics/wrapped             ?year, tz_offset
 GET  /analytics/weekly-volume       ?weeks
-GET  /analytics/best-by-distance               → schnellste Ø-Geschwindigkeit je Distanzklasse (1–60 km, ±20%)
+GET  /analytics/best-by-distance               → schnellstes Segment je Zieldistanz (5–70 km) über alle Fahrten hinweg (Best Effort)
 GET  /analytics/route-clusters      ?min_rides → Greedy-Clustering aller Rides nach Startpunkt + Distanz
 GET  /analytics/cadence             ?year      → Distribution, Zonen, Monatsverlauf, Effizienz-Buckets
-GET  /analytics/fatigue-index       ?year      → Ermüdungsindex (H1 vs. H2 Speed) je Ride + Trend
-GET  /analytics/fatigue-index-track ?activity_ids → Ermüdungsindex für kommaseparierte IDs
 GET  /analytics/calories            ?year      → total_kcal, rides + workouts, monatlich/jährlich
 GET  /analytics/fitness-fingerprint            → Score 0–100 aus CTL, Effizienz, Form, Kontinuität + History
 
@@ -407,7 +403,6 @@ Alle verwendeten Formeln sind auf der Seite `/berechnungen` dokumentiert und wer
 | **ATL** | 7-Tage EMA, K = 2/8 |
 | **TSB** | `CTL − ATL` |
 | **Aerobe Effizienz** | `avg_speed_kmh / avg_hr × 100` (monatlich aggregiert) |
-| **Ermüdungsindex** | `(spd_h2 − spd_h1) / spd_h1 × 100` (negativ = Ermüdung, positiv = Steigerung) |
 | **Jahresprognose** | `(km_heute / Jahrestag) × 365` |
 
 ---
@@ -423,6 +418,10 @@ In [frontend/src/lib/config.ts](frontend/src/lib/config.ts):
 | `SPEED_COLOR_BUCKETS` | `20` | Farbstufen auf der Geschwindigkeitskarte |
 | `TRACK_SIMPLIFY_M` | `5` | Schritt beim rowid-Downsampling für Einzeltrack |
 | `COMPARISON_SIMPLIFY` | `20` | Schritt für Multi-Track (Vergleich + Heatmap) |
+| `CHART_HEIGHT_MINI` | `100` | Winzige Inline-Sparklines |
+| `CHART_HEIGHT_COMPACT` | `140` | Kleine Trend-Charts |
+| `CHART_HEIGHT` | `200` | Standard-Analyse-Chart |
+| `CHART_HEIGHT_DENSE` | `220` | Dichte Mehrserien-Charts (Cap nach oben) |
 
 ---
 

@@ -15,6 +15,7 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import { api, type SpeedTrendData } from '@/lib/api';
+import { CHART_HEIGHT, CHART_HEIGHT_DENSE } from '@/lib/config';
 import { PageHeader } from '@/components/ui/page-header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ChartTooltip } from '@/components/ui/chart-tooltip';
@@ -303,7 +304,7 @@ export default function SpeedTrendPage() {
           </p>
         </CardHeader>
         <CardContent className="pt-4">
-          <ResponsiveContainer width="100%" height={380}>
+          <ResponsiveContainer width="100%" height={CHART_HEIGHT_DENSE}>
             <ComposedChart data={chartData} margin={{ top: 12, right: 20, bottom: 36, left: 8 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
               <XAxis
@@ -403,7 +404,7 @@ export default function SpeedTrendPage() {
             </p>
           </CardHeader>
           <CardContent className="pt-4">
-            <ResponsiveContainer width="100%" height={210}>
+            <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
               <BarChart data={by_year} margin={{ top: 30, right: 16, bottom: 8, left: 8 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
                 <XAxis dataKey="year" tick={{ fontSize: 11 }} />

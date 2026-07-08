@@ -1,4 +1,4 @@
-import math
+from datetime import datetime
 from fastapi import APIRouter, Query
 from backend.database import db_connection
 from backend.utils import haversine_km, MS_TO_KMH
@@ -637,57 +637,119 @@ def get_wrapped(year: int = None, tz_offset: int = Query(None, ge=-14, le=14)):
         }
 
 
+MAX_PLAUSIBLE_SPEED_MS = 25.0  # 90 km/h – GPS-/Device-Sprünge (Tunnel, Satellitenverlust) oberhalb dessen kappen
+
+
+def _clean_cumulative_distance(dist: list, elapsed: list) -> list:
+    """
+    Kappt pro Schritt den Distanzzuwachs auf MAX_PLAUSIBLE_SPEED_MS, damit einzelne
+    GPS-Sprünge (z.B. mehrere km in 1s nach Signalverlust) keine unrealistischen
+    Best-Effort-Segmente erzeugen. Negative/zeitlose Schritte zählen als 0 Zuwachs.
+    """
+    cleaned = [dist[0]]
+    for k in range(1, len(dist)):
+        dt = elapsed[k] - elapsed[k - 1]
+        delta = dist[k] - dist[k - 1]
+        if dt <= 0 or delta < 0:
+            delta = 0.0
+        else:
+            delta = min(delta, MAX_PLAUSIBLE_SPEED_MS * dt)
+        cleaned.append(cleaned[-1] + delta)
+    return cleaned
+
+
+def _fastest_segment(dist: list, elapsed: list, target_m: float):
+    """
+    Kürzeste Zeit für ein zusammenhängendes Segment mit Distanz >= target_m,
+    per Sliding Window (Zwei-Zeiger) über die kumulierte Distanz `dist` und
+    die dazugehörigen Sekunden `elapsed` (beide aufsteigend, gleiche Länge).
+    Gibt (start_idx, end_idx, zeit_s) zurück oder None, wenn kein Segment reicht.
+    """
+    n = len(dist)
+    i = 0
+    best_t = None
+    best_idx = None
+    for j in range(n):
+        while i < j and dist[j] - dist[i] >= target_m:
+            i += 1
+        if i > 0 and dist[j] - dist[i - 1] >= target_m:
+            t = elapsed[j] - elapsed[i - 1]
+            if t > 0 and (best_t is None or t < best_t):
+                best_t = t
+                best_idx = (i - 1, j)
+    return (*best_idx, best_t) if best_idx else None
+
+
 @router.get("/best-by-distance")
 def best_by_distance():
     """
-    Für jedes Distanz-Bucket die schnellste Fahrt (höchste avg_speed_ms)
-    innerhalb ±20 % Toleranz um den Zielwert.
+    Für jede Zieldistanz das schnellste zusammenhängende Segment (Best Effort)
+    über alle Fahrten mit Track-Daten hinweg – nicht die schnellste Gesamtfahrt
+    in der Nähe der Zieldistanz, sondern der schnellste Abschnitt exakt dieser
+    Länge innerhalb einer beliebigen Fahrt (analog Strava "Best Efforts").
     """
-    BUCKETS_KM   = [1, 5, 10, 20, 30, 40, 50, 60]
-    TOLERANCE    = 0.20
-    # RIDE_TYPES: Modul-Konstante oben
-    ph           = ','.join('?' * len(RIDE_TYPES))
+    BUCKETS_KM = [5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70]
+    ph = ','.join('?' * len(RIDE_TYPES))
 
     with db_connection() as conn:
+        activities = conn.execute(f"""
+            SELECT id, name, start_date_local AS date, distance_m
+            FROM activities
+            WHERE activity_type IN ({ph}) AND distance_m > 0
+        """, RIDE_TYPES).fetchall()
+
+        best = {d_km: None for d_km in BUCKETS_KM}
+
+        for act in activities:
+            targets_m = [d_km * 1000 for d_km in BUCKETS_KM if d_km * 1000 <= act['distance_m']]
+            if not targets_m:
+                continue
+
+            points = conn.execute("""
+                SELECT timestamp, distance_m
+                FROM track_points
+                WHERE activity_id = ? AND distance_m IS NOT NULL AND timestamp IS NOT NULL
+                ORDER BY id
+            """, (act['id'],)).fetchall()
+            if len(points) < 2:
+                continue
+
+            try:
+                elapsed = [datetime.fromisoformat(p['timestamp']).timestamp() for p in points]
+            except ValueError:
+                continue
+            dist = _clean_cumulative_distance([p['distance_m'] for p in points], elapsed)
+
+            for target_m in targets_m:
+                d_km = target_m / 1000
+                segment = _fastest_segment(dist, elapsed, target_m)
+                if not segment:
+                    continue
+                start_idx, end_idx, t = segment
+                current = best[d_km]
+                if current is not None and t >= current['best_time_s']:
+                    continue
+                best[d_km] = {
+                    'distance_km':        d_km,
+                    'best_speed_kmh':     round((dist[end_idx] - dist[start_idx]) / t * MS_TO_KMH, 1),
+                    'best_time_s':        round(t),
+                    'activity_id':        act['id'],
+                    'activity_name':      act['name'],
+                    'date':               act['date'],
+                    'actual_distance_km': round((dist[end_idx] - dist[start_idx]) / 1000, 1),
+                }
+
         results = []
-
         for d_km in BUCKETS_KM:
-            d_m  = d_km * 1000
-            low  = d_m * (1 - TOLERANCE)
-            high = d_m * (1 + TOLERANCE)
-
-            row = conn.execute(f"""
-                SELECT id, name, start_date_local AS date,
-                       distance_m, moving_time_s, avg_speed_ms
-                FROM activities
-                WHERE activity_type IN ({ph})
-                  AND distance_m BETWEEN ? AND ?
-                  AND avg_speed_ms IS NOT NULL
-                  AND moving_time_s > 0
-                ORDER BY avg_speed_ms DESC
-                LIMIT 1
-            """, (*RIDE_TYPES, low, high)).fetchone()
-
-            if row:
-                results.append({
-                    'distance_km':        d_km,
-                    'best_speed_kmh':     round(row['avg_speed_ms'] * MS_TO_KMH, 1),
-                    'best_time_s':        row['moving_time_s'],
-                    'activity_id':        row['id'],
-                    'activity_name':      row['name'],
-                    'date':               row['date'],
-                    'actual_distance_km': round(row['distance_m'] / 1000, 1),
-                })
-            else:
-                results.append({
-                    'distance_km':        d_km,
-                    'best_speed_kmh':     None,
-                    'best_time_s':        None,
-                    'activity_id':        None,
-                    'activity_name':      None,
-                    'date':               None,
-                    'actual_distance_km': None,
-                })
+            results.append(best[d_km] or {
+                'distance_km':        d_km,
+                'best_speed_kmh':     None,
+                'best_time_s':        None,
+                'activity_id':        None,
+                'activity_name':      None,
+                'date':               None,
+                'actual_distance_km': None,
+            })
 
         return {'buckets': results}
 
@@ -871,395 +933,6 @@ def route_clusters(min_rides: int = Query(3)):
 
     clusters.sort(key=lambda c: c['ride_count'], reverse=True)
     return {'clusters': clusters}
-
-
-@router.get("/fatigue-index")
-def fatigue_index(year: int = Query(None)):
-    """
-    Ermüdungsindex je Ride: Vergleich der Durchschnittsgeschwindigkeit erster vs. zweiter Hälfte.
-    fatigue_pct = (spd_h2 - spd_h1) / spd_h1 * 100
-    Negativ = Ermüdung (langsamer in H2), Positiv = Steigerung (schneller in H2).
-    Nur Rides mit ≥ 60 Track-Punkten, speed_ms > 0, distance_m IS NOT NULL.
-    """
-    # RIDE_TYPES: Modul-Konstante oben
-
-    # Jahresfilter optional
-    year_filter = ""
-    params: list = []
-    if year:
-        year_filter = "AND strftime('%Y', a.start_date_local) = ?"
-        params.append(str(year))
-
-    ph = ','.join('?' * len(RIDE_TYPES))
-
-    with db_connection() as conn:
-        # Window-Function: max(distance_m) je Aktivität, dann Halbzeit-Split per AVG-CASE
-        rows = conn.execute(
-            f"""
-            WITH ranked AS (
-                SELECT
-                    tp.activity_id,
-                    tp.distance_m,
-                    tp.speed_ms,
-                    MAX(tp.distance_m) OVER (PARTITION BY tp.activity_id) AS max_dist,
-                    a.start_date_local,
-                    a.name,
-                    a.id AS act_id,
-                    a.weather_wind_ms,
-                    a.weather_wind_deg,
-                    a.weather_temp_c,
-                    a.weather_precip_mm
-                FROM track_points tp
-                JOIN activities a ON a.id = tp.activity_id
-                WHERE tp.speed_ms > 0
-                  AND tp.distance_m IS NOT NULL
-                  AND a.activity_type IN ({ph})
-                  {year_filter}
-            ),
-            halves AS (
-                SELECT
-                    activity_id,
-                    MAX(act_id)           AS activity_id_val,
-                    MAX(start_date_local) AS date,
-                    MAX(name)             AS name,
-                    AVG(CASE WHEN distance_m <= max_dist / 2.0 THEN speed_ms END) AS spd_h1,
-                    AVG(CASE WHEN distance_m >  max_dist / 2.0 THEN speed_ms END) AS spd_h2,
-                    MAX(max_dist) / 1000.0 AS dist_km,
-                    COUNT(*) AS pts,
-                    MAX(weather_wind_ms)   AS weather_wind_ms,
-                    MAX(weather_wind_deg)  AS weather_wind_deg,
-                    MAX(weather_temp_c)    AS weather_temp_c,
-                    MAX(weather_precip_mm) AS weather_precip_mm
-                FROM ranked
-                GROUP BY activity_id
-                HAVING pts >= 60
-            )
-            SELECT
-                activity_id_val  AS activity_id,
-                name,
-                date,
-                ROUND(dist_km, 1) AS dist_km,
-                spd_h1,
-                spd_h2,
-                (spd_h2 - spd_h1) / spd_h1 * 100 AS fatigue_pct,
-                weather_wind_ms,
-                weather_wind_deg,
-                weather_temp_c,
-                weather_precip_mm
-            FROM halves
-            WHERE spd_h1 IS NOT NULL AND spd_h2 IS NOT NULL
-            ORDER BY date DESC
-            """,
-            (*RIDE_TYPES, *params),
-        ).fetchall()
-
-    if not rows:
-        return {
-            "stats": {
-                "rides_analyzed": 0,
-                "avg_fatigue_pct": None,
-                "steigerung_count": 0,
-                "ermuedung_count": 0,
-            },
-            "best_steigerung": None,
-            "worst_ermuedung": None,
-            "distribution": [],
-            "monthly": [],
-            "rides": [],
-            "by_distance": [],
-        }
-
-    # --- Start/End-Koordinaten für Gegenwind-Berechnung ---
-    def _bearing(lat1, lon1, lat2, lon2):
-        """Fahrtrichtung (Grad) vom Start- zum Endpunkt."""
-        r1, o1, r2, o2 = map(math.radians, [lat1, lon1, lat2, lon2])
-        x = math.sin(o2 - o1) * math.cos(r2)
-        y = math.cos(r1) * math.sin(r2) - math.sin(r1) * math.cos(r2) * math.cos(o2 - o1)
-        return (math.degrees(math.atan2(x, y)) + 360) % 360
-
-    def _headwind(wind_deg, wind_ms, bearing):
-        """Gegenwind-Komponente in m/s. Positiv = Gegenwind, Negativ = Rückenwind."""
-        return wind_ms * math.cos(math.radians(wind_deg - bearing))
-
-    wind_ids = [r["activity_id"] for r in rows if r["weather_wind_ms"] is not None]
-    headwind_map: dict[int, float] = {}
-    if wind_ids:
-        ph2 = ','.join('?' * len(wind_ids))
-        with db_connection() as conn2:
-            start_rows = conn2.execute(f"""
-                SELECT t.activity_id, t.lat, t.lon
-                FROM track_points t
-                JOIN (SELECT activity_id, MIN(distance_m) AS min_d
-                      FROM track_points
-                      WHERE activity_id IN ({ph2}) AND lat IS NOT NULL AND lon IS NOT NULL
-                      GROUP BY activity_id) m
-                  ON t.activity_id = m.activity_id AND t.distance_m = m.min_d
-                WHERE t.lat IS NOT NULL
-            """, wind_ids).fetchall()
-            end_rows = conn2.execute(f"""
-                SELECT t.activity_id, t.lat, t.lon
-                FROM track_points t
-                JOIN (SELECT activity_id, MAX(distance_m) AS max_d
-                      FROM track_points
-                      WHERE activity_id IN ({ph2}) AND lat IS NOT NULL AND lon IS NOT NULL
-                      GROUP BY activity_id) m
-                  ON t.activity_id = m.activity_id AND t.distance_m = m.max_d
-                WHERE t.lat IS NOT NULL
-            """, wind_ids).fetchall()
-        start_map = {r["activity_id"]: (r["lat"], r["lon"]) for r in start_rows}
-        end_map   = {r["activity_id"]: (r["lat"], r["lon"]) for r in end_rows}
-        for r in rows:
-            act_id = r["activity_id"]
-            if r["weather_wind_ms"] is None or act_id not in start_map or act_id not in end_map:
-                continue
-            s, e = start_map[act_id], end_map[act_id]
-            if abs(s[0] - e[0]) < 1e-6 and abs(s[1] - e[1]) < 1e-6:
-                headwind_map[act_id] = 0.0  # Rundkurs
-            else:
-                b = _bearing(s[0], s[1], e[0], e[1])
-                headwind_map[act_id] = _headwind(r["weather_wind_deg"], r["weather_wind_ms"], b)
-
-    # --- Rides-Liste aufbauen ---
-    rides = []
-    for r in rows:
-        act_id = r["activity_id"]
-        hw = headwind_map.get(act_id)
-        rides.append({
-            "activity_id":   act_id,
-            "activity_name": r["name"],
-            "date":          r["date"],
-            "dist_km":       round(r["dist_km"], 1),
-            "fatigue_pct":   round(r["fatigue_pct"], 1),
-            "spd_h1_kmh":    round(r["spd_h1"] * MS_TO_KMH, 1),
-            "spd_h2_kmh":    round(r["spd_h2"] * MS_TO_KMH, 1),
-            "wind_ms":       round(r["weather_wind_ms"], 1) if r["weather_wind_ms"] is not None else None,
-            "wind_deg":      round(r["weather_wind_deg"]) if r["weather_wind_deg"] is not None else None,
-            "headwind_ms":    round(hw, 2) if hw is not None else None,
-            "weather_temp_c":    round(r["weather_temp_c"], 1) if r["weather_temp_c"] is not None else None,
-            "weather_precip_mm": round(r["weather_precip_mm"], 2) if r["weather_precip_mm"] is not None else None,
-        })
-
-    fatigue_vals = [r["fatigue_pct"] for r in rows]
-    # Positiv = Steigerung (H2 schneller), Negativ = Ermüdung (H2 langsamer)
-    pos_rows  = [r for r in rows if r["fatigue_pct"] > 0]
-    neg_rows  = [r for r in rows if r["fatigue_pct"] < 0]
-    steigerung_count = len(pos_rows)
-    ermuedung_count  = len(neg_rows)
-    avg_fatigue = sum(fatigue_vals) / len(fatigue_vals)
-
-    # --- Extremwerte ---
-    # Beste Steigerung: positivster Wert (größte Beschleunigung in H2)
-    best_pos_row = max(pos_rows, key=lambda r: r["fatigue_pct"]) if pos_rows else None
-    # Größte Ermüdung: negativster Wert (stärkster Einbruch in H2)
-    worst_row    = min(rows, key=lambda r: r["fatigue_pct"])
-
-    def ride_detail(r):
-        return {
-            "fatigue_pct":   round(r["fatigue_pct"], 1),
-            "activity_id":   r["activity_id"],
-            "activity_name": r["name"],
-            "date":          r["date"][:10] if r["date"] else None,
-            "dist_km":       round(r["dist_km"], 1),
-            "spd_h1_kmh":    round(r["spd_h1"] * MS_TO_KMH, 1),
-            "spd_h2_kmh":    round(r["spd_h2"] * MS_TO_KMH, 1),
-        }
-
-    # --- Verteilung: 5%-Buckets von −50 bis +30 (Ermüdungen negativ, Steigerungen positiv) ---
-    from collections import defaultdict
-    bucket_counts: dict[int, int] = defaultdict(int)
-    for v in fatigue_vals:
-        # Untere Grenze des 5%-Buckets: floor(v/5)*5, geclamped auf [-50, 30]
-        b = int(v // 5) * 5
-        b = max(-50, min(30, b))
-        bucket_counts[b] += 1
-
-    distribution = [
-        {"bucket": b, "count": c}
-        for b, c in sorted(bucket_counts.items())
-    ]
-
-    # --- Monatliche Aggregation ---
-    from collections import OrderedDict
-    monthly_map: dict[str, list[float]] = defaultdict(list)
-    for r in rows:
-        month = r["date"][:7] if r["date"] else None
-        if month:
-            monthly_map[month].append(r["fatigue_pct"])
-
-    monthly = []
-    for month in sorted(monthly_map.keys()):
-        vals = monthly_map[month]
-        neg = sum(1 for v in vals if v < 0)
-        monthly.append({
-            "month":           month,
-            "avg_fatigue_pct": round(sum(vals) / len(vals), 1),
-            "rides":           len(vals),
-            "neg_split_pct":   round(neg / len(vals) * 100, 1),
-        })
-
-    # --- by_distance: fixe 4 Kategorien ---
-    dist_buckets = [
-        ("< 20 km",  0,    20),
-        ("20–40 km", 20,   40),
-        ("40–60 km", 40,   60),
-        ("> 60 km",  60, 9999),
-    ]
-    by_distance = []
-    for label, lo, hi in dist_buckets:
-        bucket_vals = [r["fatigue_pct"] for r in rows if lo <= r["dist_km"] < hi]
-        if bucket_vals:
-            by_distance.append({
-                "label":           label,
-                "avg_fatigue_pct": round(sum(bucket_vals) / len(bucket_vals), 1),
-                "rides":           len(bucket_vals),
-            })
-        else:
-            by_distance.append({"label": label, "avg_fatigue_pct": None, "rides": 0})
-
-    return {
-        "stats": {
-            "rides_analyzed":  len(rows),
-            "avg_fatigue_pct": round(avg_fatigue, 1),
-            "steigerung_count": steigerung_count,
-            "ermuedung_count":  ermuedung_count,
-        },
-        "best_steigerung": ride_detail(best_pos_row) if best_pos_row else None,
-        "worst_ermuedung": ride_detail(worst_row),
-        "distribution":    distribution,
-        "monthly":         monthly,
-        "rides":           rides,
-        "by_distance":     by_distance,
-    }
-
-
-@router.get("/fatigue-index-track")
-def fatigue_index_track(activity_ids: str = Query(...)):
-    """
-    Ermüdungsindex für einen bestimmten Strecken-Cluster.
-    activity_ids: kommaseparierte Liste von Activity-IDs (aus route-clusters).
-    Rides werden chronologisch sortiert (ASC) für Trendanalyse.
-    """
-    try:
-        ids = [int(x.strip()) for x in activity_ids.split(',') if x.strip()]
-    except ValueError:
-        from fastapi import HTTPException
-        raise HTTPException(status_code=400, detail="Ungültige Activity-IDs")
-
-    empty = {
-        "stats": {"rides_analyzed": 0, "avg_fatigue_pct": None, "steigerung_count": 0, "ermuedung_count": 0},
-        "best_steigerung": None, "worst_ermuedung": None,
-        "distribution": [], "rides": [],
-    }
-    if not ids:
-        return empty
-
-    ph = ','.join('?' * len(ids))
-
-    with db_connection() as conn:
-        rows = conn.execute(f"""
-            WITH ranked AS (
-                SELECT
-                    tp.activity_id,
-                    tp.distance_m,
-                    tp.speed_ms,
-                    MAX(tp.distance_m) OVER (PARTITION BY tp.activity_id) AS max_dist,
-                    a.start_date_local,
-                    a.name,
-                    a.id AS act_id
-                FROM track_points tp
-                JOIN activities a ON a.id = tp.activity_id
-                WHERE tp.speed_ms > 0
-                  AND tp.distance_m IS NOT NULL
-                  AND tp.activity_id IN ({ph})
-            ),
-            halves AS (
-                SELECT
-                    activity_id,
-                    MAX(act_id)           AS activity_id_val,
-                    MAX(start_date_local) AS date,
-                    MAX(name)             AS name,
-                    AVG(CASE WHEN distance_m <= max_dist / 2.0 THEN speed_ms END) AS spd_h1,
-                    AVG(CASE WHEN distance_m >  max_dist / 2.0 THEN speed_ms END) AS spd_h2,
-                    MAX(max_dist) / 1000.0 AS dist_km,
-                    COUNT(*) AS pts
-                FROM ranked
-                GROUP BY activity_id
-                HAVING pts >= 60
-            )
-            SELECT
-                activity_id_val AS activity_id,
-                name,
-                date,
-                ROUND(dist_km, 1) AS dist_km,
-                spd_h1,
-                spd_h2,
-                (spd_h2 - spd_h1) / spd_h1 * 100 AS fatigue_pct
-            FROM halves
-            WHERE spd_h1 IS NOT NULL AND spd_h2 IS NOT NULL
-            ORDER BY date ASC
-        """, ids).fetchall()
-
-    if not rows:
-        return empty
-
-    rides = [
-        {
-            "activity_id":   r["activity_id"],
-            "activity_name": r["name"],
-            "date":          r["date"],
-            "dist_km":       round(r["dist_km"], 1),
-            "fatigue_pct":   round(r["fatigue_pct"], 1),
-            "spd_h1_kmh":    round(r["spd_h1"] * MS_TO_KMH, 1),
-            "spd_h2_kmh":    round(r["spd_h2"] * MS_TO_KMH, 1),
-        }
-        for r in rows
-    ]
-
-    fatigue_vals = [r["fatigue_pct"] for r in rows]
-    # Positiv = Steigerung, Negativ = Ermüdung
-    pos_rows         = [r for r in rows if r["fatigue_pct"] > 0]
-    neg_rows         = [r for r in rows if r["fatigue_pct"] < 0]
-    steigerung_count = len(pos_rows)
-    ermuedung_count  = len(neg_rows)
-    avg_fatigue      = sum(fatigue_vals) / len(fatigue_vals)
-
-    # Beste Steigerung: positivster Wert
-    best_pos_row = max(pos_rows, key=lambda r: r["fatigue_pct"]) if pos_rows else None
-    # Größte Ermüdung: negativster Wert
-    worst_row    = min(rows, key=lambda r: r["fatigue_pct"])
-
-    def ride_detail(r):
-        return {
-            "fatigue_pct":   round(r["fatigue_pct"], 1),
-            "activity_id":   r["activity_id"],
-            "activity_name": r["name"],
-            "date":          r["date"][:10] if r["date"] else None,
-            "dist_km":       round(r["dist_km"], 1),
-            "spd_h1_kmh":    round(r["spd_h1"] * MS_TO_KMH, 1),
-            "spd_h2_kmh":    round(r["spd_h2"] * MS_TO_KMH, 1),
-        }
-
-    from collections import defaultdict
-    bucket_counts: dict[int, int] = defaultdict(int)
-    for v in fatigue_vals:
-        # Geclamped auf [-50, 30]: Ermüdungen negativ, Steigerungen positiv
-        b = max(-50, min(30, int(v // 5) * 5))
-        bucket_counts[b] += 1
-
-    distribution = [{"bucket": b, "count": c} for b, c in sorted(bucket_counts.items())]
-
-    return {
-        "stats": {
-            "rides_analyzed":  len(rows),
-            "avg_fatigue_pct": round(avg_fatigue, 1),
-            "steigerung_count": steigerung_count,
-            "ermuedung_count":  ermuedung_count,
-        },
-        "best_steigerung": ride_detail(best_pos_row) if best_pos_row else None,
-        "worst_ermuedung": ride_detail(worst_row),
-        "distribution":    distribution,
-        "rides":           rides,
-    }
 
 
 DURATIONS = [60, 300, 600, 1200, 3600]  # 1min, 5min, 10min, 20min, 60min

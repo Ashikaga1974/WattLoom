@@ -30,8 +30,8 @@ const RANK_SYMBOLS = ['🥇', '🥈', '🥉', '4.', '5.'];
 const RANK_COLORS = ['text-yellow-500', 'text-slate-400', 'text-amber-600', 'text-muted-foreground', 'text-muted-foreground'];
 
 // SVG-Chart-Konstanten
-const CW = 960, CH = 200;
-const PAD = { t: 20, r: 32, b: 48, l: 52 };
+const CW = 960, CH = 170;
+const PAD = { t: 14, r: 32, b: 48, l: 52 };
 const innerW = CW - PAD.l - PAD.r;
 const innerH = CH - PAD.t - PAD.b;
 
@@ -126,7 +126,7 @@ export default function BestPage() {
         <Card className="overflow-hidden shadow-sm">
           <CardHeader className="border-b border-border px-4 py-3">
             <CardTitle className="text-base">Beste Ø-Geschwindigkeit nach Distanz</CardTitle>
-            <p className="text-xs text-muted-foreground">Höchste Ø-Geschwindigkeit je Distanzklasse (±20 % Toleranz)</p>
+            <p className="text-xs text-muted-foreground">Schnellstes zusammenhängendes Segment dieser Länge, über alle Fahrten hinweg</p>
           </CardHeader>
           <CardContent className="p-0">
             {chartData ? (
@@ -186,10 +186,7 @@ export default function BestPage() {
                               stroke="#f97316" strokeWidth={2}
                               style={{ transition: 'r 0.15s' }}
                             />
-                            <text x={pt.x} y={pt.y - 10} textAnchor="middle" fontSize={10} fontWeight={600} fill={hoveredBucket === i ? '#f97316' : '#6b7280'}>
-                              Ø {pt.b.best_speed_kmh} km/h
-                            </text>
-                            {/* Tooltip */}
+                            {/* Tooltip (nur bei Hover – siehe dataviz-Guideline: kein Wert an jedem Punkt) */}
                             {hoveredBucket === i && (
                               <g>
                                 {(() => {
@@ -254,7 +251,7 @@ export default function BestPage() {
                               <td className="px-4 py-2 text-muted-foreground">{fmtDate2(b.date)}</td>
                             </>
                           ) : (
-                            <td className="px-4 py-2 text-muted-foreground" colSpan={4}>Keine Fahrt in diesem Bereich</td>
+                            <td className="px-4 py-2 text-muted-foreground" colSpan={4}>Kein Segment dieser Länge gefahren</td>
                           )}
                         </tr>
                       ))}

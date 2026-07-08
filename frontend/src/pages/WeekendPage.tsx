@@ -9,6 +9,7 @@ import { PageHeader } from '@/components/ui/page-header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { fmtNum } from '@/lib/format';
 import { ChartTooltip } from '@/components/ui/chart-tooltip';
+import { CHART_HEIGHT } from '@/lib/config';
 
 type WwData = Awaited<ReturnType<typeof api.weekendWeekday>>;
 
@@ -183,7 +184,7 @@ function WochentagChart({ data }: { data: WwData['by_weekday'] }) {
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <ResponsiveContainer width="100%" height={200}>
+        <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
           <BarChart data={chartData} margin={{ top: 4, right: 8, bottom: 0, left: 0 }} barCategoryGap="28%">
             <CartesianGrid strokeDasharray="3 3" stroke="currentColor" strokeOpacity={0.08} vertical={false} />
             <XAxis dataKey="label" tick={{ fontSize: 12, fill: '#9ca3af' }} tickLine={false} axisLine={false} />
@@ -233,7 +234,7 @@ function MonatsverlaufChart({ data }: { data: WwData['monthly'] }) {
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <ResponsiveContainer width="100%" height={220}>
+        <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
           <LineChart data={chartData} margin={{ top: 4, right: 16, bottom: 0, left: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="currentColor" strokeOpacity={0.08} vertical={false} />
             <XAxis dataKey="label" tick={{ fontSize: 10, fill: '#9ca3af' }} tickLine={false} axisLine={false}
@@ -324,7 +325,7 @@ export default function WeekendPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={200}>
+            <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
               <BarChart
                 data={WEEKDAY_LABELS.map((label, i) => {
                   const row = data.by_weekday.find(r => r.weekday_idx === i);

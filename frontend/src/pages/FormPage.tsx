@@ -27,13 +27,13 @@ function fmtDateLong(iso: string) {
 const MONTHS = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
 
 // Chart-Dimensionen PMC
-const W = 1000, H = 300;
+const W = 1000, H = 220;
 const PAD = { top: 20, right: 24, bottom: 46, left: 48 };
 const cW = W - PAD.left - PAD.right;
 const cH = H - PAD.top - PAD.bottom;
 
 // Chart-Dimensionen Volumen
-const VW = 1000, VH = 210;
+const VW = 1000, VH = 200;
 const VPAD = { top: 16, right: 16, bottom: 44, left: 52 };
 const vcW = VW - VPAD.left - VPAD.right;
 const vcH = VH - VPAD.top - VPAD.bottom;

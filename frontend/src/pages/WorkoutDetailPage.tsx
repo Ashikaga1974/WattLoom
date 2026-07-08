@@ -7,6 +7,7 @@ import {
 } from 'recharts';
 import { api, type WorkoutDetail } from '@/lib/api';
 import { fmtTime } from '@/lib/format';
+import { CHART_HEIGHT_COMPACT } from '@/lib/config';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { ChartTooltip } from '@/components/ui/chart-tooltip';
@@ -253,7 +254,7 @@ function VerlaufChart({ history, currentId }: { history: WorkoutDetail['history'
         </div>
       </CardHeader>
       <CardContent className="pt-0">
-        <ResponsiveContainer width="100%" height={180}>
+        <ResponsiveContainer width="100%" height={CHART_HEIGHT_COMPACT}>
           <LineChart data={data} margin={{ top: 8, right: 16, bottom: 0, left: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="currentColor" strokeOpacity={0.1} />
             <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#9ca3af' }} tickLine={false} axisLine={false} interval="preserveStartEnd" />

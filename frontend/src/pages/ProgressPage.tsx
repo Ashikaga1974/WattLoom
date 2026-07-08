@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { api, type WeeklyVolume } from '@/lib/api';
+import { CHART_HEIGHT, CHART_HEIGHT_DENSE } from '@/lib/config';
 import { PageHeader } from '@/components/ui/page-header';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -250,7 +251,7 @@ function FortschrittTab() {
             <CardTitle className="text-base font-semibold">Kumulierte km je Jahr</CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={320}>
+            <ResponsiveContainer width="100%" height={CHART_HEIGHT_DENSE}>
               <LineChart data={lineData} margin={{ top: 8, right: 16, bottom: 8, left: 8 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                 <XAxis
@@ -299,7 +300,7 @@ function FortschrittTab() {
             <CardTitle className="text-base font-semibold">km pro Jahr</CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={210}>
+            <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
               <BarChart data={barData} margin={{ top: 16, right: 16, bottom: 8, left: 8 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
                 <XAxis dataKey="year" tick={{ fontSize: 12 }} />
@@ -327,7 +328,7 @@ function FortschrittTab() {
             <CardTitle className="text-base font-semibold">Monatlicher Gesamtverlauf</CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={240}>
+            <ResponsiveContainer width="100%" height={CHART_HEIGHT_DENSE}>
               <AreaChart data={areaData} margin={{ top: 8, right: 16, bottom: 8, left: 8 }}>
                 <defs>
                   <linearGradient id="monthGrad" x1="0" y1="0" x2="0" y2="1">
@@ -486,7 +487,7 @@ function VergleichTab() {
       {sortedSelected.length > 0 && (
         <Card className="shadow-sm border">
           <CardContent className="pt-4">
-            <ResponsiveContainer width="100%" height={280}>
+            <ResponsiveContainer width="100%" height={CHART_HEIGHT_DENSE}>
               <ComposedChart data={chartData} margin={{ top: 8, right: 16, bottom: 8, left: 8 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                 <XAxis dataKey="month" tick={{ fontSize: 11 }} />
@@ -603,7 +604,7 @@ function VolumenTab() {
 
       <Card className="shadow-sm border">
         <CardContent className="pt-4">
-          <ResponsiveContainer width="100%" height={260}>
+          <ResponsiveContainer width="100%" height={CHART_HEIGHT_DENSE}>
             <BarChart data={chartData} margin={{ top: 8, right: 16, bottom: 8, left: 8 }} barCategoryGap="15%">
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
               <XAxis

@@ -13,6 +13,7 @@ import {
 import { api, type ActivityDetail, type TrackPoint, type ActivityZones, type SimilarActivity } from '@/lib/api';
 import { fmtKm, fmtTime, fmtDate, fmtSpeed, fmtHm } from '@/lib/format';
 import { useConfig } from '@/lib/config-context';
+import { CHART_HEIGHT_MINI } from '@/lib/config';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -173,7 +174,7 @@ function ElevationChart({ points, onHover, activeDist }: { points: TrackPoint[];
   return (
     <div>
       <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Höhenprofil</p>
-      <ResponsiveContainer width="100%" height={100}>
+      <ResponsiveContainer width="100%" height={CHART_HEIGHT_MINI}>
         <AreaChart data={data} margin={{ top: 0, right: 0, left: -30, bottom: 0 }}
           syncId="ap" syncMethod="value"
           onMouseMove={handleMouseMove} onMouseLeave={handleMouseLeave}>
@@ -211,7 +212,7 @@ function HRChart({ points, onHover, activeDist }: { points: TrackPoint[]; onHove
   return (
     <div>
       <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Herzfrequenz</p>
-      <ResponsiveContainer width="100%" height={100}>
+      <ResponsiveContainer width="100%" height={CHART_HEIGHT_MINI}>
         <AreaChart data={data} margin={{ top: 0, right: 0, left: -30, bottom: 0 }}
           syncId="ap" syncMethod="value"
           onMouseMove={handleMouseMove} onMouseLeave={handleMouseLeave}>
@@ -269,7 +270,7 @@ function SpeedChart({ points, onHover, activeDist }: { points: TrackPoint[]; onH
   return (
     <div>
       <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Geschwindigkeit</p>
-      <ResponsiveContainer width="100%" height={100}>
+      <ResponsiveContainer width="100%" height={CHART_HEIGHT_MINI}>
         <AreaChart data={data} margin={{ top: 0, right: 0, left: -30, bottom: 0 }}
           syncId="ap" syncMethod="value"
           onMouseMove={handleMouseMove} onMouseLeave={handleMouseLeave}>
