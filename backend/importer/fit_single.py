@@ -117,9 +117,10 @@ def _import_as_ride(
     moving_time = sv("total_timer_time")
     elapsed_time = sv("total_elapsed_time")
 
-    avg_speed = sv("avg_speed") or sv("enhanced_avg_speed")
-    if avg_speed is None and distance_m and moving_time and float(moving_time) > 0:
+    if distance_m and moving_time and float(moving_time) > 0:
         avg_speed = float(distance_m) / float(moving_time)
+    else:
+        avg_speed = sv("avg_speed") or sv("enhanced_avg_speed")
     max_speed = sv("max_speed") or sv("enhanced_max_speed")
 
     activity_name = f"Radfahrt {local_date}{device_hint}"

@@ -427,6 +427,8 @@ export interface BikeCompareSummary {
   avg_dist_km: number;
   avg_speed_kmh: number;
   avg_elevation_m: number;
+  total_cost: number;
+  cost_per_100km: number | null;
 }
 
 export interface BikeCompareYearly {

@@ -127,6 +127,33 @@ def compare_bikes():
             ORDER BY b.name
         """).fetchall()
 
+        # Unterhaltskosten je Bike: jedes purchase_item, das je einem Bike zugeordnet war
+        # (aktuell verbaut, gelöscht oder ins Lager zurückgelegt), zählt anteilig mit
+        # price / ursprüngliche Item-Anzahl des Einkaufs – ein Einkauf von 4 Reifen auf 2 Bikes
+        # verteilt zählt also je 1/4 des Preises pro Reifen, nicht den vollen Einkaufspreis je Bike.
+        cost_rows = conn.execute("""
+            WITH item_bike AS (
+                SELECT bike_id, purchase_item_id FROM bike_components WHERE purchase_item_id IS NOT NULL
+                UNION ALL
+                SELECT bike_id, purchase_item_id FROM deleted_components WHERE purchase_item_id IS NOT NULL
+                UNION ALL
+                SELECT bike_id, purchase_item_id FROM purchase_returns WHERE purchase_item_id IS NOT NULL
+            ),
+            purchase_totals AS (
+                SELECT purchase_id, COUNT(*) AS total_items
+                FROM purchase_items
+                GROUP BY purchase_id
+            )
+            SELECT ib.bike_id,
+                   SUM(COALESCE(p.price, 0) * 1.0 / pt.total_items) AS total_cost
+            FROM item_bike ib
+            JOIN purchase_items pi ON pi.id = ib.purchase_item_id
+            JOIN purchases p ON p.id = pi.purchase_id
+            JOIN purchase_totals pt ON pt.purchase_id = p.id
+            GROUP BY ib.bike_id
+        """).fetchall()
+        cost_by_bike = {r["bike_id"]: round(float(r["total_cost"] or 0), 2) for r in cost_rows}
+
         summary = []
         bike_ids = []
         for row in summary_rows:
@@ -137,6 +164,8 @@ def compare_bikes():
             r["avg_dist_km"]       = round(r["avg_dist_km"] or 0, 1)
             r["avg_speed_kmh"]     = round(r["avg_speed_kmh"] or 0, 1)
             r["avg_elevation_m"]   = round(r["avg_elevation_m"] or 0, 1)
+            r["total_cost"]        = cost_by_bike.get(r["id"], 0.0)
+            r["cost_per_100km"]    = round(r["total_cost"] / r["total_km"] * 100, 2) if r["total_km"] > 0 else None
             summary.append(r)
             bike_ids.append(r["id"])
 

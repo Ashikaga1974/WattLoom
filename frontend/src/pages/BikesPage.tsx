@@ -39,6 +39,8 @@ const ROWS = [
   { label: 'Ø Distanz',         key: 'avg_dist_km',       fmt: (v: number) => fmtNum(v, 1), unit: ' km' },
   { label: 'Ø Geschwindigkeit', key: 'avg_speed_kmh',     fmt: (v: number) => fmtNum(v, 1), unit: ' km/h' },
   { label: 'Ø Höhenmeter/Ride', key: 'avg_elevation_m',   fmt: (v: number) => fmtNum(v),    unit: ' m' },
+  { label: 'Unterhaltskosten',  key: 'total_cost',        fmt: (v: number) => fmtNum(v, 2), unit: ' €' },
+  { label: 'Kosten/100 km',     key: 'cost_per_100km',    fmt: (v: number | null) => fmtNum(v ?? 0, 2), unit: ' €' },
 ];
 
 // ─── Verschleiß-Hilfsfunktionen ──────────────────────────────────────────────
