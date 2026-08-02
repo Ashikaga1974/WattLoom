@@ -1,6 +1,6 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, Fragment } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { api, type WeeklyVolume } from '@/lib/api';
+import { api, type WeeklyVolume, type FitnessFingerprint } from '@/lib/api';
 import { CHART_HEIGHT, CHART_HEIGHT_DENSE } from '@/lib/config';
 import { PageHeader } from '@/components/ui/page-header';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -14,7 +14,7 @@ import {
   ReferenceLine, ResponsiveContainer, BarChart, Bar, Area, AreaChart,
   ComposedChart,
 } from 'recharts';
-import { fmtNum } from '@/lib/format';
+import { fmtNum, fmtTime } from '@/lib/format';
 import { ChartTooltip } from '@/components/ui/chart-tooltip';
 
 // ─── Custom Tooltips ─────────────────────────────────────────────────────────
@@ -80,23 +80,21 @@ function VergleichTooltip({ active, payload, label, years }: { active?: boolean;
 
 function VolumenTooltip({ active, payload }: { active?: boolean; payload?: any[] }) {
   if (!active || !payload?.length) return null;
-  const d = payload[0]?.payload as { label: string; week_start?: string; Radfahren: number; Workout: number; Kraft: number };
+  const d = payload[0]?.payload as { label: string; week_start?: string; Radfahren: number; Workout: number; Kraft: number; Trend?: number };
   let weekLabel = `Woche ${d.label}`;
   if (d.week_start) {
     const date = new Date(d.week_start.endsWith('Z') ? d.week_start : d.week_start + 'Z');
     weekLabel = `Woche ${date.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })}`;
   }
-  return (
-    <ChartTooltip
-      active={active}
-      label={weekLabel}
-      rows={[
-        { label: 'Radfahren', value: `${d.Radfahren} min`, color: '#fc4c02' },
-        { label: 'Workout', value: `${d.Workout} min`, color: '#60a5fa' },
-        { label: 'Kraft', value: `${d.Kraft} min`, color: '#4ade80' },
-      ]}
-    />
-  );
+  const rows = [
+    { label: 'Radfahren', value: fmtTime(d.Radfahren * 60), color: '#fc4c02' },
+    { label: 'Workout', value: fmtTime(d.Workout * 60), color: '#60a5fa' },
+    { label: 'Kraft', value: fmtTime(d.Kraft * 60), color: '#4ade80' },
+  ];
+  if (d.Trend != null) {
+    rows.push({ label: '4-Wochen-Ø', value: fmtTime(d.Trend * 60), color: '#facc15' });
+  }
+  return <ChartTooltip active={active} label={weekLabel} rows={rows} />;
 }
 
 // ─── Shared ──────────────────────────────────────────────────────────────────
@@ -149,9 +147,93 @@ function doyToLabel(doy: number): string {
   return d.toLocaleDateString('de-DE', { day: 'numeric', month: 'short' });
 }
 
+function weekTotalMinutes(w: WeeklyVolume): number {
+  return w.ride_minutes + w.workout_minutes + w.weight_training_minutes;
+}
+
+// Fasst langfristigen (Jahre) und kurzfristigen (12-Wochen) Trend + Fitness-Score
+// zu einer Gesamteinschätzung zusammen – beantwortet "habe ich mich gesteigert?"
+function buildTrendInsights(
+  years: string[],
+  yearData: YearData,
+  currentYear: string,
+  weeklyData: WeeklyVolume[],
+  fitness: FitnessFingerprint | null
+): Insight[] {
+  const insights: Insight[] = [];
+
+  // Langfristig: ältestes vs. jüngstes abgeschlossenes Jahr (aktuelles Jahr ist nicht vergleichbar, da unvollständig)
+  const fullYears = years.filter(y => y !== currentYear);
+  if (fullYears.length >= 2) {
+    const first = fullYears[0];
+    const last = fullYears[fullYears.length - 1];
+    const firstKm = yearData[first]?.at(-1)?.[1] ?? 0;
+    const lastKm = yearData[last]?.at(-1)?.[1] ?? 0;
+    if (firstKm > 0) {
+      const diffPct = Math.round(((lastKm - firstKm) / firstKm) * 100);
+      if (diffPct >= 15) {
+        insights.push({
+          text: `Langfristig klar gesteigert: ${first} ${Math.round(firstKm)} km, ${last} bereits ${Math.round(lastKm)} km (+${diffPct}%).`,
+          type: 'positive',
+        });
+      } else if (diffPct <= -15) {
+        insights.push({
+          text: `Langfristig rückläufig: ${first} noch ${Math.round(firstKm)} km, ${last} nur noch ${Math.round(lastKm)} km (${diffPct}%).`,
+          type: 'warning',
+        });
+      } else {
+        insights.push({
+          text: `Langfristig auf ähnlichem Niveau: ${first} ${Math.round(firstKm)} km, ${last} ${Math.round(lastKm)} km.`,
+          type: 'neutral',
+        });
+      }
+    }
+  }
+
+  // Kurzfristig: letzte 12 vs. vorherige 12 Wochen (Ø Trainingszeit)
+  if (weeklyData.length >= 24) {
+    const last12 = weeklyData.slice(-12);
+    const prev12 = weeklyData.slice(-24, -12);
+    const avgLast = last12.reduce((s, w) => s + weekTotalMinutes(w), 0) / 12;
+    const avgPrev = prev12.reduce((s, w) => s + weekTotalMinutes(w), 0) / 12;
+    const diff = avgLast - avgPrev;
+    if (diff >= 30) {
+      insights.push({
+        text: `Kurzfristig (letzte 12 Wochen) im Aufwärtstrend: Ø ${fmtTime(Math.round(avgLast) * 60)}/Woche, mehr als die 12 Wochen davor (${fmtTime(Math.round(avgPrev) * 60)}).`,
+        type: 'positive',
+      });
+    } else if (diff <= -30) {
+      insights.push({
+        text: `Kurzfristig (letzte 12 Wochen) eher rückläufig: Ø ${fmtTime(Math.round(avgLast) * 60)}/Woche, weniger als die 12 Wochen davor (${fmtTime(Math.round(avgPrev) * 60)}).`,
+        type: 'warning',
+      });
+    } else {
+      insights.push({
+        text: `Kurzfristig (letzte 12 Wochen) stabil bei Ø ${fmtTime(Math.round(avgLast) * 60)}/Woche.`,
+        type: 'neutral',
+      });
+    }
+  }
+
+  // Fitness-Score als dritte, unabhängige Perspektive (CTL/Form/Effizienz/Kontinuität)
+  if (fitness && fitness.score > 0) {
+    if (fitness.trend === 'up') {
+      insights.push({ text: `Fitness-Score bestätigt den Aufwärtstrend: aktuell ${fitness.score} Punkte (${fitness.level}).`, type: 'positive' });
+    } else if (fitness.trend === 'down') {
+      insights.push({ text: `Fitness-Score zeigt zuletzt eher abwärts: aktuell ${fitness.score} Punkte (${fitness.level}).`, type: 'warning' });
+    } else {
+      insights.push({ text: `Fitness-Score stabil bei ${fitness.score} Punkten (${fitness.level}).`, type: 'neutral' });
+    }
+  }
+
+  return insights;
+}
+
 function FortschrittTab() {
   const [yearData, setYearData] = useState<YearData>({});
   const [monthlyAll, setMonthlyAll] = useState<MonthlyEntry[]>([]);
+  const [weeklyData, setWeeklyData] = useState<WeeklyVolume[]>([]);
+  const [fitness, setFitness] = useState<FitnessFingerprint | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -159,10 +241,12 @@ function FortschrittTab() {
   const doy = todayDoy();
 
   useEffect(() => {
-    Promise.all([api.yearProgress(), api.monthlyAll()])
-      .then(([progress, monthly]) => {
+    Promise.all([api.yearProgress(), api.monthlyAll(), api.weeklyVolume(104), api.fitnessFingerprint()])
+      .then(([progress, monthly, weekly, fit]) => {
         setYearData(progress.years);
         setMonthlyAll(monthly);
+        setWeeklyData(weekly);
+        setFitness(fit);
       })
       .catch(e => setError(e instanceof Error ? e.message : 'Fehler'))
       .finally(() => setLoading(false));
@@ -207,6 +291,11 @@ function FortschrittTab() {
   const areaData = useMemo(() =>
     monthlyAll.map(d => ({ label: `${d.year}-${String(d.month).padStart(2, '0')}`, km: d.distance_km, year: d.year })),
     [monthlyAll]
+  );
+
+  const trendInsights = useMemo(
+    () => buildTrendInsights(years, yearData, currentYear, weeklyData, fitness),
+    [years, yearData, currentYear, weeklyData, fitness]
   );
 
   if (loading) return <div className="h-80 bg-muted animate-pulse rounded-xl" />;
@@ -396,6 +485,31 @@ function FortschrittTab() {
           </div>
         </div>
       )}
+
+      {trendInsights.length > 0 && (
+        <Card className="shadow-sm border">
+          <CardHeader className="pb-1 border-b">
+            <CardTitle className="text-base font-semibold">Trainingsentwicklung</CardTitle>
+            <p className="text-xs text-muted-foreground mt-0.5">Langfristig vs. kurzfristig – automatisch aus deinen Daten abgeleitet</p>
+          </CardHeader>
+          <CardContent className="pt-4">
+            <ul className="space-y-2.5">
+              {trendInsights.map((insight, i) => (
+                <li key={i} className="flex items-start gap-2.5 text-sm">
+                  <span className={`mt-0.5 shrink-0 font-bold leading-none ${
+                    insight.type === 'positive' ? 'text-green-500' :
+                    insight.type === 'warning'  ? 'text-orange-500' :
+                    'text-muted-foreground'
+                  }`}>
+                    {insight.type === 'positive' ? '↑' : insight.type === 'warning' ? '↓' : '·'}
+                  </span>
+                  <span className="text-muted-foreground leading-snug">{insight.text}</span>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
@@ -557,10 +671,67 @@ function calcStats(data: WeeklyVolume[]) {
   const totalRide = data.reduce((s, w) => s + w.ride_minutes, 0);
   const totalWorkout = data.reduce((s, w) => s + w.workout_minutes, 0);
   const totalWeight = data.reduce((s, w) => s + w.weight_training_minutes, 0);
-  const activeWeeks = data.filter(w => w.ride_minutes + w.workout_minutes + w.weight_training_minutes > 0).length;
-  const peakRide = Math.max(...data.map(w => w.ride_minutes), 0);
-  const avgRide = activeWeeks > 0 ? Math.round(totalRide / activeWeeks) : 0;
-  return { totalRide, totalWorkout, totalWeight, activeWeeks, peakRide, avgRide, total: data.length };
+  const weekTotals = data.map(w => w.ride_minutes + w.workout_minutes + w.weight_training_minutes);
+  const activeWeeks = weekTotals.filter(m => m > 0).length;
+  const peakTotal = Math.max(...weekTotals, 0);
+  const avgTotal = activeWeeks > 0 ? Math.round(weekTotals.reduce((s, m) => s + m, 0) / activeWeeks) : 0;
+  return { totalRide, totalWorkout, totalWeight, activeWeeks, peakTotal, avgTotal, total: data.length };
+}
+
+// Rolling-Ø-Fenster für die Trendlinie über den Wochenbalken
+const VOLUME_TREND_WEEKS = 4;
+
+function buildVolumeInsights(
+  chartData: { label: string; total: number }[],
+  stats: ReturnType<typeof calcStats>
+): Insight[] {
+  const insights: Insight[] = [];
+
+  if (stats.activeWeeks > 0) {
+    insights.push({
+      text: `Ø ${fmtTime(stats.avgTotal * 60)} Training pro aktiver Woche (${stats.activeWeeks} von ${stats.total} Wochen aktiv).`,
+      type: 'neutral',
+    });
+  }
+
+  if (chartData.length >= VOLUME_TREND_WEEKS * 2) {
+    const last = chartData.slice(-VOLUME_TREND_WEEKS);
+    const prev = chartData.slice(-VOLUME_TREND_WEEKS * 2, -VOLUME_TREND_WEEKS);
+    const avgLast = last.reduce((s, w) => s + w.total, 0) / last.length;
+    const avgPrev = prev.reduce((s, w) => s + w.total, 0) / prev.length;
+    const diff = avgLast - avgPrev;
+    if (diff >= 30) {
+      insights.push({
+        text: `Aufwärtstrend: ${fmtTime(Math.round(avgLast) * 60)} Ø/Woche in den letzten ${VOLUME_TREND_WEEKS} Wochen, mehr als die ${VOLUME_TREND_WEEKS} Wochen davor (${fmtTime(Math.round(avgPrev) * 60)}).`,
+        type: 'positive',
+      });
+    } else if (diff <= -30) {
+      insights.push({
+        text: `Rückgang: ${fmtTime(Math.round(avgLast) * 60)} Ø/Woche in den letzten ${VOLUME_TREND_WEEKS} Wochen, weniger als davor (${fmtTime(Math.round(avgPrev) * 60)}).`,
+        type: 'warning',
+      });
+    } else {
+      insights.push({
+        text: `Trainingsumfang der letzten ${VOLUME_TREND_WEEKS} Wochen ist stabil (Ø ${fmtTime(Math.round(avgLast) * 60)}/Woche).`,
+        type: 'neutral',
+      });
+    }
+  }
+
+  if (chartData.length > 0) {
+    const peak = chartData.reduce((a, b) => (b.total > a.total ? b : a));
+    if (peak.total > 0) {
+      insights.push({ text: `Stärkste Einzelwoche: ${peak.label} mit ${fmtTime(peak.total * 60)}.`, type: 'neutral' });
+    }
+  }
+
+  if (stats.totalWorkout > 0 || stats.totalWeight > 0) {
+    const totalAll = stats.totalRide + stats.totalWorkout + stats.totalWeight;
+    const pctOther = totalAll > 0 ? Math.round(((stats.totalWorkout + stats.totalWeight) / totalAll) * 100) : 0;
+    insights.push({ text: `Workouts & Krafttraining machen ${pctOther}% deiner erfassten Trainingszeit aus.`, type: 'neutral' });
+  }
+
+  return insights;
 }
 
 function VolumenTab() {
@@ -578,21 +749,39 @@ function VolumenTab() {
 
   const viewData = useMemo(() => showAll ? allData : allData.slice(-52), [allData, showAll]);
 
-  const chartData = useMemo(() =>
-    viewData.map(w => ({
+  const chartData = useMemo(() => {
+    const base = viewData.map(w => ({
       label: weekLabel(w.week_start),
       week_start: w.week_start,
+      weeks_ago: w.weeks_ago,
       Radfahren: w.ride_minutes,
       Workout: w.workout_minutes,
       Kraft: w.weight_training_minutes,
-    })),
-    [viewData]
-  );
+      total: w.ride_minutes + w.workout_minutes + w.weight_training_minutes,
+    }));
+    // Rolling-Ø der letzten VOLUME_TREND_WEEKS Wochen (analog anderer Rolling-Average-Charts)
+    return base.map((w, i) => {
+      const window = base.slice(Math.max(0, i - (VOLUME_TREND_WEEKS - 1)), i + 1);
+      const avg = window.reduce((s, x) => s + x.total, 0) / window.length;
+      return { ...w, Trend: Math.round(avg) };
+    });
+  }, [viewData]);
 
   const stats = useMemo(() => calcStats(viewData), [viewData]);
+  const insights = useMemo(() => buildVolumeInsights(chartData, stats), [chartData, stats]);
+  const currentWeek = chartData.find(w => w.weeks_ago === 0);
 
   if (loading) return <div className="h-64 bg-muted animate-pulse rounded-xl" />;
   if (error) return <div className="rounded border border-destructive/50 bg-destructive/10 p-4 text-destructive text-sm">{error}</div>;
+
+  const tiles = [
+    { label: 'Rad gesamt', value: fmtTime(stats.totalRide * 60), color: '#fc4c02' },
+    stats.totalWorkout > 0 ? { label: 'Workout gesamt', value: fmtTime(stats.totalWorkout * 60), color: '#60a5fa' } : null,
+    stats.totalWeight > 0 ? { label: 'Kraft gesamt', value: fmtTime(stats.totalWeight * 60), color: '#4ade80' } : null,
+    { label: 'Aktive Wochen', value: `${stats.activeWeeks} / ${stats.total}`, color: 'var(--foreground)' },
+    { label: 'Beste Woche', value: fmtTime(stats.peakTotal * 60), color: 'var(--foreground)' },
+    { label: 'Ø Woche (aktiv)', value: fmtTime(stats.avgTotal * 60), color: 'var(--foreground)' },
+  ].filter((t): t is { label: string; value: string; color: string } => t !== null);
 
   return (
     <div className="space-y-6">
@@ -605,7 +794,7 @@ function VolumenTab() {
       <Card className="shadow-sm border">
         <CardContent className="pt-4">
           <ResponsiveContainer width="100%" height={CHART_HEIGHT_DENSE}>
-            <BarChart data={chartData} margin={{ top: 8, right: 16, bottom: 8, left: 8 }} barCategoryGap="15%">
+            <ComposedChart data={chartData} margin={{ top: 8, right: 16, bottom: 8, left: 8 }} barCategoryGap="15%">
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
               <XAxis
                 dataKey="label"
@@ -615,75 +804,70 @@ function VolumenTab() {
                 textAnchor={chartData.length > 30 ? 'end' : 'middle'}
                 height={chartData.length > 30 ? 40 : 20}
               />
-              <YAxis tickFormatter={v => `${v}min`} tick={{ fontSize: 11 }} width={52} />
+              <YAxis tickFormatter={v => `${Math.round(v / 60)}h`} tick={{ fontSize: 11 }} width={40} />
               <Tooltip content={<VolumenTooltip />} />
               <Legend wrapperStyle={{ fontSize: 12 }} />
+              {currentWeek && (
+                <ReferenceLine
+                  x={currentWeek.label}
+                  stroke="var(--foreground)"
+                  strokeOpacity={0.4}
+                  strokeDasharray="2 2"
+                  label={{ value: 'Aktuell', position: 'top', fontSize: 10, fill: 'var(--muted-foreground)' }}
+                />
+              )}
               <Bar dataKey="Radfahren" stackId="a" fill="#fc4c02" fillOpacity={0.85} isAnimationActive={false} />
               <Bar dataKey="Workout" stackId="a" fill="#60a5fa" fillOpacity={0.85} isAnimationActive={false} />
               <Bar dataKey="Kraft" stackId="a" fill="#4ade80" fillOpacity={0.85} radius={[2, 2, 0, 0]} isAnimationActive={false} />
-            </BarChart>
+              <Line
+                type="monotone"
+                dataKey="Trend"
+                name={`${VOLUME_TREND_WEEKS}-Wochen-Ø`}
+                stroke="#facc15"
+                strokeWidth={2}
+                strokeDasharray="8,4"
+                dot={false}
+                isAnimationActive={false}
+              />
+            </ComposedChart>
           </ResponsiveContainer>
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Card className="shadow-sm border">
-          <CardContent className="p-4">
-            <p className="text-xs text-muted-foreground uppercase tracking-wider">Rad gesamt</p>
-            <p className="text-2xl font-bold mt-1">
-              {fmtNum(Math.round(stats.totalRide / 60), 0)}{' '}
-              <span className="text-sm font-normal text-muted-foreground">h</span>
-            </p>
-          </CardContent>
-        </Card>
-        <Card className="shadow-sm border">
-          <CardContent className="p-4">
-            <p className="text-xs text-muted-foreground uppercase tracking-wider">Aktive Wochen</p>
-            <p className="text-2xl font-bold mt-1">
-              {stats.activeWeeks}{' '}
-              <span className="text-sm font-normal text-muted-foreground">/ {stats.total}</span>
-            </p>
-          </CardContent>
-        </Card>
-        <Card className="shadow-sm border">
-          <CardContent className="p-4">
-            <p className="text-xs text-muted-foreground uppercase tracking-wider">Beste Woche</p>
-            <p className="text-2xl font-bold mt-1">
-              {stats.peakRide}{' '}
-              <span className="text-sm font-normal text-muted-foreground">min</span>
-            </p>
-          </CardContent>
-        </Card>
-        <Card className="shadow-sm border">
-          <CardContent className="p-4">
-            <p className="text-xs text-muted-foreground uppercase tracking-wider">⌀ Woche (Rad)</p>
-            <p className="text-2xl font-bold mt-1">
-              {stats.avgRide}{' '}
-              <span className="text-sm font-normal text-muted-foreground">min</span>
-            </p>
-          </CardContent>
-        </Card>
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
+        {tiles.map(t => (
+          <Card key={t.label} className="shadow-sm border">
+            <CardContent className="p-4">
+              <p className="text-xs text-muted-foreground uppercase tracking-wider">{t.label}</p>
+              <p className="text-2xl font-bold mt-1" style={{ color: t.color }}>{t.value}</p>
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
-      {(stats.totalWorkout > 0 || stats.totalWeight > 0) && (
-        <div className="flex flex-wrap gap-3">
-          {stats.totalWorkout > 0 && (
-            <Card className="shadow-sm border">
-              <CardContent className="px-4 py-3">
-                <p className="text-xs text-muted-foreground">Workout gesamt</p>
-                <p className="text-lg font-bold text-[#60a5fa] mt-0.5">{fmtNum(Math.round(stats.totalWorkout / 60), 0)} h</p>
-              </CardContent>
-            </Card>
-          )}
-          {stats.totalWeight > 0 && (
-            <Card className="shadow-sm border">
-              <CardContent className="px-4 py-3">
-                <p className="text-xs text-muted-foreground">Krafttraining gesamt</p>
-                <p className="text-lg font-bold text-[#4ade80] mt-0.5">{fmtNum(Math.round(stats.totalWeight / 60), 0)} h</p>
-              </CardContent>
-            </Card>
-          )}
-        </div>
+      {insights.length > 0 && (
+        <Card className="shadow-sm border">
+          <CardHeader className="pb-1 border-b">
+            <CardTitle className="text-base font-semibold">Einschätzung</CardTitle>
+            <p className="text-xs text-muted-foreground mt-0.5">Automatisch aus deinen Daten abgeleitet</p>
+          </CardHeader>
+          <CardContent className="pt-4">
+            <ul className="space-y-2.5">
+              {insights.map((insight, i) => (
+                <li key={i} className="flex items-start gap-2.5 text-sm">
+                  <span className={`mt-0.5 shrink-0 font-bold leading-none ${
+                    insight.type === 'positive' ? 'text-green-500' :
+                    insight.type === 'warning'  ? 'text-orange-500' :
+                    'text-muted-foreground'
+                  }`}>
+                    {insight.type === 'positive' ? '↑' : insight.type === 'warning' ? '↓' : '·'}
+                  </span>
+                  <span className="text-muted-foreground leading-snug">{insight.text}</span>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
       )}
     </div>
   );
@@ -693,21 +877,39 @@ function VolumenTab() {
 
 const DAYS_SHORT = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
 const DAYS_FULL  = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag', 'Sonntag'];
-const PITCH = 20;
 
-function colorClass(count: number, maxCount: number): string {
-  if (count === 0) return 'bg-muted hover:bg-muted/80';
-  const t = count / maxCount;
-  if (t <= 0.25) return 'bg-orange-200 hover:bg-orange-300';
-  if (t <= 0.5)  return 'bg-orange-400 hover:bg-orange-500';
-  if (t <= 0.75) return 'bg-orange-500 hover:bg-orange-600';
-  return                 'bg-primary hover:bg-primary/80';
+// 3h-Blöcke statt 24 Einzelstunden – 56 statt 168 Zellen, deutlich lesbarer
+const BLOCKS = [
+  { label: 'Nacht',      sub: '00–03' },
+  { label: 'Früh',       sub: '03–06' },
+  { label: 'Morgen',     sub: '06–09' },
+  { label: 'Vormittag',  sub: '09–12' },
+  { label: 'Mittag',     sub: '12–15' },
+  { label: 'Nachmittag', sub: '15–18' },
+  { label: 'Abend',      sub: '18–21' },
+  { label: 'Spätabend',  sub: '21–24' },
+];
+const BLOCK_HOURS = 3;
+
+function blockClasses(minutes: number, maxMinutes: number): string {
+  if (minutes === 0) return 'bg-muted text-muted-foreground';
+  const t = minutes / maxMinutes;
+  if (t <= 0.25) return 'bg-orange-200 text-orange-950';
+  if (t <= 0.5)  return 'bg-orange-400 text-orange-950';
+  if (t <= 0.75) return 'bg-orange-500 text-white';
+  return                 'bg-primary text-primary-foreground';
 }
 
-interface TooltipState { x: number; y: number; wd: number; h: number; count: number; }
+interface BlockCell { rideCount: number; rideMinutes: number; workoutCount: number; workoutMinutes: number; }
+interface TooltipState { x: number; y: number; wd: number; block: number; cell: BlockCell; }
+type Insight = { text: string; type: 'positive' | 'neutral' | 'warning' };
 
 function TageszeitTab() {
-  const [cells, setCells] = useState<{ weekday: number; hour: number; count: number }[]>([]);
+  const [cells, setCells] = useState<{
+    weekday: number; hour: number;
+    ride_count: number; ride_minutes: number;
+    workout_count: number; workout_minutes: number;
+  }[]>([]);
   const [availableYears, setAvailableYears] = useState<string[]>([]);
   const [selectedYear, setSelectedYear] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -739,20 +941,66 @@ function TageszeitTab() {
     init();
   }, []);
 
-  const grid: number[][] = Array.from({ length: 7 }, () => new Array(24).fill(0));
-  for (const c of cells) grid[c.weekday][c.hour] = c.count;
+  // Stunden-Zellen zu 3h-Blöcken je Wochentag aggregieren, Rad + Workout getrennt gezählt
+  const grid: BlockCell[][] = Array.from({ length: 7 }, () =>
+    Array.from({ length: BLOCKS.length }, () => ({ rideCount: 0, rideMinutes: 0, workoutCount: 0, workoutMinutes: 0 }))
+  );
+  for (const c of cells) {
+    const block = Math.floor(c.hour / BLOCK_HOURS);
+    const g = grid[c.weekday][block];
+    g.rideCount += c.ride_count;
+    g.rideMinutes += c.ride_minutes;
+    g.workoutCount += c.workout_count;
+    g.workoutMinutes += c.workout_minutes;
+  }
 
-  const maxCount = cells.length ? Math.max(...cells.map(c => c.count)) : 1;
-  const totalCount = cells.reduce((s, c) => s + c.count, 0);
+  const totalRideMinutes = cells.reduce((s, c) => s + c.ride_minutes, 0);
+  const totalWorkoutMinutes = cells.reduce((s, c) => s + c.workout_minutes, 0);
+  const totalMinutes = totalRideMinutes + totalWorkoutMinutes;
+  const totalCount = cells.reduce((s, c) => s + c.ride_count + c.workout_count, 0);
+  const maxCellMinutes = Math.max(1, ...grid.flat().map(c => c.rideMinutes + c.workoutMinutes));
 
-  const weekdaySums = Array(7).fill(0);
-  for (const c of cells) weekdaySums[c.weekday] += c.count;
-  const peakDay = DAYS_FULL[weekdaySums.indexOf(Math.max(...weekdaySums))];
+  // Aktivste Kombination aus Wochentag + Zeitblock (nach Trainingszeit, nicht nur Anzahl)
+  let peakWd = 0, peakBlock = 0, peakMinutes = 0;
+  grid.forEach((row, wd) => row.forEach((c, b) => {
+    const m = c.rideMinutes + c.workoutMinutes;
+    if (m > peakMinutes) { peakMinutes = m; peakWd = wd; peakBlock = b; }
+  }));
 
-  const hourSums = Array(24).fill(0);
-  for (const c of cells) hourSums[c.hour] += c.count;
-  const peakH = hourSums.indexOf(Math.max(...hourSums));
-  const peakHour = `${String(peakH).padStart(2, '0')}:00`;
+  // Dominanter Zeitblock getrennt für Werktage/Wochenende, für den Vergleich im Insight-Text
+  function dominantBlock(weekdays: number[]): number | null {
+    const sums = Array(BLOCKS.length).fill(0);
+    for (const wd of weekdays) grid[wd].forEach((c, b) => { sums[b] += c.rideMinutes + c.workoutMinutes; });
+    const max = Math.max(...sums);
+    return max > 0 ? sums.indexOf(max) : null;
+  }
+  const weekdayBlock = dominantBlock([0, 1, 2, 3, 4]);
+  const weekendBlock = dominantBlock([5, 6]);
+
+  const insights: Insight[] = [];
+  if (peakMinutes > 0) {
+    insights.push({
+      text: `Am liebsten trainierst du ${DAYS_FULL[peakWd].toLowerCase()}s ${BLOCKS[peakBlock].label.toLowerCase()} (${fmtTime(peakMinutes * 60)} insgesamt in diesem Slot).`,
+      type: 'positive',
+    });
+  }
+  if (weekdayBlock !== null && weekendBlock !== null) {
+    if (weekdayBlock !== weekendBlock) {
+      insights.push({
+        text: `Unter der Woche liegt dein Schwerpunkt ${BLOCKS[weekdayBlock].label.toLowerCase()}, am Wochenende eher ${BLOCKS[weekendBlock].label.toLowerCase()}.`,
+        type: 'neutral',
+      });
+    } else {
+      insights.push({
+        text: `Werktags wie am Wochenende trainierst du meist ${BLOCKS[weekdayBlock].label.toLowerCase()}.`,
+        type: 'neutral',
+      });
+    }
+  }
+  if (totalMinutes > 0 && totalWorkoutMinutes > 0) {
+    const pct = Math.round((totalWorkoutMinutes / totalMinutes) * 100);
+    insights.push({ text: `Workouts machen ${pct}% deiner erfassten Trainingszeit aus, Radtouren ${100 - pct}%.`, type: 'neutral' });
+  }
 
   return (
     <div className="space-y-6">
@@ -790,14 +1038,23 @@ function TageszeitTab() {
           style={{ left: tooltip.x + 12, top: tooltip.y - 8 }}
         >
           <p className="font-semibold">
-            {DAYS_FULL[tooltip.wd]} · {String(tooltip.h).padStart(2, '0')}:00–{String(tooltip.h + 1).padStart(2, '0')}:00
+            {DAYS_FULL[tooltip.wd]} · {BLOCKS[tooltip.block].label} ({BLOCKS[tooltip.block].sub})
           </p>
-          {tooltip.count === 0 ? (
-            <p className="text-muted-foreground">Kein Start</p>
+          {tooltip.cell.rideCount === 0 && tooltip.cell.workoutCount === 0 ? (
+            <p className="text-muted-foreground mt-0.5">Keine Aktivität</p>
           ) : (
-            <p className="text-primary mt-0.5">
-              {tooltip.count} {tooltip.count === 1 ? 'Aktivität' : 'Aktivitäten'}
-            </p>
+            <>
+              {tooltip.cell.rideCount > 0 && (
+                <p className="text-primary mt-0.5">
+                  {tooltip.cell.rideCount} {tooltip.cell.rideCount === 1 ? 'Ride' : 'Rides'} · {fmtTime(tooltip.cell.rideMinutes * 60)}
+                </p>
+              )}
+              {tooltip.cell.workoutCount > 0 && (
+                <p className="text-violet-400 mt-0.5">
+                  {tooltip.cell.workoutCount} {tooltip.cell.workoutCount === 1 ? 'Workout' : 'Workouts'} · {fmtTime(tooltip.cell.workoutMinutes * 60)}
+                </p>
+              )}
+            </>
           )}
         </div>
       )}
@@ -808,11 +1065,12 @@ function TageszeitTab() {
         <>
           <div className="flex flex-wrap gap-2">
             {[
-              { label: 'Aktivitäten', value: totalCount },
-              { label: 'Lieblingstag', value: peakDay },
-              { label: 'Lieblingszeit', value: peakHour },
+              { label: 'Trainingszeit gesamt', value: fmtTime(totalMinutes * 60) },
+              { label: 'Aktivitäten', value: fmtNum(totalCount) },
+              { label: 'Aktivste Zeit', value: `${DAYS_SHORT[peakWd]} · ${BLOCKS[peakBlock].label}` },
+              { label: 'Rad / Workout', value: `${fmtNum(Math.round(totalRideMinutes / 60))}h / ${fmtNum(Math.round(totalWorkoutMinutes / 60))}h` },
             ].map(({ label, value }) => (
-              <div key={label} className="rounded-lg bg-muted/60 p-3 text-center min-w-[7rem]">
+              <div key={label} className="rounded-lg bg-muted/60 p-3 text-center min-w-[8rem]">
                 <p className="text-xs text-muted-foreground">{label}</p>
                 <p className="mt-0.5 text-lg font-bold text-primary">{value}</p>
               </div>
@@ -820,40 +1078,42 @@ function TageszeitTab() {
           </div>
 
           <div className="overflow-x-auto">
-            <div className="inline-flex gap-1 min-w-max">
-              <div className="flex flex-col gap-1 mr-1 pt-6">
-                {DAYS_SHORT.map(day => (
-                  <div key={day} className="h-3 w-7 text-right text-[10px] leading-3 text-muted-foreground">{day}</div>
-                ))}
-              </div>
-              <div className="flex flex-col">
-                <div className="relative h-5 mb-1">
-                  {[0, 3, 6, 9, 12, 15, 18, 21].map(h => (
-                    <span key={h} className="absolute text-[10px] text-muted-foreground" style={{ left: h * PITCH }}>
-                      {String(h).padStart(2, '0')}h
-                    </span>
-                  ))}
+            <div
+              className="inline-grid gap-1 min-w-max items-center"
+              style={{ gridTemplateColumns: `3.5rem repeat(${BLOCKS.length}, 5rem)` }}
+            >
+              <div />
+              {BLOCKS.map(b => (
+                <div key={b.label} className="text-center pb-1">
+                  <p className="text-[11px] font-medium text-muted-foreground leading-tight">{b.label}</p>
+                  <p className="text-[9px] text-muted-foreground/70 leading-tight">{b.sub}</p>
                 </div>
-                <div className="flex gap-1">
-                  {Array.from({ length: 24 }, (_, h) => (
-                    <div key={h} className="flex flex-col gap-1">
-                      {DAYS_SHORT.map((_, wd) => (
-                        <div
-                          key={wd}
-                          className={`h-3 w-4 rounded-sm cursor-default transition-colors ${colorClass(grid[wd][h], maxCount)}`}
-                          onMouseEnter={e => setTooltip({ x: e.pageX, y: e.pageY, wd, h, count: grid[wd][h] })}
-                          onMouseLeave={() => setTooltip(null)}
-                        />
-                      ))}
-                    </div>
-                  ))}
-                </div>
-              </div>
+              ))}
+
+              {DAYS_SHORT.map((day, wd) => (
+                <Fragment key={day}>
+                  <div className="text-xs text-muted-foreground text-right pr-2">{day}</div>
+                  {BLOCKS.map((_, b) => {
+                    const cell = grid[wd][b];
+                    const minutes = cell.rideMinutes + cell.workoutMinutes;
+                    return (
+                      <div
+                        key={b}
+                        className={`h-10 rounded-md flex items-center justify-center text-[11px] font-semibold cursor-default transition-[filter] hover:brightness-110 ${blockClasses(minutes, maxCellMinutes)}`}
+                        onMouseEnter={e => setTooltip({ x: e.pageX, y: e.pageY, wd, block: b, cell })}
+                        onMouseLeave={() => setTooltip(null)}
+                      >
+                        {minutes > 0 ? fmtTime(minutes * 60) : ''}
+                      </div>
+                    );
+                  })}
+                </Fragment>
+              ))}
             </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-            <span>Weniger</span>
+            <span>Weniger Trainingszeit</span>
             <div className="h-3 w-3 rounded-sm bg-muted" />
             <div className="h-3 w-3 rounded-sm bg-orange-200" />
             <div className="h-3 w-3 rounded-sm bg-orange-400" />
@@ -861,6 +1121,31 @@ function TageszeitTab() {
             <div className="h-3 w-3 rounded-sm bg-primary" />
             <span>Mehr</span>
           </div>
+
+          {insights.length > 0 && (
+            <Card className="shadow-sm border">
+              <CardHeader className="pb-1 border-b">
+                <CardTitle className="text-base font-semibold">Einschätzung</CardTitle>
+                <p className="text-xs text-muted-foreground mt-0.5">Automatisch aus deinen Daten abgeleitet</p>
+              </CardHeader>
+              <CardContent className="pt-4">
+                <ul className="space-y-2.5">
+                  {insights.map((insight, i) => (
+                    <li key={i} className="flex items-start gap-2.5 text-sm">
+                      <span className={`mt-0.5 shrink-0 font-bold leading-none ${
+                        insight.type === 'positive' ? 'text-green-500' :
+                        insight.type === 'warning'  ? 'text-orange-500' :
+                        'text-muted-foreground'
+                      }`}>
+                        {insight.type === 'positive' ? '↑' : insight.type === 'warning' ? '↓' : '·'}
+                      </span>
+                      <span className="text-muted-foreground leading-snug">{insight.text}</span>
+                    </li>
+                  ))}
+                </ul>
+              </CardContent>
+            </Card>
+          )}
         </>
       ) : (
         <p className="text-muted-foreground text-sm">Keine Daten vorhanden.</p>

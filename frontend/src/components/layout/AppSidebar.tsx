@@ -88,7 +88,6 @@ const navGroups: NavGroup[] = [
       { href: '/cadence',       label: 'Kadenz', icon: <Activity size={13} /> },
       { href: '/form',          label: 'Form (PMC)', icon: <TrendingUp size={13} /> },
       { href: '/tempcorr',      label: 'Wetter & Leistung', icon: <BarChart size={13} /> },
-      { href: '/timeheatmap',   label: 'Tageszeit', icon: <Map size={13} /> },
       { href: '/calories',      label: 'Kalorien', icon: <Cookie size={13} /> },
       { href: '/speed-trend',   label: 'Tempoentwicklung', icon: <TrendingUp size={13} /> },
       { href: '/weekend',       label: 'Wochentag-Analyse', icon: <SunMoon size={13} /> },

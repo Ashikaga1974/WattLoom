@@ -571,7 +571,11 @@ export const api = {
     get<{ durations_s: number[]; labels: string[]; best_hr: number[] }>(`/analytics/hr-curve${buildQuery({ year })}`),
 
   timeHeatmap: (year?: number, tz_offset?: number) =>
-    get<{ cells: { weekday: number; hour: number; count: number }[] }>(`/analytics/time-heatmap${buildQuery({ year, tz_offset })}`),
+    get<{ cells: {
+      weekday: number; hour: number;
+      ride_count: number; ride_minutes: number;
+      workout_count: number; workout_minutes: number;
+    }[] }>(`/analytics/time-heatmap${buildQuery({ year, tz_offset })}`),
 
   speedHr: () =>
     get<{ points: { year: number; month: string; speed_kmh: number; hr: number; dist_km: number }[] }>('/analytics/speed-hr'),

@@ -20,7 +20,8 @@ def _hr_max_fallback(conn) -> float:
 @router.get("/time-heatmap")
 def time_heatmap(year: int = Query(None), tz_offset: int = Query(None, ge=-14, le=14)):
     """
-    Anzahl Aktivitäten pro Wochentag (0=Mo … 6=So) und Stunde (0–23).
+    Trainingsminuten + Anzahl pro Wochentag (0=Mo … 6=So) und Stunde (0–23),
+    getrennt nach Radtouren (activities) und Workouts (other_activities).
     tz_offset: Stunden-Versatz gegenüber UTC (z.B. 2 für CEST).
     Fehlt der Parameter, wird tz_offset aus der config-Tabelle gelesen.
     """
@@ -33,27 +34,45 @@ def time_heatmap(year: int = Query(None), tz_offset: int = Query(None, ge=-14, l
         # SQLite-Modifier für den Stundenversatz
         offset_modifier = f"'{tz_offset:+d} hours'" if tz_offset != 0 else "'+0 hours'"
 
-        year_filter = ""
-        params: list = []
-        if year:
-            year_filter = "WHERE strftime('%Y', datetime(start_date_local, " + offset_modifier + ")) = ?"
-            params.append(str(year))
+        def fetch(table: str) -> dict[tuple[int, int], tuple[int, float]]:
+            year_filter = ""
+            params: list = []
+            if year:
+                year_filter = "AND strftime('%Y', datetime(start_date_local, " + offset_modifier + ")) = ?"
+                params.append(str(year))
 
-        rows = conn.execute(
-            f"""
-            SELECT
-                (CAST(strftime('%w', datetime(start_date_local, {offset_modifier})) AS INTEGER) + 6) % 7 AS weekday,
-                CAST(strftime('%H', datetime(start_date_local, {offset_modifier})) AS INTEGER) AS hour,
-                COUNT(*) AS count
-            FROM activities
-            {year_filter}
-            GROUP BY weekday, hour
-            ORDER BY weekday, hour
-            """,
-            params,
-        ).fetchall()
+            rows = conn.execute(
+                f"""
+                SELECT
+                    (CAST(strftime('%w', datetime(start_date_local, {offset_modifier})) AS INTEGER) + 6) % 7 AS weekday,
+                    CAST(strftime('%H', datetime(start_date_local, {offset_modifier})) AS INTEGER) AS hour,
+                    COUNT(*) AS count,
+                    COALESCE(SUM(moving_time_s), 0) AS total_s
+                FROM {table}
+                WHERE strftime('%Y', start_date_local) >= '2000'
+                {year_filter}
+                GROUP BY weekday, hour
+                """,
+                params,
+            ).fetchall()
+            return {(r["weekday"], r["hour"]): (r["count"], r["total_s"]) for r in rows}
 
-        return {"cells": [{"weekday": r["weekday"], "hour": r["hour"], "count": r["count"]} for r in rows]}
+        rides = fetch("activities")
+        workouts = fetch("other_activities")
+
+        cells = []
+        for wd in range(7):
+            for h in range(24):
+                ride_count, ride_s = rides.get((wd, h), (0, 0))
+                workout_count, workout_s = workouts.get((wd, h), (0, 0))
+                if ride_count or workout_count:
+                    cells.append({
+                        "weekday": wd, "hour": h,
+                        "ride_count": ride_count, "ride_minutes": round(ride_s / 60),
+                        "workout_count": workout_count, "workout_minutes": round(workout_s / 60),
+                    })
+
+        return {"cells": cells}
 
 
 @router.get("/speed-hr")
@@ -1651,12 +1670,15 @@ def fitness_fingerprint():
     current_ctl = ctl
     current_tsb = ctl - atl
 
-    # Effizienz: Mittelwert der letzten 3 Monate
+    # Effizienz: Mittelwert der letzten 3 Monate (rollierend, auch für History-Punkte nutzbar)
     avail = sorted(eff_by_month.keys())
-    last3 = avail[-3:] if len(avail) >= 3 else avail
-    recent_eff: float | None = (
-        sum(eff_by_month[m] for m in last3) / len(last3) if last3 else None
-    )
+
+    def rolling_eff(as_of_month: str) -> float | None:
+        """Ø Effizienz der letzten (bis zu) 3 verfügbaren Monate bis einschließlich as_of_month."""
+        eligible = [m for m in avail if m <= as_of_month][-3:]
+        return sum(eff_by_month[m] for m in eligible) / len(eligible) if eligible else None
+
+    recent_eff: float | None = rolling_eff(avail[-1]) if avail else None
     eff_percentile: int | None = (
         round(sum(1 for e in all_effs if e <= recent_eff) / len(all_effs) * 100)
         if (all_effs and recent_eff is not None) else None
@@ -1712,7 +1734,7 @@ def fitness_fingerprint():
         snap = monthly_snapshots[m]
         s = round(
             ctl_score_fn(snap["ctl"])
-            + eff_score_fn(eff_by_month.get(m))
+            + eff_score_fn(rolling_eff(m))
             + form_score_fn(snap["tsb"])
             + consistency_score_fn(snap["date"])[0]
         )
