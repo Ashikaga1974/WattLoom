@@ -797,7 +797,8 @@ function VolumenTab() {
             <ComposedChart data={chartData} margin={{ top: 8, right: 16, bottom: 8, left: 8 }} barCategoryGap="15%">
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
               <XAxis
-                dataKey="label"
+                dataKey="week_start"
+                tickFormatter={weekLabel}
                 tick={{ fontSize: 10 }}
                 interval={Math.max(0, Math.floor(chartData.length / 20) - 1)}
                 angle={chartData.length > 30 ? -45 : 0}
@@ -809,7 +810,7 @@ function VolumenTab() {
               <Legend wrapperStyle={{ fontSize: 12 }} />
               {currentWeek && (
                 <ReferenceLine
-                  x={currentWeek.label}
+                  x={currentWeek.week_start}
                   stroke="var(--foreground)"
                   strokeOpacity={0.4}
                   strokeDasharray="2 2"
