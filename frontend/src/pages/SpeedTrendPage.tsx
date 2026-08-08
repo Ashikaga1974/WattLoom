@@ -18,8 +18,10 @@ import { api, type SpeedTrendData } from '@/lib/api';
 import { CHART_HEIGHT, CHART_HEIGHT_DENSE } from '@/lib/config';
 import { PageHeader } from '@/components/ui/page-header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { InsightCard } from '@/components/ui/insight-card';
 import { ChartTooltip } from '@/components/ui/chart-tooltip';
 import { fmtDate } from '@/lib/format';
+import type { Insight } from '@/lib/insights';
 
 // Farbskala blau → grün → orange (konsistent mit LeafletMap/SpeedChart)
 function speedColor(speed: number, min: number, max: number, lightness = 52): string {
@@ -34,9 +36,6 @@ function formatTs(ts: number): string {
 }
 
 // --- Insights ---
-type InsightType = 'positive' | 'neutral' | 'warning';
-interface Insight { text: string; type: InsightType }
-
 function buildInsights(data: SpeedTrendData): Insight[] {
   const insights: Insight[] = [];
   const { by_year, monthly_heatmap } = data;
@@ -536,30 +535,7 @@ export default function SpeedTrendPage() {
       )}
 
       {/* Einschätzung */}
-      {insights.length > 0 && (
-        <Card className="shadow-sm border">
-          <CardHeader className="pb-1 border-b">
-            <CardTitle className="text-base font-semibold">Einschätzung</CardTitle>
-            <p className="text-xs text-muted-foreground mt-0.5">Automatisch aus deinen Daten abgeleitet</p>
-          </CardHeader>
-          <CardContent className="pt-4">
-            <ul className="space-y-2.5">
-              {insights.map((insight, i) => (
-                <li key={i} className="flex items-start gap-2.5 text-sm">
-                  <span className={`mt-0.5 shrink-0 font-bold leading-none ${
-                    insight.type === 'positive' ? 'text-green-500' :
-                    insight.type === 'warning'  ? 'text-orange-500' :
-                    'text-muted-foreground'
-                  }`}>
-                    {insight.type === 'positive' ? '↑' : insight.type === 'warning' ? '↓' : '·'}
-                  </span>
-                  <span className="text-muted-foreground leading-snug">{insight.text}</span>
-                </li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
-      )}
+      <InsightCard insights={insights} />
     </div>
   );
 }

@@ -13,6 +13,12 @@ export const SPEED_COLOR_BUCKETS = 20;
 /** Anzahl Wochen im Dashboard-Sparkline. */
 export const SPARKLINE_WEEKS = 8;
 
+/** Stundenbreite der Zeitblöcke auf der Tageszeit-Auswertung (/progress, Tageszeit-Tab). */
+export const BLOCK_HOURS = 3;
+
+/** Rolling-Ø-Fenster (Wochen) für die Trendlinie auf der Volumen-Auswertung (/progress, Volumen-Tab). */
+export const VOLUME_TREND_WEEKS = 4;
+
 /** Einheitliche Chart-Höhen (px) – ersetzt vormals ~12 verschiedene Ad-hoc-Werte je Seite. */
 export const CHART_HEIGHT_MINI = 100;    // winzige Inline-Sparklines (z.B. ActivityDetailPage)
 export const CHART_HEIGHT_COMPACT = 140; // kleine Trend-Charts (z.B. Dashboard, Wrapped)

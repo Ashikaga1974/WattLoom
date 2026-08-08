@@ -1,10 +1,11 @@
 import { useEffect, useState, useMemo, Fragment } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { api, type WeeklyVolume, type FitnessFingerprint } from '@/lib/api';
-import { CHART_HEIGHT, CHART_HEIGHT_DENSE } from '@/lib/config';
+import { CHART_HEIGHT, CHART_HEIGHT_DENSE, BLOCK_HOURS, VOLUME_TREND_WEEKS } from '@/lib/config';
 import { PageHeader } from '@/components/ui/page-header';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { InsightCard } from '@/components/ui/insight-card';
 import { Button } from '@/components/ui/button';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -16,6 +17,7 @@ import {
 } from 'recharts';
 import { fmtNum, fmtTime } from '@/lib/format';
 import { ChartTooltip } from '@/components/ui/chart-tooltip';
+import type { Insight } from '@/lib/insights';
 
 // ─── Custom Tooltips ─────────────────────────────────────────────────────────
 
@@ -241,7 +243,8 @@ function FortschrittTab() {
   const doy = todayDoy();
 
   useEffect(() => {
-    Promise.all([api.yearProgress(), api.monthlyAll(), api.weeklyVolume(104), api.fitnessFingerprint()])
+    // buildTrendInsights nutzt nur die letzten 24 Wochen (Kurzfristig-Vergleich) – kein Grund, mehr zu laden
+    Promise.all([api.yearProgress(), api.monthlyAll(), api.weeklyVolume(24), api.fitnessFingerprint()])
       .then(([progress, monthly, weekly, fit]) => {
         setYearData(progress.years);
         setMonthlyAll(monthly);
@@ -486,30 +489,11 @@ function FortschrittTab() {
         </div>
       )}
 
-      {trendInsights.length > 0 && (
-        <Card className="shadow-sm border">
-          <CardHeader className="pb-1 border-b">
-            <CardTitle className="text-base font-semibold">Trainingsentwicklung</CardTitle>
-            <p className="text-xs text-muted-foreground mt-0.5">Langfristig vs. kurzfristig – automatisch aus deinen Daten abgeleitet</p>
-          </CardHeader>
-          <CardContent className="pt-4">
-            <ul className="space-y-2.5">
-              {trendInsights.map((insight, i) => (
-                <li key={i} className="flex items-start gap-2.5 text-sm">
-                  <span className={`mt-0.5 shrink-0 font-bold leading-none ${
-                    insight.type === 'positive' ? 'text-green-500' :
-                    insight.type === 'warning'  ? 'text-orange-500' :
-                    'text-muted-foreground'
-                  }`}>
-                    {insight.type === 'positive' ? '↑' : insight.type === 'warning' ? '↓' : '·'}
-                  </span>
-                  <span className="text-muted-foreground leading-snug">{insight.text}</span>
-                </li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
-      )}
+      <InsightCard
+        insights={trendInsights}
+        title="Trainingsentwicklung"
+        subtitle="Langfristig vs. kurzfristig – automatisch aus deinen Daten abgeleitet"
+      />
     </div>
   );
 }
@@ -678,9 +662,6 @@ function calcStats(data: WeeklyVolume[]) {
   return { totalRide, totalWorkout, totalWeight, activeWeeks, peakTotal, avgTotal, total: data.length };
 }
 
-// Rolling-Ø-Fenster für die Trendlinie über den Wochenbalken
-const VOLUME_TREND_WEEKS = 4;
-
 function buildVolumeInsights(
   chartData: { label: string; total: number }[],
   stats: ReturnType<typeof calcStats>
@@ -846,30 +827,7 @@ function VolumenTab() {
         ))}
       </div>
 
-      {insights.length > 0 && (
-        <Card className="shadow-sm border">
-          <CardHeader className="pb-1 border-b">
-            <CardTitle className="text-base font-semibold">Einschätzung</CardTitle>
-            <p className="text-xs text-muted-foreground mt-0.5">Automatisch aus deinen Daten abgeleitet</p>
-          </CardHeader>
-          <CardContent className="pt-4">
-            <ul className="space-y-2.5">
-              {insights.map((insight, i) => (
-                <li key={i} className="flex items-start gap-2.5 text-sm">
-                  <span className={`mt-0.5 shrink-0 font-bold leading-none ${
-                    insight.type === 'positive' ? 'text-green-500' :
-                    insight.type === 'warning'  ? 'text-orange-500' :
-                    'text-muted-foreground'
-                  }`}>
-                    {insight.type === 'positive' ? '↑' : insight.type === 'warning' ? '↓' : '·'}
-                  </span>
-                  <span className="text-muted-foreground leading-snug">{insight.text}</span>
-                </li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
-      )}
+      <InsightCard insights={insights} />
     </div>
   );
 }
@@ -890,7 +848,6 @@ const BLOCKS = [
   { label: 'Abend',      sub: '18–21' },
   { label: 'Spätabend',  sub: '21–24' },
 ];
-const BLOCK_HOURS = 3;
 
 function blockClasses(minutes: number, maxMinutes: number): string {
   if (minutes === 0) return 'bg-muted text-muted-foreground';
@@ -903,7 +860,6 @@ function blockClasses(minutes: number, maxMinutes: number): string {
 
 interface BlockCell { rideCount: number; rideMinutes: number; workoutCount: number; workoutMinutes: number; }
 interface TooltipState { x: number; y: number; wd: number; block: number; cell: BlockCell; }
-type Insight = { text: string; type: 'positive' | 'neutral' | 'warning' };
 
 function TageszeitTab() {
   const [cells, setCells] = useState<{
@@ -1123,30 +1079,7 @@ function TageszeitTab() {
             <span>Mehr</span>
           </div>
 
-          {insights.length > 0 && (
-            <Card className="shadow-sm border">
-              <CardHeader className="pb-1 border-b">
-                <CardTitle className="text-base font-semibold">Einschätzung</CardTitle>
-                <p className="text-xs text-muted-foreground mt-0.5">Automatisch aus deinen Daten abgeleitet</p>
-              </CardHeader>
-              <CardContent className="pt-4">
-                <ul className="space-y-2.5">
-                  {insights.map((insight, i) => (
-                    <li key={i} className="flex items-start gap-2.5 text-sm">
-                      <span className={`mt-0.5 shrink-0 font-bold leading-none ${
-                        insight.type === 'positive' ? 'text-green-500' :
-                        insight.type === 'warning'  ? 'text-orange-500' :
-                        'text-muted-foreground'
-                      }`}>
-                        {insight.type === 'positive' ? '↑' : insight.type === 'warning' ? '↓' : '·'}
-                      </span>
-                      <span className="text-muted-foreground leading-snug">{insight.text}</span>
-                    </li>
-                  ))}
-                </ul>
-              </CardContent>
-            </Card>
-          )}
+          <InsightCard insights={insights} />
         </>
       ) : (
         <p className="text-muted-foreground text-sm">Keine Daten vorhanden.</p>
