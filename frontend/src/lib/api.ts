@@ -739,6 +739,13 @@ export const api = {
     fetch(`${BASE}/import/recalculate-power`, { method: 'POST' })
       .then(r => { if (!r.ok) throw new Error(`Fehler ${r.status}`); return r.json(); }),
 
+  appSyncStatus: (): Promise<{ last_synced_at: string | null; last_status: string | null; last_message: string | null }> =>
+    get('/app-sync/status'),
+
+  appSyncRun: (): Promise<{ ok: boolean; message: string; ran_at: string }> =>
+    fetch(`${BASE}/app-sync/run`, { method: 'POST' })
+      .then(r => { if (!r.ok) throw new Error(`Fehler ${r.status}`); return r.json(); }),
+
   updateBike: (bikeId: string, name: string): Promise<{ ok: boolean }> =>
     fetch(`${BASE}/bikes/${bikeId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) })
       .then(r => { if (!r.ok) throw new Error(`Fehler ${r.status}`); return r.json(); }),

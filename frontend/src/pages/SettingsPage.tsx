@@ -4,6 +4,7 @@ import { api, type Bike, type Settings, type WeatherStatus } from '@/lib/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { CONFIG_DEFAULTS, useConfigReload } from '@/lib/config-context';
+import { fmtClock, fmtDate } from '@/lib/format';
 
 type ImportStatus = 'idle' | 'running' | 'done' | 'error';
 
@@ -71,6 +72,11 @@ export default function SettingsPage() {
   const [powerMsg, setPowerMsg]       = useState<string | null>(null);
   const [powerError, setPowerError]   = useState<string | null>(null);
 
+  // MyBikingApp-Sync
+  const [appSyncStatus, setAppSyncStatus] = useState<{ last_synced_at: string | null; last_status: string | null; last_message: string | null } | null>(null);
+  const [appSyncBusy, setAppSyncBusy]     = useState(false);
+  const [appSyncError, setAppSyncError]   = useState<string | null>(null);
+
   // Import-Sicherheitsabfrage
   const [importConfirm, setImportConfirm] = useState(false);
 
@@ -130,6 +136,26 @@ export default function SettingsPage() {
     }
   }
 
+  async function loadAppSyncStatus() {
+    try {
+      setAppSyncStatus(await api.appSyncStatus());
+    } catch { /* ignorieren */ }
+  }
+
+  async function startAppSync() {
+    setAppSyncBusy(true);
+    setAppSyncError(null);
+    try {
+      const res = await api.appSyncRun();
+      if (!res.ok) setAppSyncError(res.message);
+      await loadAppSyncStatus();
+    } catch (e: unknown) {
+      setAppSyncError(e instanceof Error ? e.message : 'Unbekannter Fehler');
+    } finally {
+      setAppSyncBusy(false);
+    }
+  }
+
   async function refreshStatus() {
     try {
       const s = await api.importStatus();
@@ -163,6 +189,7 @@ export default function SettingsPage() {
 
       await refreshStatus();
       await refreshWeatherStatus();
+      await loadAppSyncStatus();
 
       try {
         const b = await api.bikes();
@@ -965,6 +992,41 @@ export default function SettingsPage() {
             className="rounded-md px-5 py-2 text-sm font-medium bg-orange-500 hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-white cursor-pointer"
           >
             {powerBusy ? 'Startet…' : 'Leistung für alle Fahrten schätzen'}
+          </button>
+        </CardContent>
+      </Card>
+
+      {/* ── MyBikingApp-Sync ── */}
+      <Card>
+        <CardHeader className="border-b border-border pb-3">
+          <CardTitle className="text-sm font-semibold">MyBikingApp-Sync</CardTitle>
+          <p className="text-xs text-muted-foreground">
+            Spiegelt die Daten in die Cloud-DB der mobilen App (Neon Postgres). Manuell anstoßen,
+            z.B. nach jedem Strava-Import.
+          </p>
+        </CardHeader>
+        <CardContent className="pt-5 space-y-4">
+          {appSyncStatus?.last_synced_at && (
+            <p className="text-sm text-muted-foreground">
+              Letzter Sync: {fmtDate(appSyncStatus.last_synced_at)} {fmtClock(appSyncStatus.last_synced_at)}
+              {appSyncStatus.last_status === 'error' && (
+                <span className="text-red-500"> – fehlgeschlagen: {appSyncStatus.last_message}</span>
+              )}
+              {appSyncStatus.last_status === 'ok' && (
+                <span className="text-green-600"> – {appSyncStatus.last_message}</span>
+              )}
+            </p>
+          )}
+          {!appSyncStatus?.last_synced_at && (
+            <p className="text-sm text-muted-foreground">Noch nicht synchronisiert.</p>
+          )}
+          {appSyncError && <p className="text-sm text-red-500">{appSyncError}</p>}
+          <button
+            onClick={startAppSync}
+            disabled={appSyncBusy}
+            className="rounded-md px-5 py-2 text-sm font-medium bg-orange-500 hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-white cursor-pointer"
+          >
+            {appSyncBusy ? 'Synchronisiert…' : 'Jetzt synchronisieren'}
           </button>
         </CardContent>
       </Card>
