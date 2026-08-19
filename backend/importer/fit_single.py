@@ -36,6 +36,7 @@ _SPORT_LABELS: dict[str, str] = {
     "hiking":    "Wandern",
     "yoga":      "Yoga",
     "fitness_equipment": "Fitness",
+    "rowing":    "Rudern",
 }
 
 
