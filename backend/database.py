@@ -350,6 +350,21 @@ def init_db() -> None:
             )
         """)
 
+        # PR-Erkennung (Best-by-Distance-Snapshot vor/nach Import) – jede Zeile ist ein
+        # erkannter neuer Rekord, der auf dem Dashboard erscheint, bis er verworfen wird.
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS pr_events (
+                id                INTEGER PRIMARY KEY AUTOINCREMENT,
+                distance_km       REAL NOT NULL,
+                best_time_s       REAL NOT NULL,
+                best_speed_kmh    REAL,
+                activity_id       INTEGER NOT NULL,
+                activity_name     TEXT,
+                previous_time_s   REAL NOT NULL,
+                created_at        TEXT NOT NULL DEFAULT (datetime('now'))
+            )
+        """)
+
         # db_connection() committet beim Schließen nicht automatisch – ohne diesen commit() würde
         # eine hier noch offene, von INSERT/UPDATE implizit gestartete Transaktion (z.B. die
         # purchase_items-Datenübernahme oben) beim conn.close() stillschweigend zurückgerollt,

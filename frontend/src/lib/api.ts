@@ -302,6 +302,17 @@ export interface BestByDistanceBucket {
   actual_distance_km: number | null;
 }
 
+export interface PrEvent {
+  id: number;
+  distance_km: number;
+  best_time_s: number;
+  best_speed_kmh: number | null;
+  activity_id: number;
+  activity_name: string | null;
+  previous_time_s: number;
+  created_at: string;
+}
+
 export interface RouteClusterRide {
   id: number;
   name: string;
@@ -474,6 +485,8 @@ export interface Settings {
   sparkline_weeks: number;
   speed_color_buckets: number;
   track_simplify_m: number;
+  yearly_km_goal: number | null;
+  weekly_hours_goal: number | null;
 }
 
 export interface FitnessComponent {
@@ -632,7 +645,7 @@ export const api = {
     fetch(`${BASE}/import/reset`, { method: 'POST' })
       .then(r => {
         if (!r.ok) throw new Error(`API /import/reset → ${r.status}`);
-        return r.json() as Promise<{ ok: boolean; message?: string }>;
+        return r.json() as Promise<{ ok: boolean; message?: string; backup?: string }>;
       }),
 
   bikeCompare: (): Promise<BikeCompareData> => get('/bikes/compare'),
@@ -648,6 +661,14 @@ export const api = {
 
   bestByDistance: (): Promise<{ buckets: BestByDistanceBucket[] }> =>
     get('/analytics/best-by-distance'),
+
+  prEvents: (): Promise<PrEvent[]> => get('/analytics/pr-events'),
+
+  dismissPrEvent: (id: number) =>
+    fetch(`${BASE}/analytics/pr-events/${id}`, { method: 'DELETE' }).then(r => {
+      if (!r.ok) throw new Error(`API /analytics/pr-events/${id} → ${r.status}`);
+      return r.json() as Promise<{ ok: boolean }>;
+    }),
 
   otherActivities: (year?: number): Promise<OtherActivity[]> =>
     get(`/activities/other${buildQuery({ year })}`),
@@ -808,6 +829,7 @@ export const api = {
       .then(r => { if (!r.ok) throw new Error(`Fehler ${r.status}`); return r.json(); }),
 
   deletePurchase: (id: number): Promise<void> =>
-    fetch(`${BASE}/purchases/${id}`, { method: 'DELETE' })
-      .then(r => { if (!r.ok && r.status !== 204) throw new Error(`Fehler ${r.status}`); }),
+    fetch(`${BASE}/purchases/${id}`, { method: 'DELETE' }).then(r => {
+      if (!r.ok && r.status !== 204) return r.json().then(j => { throw new Error(j.detail ?? `Fehler ${r.status}`); });
+    }),
 };

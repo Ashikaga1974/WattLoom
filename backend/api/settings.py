@@ -14,6 +14,8 @@ _FIELDS: dict[str, tuple[type, object]] = {
     "sparkline_weeks":     (int,   8),
     "speed_color_buckets": (int,   20),
     "track_simplify_m":    (int,   5),
+    "yearly_km_goal":      (float, None),
+    "weekly_hours_goal":   (float, None),
 }
 
 

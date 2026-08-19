@@ -1231,6 +1231,7 @@ function EinkäufeTab({ externalKey, onChanged }: { externalKey: number; onChang
   const [editId, setEditId] = useState<number | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   function reload() {
     api.listPurchases().then(setItems).finally(() => setLoading(false));
@@ -1285,8 +1286,16 @@ function EinkäufeTab({ externalKey, onChanged }: { externalKey: number; onChang
 
   async function handleDelete(id: number) {
     setBusy(true);
-    try { await api.deletePurchase(id); reload(); onChanged(); }
-    finally { setBusy(false); }
+    setError(null);
+    try {
+      await api.deletePurchase(id);
+      reload();
+      onChanged();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Löschen fehlgeschlagen');
+    } finally {
+      setBusy(false);
+    }
   }
 
   const displayed = onlyStock ? items.filter(p => p.quantity - p.installed_count > 0) : items;
@@ -1303,6 +1312,12 @@ function EinkäufeTab({ externalKey, onChanged }: { externalKey: number; onChang
 
   return (
     <div className="space-y-4">
+      {error && (
+        <p className="text-sm text-red-500 rounded-lg border border-red-500/30 bg-red-500/5 px-3 py-2">
+          {error}
+        </p>
+      )}
+
       {/* Kopfzeile */}
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <div className="flex items-center gap-3">

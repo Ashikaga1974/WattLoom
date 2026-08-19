@@ -19,6 +19,12 @@ export default function SettingsPage() {
   const [saveSuccess, setSaveSuccess]     = useState(false);
   const [saveError, setSaveError]         = useState<string | null>(null);
 
+  const [yearlyKmGoalInput, setYearlyKmGoalInput]     = useState('');
+  const [weeklyHoursGoalInput, setWeeklyHoursGoalInput] = useState('');
+  const [goalSaving, setGoalSaving]       = useState(false);
+  const [goalSuccess, setGoalSuccess]     = useState(false);
+  const [goalError, setGoalError]         = useState<string | null>(null);
+
   // Import
   const [importStatus, setImportStatus]   = useState<ImportStatus>('idle');
   const [importLog, setImportLog]         = useState<string[]>([]);
@@ -85,6 +91,7 @@ export default function SettingsPage() {
   const [resetBusy, setResetBusy]         = useState(false);
   const [resetError, setResetError]       = useState<string | null>(null);
   const [resetDone, setResetDone]         = useState(false);
+  const [resetBackupName, setResetBackupName] = useState<string | null>(null);
 
   // Lade-Status initial
   const [loadingSettings, setLoadingSettings] = useState(true);
@@ -180,6 +187,8 @@ export default function SettingsPage() {
         if (res.birth_year != null) setBirthYearInput(String(res.birth_year));
         setHrMaxInput(String(res.hr_max ?? 185));
         setTzInput(res.tz_offset != null ? String(res.tz_offset) : 'auto');
+        if (res.yearly_km_goal != null)    setYearlyKmGoalInput(String(res.yearly_km_goal));
+        if (res.weekly_hours_goal != null) setWeeklyHoursGoalInput(String(res.weekly_hours_goal));
         setBezierInput(String(res.bezier_tension      ?? CONFIG_DEFAULTS.bezier_tension));
         setSparklineInput(String(res.sparkline_weeks  ?? CONFIG_DEFAULTS.sparkline_weeks));
         setBucketInput(String(res.speed_color_buckets ?? CONFIG_DEFAULTS.speed_color_buckets));
@@ -240,6 +249,34 @@ export default function SettingsPage() {
       setSaveError(e instanceof Error ? e.message : 'Speichern fehlgeschlagen');
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function saveGoals() {
+    const km = yearlyKmGoalInput ? parseFloat(yearlyKmGoalInput.replace(',', '.')) : null;
+    if (km !== null && (isNaN(km) || km <= 0)) {
+      setGoalError('Jahres-km-Ziel muss größer als 0 sein');
+      return;
+    }
+    const hours = weeklyHoursGoalInput ? parseFloat(weeklyHoursGoalInput.replace(',', '.')) : null;
+    if (hours !== null && (isNaN(hours) || hours <= 0)) {
+      setGoalError('Wochenstunden-Ziel muss größer als 0 sein');
+      return;
+    }
+    setGoalSaving(true);
+    setGoalError(null);
+    try {
+      const res = await api.saveSettings({
+        yearly_km_goal:    km,
+        weekly_hours_goal: hours,
+      });
+      setSaved(res);
+      setGoalSuccess(true);
+      setTimeout(() => setGoalSuccess(false), 2500);
+    } catch (e) {
+      setGoalError(e instanceof Error ? e.message : 'Speichern fehlgeschlagen');
+    } finally {
+      setGoalSaving(false);
     }
   }
 
@@ -314,6 +351,7 @@ export default function SettingsPage() {
       const res = await api.resetDb();
       if (!res.ok) throw new Error(res.message ?? 'Fehler');
       setResetDone(true);
+      setResetBackupName(res.backup ?? null);
       setResetConfirm(false);
       setImportStatus('idle');
       setImportLog([]);
@@ -510,6 +548,68 @@ export default function SettingsPage() {
               </div>
             </>
           )}
+        </CardContent>
+      </Card>
+
+      {/* ── Trainingsziele ── */}
+      <Card>
+        <CardHeader className="border-b border-border pb-3">
+          <CardTitle className="text-sm font-semibold">Trainingsziele</CardTitle>
+          <p className="text-xs text-muted-foreground">Fortschrittsanzeige im Dashboard – leer lassen zum Deaktivieren</p>
+        </CardHeader>
+        <CardContent className="pt-5 space-y-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+            <div>
+              <label className="block text-xs text-muted-foreground uppercase tracking-wider mb-2">
+                Jahresziel
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  step="10"
+                  min="0"
+                  value={yearlyKmGoalInput}
+                  onChange={(e) => setYearlyKmGoalInput(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && saveGoals()}
+                  placeholder="3000"
+                  className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-colors"
+                />
+                <span className="text-xs text-muted-foreground whitespace-nowrap">km / Jahr</span>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs text-muted-foreground uppercase tracking-wider mb-2">
+                Wochenziel
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  step="0.5"
+                  min="0"
+                  value={weeklyHoursGoalInput}
+                  onChange={(e) => setWeeklyHoursGoalInput(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && saveGoals()}
+                  placeholder="5"
+                  className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-colors"
+                />
+                <span className="text-xs text-muted-foreground whitespace-nowrap">h / Woche</span>
+              </div>
+              <p className="text-xs text-muted-foreground/50 mt-1.5">Rad + Workout + Kraft zusammen</p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-4 pt-1">
+            <button
+              onClick={saveGoals}
+              disabled={goalSaving}
+              className="rounded-md px-5 py-2 text-sm font-medium bg-orange-500 hover:bg-orange-600 disabled:opacity-50 transition-colors text-white cursor-pointer"
+            >
+              {goalSaving ? 'Speichern…' : 'Speichern'}
+            </button>
+            {goalSuccess && <span className="text-sm text-green-600">Gespeichert</span>}
+            {goalError && <span className="text-sm text-red-500">{goalError}</span>}
+          </div>
         </CardContent>
       </Card>
 
@@ -1040,7 +1140,12 @@ export default function SettingsPage() {
           </p>
         </CardHeader>
         <CardContent className="pt-5">
-          {resetDone && <p className="text-sm text-green-600 mb-3">Datenbank wurde geleert.</p>}
+          {resetDone && (
+            <p className="text-sm text-green-600 mb-3">
+              Datenbank wurde geleert.
+              {resetBackupName && <> Backup vorher gesichert: <code className="text-xs">{resetBackupName}</code></>}
+            </p>
+          )}
           {resetError && <p className="text-sm text-red-500 mb-3">{resetError}</p>}
 
           {!resetConfirm ? (

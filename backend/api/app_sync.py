@@ -51,9 +51,10 @@ def _save_result(ok: bool, message: str) -> str:
     return ran_at
 
 
-@router.post("/run")
-def run_app_sync():
-    """Führt push_to_cloud.py synchron aus (~10-15s) und liefert das Ergebnis direkt zurück."""
+def _do_sync() -> dict:
+    """Kern von run_app_sync() – als eigene Funktion extrahiert, damit importer.py
+    denselben Sync-Lauf direkt nach einem Import anstoßen kann (analog zum bereits
+    automatischen Wetter-Fetch), ohne den Subprocess-Aufruf zu duplizieren."""
     if not SYNC_SCRIPT.exists() or not MYBIKINGAPP_PYTHON.exists():
         return {"ok": False, "message": f"MyBikingApp nicht gefunden unter {MYBIKINGAPP_DIR}"}
 
@@ -76,6 +77,12 @@ def run_app_sync():
 
     ran_at = _save_result(ok, message)
     return {"ok": ok, "message": message, "ran_at": ran_at}
+
+
+@router.post("/run")
+def run_app_sync():
+    """Führt push_to_cloud.py synchron aus (~10-15s) und liefert das Ergebnis direkt zurück."""
+    return _do_sync()
 
 
 @router.get("/status")

@@ -699,6 +699,67 @@ def _fastest_segment(dist: list, elapsed: list, target_m: float):
     return (*best_idx, best_t) if best_idx else None
 
 
+BEST_BY_DISTANCE_BUCKETS_KM = [5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70]
+
+
+def _best_by_distance_map(conn) -> dict:
+    """
+    Kern von best_by_distance(): berechnet für jede Zieldistanz das schnellste
+    zusammenhängende Segment über alle Fahrten mit Track-Daten hinweg und gibt
+    das rohe {distance_km: best_or_None}-Dict zurück (ohne Auffüllen der Lücken).
+    Als eigene Funktion extrahiert, damit backend/pr_detection.py denselben Snapshot
+    vor und nach einem Import berechnen und auf neue persönliche Bestzeiten vergleichen kann.
+    """
+    ph = ','.join('?' * len(RIDE_TYPES))
+    activities = conn.execute(f"""
+        SELECT id, name, start_date_local AS date, distance_m
+        FROM activities
+        WHERE activity_type IN ({ph}) AND distance_m > 0
+    """, RIDE_TYPES).fetchall()
+
+    best = {d_km: None for d_km in BEST_BY_DISTANCE_BUCKETS_KM}
+
+    for act in activities:
+        targets_m = [d_km * 1000 for d_km in BEST_BY_DISTANCE_BUCKETS_KM if d_km * 1000 <= act['distance_m']]
+        if not targets_m:
+            continue
+
+        points = conn.execute("""
+            SELECT timestamp, distance_m
+            FROM track_points
+            WHERE activity_id = ? AND distance_m IS NOT NULL AND timestamp IS NOT NULL
+            ORDER BY id
+        """, (act['id'],)).fetchall()
+        if len(points) < 2:
+            continue
+
+        try:
+            elapsed = [datetime.fromisoformat(p['timestamp']).timestamp() for p in points]
+        except ValueError:
+            continue
+        dist = _clean_cumulative_distance([p['distance_m'] for p in points], elapsed)
+
+        for target_m in targets_m:
+            d_km = target_m / 1000
+            segment = _fastest_segment(dist, elapsed, target_m)
+            if not segment:
+                continue
+            start_idx, end_idx, t = segment
+            current = best[d_km]
+            if current is not None and t >= current['best_time_s']:
+                continue
+            best[d_km] = {
+                'distance_km':        d_km,
+                'best_speed_kmh':     round((dist[end_idx] - dist[start_idx]) / t * MS_TO_KMH, 1),
+                'best_time_s':        round(t),
+                'activity_id':        act['id'],
+                'activity_name':      act['name'],
+                'date':               act['date'],
+                'actual_distance_km': round((dist[end_idx] - dist[start_idx]) / 1000, 1),
+            }
+    return best
+
+
 @router.get("/best-by-distance")
 def best_by_distance():
     """
@@ -707,59 +768,11 @@ def best_by_distance():
     in der Nähe der Zieldistanz, sondern der schnellste Abschnitt exakt dieser
     Länge innerhalb einer beliebigen Fahrt (analog Strava "Best Efforts").
     """
-    BUCKETS_KM = [5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70]
-    ph = ','.join('?' * len(RIDE_TYPES))
-
     with db_connection() as conn:
-        activities = conn.execute(f"""
-            SELECT id, name, start_date_local AS date, distance_m
-            FROM activities
-            WHERE activity_type IN ({ph}) AND distance_m > 0
-        """, RIDE_TYPES).fetchall()
-
-        best = {d_km: None for d_km in BUCKETS_KM}
-
-        for act in activities:
-            targets_m = [d_km * 1000 for d_km in BUCKETS_KM if d_km * 1000 <= act['distance_m']]
-            if not targets_m:
-                continue
-
-            points = conn.execute("""
-                SELECT timestamp, distance_m
-                FROM track_points
-                WHERE activity_id = ? AND distance_m IS NOT NULL AND timestamp IS NOT NULL
-                ORDER BY id
-            """, (act['id'],)).fetchall()
-            if len(points) < 2:
-                continue
-
-            try:
-                elapsed = [datetime.fromisoformat(p['timestamp']).timestamp() for p in points]
-            except ValueError:
-                continue
-            dist = _clean_cumulative_distance([p['distance_m'] for p in points], elapsed)
-
-            for target_m in targets_m:
-                d_km = target_m / 1000
-                segment = _fastest_segment(dist, elapsed, target_m)
-                if not segment:
-                    continue
-                start_idx, end_idx, t = segment
-                current = best[d_km]
-                if current is not None and t >= current['best_time_s']:
-                    continue
-                best[d_km] = {
-                    'distance_km':        d_km,
-                    'best_speed_kmh':     round((dist[end_idx] - dist[start_idx]) / t * MS_TO_KMH, 1),
-                    'best_time_s':        round(t),
-                    'activity_id':        act['id'],
-                    'activity_name':      act['name'],
-                    'date':               act['date'],
-                    'actual_distance_km': round((dist[end_idx] - dist[start_idx]) / 1000, 1),
-                }
+        best = _best_by_distance_map(conn)
 
         results = []
-        for d_km in BUCKETS_KM:
+        for d_km in BEST_BY_DISTANCE_BUCKETS_KM:
             results.append(best[d_km] or {
                 'distance_km':        d_km,
                 'best_speed_kmh':     None,
@@ -771,6 +784,22 @@ def best_by_distance():
             })
 
         return {'buckets': results}
+
+
+@router.get("/pr-events")
+def pr_events():
+    """Noch nicht verworfene, erkannte neue persönliche Bestzeiten (siehe pr_detection.py)."""
+    with db_connection() as conn:
+        rows = conn.execute("SELECT * FROM pr_events ORDER BY created_at DESC, id DESC").fetchall()
+        return [dict(r) for r in rows]
+
+
+@router.delete("/pr-events/{event_id}")
+def dismiss_pr_event(event_id: int):
+    with db_connection() as conn:
+        with conn:
+            conn.execute("DELETE FROM pr_events WHERE id = ?", (event_id,))
+    return {"ok": True}
 
 
 @router.get("/route-clusters")

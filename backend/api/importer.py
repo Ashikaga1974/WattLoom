@@ -65,9 +65,48 @@ def _run_power_estimation() -> None:
     logger.info("Leistungsschätzung abgeschlossen: %d/%d Aktivitäten", done, len(ids))
 
 
+def _fmt_hms(seconds: float) -> str:
+    """34:12 unter einer Stunde, sonst 1:02:33."""
+    s = round(seconds)
+    h, rem = divmod(s, 3600)
+    m, s = divmod(rem, 60)
+    return f"{h}:{m:02d}:{s:02d}" if h else f"{m}:{s:02d}"
+
+
+def _sync_app_after_import() -> None:
+    """Stößt den MyBikingApp-Sync direkt nach einem Import an (analog zum automatischen
+    Wetter-Fetch) statt den manuellen Button in den Einstellungen zu erfordern."""
+    from backend.api.app_sync import _do_sync
+
+    try:
+        result = _do_sync()
+        if not result["ok"]:
+            logger.warning("MyBikingApp-Sync nach Import fehlgeschlagen: %s", result["message"])
+    except Exception as exc:
+        logger.error("MyBikingApp-Sync nach Import fehlgeschlagen: %s", exc)
+
+
+def _check_new_prs(baseline: dict) -> None:
+    """Vergleicht den Best-by-Distance-Snapshot von vor dem Import mit dem aktuellen
+    Stand und meldet neue persönliche Bestzeiten (siehe backend/pr_detection.py)."""
+    from backend.database import db_connection
+    from backend.pr_detection import detect_and_record
+
+    try:
+        with db_connection() as conn:
+            events = detect_and_record(conn, baseline)
+        for e in events:
+            print(f"  🏆 Neuer PR: {e['distance_km']:.0f} km in {_fmt_hms(e['best_time_s'])} ({e['activity_name']})")
+            logger.info("Neuer PR: %.0f km in %.0fs (activity %s)", e["distance_km"], e["best_time_s"], e["activity_id"])
+    except Exception as exc:
+        logger.error("PR-Check fehlgeschlagen: %s", exc)
+
+
 def _run_import() -> None:
     from backend.importer.pipeline import run_import, _find_latest_zip
     from backend.api.weather import _fetch_all_job
+    from backend.database import db_connection
+    from backend.pr_detection import snapshot
 
     stream = _ListStream()
     old_stdout = sys.stdout
@@ -76,6 +115,10 @@ def _run_import() -> None:
         zip_path = _find_latest_zip()
         with _lock:
             _state["zip_name"] = zip_path.name
+
+        with db_connection() as conn:
+            baseline = snapshot(conn)
+
         run_import(zip_path)
 
         print("→ Wetter abrufen …")
@@ -83,6 +126,12 @@ def _run_import() -> None:
 
         print("→ Leistung schätzen …")
         _run_power_estimation()
+
+        print("→ Bestzeiten prüfen …")
+        _check_new_prs(baseline)
+
+        print("→ MyBikingApp-Sync …")
+        _sync_app_after_import()
 
         with _lock:
             _state["status"] = "done"
@@ -137,9 +186,11 @@ async def import_fit_file(
 
     from backend.database import db_connection
     from backend.importer.fit_single import import_single_fit
+    from backend.pr_detection import snapshot
 
     try:
         with db_connection() as conn:
+            baseline = snapshot(conn)
             result = import_single_fit(conn, data, bike_id or None)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -150,6 +201,8 @@ async def import_fit_file(
     if result.get("is_ride"):
         _fetch_weather_for_activity(result["activity_id"])
         _estimate_power_for_activity(result["activity_id"])
+        _check_new_prs(baseline)
+        _sync_app_after_import()
 
     return result
 
@@ -220,9 +273,11 @@ async def import_tcx_file(
 
     from backend.database import db_connection
     from backend.importer.tcx_single import import_single_tcx
+    from backend.pr_detection import snapshot
 
     try:
         with db_connection() as conn:
+            baseline = snapshot(conn)
             result = import_single_tcx(conn, data, bike_id or None)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -232,6 +287,8 @@ async def import_tcx_file(
     if result.get("is_ride"):
         _fetch_weather_for_activity(result["activity_id"])
         _estimate_power_for_activity(result["activity_id"])
+        _check_new_prs(baseline)
+        _sync_app_after_import()
 
     return result
 
@@ -253,9 +310,11 @@ async def import_gpx_file(
 
     from backend.database import db_connection
     from backend.importer.gpx_single import import_single_gpx
+    from backend.pr_detection import snapshot
 
     try:
         with db_connection() as conn:
+            baseline = snapshot(conn)
             result = import_single_gpx(conn, data, bike_id or None)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -265,6 +324,8 @@ async def import_gpx_file(
     if result.get("is_ride"):
         _fetch_weather_for_activity(result["activity_id"])
         _estimate_power_for_activity(result["activity_id"])
+        _check_new_prs(baseline)
+        _sync_app_after_import()
 
     return result
 
@@ -387,12 +448,27 @@ def recalculate_power():
 
 @router.post("/reset")
 def reset_db():
-    """Löscht alle importierten Daten, behält config und bike_components."""
+    """Löscht Aktivitäten/Tracks/Laps, behält config, bikes und bike_components.
+    bikes bleiben erhalten (nicht nur bike_components), da bike_components.bike_id
+    per FOREIGN KEY darauf verweist – ein vorheriges DELETE FROM bikes brach hier mit
+    IntegrityError ab, sobald noch Komponenten verbaut waren. Ein Re-Import überschreibt
+    bestehende bikes-Zeilen ohnehin per INSERT OR REPLACE (siehe pipeline.py).
+    Sichert die DB vorher nach data/backups/ – einziges Sicherheitsnetz gegen
+    Fehlbedienung, da der tägliche systemd-Autostart-Job nicht direkt vor einem
+    Reset läuft."""
     with _lock:
         if _state["status"] == "running":
             return {"ok": False, "message": "Import läuft gerade – bitte warten"}
 
-    from backend.database import db_connection, init_db
+    import shutil
+    from datetime import datetime
+    from backend.database import db_connection, init_db, DB_PATH
+
+    backup_dir = DB_PATH.parent / "backups"
+    backup_dir.mkdir(exist_ok=True)
+    backup_name = f"mybiking_pre-reset_{datetime.now().strftime('%Y%m%d_%H%M%S')}.db"
+    shutil.copy2(DB_PATH, backup_dir / backup_name)
+
     with db_connection() as conn:
         conn.executescript("""
             DELETE FROM track_points WHERE activity_id > 0;
@@ -403,7 +479,6 @@ def reset_db():
             DELETE FROM routes;
             DELETE FROM activities WHERE id > 0;
             DELETE FROM other_activities;
-            DELETE FROM bikes;
         """)
     init_db()
-    return {"ok": True}
+    return {"ok": True, "backup": backup_name}

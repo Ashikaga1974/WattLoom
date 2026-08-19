@@ -10,10 +10,10 @@ import {
   CartesianGrid,
 } from 'recharts';
 
-import { api, type ActivityStats, type Bike, type Activity, type WeeklyStats, type MonthlyStats, type WeeklyVolume, type PmcDay } from '@/lib/api';
+import { api, type ActivityStats, type Bike, type BikeComponent, type Activity, type WeeklyStats, type MonthlyStats, type WeeklyVolume, type PmcDay, type PrEvent } from '@/lib/api';
 import { fmtKm, fmtTime, fmtDate, fmtNum, fmtSpeed, fmtWeekday } from '@/lib/format';
 import { useConfig } from '@/lib/config-context';
-import { CHART_HEIGHT_COMPACT } from '@/lib/config';
+import { CHART_HEIGHT_COMPACT, WEAR_WARNING_PCT } from '@/lib/config';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ChartTooltip } from '@/components/ui/chart-tooltip';
@@ -223,6 +223,175 @@ function TsbWidget({ current }: { current: PmcDay }) {
   );
 }
 
+// Aktive Komponenten nahe/über dem Verschleiß-Schwellwert, absteigend nach pct_used
+function wearWarnings(bikes: Bike[]): { bike: Bike; comp: BikeComponent }[] {
+  return bikes
+    .flatMap(bike => bike.components
+      .filter(c => c.retired_at == null && (c.pct_used ?? 0) >= WEAR_WARNING_PCT)
+      .map(comp => ({ bike, comp })))
+    .sort((a, b) => (b.comp.pct_used ?? 0) - (a.comp.pct_used ?? 0));
+}
+
+function WearWarnings({ bikes }: { bikes: Bike[] }) {
+  const warnings = wearWarnings(bikes);
+  if (warnings.length === 0) return null;
+  return (
+    <div className="rounded-2xl border px-5 py-4" style={{ borderColor: '#ef444450', background: 'rgba(239,68,68,0.07)' }}>
+      <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground mb-2.5">
+        Verschleiß-Warnung
+      </p>
+      <div className="space-y-2">
+        {warnings.map(({ bike, comp }) => (
+          <Link
+            key={comp.id}
+            to={`/bikes/${bike.id}`}
+            className="flex items-center justify-between gap-3 text-sm hover:opacity-80 transition-opacity"
+          >
+            <span className="text-foreground">
+              <span className="font-semibold">{comp.type}</span>
+              <span className="text-muted-foreground"> · {bike.name}</span>
+            </span>
+            <span className="font-bold tabular-nums shrink-0" style={{ color: '#ef4444' }}>
+              {Math.round(comp.pct_used ?? 0)} %
+            </span>
+          </Link>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function fmtPrTime(s: number): string {
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = Math.floor(s % 60);
+  return h > 0 ? `${h}:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}` : `${m}:${String(sec).padStart(2, '0')}`;
+}
+
+const GOAL_COLOR = '#3b82f6';
+
+// Anteil des Kalenderjahres, der bereits verstrichen ist (0–1) – Vergleichsbasis für "im Plan"
+function yearProgressFraction(): number {
+  const now = new Date();
+  const start = new Date(now.getFullYear(), 0, 1).getTime();
+  const end = new Date(now.getFullYear() + 1, 0, 1).getTime();
+  return (now.getTime() - start) / (end - start);
+}
+
+function GoalRow({
+  icon,
+  label,
+  current,
+  target,
+  unit,
+  paceHint,
+}: {
+  icon: string;
+  label: string;
+  current: number;
+  target: number;
+  unit: string;
+  paceHint?: { diffPct: number };
+}) {
+  const pct = Math.min(100, Math.round((current / target) * 100));
+  const paceColor = paceHint == null ? GOAL_COLOR : paceHint.diffPct >= 0 ? '#22c55e' : '#f59e0b';
+  return (
+    <div className="flex items-center gap-4">
+      <div className="text-2xl font-black tabular-nums shrink-0 w-16 text-right" style={{ color: paceColor }}>
+        {pct}%
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-baseline justify-between mb-1.5 gap-2">
+          <span className="text-sm font-semibold text-foreground whitespace-nowrap">{icon} {label}</span>
+          <span className="text-xs text-muted-foreground tabular-nums shrink-0">
+            {current.toFixed(0)} / {target.toFixed(0)} {unit}
+          </span>
+        </div>
+        <div className="h-2.5 rounded-full bg-muted overflow-hidden">
+          <div
+            className="h-full rounded-full transition-all duration-700"
+            style={{ width: `${pct}%`, background: paceColor }}
+          />
+        </div>
+        {paceHint && (
+          <p className="text-[11px] mt-1" style={{ color: paceColor }}>
+            {paceHint.diffPct >= 0 ? 'Im Plan' : `${Math.abs(paceHint.diffPct)} % hinter Plan`}
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function GoalWidget({
+  yearlyKmGoal,
+  weeklyHoursGoal,
+  yearKm,
+  weekHours,
+}: {
+  yearlyKmGoal: number | null;
+  weeklyHoursGoal: number | null;
+  yearKm: number | null;
+  weekHours: number | null;
+}) {
+  if (yearlyKmGoal == null && weeklyHoursGoal == null) return null;
+  const showYear = yearlyKmGoal != null && yearKm != null;
+  const showWeek = weeklyHoursGoal != null && weekHours != null;
+  const yearPct = showYear ? Math.min(100, Math.round((yearKm! / yearlyKmGoal!) * 100)) : 0;
+  const expectedPct = Math.round(yearProgressFraction() * 100);
+
+  return (
+    <div className="rounded-2xl border px-5 py-4 space-y-4" style={{ borderColor: `${GOAL_COLOR}50`, background: `${GOAL_COLOR}0d` }}>
+      <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+        Trainingsziele
+      </p>
+      {showYear && (
+        <GoalRow
+          icon="🎯"
+          label={`Jahresziel ${new Date().getFullYear()}`}
+          current={yearKm!}
+          target={yearlyKmGoal!}
+          unit="km"
+          paceHint={{ diffPct: yearPct - expectedPct }}
+        />
+      )}
+      {showWeek && (
+        <GoalRow icon="📅" label="Wochenziel" current={weekHours!} target={weeklyHoursGoal!} unit="h" />
+      )}
+    </div>
+  );
+}
+
+function PrWidget({ events, onDismiss }: { events: PrEvent[]; onDismiss: (id: number) => void }) {
+  if (events.length === 0) return null;
+  return (
+    <div className="rounded-2xl border px-5 py-4" style={{ borderColor: '#f59e0b50', background: 'rgba(245,158,11,0.07)' }}>
+      <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground mb-2.5">
+        Neue Bestzeit 🏆
+      </p>
+      <div className="space-y-2">
+        {events.map(e => (
+          <div key={e.id} className="flex items-center justify-between gap-3 text-sm">
+            <Link to={`/activities/${e.activity_id}`} className="min-w-0 hover:opacity-80 transition-opacity">
+              <span className="font-semibold">{e.distance_km} km</span>
+              <span className="text-muted-foreground"> in </span>
+              <span className="font-bold tabular-nums" style={{ color: '#f59e0b' }}>{fmtPrTime(e.best_time_s)}</span>
+              <span className="text-muted-foreground"> · {e.activity_name}</span>
+            </Link>
+            <button
+              onClick={() => onDismiss(e.id)}
+              className="shrink-0 text-muted-foreground hover:text-foreground transition-colors text-xs"
+              title="Verwerfen"
+            >
+              ✕
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function DistanzSparkTooltip({ active, payload, label }: { active?: boolean; payload?: any[]; label?: string }) {
   if (!active || !payload?.length) return null;
   const d = payload[0]?.payload;
@@ -248,6 +417,10 @@ export default function DashboardPage() {
   const [sparkLabels, setSparkLabels] = useState<string[]>([]);
   const [weeklyVol, setWeeklyVol] = useState<WeeklyVolume[]>([]);
   const [pmcCurrent, setPmcCurrent] = useState<PmcDay | null>(null);
+  const [prEventList, setPrEventList] = useState<PrEvent[]>([]);
+  const [yearlyKmGoal, setYearlyKmGoal] = useState<number | null>(null);
+  const [weeklyHoursGoal, setWeeklyHoursGoal] = useState<number | null>(null);
+  const [currentYearKm, setCurrentYearKm] = useState<number | null>(null);
   const [selectedYear, setSelectedYear] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -295,6 +468,23 @@ export default function DashboardPage() {
   useEffect(() => {
     api.pmc().then(d => setPmcCurrent(d.current)).catch(() => {});
   }, []);
+  // Neue Bestzeiten einmalig laden – unabhängig vom Jahresfilter
+  useEffect(() => {
+    api.prEvents().then(setPrEventList).catch(() => {});
+  }, []);
+  // Trainingsziele: Settings + aktuelles Kalenderjahr laden – unabhängig vom Jahresfilter der Seite
+  useEffect(() => {
+    api.getSettings().then(s => {
+      setYearlyKmGoal(s.yearly_km_goal);
+      setWeeklyHoursGoal(s.weekly_hours_goal);
+    }).catch(() => {});
+    api.activityStats(new Date().getFullYear()).then(s => setCurrentYearKm(s.total_km)).catch(() => {});
+  }, []);
+
+  function dismissPrEvent(id: number) {
+    setPrEventList(list => list.filter(e => e.id !== id));
+    api.dismissPrEvent(id).catch(() => {});
+  }
 
   function handleYearChange(year: string | null) {
     setSelectedYear(year);
@@ -325,6 +515,11 @@ export default function DashboardPage() {
     return w.weeks_ago === 0 ? 'Akt.' : `-${w.weeks_ago}W`;
   }
 
+  const currentWeek = weeklyVol.find(w => w.weeks_ago === 0);
+  const currentWeekHours = currentWeek
+    ? (currentWeek.ride_minutes + currentWeek.workout_minutes + currentWeek.weight_training_minutes) / 60
+    : null;
+
   const availableYears = stats?.available_years ?? [];
   const hasData = !loading && stats != null && stats.total_rides > 0;
 
@@ -338,6 +533,20 @@ export default function DashboardPage() {
 
       {/* ── Hero: Letzter Ride ── */}
       <HeroBanner activity={recentActivities[0] ?? null} loading={loading} />
+
+      {/* ── Trainingsziele ── */}
+      <GoalWidget
+        yearlyKmGoal={yearlyKmGoal}
+        weeklyHoursGoal={weeklyHoursGoal}
+        yearKm={currentYearKm}
+        weekHours={currentWeekHours}
+      />
+
+      {/* ── Neue Bestzeit ── */}
+      <PrWidget events={prEventList} onDismiss={dismissPrEvent} />
+
+      {/* ── Verschleiß-Warnung ── */}
+      {!loading && <WearWarnings bikes={bikes} />}
 
       {/* ── Trainingsform (TSB) ── */}
       {pmcCurrent && pmcCurrent.ctl > 0 && <TsbWidget current={pmcCurrent} />}

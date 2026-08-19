@@ -191,6 +191,16 @@ def delete_purchase(purchase_id: int):
         ).fetchone()["c"]
         if open_returns:
             raise HTTPException(status_code=409, detail="Einkauf hat noch offene Rückgabe-Historie")
+        # deleted_components.purchase_item_id verweist bei unwiderruflich gelöschten Komponenten
+        # weiterhin auf das Item (siehe DELETE .../components/{id}) - anders als bike_components/
+        # purchase_returns oben ist das aber reine, abgeschlossene Historie (nicht reaktivierbar),
+        # die den Einkauf nicht blockieren soll. Ohne dieses NULL-Setzen brach das folgende
+        # DELETE FROM purchase_items mit FOREIGN KEY constraint failed ab.
+        conn.execute(
+            """UPDATE deleted_components SET purchase_item_id = NULL
+               WHERE purchase_item_id IN (SELECT id FROM purchase_items WHERE purchase_id = ?)""",
+            (purchase_id,),
+        )
         conn.execute("DELETE FROM purchase_items WHERE purchase_id = ?", (purchase_id,))
         conn.execute("DELETE FROM purchases WHERE id = ?", (purchase_id,))
         conn.commit()

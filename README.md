@@ -34,7 +34,7 @@ Lokale Web-App zur Analyse von Strava-Exportdaten. Kein Strava-API-Zugriff nöti
 
 | Bereich | Was es kann |
 |---------|-------------|
-| **Dashboard** | Hero-Banner (letzter Ride), Trainingsform-Widget (TSB/CTL/ATL mit Empfehlung), animierte KPI-Zahlen (count-up), Distanz-Chart, Trainingsvolumen, letzte Aktivitäten, Bike-Progress |
+| **Dashboard** | Hero-Banner (letzter Ride), Trainingsform-Widget (TSB/CTL/ATL mit Empfehlung), Trainingsziele (Jahres-km/Wochenstunden mit Fortschrittsbalken), Verschleiß-Warnung (Bike-Komponenten ≥90 %), neue Bestzeit-Hinweis, animierte KPI-Zahlen (count-up), Distanz-Chart, Trainingsvolumen, letzte Aktivitäten, Bike-Progress |
 | **Aktivitätsliste** | Tabs: Radtouren (Filter/Sort/Paginierung) + Workouts (Sportart-Badges, Kalorien farbig); Watt-Spalte zeigt Leistung + NP-Zeile; einzelne Aktivitäten löschbar |
 | **Aktivitätsdetail** | Karte (Leaflet), Höhenprofil, Geschwindigkeits-Profil (Farben synchron mit Karten-Gradient), HR-Profil, Wetterkachel, Fotos; Kachel „~ Leistung" (physikalische Schätzung ~W + NP + W/kg) |
 | **Jahresrückblick** | „Wrapped"-Style: beste Rides, stärkste Monate, Tages-/Stunden-Heatmaps |
@@ -55,7 +55,7 @@ Lokale Web-App zur Analyse von Strava-Exportdaten. Kein Strava-API-Zugriff nöti
 | **Fitness-Fingerprint** | Gesamtscore 0–100 aus CTL, Aerober Effizienz, Form (TSB) und Kontinuität; Arc-Gauge, Stärken-Radar, 4 Komponenten-Karten, 13-Monats-Verlauf, Level-System (Einsteiger → Elite) |
 | **Kalender** | Monatskalender: Radtouren + Workouts (grau markiert), Ring-Indikator bei Kombi-Tagen |
 | **Berechnungen** | Dokumentation aller verwendeten Formeln und Parameter |
-| **Einstellungen** | Gewicht, Geburtsjahr, Zeitzone; FIT/TCX-Einzelimport (Amazfit, Garmin ohne Strava); Wetterdaten-Abruf; Leistung für alle Rides neu berechnen; MyBikingApp-Sync (manueller Push des Datenstands zu MyBikingApp) |
+| **Einstellungen** | Gewicht, Geburtsjahr, Zeitzone, Trainingsziele (Jahres-km, Wochenstunden); FIT/TCX-Einzelimport (Amazfit, Garmin ohne Strava); Wetterdaten-Abruf; Leistung für alle Rides neu berechnen; MyBikingApp-Sync (läuft automatisch nach jedem Import, zusätzlich manuell anstoßbar); DB-Reset sichert vorher automatisch eine Backup-Kopie |
 
 ---
 
@@ -250,6 +250,8 @@ GET  /analytics/pmc                            → CTL/ATL/TSB + hrTSS
 GET  /analytics/wrapped             ?year, tz_offset
 GET  /analytics/weekly-volume       ?weeks
 GET  /analytics/best-by-distance               → schnellstes Segment je Zieldistanz (5–70 km) über alle Fahrten hinweg (Best Effort)
+GET    /analytics/pr-events                    → noch nicht verworfene neue Bestzeiten (Dashboard-Widget)
+DELETE /analytics/pr-events/{id}               → PR-Hinweis verwerfen
 GET  /analytics/route-clusters      ?min_rides → Greedy-Clustering aller Rides nach Startpunkt + Distanz
 GET  /analytics/cadence             ?year      → Distribution, Zonen, Monatsverlauf, Effizienz-Buckets
 GET  /analytics/calories            ?year      → total_kcal, rides + workouts, monatlich/jährlich
@@ -282,10 +284,13 @@ GET  /settings
 POST /settings
 POST /import/start
 GET  /import/status
-POST /import/reset
+POST /import/reset                  → sichert vorher eine Backup-Kopie nach data/backups/
 POST /import/fit-file               → multipart: file (.fit) + bike_id
 POST /import/tcx-file               → multipart: file (.tcx) + bike_id
 GET  /media/{filename}
+
+GET  /app-sync/status               → letztes MyBikingApp-Sync-Ergebnis
+POST /app-sync/run                  → MyBikingApp-Sync manuell anstoßen (läuft nach jedem Import zusätzlich automatisch)
 ```
 
 ---
