@@ -55,7 +55,7 @@ Lokale Web-App zur Analyse von Strava-Exportdaten. Kein Strava-API-Zugriff nöti
 | **Fitness-Fingerprint** | Gesamtscore 0–100 aus CTL, Aerober Effizienz, Form (TSB) und Kontinuität; Arc-Gauge, Stärken-Radar, 4 Komponenten-Karten, 13-Monats-Verlauf, Level-System (Einsteiger → Elite) |
 | **Kalender** | Monatskalender: Radtouren + Workouts (grau markiert), Ring-Indikator bei Kombi-Tagen |
 | **Berechnungen** | Dokumentation aller verwendeten Formeln und Parameter |
-| **Einstellungen** | Gewicht, Geburtsjahr, Zeitzone; FIT/TCX-Einzelimport (Amazfit, Garmin ohne Strava); Wetterdaten-Abruf; Leistung für alle Rides neu berechnen |
+| **Einstellungen** | Gewicht, Geburtsjahr, Zeitzone; FIT/TCX-Einzelimport (Amazfit, Garmin ohne Strava); Wetterdaten-Abruf; Leistung für alle Rides neu berechnen; MyBikingApp-Sync (manueller Push des Datenstands zu MyBikingApp) |
 
 ---
 
