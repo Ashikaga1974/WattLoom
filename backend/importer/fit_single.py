@@ -11,14 +11,8 @@ from typing import Any
 import fitparse
 
 from backend.importer.fit import _SafeProcessor, _val, import_fit, read_fit_device
-from backend.importer.sport_codes import lookup_sport_code, to_sport_code
+from backend.importer.sport_codes import is_ride_sport, lookup_sport_code, to_sport_code
 from backend.utils import haversine_m
-
-
-# Sportarten die als Radfahrt in activities landen
-_CYCLING_SPORTS: set[str] = {"cycling", "generic"}
-
-
 
 def import_single_fit(conn: sqlite3.Connection, fit_bytes: bytes, bike_id: str | None = None) -> dict:
     """
@@ -58,14 +52,18 @@ def import_single_fit(conn: sqlite3.Connection, fit_bytes: bytes, bike_id: str |
     sport_raw = sv("sport")
     sport_str = str(sport_raw).lower() if sport_raw is not None else "cycling"
 
-    # "generic" ohne bike_id → als Workout importieren (z.B. Morgentraining von Amazfit)
-    # "cycling" ohne bike_id → Fehler (expliziter Rad-Sport braucht Bike-Zuweisung)
-    if sport_str in _CYCLING_SPORTS:
+    # "generic" ohne bike_id → als Workout importieren (z.B. Morgentraining von Amazfit).
+    # Jeder andere als Radfahrt erkannte Rohwert (siehe sport_codes.is_ride_sport) ohne
+    # bike_id → Fehler (expliziter Rad-Sport braucht Bike-Zuweisung).
+    if sport_str == "generic":
         if bike_id:
             return _import_as_ride(conn, fit, fit_bytes, session_msg, sv,
                                    activity_id, start_date, bike_id)
-        if sport_str != "generic":
+    elif is_ride_sport(sport_str):
+        if not bike_id:
             raise ValueError("bike_id ist für Radtouren erforderlich")
+        return _import_as_ride(conn, fit, fit_bytes, session_msg, sv,
+                               activity_id, start_date, bike_id)
 
     return _import_as_workout(conn, session_msg, sv, activity_id, start_date, sport_str)
 

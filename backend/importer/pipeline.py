@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Any
 
 from backend.database import db_connection, init_db
-from backend.importer.sport_codes import to_sport_code
+from backend.importer.sport_codes import is_ride_sport, to_sport_code
 
 logger = logging.getLogger(__name__)
 
@@ -154,8 +154,10 @@ def import_bikes(zf: zipfile.ZipFile) -> dict[str, str]:
 # Activities (CSV)
 # ---------------------------------------------------------------------------
 
-RIDE_TYPES  = {"Ride", "VirtualRide", "EBikeRide", "GravelRide", "MountainBikeRide",
-               "Radfahrt", "Virtuelles Radfahren", "E-Bike-Fahrt", "Gravelbike-Fahrt", "Mountainbikefahrt"}
+# Feste Allowlist erkannter Nicht-Rad-Aktivitätsarten aus dem Strava-CSV-Export – bewusst
+# kein sport_codes.is_ride_sport()-Gegenstück ("nicht Ride"), da eine noch unbekannte
+# Aktivitätsart in der CSV weiterhin komplett übersprungen werden soll statt automatisch
+# als "training" importiert zu werden.
 OTHER_TYPES = {"Workout", "Weight Training",
                "Training", "Gewichtstraining"}
 
@@ -170,7 +172,7 @@ def import_activities_csv(
         reader = csv.DictReader(io.TextIOWrapper(f, encoding="utf-8"))
         rows = [_normalize_row(r, _ACTIVITY_COL_MAP) for r in reader]
 
-    rides = [r for r in rows if r.get("Activity Type") in RIDE_TYPES]
+    rides = [r for r in rows if is_ride_sport(r.get("Activity Type"))]
     bike_map = bike_name_to_id or {}
 
     # Media-Mapping aus allen Zeilen (nicht nur Rides) aufbauen

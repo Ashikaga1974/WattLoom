@@ -9,11 +9,7 @@ from datetime import datetime, timezone
 from lxml import etree
 
 from backend.importer.tcx import NS, _float, _int, _text, import_tcx, read_tcx_device
-from backend.importer.sport_codes import to_sport_code
-
-
-# Sport-Attribute die als Radfahrt in activities landen (case-insensitive)
-_CYCLING_SPORTS: set[str] = {"biking", "cycling", "bike"}
+from backend.importer.sport_codes import is_ride_sport, to_sport_code
 
 
 def import_single_tcx(conn: sqlite3.Connection, tcx_bytes: bytes, bike_id: str | None = None) -> dict:
@@ -78,7 +74,7 @@ def import_single_tcx(conn: sqlite3.Connection, tcx_bytes: bytes, bike_id: str |
 
     # Mi Fitness und ähnliche Apps setzen Sport="" – wenn bike_id übergeben wurde,
     # ist das ein hinreichendes Signal dass es eine Radfahrt ist.
-    is_ride = sport_lower in _CYCLING_SPORTS or (sport_lower == "" and bike_id is not None)
+    is_ride = is_ride_sport(sport_lower) or (sport_lower == "" and bike_id is not None)
 
     if is_ride:
         if not bike_id:

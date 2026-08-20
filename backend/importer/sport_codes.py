@@ -99,3 +99,11 @@ def to_sport_code(raw: str | None) -> str:
     """Rohwert (Vendor-Code oder deutscher Alt-Wert) → kanonischer, sprachneutraler Code.
     Unbekannte Werte fallen auf "training" zurück (generischer Auffang-Code)."""
     return lookup_sport_code(raw) or "training"
+
+
+def is_ride_sport(raw: str | None) -> bool:
+    """True wenn der Rohwert (Vendor-String aus FIT/TCX/GPX oder Strava-CSV-Aktivitätsart)
+    einer Radfahrt entspricht. Zentrale Stelle für die Ride-vs-Workout-Routing-Entscheidung
+    der Einzelimporte – vorher hatte jeder Importer (fit_single.py/tcx_single.py/
+    gpx_single.py/pipeline.py) sein eigenes, unabhängig gepflegtes Cycling-Set."""
+    return lookup_sport_code(raw) == "ride"

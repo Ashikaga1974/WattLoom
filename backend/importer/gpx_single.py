@@ -9,15 +9,12 @@ from datetime import datetime, timezone
 from lxml import etree
 
 from backend.importer.gpx import NS, _attr_float, _text_str, _text_float, _text_int, import_gpx, read_gpx_device
-from backend.importer.sport_codes import to_sport_code
+from backend.importer.sport_codes import is_ride_sport, to_sport_code
 from backend.utils import haversine_m
 
-# Sport-Strings die als Radfahrt in activities landen (case-insensitive)
 # Zeitintervalle unter diesem Schwellwert (m/s) gelten als Pause und fließen
 # nicht in die Moving Time ein – analog zu Stravas Logik (~1.4 m/s für Rad)
 _MOVING_THRESHOLD_MS = 1.0  # ≈ 3.6 km/h
-
-_CYCLING_SPORTS: set[str] = {"1", "ride", "cycling", "biking", "bike", "e-bike ride"}
 
 
 def import_single_gpx(conn: sqlite3.Connection, gpx_bytes: bytes, bike_id: str | None = None) -> dict:
@@ -61,7 +58,7 @@ def import_single_gpx(conn: sqlite3.Connection, gpx_bytes: bytes, bike_id: str |
     stats = _aggregate_trackpoints(trkpts)
 
     # Sport-Routing: type-String → Radfahrt, oder bike_id als Signal
-    is_ride = sport_lower in _CYCLING_SPORTS or (not sport_lower and bike_id is not None)
+    is_ride = is_ride_sport(sport_lower) or (not sport_lower and bike_id is not None)
 
     if is_ride:
         if not bike_id:
