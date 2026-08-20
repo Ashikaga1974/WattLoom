@@ -2,7 +2,7 @@
 
 Lokale Web-App zur Analyse von Strava-Exportdaten. Kein Strava-API-Zugriff nötig – alles läuft lokal auf Basis eines heruntergeladenen ZIP-Exports.
 
-![Dashboard](res/dashboard.png)
+![Dashboard](res/dashboard2.png)
 
 > 🇬🇧 [English README](README.en.md)
 
