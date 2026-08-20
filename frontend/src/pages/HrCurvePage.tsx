@@ -7,7 +7,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import { api } from '@/lib/api';
-import { CHART_HEIGHT } from '@/lib/config';
+import { useConfig } from '@/lib/config-context';
 import { ChartTooltip } from '@/components/ui/chart-tooltip';
 import {
   ComposedChart, Line, XAxis, YAxis, CartesianGrid,
@@ -101,6 +101,7 @@ function buildAreaPath(pts: { x: number; y: number }[], baseY: number): string {
 }
 
 function HrKurveTab() {
+  const { chart_height } = useConfig();
   const [data, setData] = useState<CurveData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -449,7 +450,7 @@ function HrKurveTab() {
                 </div>
               </CardHeader>
               <CardContent>
-                <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
+                <ResponsiveContainer width="100%" height={chart_height}>
                   <ComposedChart data={trendData} margin={{ top: 8, right: 12, bottom: 0, left: 0 }}>
                     <CartesianGrid vertical={false} stroke="var(--border)" strokeOpacity={0.5} />
                     <XAxis

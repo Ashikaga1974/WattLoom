@@ -13,7 +13,6 @@ import {
 import { api, type ActivityDetail, type TrackPoint, type ActivityZones, type SimilarActivity } from '@/lib/api';
 import { fmtKm, fmtTime, fmtDate, fmtSpeed, fmtHm } from '@/lib/format';
 import { useConfig } from '@/lib/config-context';
-import { CHART_HEIGHT_MINI } from '@/lib/config';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -160,6 +159,7 @@ function useChartHover(
 }
 
 function ElevationChart({ points, onHover, activeDist }: { points: TrackPoint[]; onHover?: HoverFn; activeDist?: number | null }) {
+  const { chart_height_mini } = useConfig();
   const valid = points.map((p, i) => ({ p, i })).filter(({ p }) => p.altitude_m != null && p.distance_m != null);
   if (valid.length < 2) return null;
 
@@ -174,7 +174,7 @@ function ElevationChart({ points, onHover, activeDist }: { points: TrackPoint[];
   return (
     <div>
       <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Höhenprofil</p>
-      <ResponsiveContainer width="100%" height={CHART_HEIGHT_MINI}>
+      <ResponsiveContainer width="100%" height={chart_height_mini}>
         <AreaChart data={data} margin={{ top: 0, right: 0, left: -30, bottom: 0 }}
           syncId="ap" syncMethod="value"
           onMouseMove={handleMouseMove} onMouseLeave={handleMouseLeave}>
@@ -198,6 +198,7 @@ function ElevationChart({ points, onHover, activeDist }: { points: TrackPoint[];
 }
 
 function HRChart({ points, onHover, activeDist }: { points: TrackPoint[]; onHover?: HoverFn; activeDist?: number | null }) {
+  const { chart_height_mini } = useConfig();
   const valid = points.map((p, i) => ({ p, i })).filter(({ p }) => p.hr != null && p.distance_m != null);
   if (valid.length < 2) return null;
 
@@ -212,7 +213,7 @@ function HRChart({ points, onHover, activeDist }: { points: TrackPoint[]; onHove
   return (
     <div>
       <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Herzfrequenz</p>
-      <ResponsiveContainer width="100%" height={CHART_HEIGHT_MINI}>
+      <ResponsiveContainer width="100%" height={chart_height_mini}>
         <AreaChart data={data} margin={{ top: 0, right: 0, left: -30, bottom: 0 }}
           syncId="ap" syncMethod="value"
           onMouseMove={handleMouseMove} onMouseLeave={handleMouseLeave}>
@@ -242,6 +243,7 @@ function speedHue(kmh: number, minSpd: number, maxSpd: number): string {
 }
 
 function SpeedChart({ points, onHover, activeDist }: { points: TrackPoint[]; onHover?: HoverFn; activeDist?: number | null }) {
+  const { chart_height_mini } = useConfig();
   const valid = points.map((p, i) => ({ p, i })).filter(({ p }) => p.speed_ms != null && p.speed_ms > 0 && p.distance_m != null);
   if (valid.length < 2) return null;
 
@@ -270,7 +272,7 @@ function SpeedChart({ points, onHover, activeDist }: { points: TrackPoint[]; onH
   return (
     <div>
       <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Geschwindigkeit</p>
-      <ResponsiveContainer width="100%" height={CHART_HEIGHT_MINI}>
+      <ResponsiveContainer width="100%" height={chart_height_mini}>
         <AreaChart data={data} margin={{ top: 0, right: 0, left: -30, bottom: 0 }}
           syncId="ap" syncMethod="value"
           onMouseMove={handleMouseMove} onMouseLeave={handleMouseLeave}>

@@ -13,7 +13,6 @@ import {
 import { api, type ActivityStats, type Bike, type BikeComponent, type Activity, type WeeklyStats, type MonthlyStats, type WeeklyVolume, type PmcDay, type PrEvent } from '@/lib/api';
 import { fmtKm, fmtTime, fmtDate, fmtNum, fmtSpeed, fmtWeekday } from '@/lib/format';
 import { useConfig } from '@/lib/config-context';
-import { CHART_HEIGHT_COMPACT } from '@/lib/config';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ChartTooltip } from '@/components/ui/chart-tooltip';
@@ -650,7 +649,7 @@ export default function DashboardPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={CHART_HEIGHT_COMPACT}>
+            <ResponsiveContainer width="100%" height={config.chart_height_compact}>
               <BarChart data={chartData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
                 <defs>
                   <linearGradient id="barGrad" x1="0" y1="0" x2="0" y2="1">

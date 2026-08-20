@@ -1,4 +1,4 @@
-# RideForge
+# WattLoom
 
 Local web app for analyzing Strava export data. No Strava API access needed – everything runs locally based on a downloaded ZIP export.
 
@@ -55,7 +55,7 @@ Local web app for analyzing Strava export data. No Strava API access needed – 
 | **Fitness fingerprint** | Overall score 0–100 from CTL, aerobic efficiency, form (TSB), and consistency; arc gauge, strengths radar, 4 component cards, 13-month history, level system (beginner → elite) |
 | **Calendar** | Monthly calendar: rides + workouts (marked grey), ring indicator on combo days |
 | **Calculations** | Documentation of all formulas and parameters used |
-| **Settings** | Weight, birth year, timezone; single FIT/TCX import (Amazfit, Garmin without Strava); weather data fetch; recalculate power for all rides; MyBikingApp sync (manual push of current data to MyBikingApp) |
+| **Settings** | Weight, birth year, timezone; single FIT/TCX import (Amazfit, Garmin without Strava); weather data fetch; recalculate power for all rides; WattLoomApp sync (manual push of current data to WattLoomApp) |
 
 ---
 
@@ -151,7 +151,7 @@ Service files live in `~/.config/systemd/user/`. Stop them before debugging with
 ## Project structure
 
 ```
-RideForge/
+WattLoom/
 ├── backend/
 │   ├── main.py              # FastAPI app, CORS for localhost:5173
 │   ├── database.py          # SQLite schema, init_db()

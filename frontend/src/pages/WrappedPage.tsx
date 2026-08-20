@@ -12,7 +12,7 @@ import {
 
 import { api, type WrappedData } from '@/lib/api';
 import { fmtDate, fmtNum } from '@/lib/format';
-import { CHART_HEIGHT_COMPACT } from '@/lib/config';
+import { useConfig } from '@/lib/config-context';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ChartTooltip } from '@/components/ui/chart-tooltip';
@@ -87,6 +87,7 @@ function HighlightCard({ label, headline, subline, linkId }: { label: string; he
 }
 
 export default function WrappedPage() {
+  const config = useConfig();
   const [data, setData] = useState<WrappedData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -260,7 +261,7 @@ export default function WrappedPage() {
           <CardTitle className="text-sm font-medium">Monatsverlauf {data.year}</CardTitle>
         </CardHeader>
         <CardContent>
-          <ResponsiveContainer width="100%" height={CHART_HEIGHT_COMPACT}>
+          <ResponsiveContainer width="100%" height={config.chart_height_compact}>
             <BarChart data={monthlyChartData} barSize={28}>
               <XAxis dataKey="name" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fontSize: 11 }} axisLine={false} tickLine={false} width={40} unit=" km" />

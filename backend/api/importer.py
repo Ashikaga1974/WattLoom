@@ -74,16 +74,16 @@ def _fmt_hms(seconds: float) -> str:
 
 
 def _sync_app_after_import() -> None:
-    """Stößt den MyBikingApp-Sync direkt nach einem Import an (analog zum automatischen
+    """Stößt den WattLoomApp-Sync direkt nach einem Import an (analog zum automatischen
     Wetter-Fetch) statt den manuellen Button in den Einstellungen zu erfordern."""
     from backend.api.app_sync import _do_sync
 
     try:
         result = _do_sync()
         if not result["ok"]:
-            logger.warning("MyBikingApp-Sync nach Import fehlgeschlagen: %s", result["message"])
+            logger.warning("WattLoomApp-Sync nach Import fehlgeschlagen: %s", result["message"])
     except Exception as exc:
-        logger.error("MyBikingApp-Sync nach Import fehlgeschlagen: %s", exc)
+        logger.error("WattLoomApp-Sync nach Import fehlgeschlagen: %s", exc)
 
 
 def _check_new_prs(baseline: dict) -> None:
@@ -130,7 +130,7 @@ def _run_import() -> None:
         print("→ Bestzeiten prüfen …")
         _check_new_prs(baseline)
 
-        print("→ MyBikingApp-Sync …")
+        print("→ WattLoomApp-Sync …")
         _sync_app_after_import()
 
         with _lock:

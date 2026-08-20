@@ -18,7 +18,7 @@ logging.basicConfig(
     ],
 )
 
-app = FastAPI(title="RideForge API", version="0.1.0")
+app = FastAPI(title="WattLoom API", version="0.1.0")
 init_db()
 
 app.add_middleware(

@@ -7,7 +7,7 @@ import {
   ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, Area, AreaChart, Cell, ReferenceLine,
 } from 'recharts';
-import { CHART_HEIGHT, CHART_HEIGHT_DENSE } from '@/lib/config';
+import { useConfig } from '@/lib/config-context';
 
 // --- Wind-Impact-Typen und Hilfsfunktionen ---
 
@@ -148,6 +148,7 @@ function EffTooltip({ active, payload, label }: { active?: boolean; payload?: { 
 }
 
 export default function TempCorrPage() {
+  const config = useConfig();
   const [pts, setPts] = useState<Pt[]>([]);
   const [windPts, setWindPts] = useState<WindPt[]>([]);
   const [loading, setLoading] = useState(true);
@@ -249,7 +250,7 @@ export default function TempCorrPage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={CHART_HEIGHT_DENSE}>
+              <ResponsiveContainer width="100%" height={config.chart_height_dense}>
                 <ComposedChart data={buckets} margin={{ top: 8, right: 48, bottom: 0, left: 0 }}>
                   <CartesianGrid vertical={false} stroke="var(--border)" strokeOpacity={0.5} />
                   <XAxis
@@ -324,7 +325,7 @@ export default function TempCorrPage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
+              <ResponsiveContainer width="100%" height={config.chart_height}>
                 <AreaChart data={buckets} margin={{ top: 8, right: 10, bottom: 0, left: 0 }}>
                   <defs>
                     <linearGradient id="effGrad" x1="0" y1="0" x2="0" y2="1">
@@ -433,7 +434,7 @@ export default function TempCorrPage() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <ResponsiveContainer width="100%" height={CHART_HEIGHT_DENSE}>
+                  <ResponsiveContainer width="100%" height={config.chart_height_dense}>
                     <ComposedChart data={windBuckets} margin={{ top: 8, right: 48, bottom: 0, left: 0 }}>
                       <CartesianGrid vertical={false} stroke="var(--border)" strokeOpacity={0.5} />
                       <XAxis

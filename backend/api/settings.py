@@ -26,6 +26,14 @@ _FIELDS: dict[str, tuple[type, object]] = {
     "max_plausible_speed_ms": (float, 25.0),
     "wear_warning_pct":    (float, 90.0),
     "path_match_radius_km": (float, 0.5),
+    "comparison_simplify": (int,   20),
+    "block_hours":         (int,   3),
+    "volume_trend_weeks":  (int,   4),
+    "chart_height_mini":   (int,   100),
+    "chart_height_compact": (int,  140),
+    "chart_height":        (int,   200),
+    "chart_height_dense":  (int,   220),
+    "comparison_colors":   (str,   "#f97316,#3b82f6,#22c55e,#a855f7,#eab308"),
 }
 
 

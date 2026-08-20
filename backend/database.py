@@ -1,5 +1,5 @@
 """
-SQLite-Schema für RideForge.
+SQLite-Schema für WattLoom.
 Alle Tabellen werden hier angelegt; keine Migrations-Library – simples CREATE IF NOT EXISTS.
 """
 

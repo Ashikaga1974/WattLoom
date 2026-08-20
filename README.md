@@ -1,4 +1,4 @@
-# RideForge
+# WattLoom
 
 Lokale Web-App zur Analyse von Strava-Exportdaten. Kein Strava-API-Zugriff nötig – alles läuft lokal auf Basis eines heruntergeladenen ZIP-Exports.
 
@@ -54,7 +54,7 @@ Lokale Web-App zur Analyse von Strava-Exportdaten. Kein Strava-API-Zugriff nöti
 | **Fitness-Fingerprint** | Gesamtscore 0–100 aus CTL, Aerober Effizienz, Form (TSB) und Kontinuität; Arc-Gauge, Stärken-Radar, 4 Komponenten-Karten, 13-Monats-Verlauf, Level-System (Einsteiger → Elite) |
 | **Kalender** | Monatskalender: Radtouren + Workouts (grau markiert), Ring-Indikator bei Kombi-Tagen |
 | **Berechnungen** | Dokumentation aller verwendeten Formeln und Parameter |
-| **Einstellungen** | Gewicht, Geburtsjahr, Zeitzone, Trainingsziele (Jahres-km, Wochenstunden); FIT/TCX-Einzelimport (Amazfit, Garmin ohne Strava); Wetterdaten-Abruf; Leistung für alle Rides neu berechnen; MyBikingApp-Sync (läuft automatisch nach jedem Import, zusätzlich manuell anstoßbar); DB-Reset sichert vorher automatisch eine Backup-Kopie |
+| **Einstellungen** | Gewicht, Geburtsjahr, Zeitzone, Trainingsziele (Jahres-km, Wochenstunden); FIT/TCX-Einzelimport (Amazfit, Garmin ohne Strava); Wetterdaten-Abruf; Leistung für alle Rides neu berechnen; WattLoomApp-Sync (läuft automatisch nach jedem Import, zusätzlich manuell anstoßbar); DB-Reset sichert vorher automatisch eine Backup-Kopie |
 
 ---
 
@@ -150,7 +150,7 @@ Service-Dateien liegen in `~/.config/systemd/user/`. Beim Debuggen mit VS Code v
 ## Projektstruktur
 
 ```
-RideForge/
+WattLoom/
 ├── backend/
 │   ├── main.py              # FastAPI-App, CORS für localhost:5173
 │   ├── database.py          # SQLite-Schema, init_db()
@@ -286,8 +286,8 @@ POST /import/fit-file               → multipart: file (.fit) + bike_id
 POST /import/tcx-file               → multipart: file (.tcx) + bike_id
 GET  /media/{filename}
 
-GET  /app-sync/status               → letztes MyBikingApp-Sync-Ergebnis
-POST /app-sync/run                  → MyBikingApp-Sync manuell anstoßen (läuft nach jedem Import zusätzlich automatisch)
+GET  /app-sync/status               → letztes WattLoomApp-Sync-Ergebnis
+POST /app-sync/run                  → WattLoomApp-Sync manuell anstoßen (läuft nach jedem Import zusätzlich automatisch)
 ```
 
 ---

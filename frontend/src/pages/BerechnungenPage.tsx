@@ -1,4 +1,3 @@
-import { COMPARISON_SIMPLIFY } from '@/lib/config';
 import { useConfig } from '@/lib/config-context';
 import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
@@ -205,7 +204,7 @@ export default function BerechnungenPage() {
           <ParamRow label="Track-Marken-Korridor" value={<>Alle <Code>2 km</Code> ab Start, Korridor <Code>500 m</Code></>} />
           <ParamRow label="Mindest-Übereinstimmung" value={<>Standard <Code>85 %</Code> der gemeinsamen Marken, sonst verworfen</>} />
           <ParamRow label="Serien-Regel" value="Mehr als 1 Fehltreffer in Folge disqualifiziert komplett – auch bei hoher Gesamtquote" />
-          <ParamRow label="Track-Vereinfachung" value={<>RDP-Toleranz <Val v={`${COMPARISON_SIMPLIFY} m`} /> (höher als Detailansicht – Performance)</>} />
+          <ParamRow label="Track-Vereinfachung" value={<>RDP-Toleranz <Val v={`${config.comparison_simplify} m`} /> (höher als Detailansicht – Performance)</>} />
           <ParamRow label="Ergebnis-Limit" value="Max. 10 ähnliche Aktivitäten, sortiert nach Streckenübereinstimmung" />
         </InfoBox>
       </Section>

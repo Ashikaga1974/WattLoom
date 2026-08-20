@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo, Fragment } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { api, type WeeklyVolume, type FitnessFingerprint } from '@/lib/api';
-import { CHART_HEIGHT, CHART_HEIGHT_DENSE, BLOCK_HOURS, VOLUME_TREND_WEEKS } from '@/lib/config';
+import { useConfig } from '@/lib/config-context';
 import { PageHeader } from '@/components/ui/page-header';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -232,6 +232,7 @@ function buildTrendInsights(
 }
 
 function FortschrittTab() {
+  const config = useConfig();
   const [yearData, setYearData] = useState<YearData>({});
   const [monthlyAll, setMonthlyAll] = useState<MonthlyEntry[]>([]);
   const [weeklyData, setWeeklyData] = useState<WeeklyVolume[]>([]);
@@ -343,7 +344,7 @@ function FortschrittTab() {
             <CardTitle className="text-base font-semibold">Kumulierte km je Jahr</CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={CHART_HEIGHT_DENSE}>
+            <ResponsiveContainer width="100%" height={config.chart_height_dense}>
               <LineChart data={lineData} margin={{ top: 8, right: 16, bottom: 8, left: 8 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                 <XAxis
@@ -392,7 +393,7 @@ function FortschrittTab() {
             <CardTitle className="text-base font-semibold">km pro Jahr</CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
+            <ResponsiveContainer width="100%" height={config.chart_height}>
               <BarChart data={barData} margin={{ top: 16, right: 16, bottom: 8, left: 8 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
                 <XAxis dataKey="year" tick={{ fontSize: 12 }} />
@@ -420,7 +421,7 @@ function FortschrittTab() {
             <CardTitle className="text-base font-semibold">Monatlicher Gesamtverlauf</CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={CHART_HEIGHT_DENSE}>
+            <ResponsiveContainer width="100%" height={config.chart_height_dense}>
               <AreaChart data={areaData} margin={{ top: 8, right: 16, bottom: 8, left: 8 }}>
                 <defs>
                   <linearGradient id="monthGrad" x1="0" y1="0" x2="0" y2="1">
@@ -528,6 +529,7 @@ function yearStats(data: MonthlyEntry[], year: number) {
 }
 
 function VergleichTab() {
+  const config = useConfig();
   const [rawData, setRawData] = useState<MonthlyEntry[]>([]);
   const [availableYears, setAvailableYears] = useState<number[]>([]);
   const [selectedYears, setSelectedYears] = useState<number[]>([]);
@@ -585,7 +587,7 @@ function VergleichTab() {
       {sortedSelected.length > 0 && (
         <Card className="shadow-sm border">
           <CardContent className="pt-4">
-            <ResponsiveContainer width="100%" height={CHART_HEIGHT_DENSE}>
+            <ResponsiveContainer width="100%" height={config.chart_height_dense}>
               <ComposedChart data={chartData} margin={{ top: 8, right: 16, bottom: 8, left: 8 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                 <XAxis dataKey="month" tick={{ fontSize: 11 }} />
@@ -664,7 +666,8 @@ function calcStats(data: WeeklyVolume[]) {
 
 function buildVolumeInsights(
   chartData: { label: string; total: number }[],
-  stats: ReturnType<typeof calcStats>
+  stats: ReturnType<typeof calcStats>,
+  volumeTrendWeeks: number
 ): Insight[] {
   const insights: Insight[] = [];
 
@@ -675,25 +678,25 @@ function buildVolumeInsights(
     });
   }
 
-  if (chartData.length >= VOLUME_TREND_WEEKS * 2) {
-    const last = chartData.slice(-VOLUME_TREND_WEEKS);
-    const prev = chartData.slice(-VOLUME_TREND_WEEKS * 2, -VOLUME_TREND_WEEKS);
+  if (chartData.length >= volumeTrendWeeks * 2) {
+    const last = chartData.slice(-volumeTrendWeeks);
+    const prev = chartData.slice(-volumeTrendWeeks * 2, -volumeTrendWeeks);
     const avgLast = last.reduce((s, w) => s + w.total, 0) / last.length;
     const avgPrev = prev.reduce((s, w) => s + w.total, 0) / prev.length;
     const diff = avgLast - avgPrev;
     if (diff >= 30) {
       insights.push({
-        text: `Aufwärtstrend: ${fmtTime(Math.round(avgLast) * 60)} Ø/Woche in den letzten ${VOLUME_TREND_WEEKS} Wochen, mehr als die ${VOLUME_TREND_WEEKS} Wochen davor (${fmtTime(Math.round(avgPrev) * 60)}).`,
+        text: `Aufwärtstrend: ${fmtTime(Math.round(avgLast) * 60)} Ø/Woche in den letzten ${volumeTrendWeeks} Wochen, mehr als die ${volumeTrendWeeks} Wochen davor (${fmtTime(Math.round(avgPrev) * 60)}).`,
         type: 'positive',
       });
     } else if (diff <= -30) {
       insights.push({
-        text: `Rückgang: ${fmtTime(Math.round(avgLast) * 60)} Ø/Woche in den letzten ${VOLUME_TREND_WEEKS} Wochen, weniger als davor (${fmtTime(Math.round(avgPrev) * 60)}).`,
+        text: `Rückgang: ${fmtTime(Math.round(avgLast) * 60)} Ø/Woche in den letzten ${volumeTrendWeeks} Wochen, weniger als davor (${fmtTime(Math.round(avgPrev) * 60)}).`,
         type: 'warning',
       });
     } else {
       insights.push({
-        text: `Trainingsumfang der letzten ${VOLUME_TREND_WEEKS} Wochen ist stabil (Ø ${fmtTime(Math.round(avgLast) * 60)}/Woche).`,
+        text: `Trainingsumfang der letzten ${volumeTrendWeeks} Wochen ist stabil (Ø ${fmtTime(Math.round(avgLast) * 60)}/Woche).`,
         type: 'neutral',
       });
     }
@@ -716,6 +719,7 @@ function buildVolumeInsights(
 }
 
 function VolumenTab() {
+  const config = useConfig();
   const [allData, setAllData] = useState<WeeklyVolume[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -740,16 +744,19 @@ function VolumenTab() {
       Kraft: w.weight_training_minutes,
       total: w.ride_minutes + w.workout_minutes + w.weight_training_minutes,
     }));
-    // Rolling-Ø der letzten VOLUME_TREND_WEEKS Wochen (analog anderer Rolling-Average-Charts)
+    // Rolling-Ø der letzten volume_trend_weeks Wochen (analog anderer Rolling-Average-Charts)
     return base.map((w, i) => {
-      const window = base.slice(Math.max(0, i - (VOLUME_TREND_WEEKS - 1)), i + 1);
+      const window = base.slice(Math.max(0, i - (config.volume_trend_weeks - 1)), i + 1);
       const avg = window.reduce((s, x) => s + x.total, 0) / window.length;
       return { ...w, Trend: Math.round(avg) };
     });
-  }, [viewData]);
+  }, [viewData, config.volume_trend_weeks]);
 
   const stats = useMemo(() => calcStats(viewData), [viewData]);
-  const insights = useMemo(() => buildVolumeInsights(chartData, stats), [chartData, stats]);
+  const insights = useMemo(
+    () => buildVolumeInsights(chartData, stats, config.volume_trend_weeks),
+    [chartData, stats, config.volume_trend_weeks]
+  );
   const currentWeek = chartData.find(w => w.weeks_ago === 0);
 
   if (loading) return <div className="h-64 bg-muted animate-pulse rounded-xl" />;
@@ -774,7 +781,7 @@ function VolumenTab() {
 
       <Card className="shadow-sm border">
         <CardContent className="pt-4">
-          <ResponsiveContainer width="100%" height={CHART_HEIGHT_DENSE}>
+          <ResponsiveContainer width="100%" height={config.chart_height_dense}>
             <ComposedChart data={chartData} margin={{ top: 8, right: 16, bottom: 8, left: 8 }} barCategoryGap="15%">
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
               <XAxis
@@ -804,7 +811,7 @@ function VolumenTab() {
               <Line
                 type="monotone"
                 dataKey="Trend"
-                name={`${VOLUME_TREND_WEEKS}-Wochen-Ø`}
+                name={`${config.volume_trend_weeks}-Wochen-Ø`}
                 stroke="#facc15"
                 strokeWidth={2}
                 strokeDasharray="8,4"
@@ -837,17 +844,23 @@ function VolumenTab() {
 const DAYS_SHORT = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
 const DAYS_FULL  = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag', 'Sonntag'];
 
-// 3h-Blöcke statt 24 Einzelstunden – 56 statt 168 Zellen, deutlich lesbarer
-const BLOCKS = [
-  { label: 'Nacht',      sub: '00–03' },
-  { label: 'Früh',       sub: '03–06' },
-  { label: 'Morgen',     sub: '06–09' },
-  { label: 'Vormittag',  sub: '09–12' },
-  { label: 'Mittag',     sub: '12–15' },
-  { label: 'Nachmittag', sub: '15–18' },
-  { label: 'Abend',      sub: '18–21' },
-  { label: 'Spätabend',  sub: '21–24' },
-];
+// Zeitblöcke statt 24 Einzelstunden – deutlich lesbarer. Standard 3h → 8 benannte Blöcke;
+// bei abweichender block_hours-Einstellung dient der Stundenbereich selbst als Label.
+function pad2(n: number): string { return String(n).padStart(2, '0'); }
+
+const BLOCK_LABELS_3H = ['Nacht', 'Früh', 'Morgen', 'Vormittag', 'Mittag', 'Nachmittag', 'Abend', 'Spätabend'];
+
+function buildBlocks(blockHours: number): { label: string; sub: string }[] {
+  const hours = blockHours > 0 && blockHours <= 24 ? blockHours : 3;
+  const count = Math.max(1, Math.floor(24 / hours));
+  return Array.from({ length: count }, (_, i) => {
+    const start = i * hours;
+    const end = Math.min(24, start + hours);
+    const sub = `${pad2(start)}–${pad2(end)}`;
+    const label = hours === 3 && count === 8 ? BLOCK_LABELS_3H[i] : sub;
+    return { label, sub };
+  });
+}
 
 function blockClasses(minutes: number, maxMinutes: number): string {
   if (minutes === 0) return 'bg-muted text-muted-foreground';
@@ -862,6 +875,8 @@ interface BlockCell { rideCount: number; rideMinutes: number; workoutCount: numb
 interface TooltipState { x: number; y: number; wd: number; block: number; cell: BlockCell; }
 
 function TageszeitTab() {
+  const { block_hours } = useConfig();
+  const BLOCKS = useMemo(() => buildBlocks(block_hours), [block_hours]);
   const [cells, setCells] = useState<{
     weekday: number; hour: number;
     ride_count: number; ride_minutes: number;
@@ -903,7 +918,7 @@ function TageszeitTab() {
     Array.from({ length: BLOCKS.length }, () => ({ rideCount: 0, rideMinutes: 0, workoutCount: 0, workoutMinutes: 0 }))
   );
   for (const c of cells) {
-    const block = Math.floor(c.hour / BLOCK_HOURS);
+    const block = Math.floor(c.hour / block_hours);
     const g = grid[c.weekday][block];
     g.rideCount += c.ride_count;
     g.rideMinutes += c.ride_minutes;

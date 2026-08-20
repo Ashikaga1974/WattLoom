@@ -1,10 +1,10 @@
 """
-Stößt den MyBikingApp-Sync (SQLite -> Neon) manuell per Button an.
+Stößt den WattLoomApp-Sync (SQLite -> Neon) manuell per Button an.
 
-MyBikingApp ist ein eigenständiges Repo mit eigenem venv (psycopg/dotenv sind
-dort installiert, nicht in RideForges venv) - dieser Endpoint ruft dessen
-sync/push_to_cloud.py deshalb als Subprocess mit dem MyBikingApp-eigenen
-Python-Interpreter auf, statt Code zu teilen. RideForge selbst bleibt davon
+WattLoomApp ist ein eigenständiges Repo mit eigenem venv (psycopg/dotenv sind
+dort installiert, nicht in WattLooms venv) - dieser Endpoint ruft dessen
+sync/push_to_cloud.py deshalb als Subprocess mit dem WattLoomApp-eigenen
+Python-Interpreter auf, statt Code zu teilen. WattLoom selbst bleibt davon
 unberührt (kein Import, keine Abhängigkeit im Code) - nur dieser eine
 Endpoint kennt den Pfad zum Nachbar-Repo.
 """
@@ -23,9 +23,9 @@ logger = logging.getLogger(__name__)
 
 # Absoluter Pfad zum Schwester-Repo - Sascha entwickelt auf einer einzigen
 # Maschine, daher bewusst hardcodiert statt konfigurierbar.
-MYBIKINGAPP_DIR = Path("/home/sascha/Projekte/MyBikingApp")
-MYBIKINGAPP_PYTHON = MYBIKINGAPP_DIR / ".venv" / "bin" / "python3"
-SYNC_SCRIPT = MYBIKINGAPP_DIR / "sync" / "push_to_cloud.py"
+WATTLOOMAPP_DIR = Path("/home/sascha/Projekte/WattLoomApp")
+WATTLOOMAPP_PYTHON = WATTLOOMAPP_DIR / ".venv" / "bin" / "python3"
+SYNC_SCRIPT = WATTLOOMAPP_DIR / "sync" / "push_to_cloud.py"
 
 _CONFIG_KEYS = {
     "at": "app_sync_last_at",
@@ -55,13 +55,13 @@ def _do_sync() -> dict:
     """Kern von run_app_sync() – als eigene Funktion extrahiert, damit importer.py
     denselben Sync-Lauf direkt nach einem Import anstoßen kann (analog zum bereits
     automatischen Wetter-Fetch), ohne den Subprocess-Aufruf zu duplizieren."""
-    if not SYNC_SCRIPT.exists() or not MYBIKINGAPP_PYTHON.exists():
-        return {"ok": False, "message": f"MyBikingApp nicht gefunden unter {MYBIKINGAPP_DIR}"}
+    if not SYNC_SCRIPT.exists() or not WATTLOOMAPP_PYTHON.exists():
+        return {"ok": False, "message": f"WattLoomApp nicht gefunden unter {WATTLOOMAPP_DIR}"}
 
     try:
         result = subprocess.run(
-            [str(MYBIKINGAPP_PYTHON), str(SYNC_SCRIPT)],
-            cwd=MYBIKINGAPP_DIR,
+            [str(WATTLOOMAPP_PYTHON), str(SYNC_SCRIPT)],
+            cwd=WATTLOOMAPP_DIR,
             capture_output=True,
             text=True,
             timeout=120,

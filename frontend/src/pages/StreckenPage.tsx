@@ -7,8 +7,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { RouteThumbnail } from '@/components/RouteThumbnail';
 import { ChartTooltip } from '@/components/ui/chart-tooltip';
 import { fmtDate, fmtKm, fmtTime, fmtTimeShort } from '@/lib/format';
-import { COMPARISON_SIMPLIFY, CHART_HEIGHT, CHART_HEIGHT_COMPACT } from '@/lib/config';
-const COMPARISON_COLORS = ['#f97316', '#3b82f6', '#22c55e', '#a855f7', '#eab308'];
+import { useConfig } from '@/lib/config-context';
 
 function fmtSpeed(ms: number | null) { return ms != null ? (ms * 3.6).toFixed(1) + ' km/h' : '–'; }
 function fmtHr(hr: number | null) { return hr != null ? Math.round(hr) + ' bpm' : '–'; }
@@ -117,6 +116,7 @@ interface TrackEntry {
 }
 
 export default function StreckenPage() {
+  const config = useConfig();
   const { id: paramId } = useParams<{ id?: string }>();
   const [searchParams] = useSearchParams();
   const refParam = searchParams.get('ref');
@@ -177,7 +177,7 @@ export default function StreckenPage() {
       setRefActivity(act);
       setSimilarList(similar.similar);
       if (act.has_track) {
-        const track = await api.activityTrack(id, COMPARISON_SIMPLIFY);
+        const track = await api.activityTrack(id, config.comparison_simplify);
         setTracksData({ [id]: track.points });
       }
     } catch (e) {
@@ -197,7 +197,7 @@ export default function StreckenPage() {
       if (!tracksData[id]) {
         setLoadingIds(prev => new Set([...prev, id]));
         try {
-          const track = await api.activityTrack(id, COMPARISON_SIMPLIFY);
+          const track = await api.activityTrack(id, config.comparison_simplify);
           setTracksData(prev => ({ ...prev, [id]: track.points }));
         } catch { /* Track nicht verfügbar */ }
         finally {
@@ -210,12 +210,12 @@ export default function StreckenPage() {
   // Chart-Tracks zusammenbauen
   const chartTracks: TrackEntry[] = [];
   if (refActivity && tracksData[refActivity.id]) {
-    chartTracks.push({ id: refActivity.id, label: refActivity.name, color: COMPARISON_COLORS[0], points: tracksData[refActivity.id] });
+    chartTracks.push({ id: refActivity.id, label: refActivity.name, color: config.comparison_colors[0], points: tracksData[refActivity.id] });
   }
   selectedIds.forEach((id, i) => {
     if (tracksData[id]) {
       const act = similarList.find(a => a.id === id);
-      chartTracks.push({ id, label: act?.name ?? `#${id}`, color: COMPARISON_COLORS[(i + 1) % COMPARISON_COLORS.length], points: tracksData[id] });
+      chartTracks.push({ id, label: act?.name ?? `#${id}`, color: config.comparison_colors[(i + 1) % config.comparison_colors.length], points: tracksData[id] });
     }
   });
 
@@ -396,7 +396,7 @@ export default function StreckenPage() {
             <Card className="border-primary/40">
               <CardContent className="p-3">
                 <div className="mb-1 flex items-center gap-2">
-                  <span className="inline-block h-3 w-3 shrink-0 rounded-full" style={{ background: COMPARISON_COLORS[0] }} />
+                  <span className="inline-block h-3 w-3 shrink-0 rounded-full" style={{ background: config.comparison_colors[0] }} />
                   <span className="text-xs font-medium uppercase tracking-wide text-primary">Referenz</span>
                 </div>
                 <div className="flex items-start gap-3">
@@ -431,7 +431,7 @@ export default function StreckenPage() {
                 {[...similarList].sort((a, b) => b.distance_m - a.distance_m).map(act => {
                   const isSelected = selectedIds.includes(act.id);
                   const isLoadingItem = loadingIds.has(act.id);
-                  const colorIdx = isSelected ? (selectedIds.indexOf(act.id) + 1) % COMPARISON_COLORS.length : null;
+                  const colorIdx = isSelected ? (selectedIds.indexOf(act.id) + 1) % config.comparison_colors.length : null;
                   const isDisabled = isLoadingItem || (!isSelected && selectedIds.length >= 4);
                   return (
                     <button
@@ -447,7 +447,7 @@ export default function StreckenPage() {
                         {isLoadingItem ? (
                           <span className="mt-0.5 inline-block h-2.5 w-2.5 shrink-0 animate-spin rounded-full border-2 border-primary border-t-transparent" />
                         ) : colorIdx !== null ? (
-                          <span className="mt-0.5 inline-block h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: COMPARISON_COLORS[colorIdx] }} />
+                          <span className="mt-0.5 inline-block h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: config.comparison_colors[colorIdx] }} />
                         ) : (
                           <span className="mt-0.5 inline-block h-2.5 w-2.5 shrink-0 rounded-full border border-border" />
                         )}
@@ -513,7 +513,7 @@ export default function StreckenPage() {
                     <p className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
                       Geschwindigkeit über Distanz
                     </p>
-                    <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
+                    <ResponsiveContainer width="100%" height={config.chart_height}>
                       <LineChart data={speedProfileData} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}
                         syncId="strecken-profil" syncMethod="value"
                         onMouseMove={handleChartHover} onMouseLeave={handleChartLeave}>
@@ -531,7 +531,7 @@ export default function StreckenPage() {
                     <p className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
                       Höhenprofil
                     </p>
-                    <ResponsiveContainer width="100%" height={CHART_HEIGHT_COMPACT}>
+                    <ResponsiveContainer width="100%" height={config.chart_height_compact}>
                       <LineChart data={elevationProfileData} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}
                         syncId="strecken-profil" syncMethod="value"
                         onMouseMove={handleChartHover} onMouseLeave={handleChartLeave}>
@@ -572,7 +572,7 @@ export default function StreckenPage() {
                     {/* Referenz */}
                     <tr className="border-b border-border/50 bg-primary/5">
                       <td className="flex items-center gap-2 px-3 py-2">
-                        <span className="inline-block h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: COMPARISON_COLORS[0] }} />
+                        <span className="inline-block h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: config.comparison_colors[0] }} />
                         <Link to={`/activities/${refActivity.id}`} className="max-w-[140px] truncate font-medium hover:text-primary">
                           {refActivity.name}
                         </Link>
@@ -606,7 +606,7 @@ export default function StreckenPage() {
                         <tr key={id} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
                           <td className="px-3 py-2">
                             <div className="flex items-center gap-2">
-                              <span className="inline-block h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: COMPARISON_COLORS[(i + 1) % COMPARISON_COLORS.length] }} />
+                              <span className="inline-block h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: config.comparison_colors[(i + 1) % config.comparison_colors.length] }} />
                               <Link to={`/activities/${act.id}`} className="max-w-[140px] truncate hover:text-primary">
                                 {act.name}
                               </Link>

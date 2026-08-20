@@ -1,5 +1,3 @@
-import { TRACK_SIMPLIFY_M, COMPARISON_SIMPLIFY } from './config';
-
 const BASE = 'http://localhost:8000';
 
 export interface Activity {
@@ -477,6 +475,14 @@ export interface Settings {
   max_plausible_speed_ms: number;
   wear_warning_pct: number;
   path_match_radius_km: number;
+  comparison_simplify: number;
+  block_hours: number;
+  volume_trend_weeks: number;
+  chart_height_mini: number;
+  chart_height_compact: number;
+  chart_height: number;
+  chart_height_dense: number;
+  comparison_colors: string;
 }
 
 export interface FitnessComponent {
@@ -558,7 +564,7 @@ export const api = {
 
   mediaUrl: (filename: string) => `${BASE}/media/${filename}`,
 
-  activityTrack: (id: number, simplify = TRACK_SIMPLIFY_M) =>
+  activityTrack: (id: number, simplify: number) =>
     get<TrackResponse>(`/activities/${id}/track${buildQuery({ simplify, fields: 'lat,lon,altitude_m,distance_m,speed_ms,hr' })}`),
 
   bikes: () =>
@@ -567,7 +573,7 @@ export const api = {
   bike: (id: string) =>
     get<Bike>(`/bikes/${id}`),
 
-  heatmap: (simplify = COMPARISON_SIMPLIFY, year?: number) =>
+  heatmap: (simplify: number, year?: number) =>
     get<{ count: number; points: [number, number][] }>(`/tracks/heatmap${buildQuery({ simplify, year })}`),
 
   hrCurve: (year?: number) =>

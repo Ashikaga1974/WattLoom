@@ -7,7 +7,7 @@ import {
 import { TrendingUp, Zap, Wind, Calendar, TrendingDown, Minus } from 'lucide-react';
 
 import { api, type FitnessFingerprint } from '@/lib/api';
-import { CHART_HEIGHT } from '@/lib/config';
+import { useConfig } from '@/lib/config-context';
 import { PageHeader } from '@/components/ui/page-header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -202,6 +202,7 @@ function HistoryTooltip({ active, payload }: { active?: boolean; payload?: any[]
 }
 
 export default function FitnessPage() {
+  const config = useConfig();
   const [data, setData] = useState<FitnessFingerprint | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -329,7 +330,7 @@ export default function FitnessPage() {
             <CardTitle className="text-sm">Stärken-Profil</CardTitle>
           </CardHeader>
           <CardContent className="pt-0">
-            <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
+            <ResponsiveContainer width="100%" height={config.chart_height}>
               <RadarChart data={radarData} cx="50%" cy="50%" outerRadius="72%">
                 <PolarGrid stroke="var(--border)" />
                 <PolarAngleAxis
@@ -401,7 +402,7 @@ export default function FitnessPage() {
             <CardTitle className="text-sm">Score-Verlauf (letzte 13 Monate)</CardTitle>
           </CardHeader>
           <CardContent className="pt-0">
-            <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
+            <ResponsiveContainer width="100%" height={config.chart_height}>
               <LineChart data={history} margin={{ top: 8, right: 12, bottom: 0, left: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                 <XAxis
