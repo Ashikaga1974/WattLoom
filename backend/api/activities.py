@@ -2,7 +2,11 @@ from pathlib import Path
 
 from fastapi import APIRouter, Query, HTTPException
 from backend.database import db_connection
-from backend.utils import haversine_km as _haversine_km
+from backend.utils import (
+    haversine_km as _haversine_km,
+    track_distance_index,
+    path_match_fraction,
+)
 
 MEDIA_DIR = Path(__file__).parent.parent.parent / "data" / "media"
 
@@ -267,11 +271,21 @@ def get_activity_media(activity_id: int):
 @router.get("/{activity_id}/similar")
 def get_similar_activities(
     activity_id: int,
-    max_distance_diff_pct: float = Query(20, ge=0, le=100),
+    max_distance_diff_pct: float = Query(3, ge=0, le=100),
     start_radius_km: float = Query(2, ge=0.1, le=50),
     limit: int = Query(10, ge=1, le=50),
 ):
-    """Findet Aktivitäten mit ähnlichem Startpunkt (±start_radius_km) und ähnlicher Distanz (±max_distance_diff_pct)."""
+    """
+    Findet Aktivitäten mit ähnlichem Startpunkt (±start_radius_km) und ähnlicher Distanz
+    (±max_distance_diff_pct, Default 3 %) als groben Vorfilter, bewertet die verbleibenden
+    Kandidaten dann zusätzlich per Trackpunkt-Abgleich (absolute Distanz-Marken alle 2 km ab
+    Start, 500 m-Korridor) und sortiert nach dieser tatsächlichen Streckenübereinstimmung statt
+    nur nach Start-Nähe. Der frühere Default von 20 % ließ z.B. bei einer 40,7 km-Referenz noch
+    47 km-Kandidaten durch – der Pfad-Abgleich allein reicht dagegen nicht als Distanzfilter,
+    weil er nur die gemeinsame Überlappung bis zur kürzeren der beiden Distanzen bewertet und
+    eine deutlich längere Fahrt mit geteiltem Streckenanfang nicht straft. `path_match_pct` ist
+    None, wenn die Track-Überlappung zu kurz für eine verlässliche Aussage ist.
+    """
     with db_connection() as conn:
         ref = conn.execute(
             "SELECT id, distance_m FROM activities WHERE id = ? AND has_track = 1",
@@ -338,7 +352,46 @@ def get_similar_activities(
         if dist_km <= start_radius_km:
             result.append({**dict(c), "start_distance_km": round(dist_km, 2)})
 
-    result.sort(key=lambda x: x["start_distance_km"])
+    if result:
+        with db_connection() as conn:
+            all_ids = [activity_id] + [r["id"] for r in result]
+            id_ph = ','.join('?' * len(all_ids))
+            tp_rows = conn.execute(f"""
+                SELECT activity_id, distance_m, lat, lon
+                FROM track_points
+                WHERE activity_id IN ({id_ph})
+                  AND lat IS NOT NULL AND lon IS NOT NULL AND distance_m IS NOT NULL
+                ORDER BY activity_id, distance_m
+            """, all_ids).fetchall()
+        points_by_activity: dict[int, list[tuple[float, float, float]]] = {}
+        for r in tp_rows:
+            points_by_activity.setdefault(r["activity_id"], []).append(
+                (r["distance_m"], r["lat"], r["lon"])
+            )
+        indices = {
+            aid: track_distance_index(pts)
+            for aid, pts in points_by_activity.items()
+        }
+        ref_index = indices.get(activity_id)
+
+        for r in result:
+            cand_index = indices.get(r["id"])
+            frac = (
+                path_match_fraction(ref_index, cand_index)
+                if ref_index and cand_index else None
+            )
+            r["path_match_pct"] = round(frac * 100) if frac is not None else None
+
+        # Ähnlicher Start + ähnliche Distanz reichen nicht: zwei Routen können beides teilen und
+        # trotzdem komplett unterschiedlich verlaufen – auch ein geteilter Hin-, aber anderer
+        # Rückweg (z.B. 22 von 40 km identisch, Rest >1 km abweichend) landete bei 55 % und wirkte
+        # beim Kartenvergleich sichtbar wie eine andere Strecke. Ohne verlässlichen Track-Abgleich
+        # (None) ebenfalls raus.
+        MIN_PATH_MATCH_PCT = 85
+        result = [r for r in result if (r["path_match_pct"] or 0) >= MIN_PATH_MATCH_PCT]
+
+        result.sort(key=lambda x: (-x["path_match_pct"], x["start_distance_km"]))
+
     return {"reference_id": activity_id, "similar": result[:limit]}
 
 

@@ -49,8 +49,7 @@ Lokale Web-App zur Analyse von Strava-Exportdaten. Kein Strava-API-Zugriff nöti
 | **Bikes** | 3 Tabs: Übersicht (Foto-Thumbnail, Kennzahlen einzeilig, Verschleiß-Tracker als Karten mit Fortschrittsbalken + verknüpftem Lagerartikel-Namen, Einbauen aus Lager inkl. Übernahme der Laufleistung gebrauchter Teile, Ausbauen mit km-Erfassung + automatischer Lagerrückgabe, nachträgliches Verknüpfen verbauter Altbestand-Komponenten mit einem Einkauf; Einkaufs-Lager-Tabelle darunter, inaktive Bikes per Dropdown ganz unten) · Gelöscht (Historie unwiderruflich gelöschter Komponenten inkl. Lagerbezug, rein informativ) · Vergleich (km, Speed, Höhenmeter, Unterhaltskosten inkl. €/100km, Jahresverlauf, Distanzhistogramm) |
 | **Workout-Detail** | Detailansicht je Workout: Sport-Hero, 4 KPI-Kacheln, SVG-Intensitätsgauge (Ø HR / Max HR), Verlaufschart, Ø-Vergleich |
 | **Wochentag-Analyse** | Werktag (Mo–Fr) vs. Wochenende (Sa–So): Duell-Karte mit Gewinner-Indikatoren, Rides/Wochentag-Balken, Monatsverlauf |
-| **Top-Strecken** | Greedy-Clustering aller Rides (2 km Startradius, ±10 % Distanz), Zeitchart mit PR-Markierung, Trend, Karte |
-| **Streckenvergleich** | Ähnliche Rides finden (Haversine-Radius + Distanzabgleich) |
+| **Streckenvergleich** | Ähnliche Rides finden (Haversine-Radius + Distanzabgleich, dann Trackpunkt-Abgleich per absoluten Distanz-Marken für echte Streckenübereinstimmung) |
 | **Kadenz-Analyse** | Radiales Verteilungsdiagramm (Polar-Chart), 6 Kadenz-Zonen, Monatstrend, Effizienz-Sweetspot |
 | **Fitness-Fingerprint** | Gesamtscore 0–100 aus CTL, Aerober Effizienz, Form (TSB) und Kontinuität; Arc-Gauge, Stärken-Radar, 4 Komponenten-Karten, 13-Monats-Verlauf, Level-System (Einsteiger → Elite) |
 | **Kalender** | Monatskalender: Radtouren + Workouts (grau markiert), Ring-Indikator bei Kombi-Tagen |
@@ -204,7 +203,6 @@ MyBiking/
 │           ├── HrCurvePage.tsx         # Tabs: HR-Kurve · Aerobe Effizienz (/hrcurve?tab=kurve|effizienz)
 │           ├── ProgressPage.tsx        # Tabs: Fortschritt · Jahresvergleich · Volumen · Tageszeit (/progress?tab=…)
 │           ├── SettingsPage.tsx
-│           ├── RoutesPage.tsx
 │           ├── StreckenPage.tsx
 │           ├── TempCorrPage.tsx
 │           ├── WrappedPage.tsx
@@ -238,7 +236,7 @@ GET  /activities/{id}/similar
 
 GET  /activities/other              ?year      → andere Sportarten (Laufen, Kraft, …)
 GET  /activities/{id}/zones         → HR-Zonen + Power-Zonen
-GET  /activities/{id}/similar       ?limit=10  → ähnliche Rides (Haversine + Distanz)
+GET  /activities/{id}/similar       ?limit=10  → ähnliche Rides (Haversine+Distanz-Vorfilter ±3 %, dann Trackpunkt-Abgleich → path_match_pct)
 
 GET  /analytics/year-progress
 GET  /analytics/time-heatmap        ?year, tz_offset
@@ -252,7 +250,6 @@ GET  /analytics/weekly-volume       ?weeks
 GET  /analytics/best-by-distance               → schnellstes Segment je Zieldistanz (5–70 km) über alle Fahrten hinweg (Best Effort)
 GET    /analytics/pr-events                    → noch nicht verworfene neue Bestzeiten (Dashboard-Widget)
 DELETE /analytics/pr-events/{id}               → PR-Hinweis verwerfen
-GET  /analytics/route-clusters      ?min_rides → Greedy-Clustering aller Rides nach Startpunkt + Distanz
 GET  /analytics/cadence             ?year      → Distribution, Zonen, Monatsverlauf, Effizienz-Buckets
 GET  /analytics/calories            ?year      → total_kcal, rides + workouts, monatlich/jährlich
 GET  /analytics/fitness-fingerprint            → Score 0–100 aus CTL, Effizienz, Form, Kontinuität + History

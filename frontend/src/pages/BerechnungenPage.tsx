@@ -195,14 +195,18 @@ export default function BerechnungenPage() {
       {/* ── Streckenvergleich ── */}
       <Section title="Streckenvergleich – Ähnlichkeit">
         <p>
-          Findet Aktivitäten mit ähnlichem Startpunkt und ähnlicher Distanz.
-          Kein geometrisches Track-Matching (kein Fréchet / Hausdorff).
+          Findet Aktivitäten mit ähnlichem Startpunkt und ähnlicher Distanz als Vorfilter,
+          bewertet die Kandidaten dann per Trackpunkt-Abgleich (absolute Distanz-Marken alle
+          2 km ab Start, 500 m-Korridor).
         </p>
         <InfoBox>
           <ParamRow label="Startpunkt-Radius" value={<>Standard <Code>2 km</Code> (Haversine-Distanz)</>} />
-          <ParamRow label="Distanztoleranz" value={<>Standard <Code>±20 %</Code> der Referenz-Distanz</>} />
+          <ParamRow label="Distanztoleranz" value={<>Standard <Code>±3 %</Code> der Referenz-Distanz</>} />
+          <ParamRow label="Track-Marken-Korridor" value={<>Alle <Code>2 km</Code> ab Start, Korridor <Code>500 m</Code></>} />
+          <ParamRow label="Mindest-Übereinstimmung" value={<>Standard <Code>85 %</Code> der gemeinsamen Marken, sonst verworfen</>} />
+          <ParamRow label="Serien-Regel" value="Mehr als 1 Fehltreffer in Folge disqualifiziert komplett – auch bei hoher Gesamtquote" />
           <ParamRow label="Track-Vereinfachung" value={<>RDP-Toleranz <Val v={`${COMPARISON_SIMPLIFY} m`} /> (höher als Detailansicht – Performance)</>} />
-          <ParamRow label="Ergebnis-Limit" value="Max. 10 ähnliche Aktivitäten" />
+          <ParamRow label="Ergebnis-Limit" value="Max. 10 ähnliche Aktivitäten, sortiert nach Streckenübereinstimmung" />
         </InfoBox>
       </Section>
 

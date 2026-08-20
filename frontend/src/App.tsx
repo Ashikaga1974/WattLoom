@@ -15,7 +15,6 @@ import HeatmapPage from '@/pages/HeatmapPage';
 import HrCurvePage from '@/pages/HrCurvePage';
 import ProgressPage from '@/pages/ProgressPage';
 import SettingsPage from '@/pages/SettingsPage';
-import RoutesPage from '@/pages/RoutesPage';
 import StreckenPage from '@/pages/StreckenPage';
 import TempCorrPage from '@/pages/TempCorrPage';
 import WrappedPage from '@/pages/WrappedPage';
@@ -50,7 +49,7 @@ export default function App() {
                 <Route path="/hrcurve" element={<HrCurvePage />} />
                 <Route path="/progress" element={<ProgressPage />} />
                 <Route path="/settings" element={<SettingsPage />} />
-                <Route path="/routes" element={<RoutesPage />} />
+                <Route path="/routes" element={<Navigate to="/strecken" replace />} />
                 <Route path="/speedhr" element={<Navigate to="/hrcurve?tab=effizienz" replace />} />
                 <Route path="/strecken" element={<StreckenPage />} />
                 <Route path="/strecken/:id" element={<StreckenPage />} />

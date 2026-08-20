@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Trash2 } from 'lucide-react';
+import { GitCompare, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 import { api, type Activity, type Bike, type OtherActivity } from '@/lib/api';
@@ -438,13 +438,24 @@ export default function ActivitiesPage() {
                               </button>
                             </span>
                           ) : (
-                            <button
-                              onClick={() => setConfirmingId(act.id)}
-                              className="text-muted-foreground/30 hover:text-destructive transition-colors p-1 rounded hover:bg-destructive/10"
-                              title="Löschen"
-                            >
-                              <Trash2 size={13} />
-                            </button>
+                            <span className="inline-flex items-center gap-1">
+                              {!!act.has_track && (
+                                <button
+                                  onClick={() => navigate(`/strecken?ref=${act.id}`)}
+                                  className="text-muted-foreground/30 hover:text-primary transition-colors p-1 rounded hover:bg-primary/10"
+                                  title="Ähnliche vergleichen"
+                                >
+                                  <GitCompare size={13} />
+                                </button>
+                              )}
+                              <button
+                                onClick={() => setConfirmingId(act.id)}
+                                className="text-muted-foreground/30 hover:text-destructive transition-colors p-1 rounded hover:bg-destructive/10"
+                                title="Löschen"
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            </span>
                           )}
                         </td>
                       </tr>

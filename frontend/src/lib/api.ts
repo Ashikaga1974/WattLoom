@@ -285,6 +285,7 @@ export interface SimilarActivity {
   avg_hr: number | null;
   elevation_gain_m: number | null;
   start_distance_km: number;
+  path_match_pct: number | null;
 }
 
 export interface SimilarActivitiesResponse {
@@ -313,36 +314,6 @@ export interface PrEvent {
   created_at: string;
 }
 
-export interface RouteClusterRide {
-  id: number;
-  name: string;
-  date: string;
-  moving_time_s: number;
-  distance_m: number;
-  avg_speed_ms: number | null;
-  avg_hr: number | null;
-}
-
-export interface RouteCluster {
-  ride_count: number;
-  avg_distance_m: number;
-  best_time_s: number;
-  best_time_id: number;
-  best_time_date: string;
-  avg_time_s: number;
-  last_ridden: string;
-  avg_speed_ms: number | null;
-  avg_hr: number | null;
-  representative_id: number;
-  center_lat: number;
-  center_lon: number;
-  trend_slope: number;
-  rides: RouteClusterRide[];
-}
-
-export interface RouteClustersResponse {
-  clusters: RouteCluster[];
-}
 
 export interface CadenceStats {
   rides_with_cadence: number;
@@ -655,9 +626,6 @@ export const api = {
 
   weeklyVolume: (weeks = 52): Promise<WeeklyVolume[]> =>
     get(`/analytics/weekly-volume${buildQuery({ weeks })}`),
-
-  routeClusters: (min_rides = 3): Promise<RouteClustersResponse> =>
-    get(`/analytics/route-clusters${buildQuery({ min_rides })}`),
 
   bestByDistance: (): Promise<{ buckets: BestByDistanceBucket[] }> =>
     get('/analytics/best-by-distance'),

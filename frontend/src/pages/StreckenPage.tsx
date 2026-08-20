@@ -3,6 +3,7 @@ import { useParams, useSearchParams, Link } from 'react-router-dom';
 import { api, type ActivityDetail, type SimilarActivity, type TrackPoint } from '@/lib/api';
 import { PageHeader } from '@/components/ui/page-header';
 import { Card, CardContent } from '@/components/ui/card';
+import { RouteThumbnail } from '@/components/RouteThumbnail';
 import { fmtDate, fmtKm, fmtTime } from '@/lib/format';
 import { COMPARISON_SIMPLIFY } from '@/lib/config';
 const COMPARISON_COLORS = ['#f97316', '#3b82f6', '#22c55e', '#a855f7', '#eab308'];
@@ -181,9 +182,16 @@ export default function StreckenPage() {
         <div className="py-16 text-center text-muted-foreground">
           <p className="text-lg">Keine Aktivität ausgewählt.</p>
           <p className="mt-2 text-sm">
-            Öffne eine Aktivität und klicke auf{' '}
-            <span className="font-medium text-primary">Ähnliche vergleichen</span>.
+            Auf einer Aktivitäts-Detailseite auf{' '}
+            <span className="font-medium text-primary">Ähnliche vergleichen</span> klicken,
+            um sie hier als Referenz zu setzen.
           </p>
+          <Link
+            to="/activities"
+            className="mt-4 inline-block rounded-md border border-primary/40 px-4 py-2 text-sm font-medium text-primary hover:bg-primary/5 transition-colors"
+          >
+            Zu den Aktivitäten →
+          </Link>
         </div>
       )}
 
@@ -206,10 +214,20 @@ export default function StreckenPage() {
                   <span className="inline-block h-3 w-3 shrink-0 rounded-full" style={{ background: COMPARISON_COLORS[0] }} />
                   <span className="text-xs font-medium uppercase tracking-wide text-primary">Referenz</span>
                 </div>
-                <p className="text-sm font-semibold leading-snug">{refActivity.name}</p>
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  {fmtDate(refActivity.start_date)} · {fmtKm(refActivity.distance_m)} km · {fmtTime(refActivity.moving_time_s)}
-                </p>
+                <div className="flex items-start gap-3">
+                  <RouteThumbnail activityId={refActivity.id} size={48} />
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold leading-snug">{refActivity.name}</p>
+                    <div className="mt-1.5 flex items-center gap-2 flex-wrap">
+                      <span className="rounded-full bg-primary/15 px-2.5 py-1 text-sm font-bold tabular-nums text-primary">
+                        {fmtKm(refActivity.distance_m)} km
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {fmtDate(refActivity.start_date)} · {fmtTime(refActivity.moving_time_s)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
               </CardContent>
             </Card>
 
@@ -225,7 +243,7 @@ export default function StreckenPage() {
                 <p className="text-sm italic text-muted-foreground">Keine ähnlichen Aktivitäten gefunden.</p>
               )}
               <div className="max-h-[60vh] space-y-1.5 overflow-y-auto pr-1">
-                {similarList.map(act => {
+                {[...similarList].sort((a, b) => b.distance_m - a.distance_m).map(act => {
                   const isSelected = selectedIds.includes(act.id);
                   const isLoadingItem = loadingIds.has(act.id);
                   const colorIdx = isSelected ? (selectedIds.indexOf(act.id) + 1) % COMPARISON_COLORS.length : null;
@@ -248,10 +266,29 @@ export default function StreckenPage() {
                         ) : (
                           <span className="mt-0.5 inline-block h-2.5 w-2.5 shrink-0 rounded-full border border-border" />
                         )}
+                        <RouteThumbnail activityId={act.id} size={40} />
                         <div className="min-w-0">
-                          <p className="truncate font-medium leading-snug">{act.name}</p>
-                          <p className="mt-0.5 text-xs text-muted-foreground">
-                            {fmtDate(act.start_date)} · {fmtKm(act.distance_m)} km
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="truncate font-medium leading-snug">{act.name}</p>
+                            {act.path_match_pct != null && (
+                              <span
+                                className="shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-bold tabular-nums"
+                                style={
+                                  act.path_match_pct >= 90
+                                    ? { background: 'rgba(34,197,94,0.15)', color: '#22c55e' }
+                                    : act.path_match_pct >= 75
+                                    ? { background: 'rgba(245,158,11,0.15)', color: '#f59e0b' }
+                                    : { background: 'var(--muted)', color: 'var(--muted-foreground)' }
+                                }
+                                title="Streckenübereinstimmung (Trackpunkt-Abgleich)"
+                              >
+                                {act.path_match_pct}%
+                              </span>
+                            )}
+                          </div>
+                          <p className="mt-0.5 flex items-baseline gap-1.5">
+                            <span className="text-sm font-bold tabular-nums text-primary">{fmtKm(act.distance_m)} km</span>
+                            <span className="text-xs text-muted-foreground">{fmtDate(act.start_date)}</span>
                           </p>
                           <p className="mt-0.5 text-xs text-muted-foreground">
                             {fmtSpeed(act.avg_speed_ms)}
@@ -308,7 +345,7 @@ export default function StreckenPage() {
                         </Link>
                       </td>
                       <td className="px-3 py-2 text-muted-foreground">{fmtDate(refActivity.start_date)}</td>
-                      <td className="px-3 py-2 text-muted-foreground">{fmtKm(refActivity.distance_m)} km</td>
+                      <td className="px-3 py-2 font-bold tabular-nums text-primary">{fmtKm(refActivity.distance_m)} km</td>
                       <td className="px-3 py-2 text-muted-foreground">{fmtTime(refActivity.moving_time_s)}</td>
                       <td className="px-3 py-2 text-muted-foreground">{fmtSpeed(refActivity.avg_speed_ms)}</td>
                       <td className="px-3 py-2 text-muted-foreground">{fmtHr(refActivity.avg_hr)}</td>
@@ -329,7 +366,7 @@ export default function StreckenPage() {
                             </div>
                           </td>
                           <td className="px-3 py-2 text-muted-foreground">{fmtDate(act.start_date)}</td>
-                          <td className="px-3 py-2 text-muted-foreground">{fmtKm(act.distance_m)} km</td>
+                          <td className="px-3 py-2 font-bold tabular-nums text-primary">{fmtKm(act.distance_m)} km</td>
                           <td className="px-3 py-2 text-muted-foreground">{fmtTime(act.moving_time_s)}</td>
                           <td className="px-3 py-2 text-muted-foreground">{fmtSpeed(act.avg_speed_ms)}</td>
                           <td className="px-3 py-2 text-muted-foreground">{fmtHr(act.avg_hr)}</td>
