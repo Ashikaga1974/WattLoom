@@ -1,16 +1,113 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useSearchParams, Link } from 'react-router-dom';
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { api, type ActivityDetail, type SimilarActivity, type TrackPoint } from '@/lib/api';
 import { PageHeader } from '@/components/ui/page-header';
 import { Card, CardContent } from '@/components/ui/card';
 import { RouteThumbnail } from '@/components/RouteThumbnail';
-import { fmtDate, fmtKm, fmtTime } from '@/lib/format';
-import { COMPARISON_SIMPLIFY } from '@/lib/config';
+import { ChartTooltip } from '@/components/ui/chart-tooltip';
+import { fmtDate, fmtKm, fmtTime, fmtTimeShort } from '@/lib/format';
+import { COMPARISON_SIMPLIFY, CHART_HEIGHT, CHART_HEIGHT_COMPACT } from '@/lib/config';
 const COMPARISON_COLORS = ['#f97316', '#3b82f6', '#22c55e', '#a855f7', '#eab308'];
 
 function fmtSpeed(ms: number | null) { return ms != null ? (ms * 3.6).toFixed(1) + ' km/h' : '–'; }
 function fmtHr(hr: number | null) { return hr != null ? Math.round(hr) + ' bpm' : '–'; }
 function fmtElev(m: number | null) { return m != null ? Math.round(m) + ' m' : '–'; }
+function fmtTemp(c: number | null) { return c != null ? Math.round(c) + '°C' : '–'; }
+function fmtWind(ms: number | null) { return ms != null ? (ms * 3.6).toFixed(0) + ' km/h' : '–'; }
+
+// Δ zur Referenz: Zeit in Sekunden, positiv = langsamer als Referenz
+function fmtDeltaTime(deltaS: number): string {
+  const sign = deltaS > 0 ? '+' : deltaS < 0 ? '−' : '±';
+  return `${sign}${fmtTimeShort(Math.abs(deltaS))}`;
+}
+
+// Δ Speed in km/h, positiv = schneller als Referenz
+function fmtDeltaSpeed(deltaMs: number): string {
+  const kmh = deltaMs * 3.6;
+  const sign = kmh > 0 ? '+' : kmh < 0 ? '−' : '±';
+  return `${sign}${Math.abs(kmh).toFixed(1)} km/h`;
+}
+
+// Aerobe Effizienz: km/h pro Herzschlag – höher ist besser (schneller bei gleicher Anstrengung)
+function efficiency(avgSpeedMs: number | null, avgHr: number | null): number | null {
+  if (avgSpeedMs == null || avgHr == null || avgHr <= 0) return null;
+  return (avgSpeedMs * 3.6) / avgHr;
+}
+
+// Nächsten Punkt per Binärsuche an einer Ziel-Distanz finden (max. 0.3 km Lücke, sonst null –
+// verhindert, dass eine deutlich kürzere/längere Fahrt über ihr Streckenende hinaus "flach" wirkt
+// bzw. der Karten-Marker am Streckenende hängen bleibt). Generisch für Speed/Höhen-Werte UND
+// Lat/Lon-Punkte nutzbar (Chart-Hover→Karte).
+function nearestPoint<T extends { distKm: number }>(points: T[], target: number, maxGapKm = 0.3): T | null {
+  if (points.length === 0) return null;
+  let lo = 0, hi = points.length - 1;
+  if (target <= points[0].distKm) return Math.abs(points[0].distKm - target) <= maxGapKm ? points[0] : null;
+  if (target >= points[hi].distKm) return Math.abs(points[hi].distKm - target) <= maxGapKm ? points[hi] : null;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (points[mid].distKm < target) lo = mid + 1; else hi = mid;
+  }
+  const after = points[lo];
+  const before = points[Math.max(0, lo - 1)];
+  const nearest = Math.abs(after.distKm - target) < Math.abs(before.distKm - target) ? after : before;
+  return Math.abs(nearest.distKm - target) <= maxGapKm ? nearest : null;
+}
+
+function nearestAtDistance(points: { distKm: number; value: number }[], target: number, maxGapKm = 0.3): number | null {
+  return nearestPoint(points, target, maxGapKm)?.value ?? null;
+}
+
+// Kürzt lange Aktivitätsnamen für den Chart-Tooltip – ChartTooltip-Zeilen sind shrink-0 und
+// umbrechen nicht, ein voller Aktivitätsname lief sonst sichtbar über den Tooltip-Rahmen hinaus.
+function shortLabel(s: string, max = 22): string {
+  return s.length > max ? s.slice(0, max - 1) + '…' : s;
+}
+
+const PROFILE_STEP_KM = 0.1;
+
+// Baut ein gemeinsames Distanz-Raster (0.1 km-Schritte) und resampled Speed bzw. Höhe jeder
+// Fahrt per Nearest-Neighbor darauf – nötig, da die Tracks unterschiedlich viele Punkte und
+// leicht unterschiedliche Gesamtdistanzen haben (±3% Toleranz im Streckenvergleich).
+function buildProfileData(
+  tracks: TrackEntry[],
+  valueOf: (p: TrackPoint) => number | null,
+): Array<Record<string, number | null>> {
+  const series = tracks.map(t => ({
+    id: t.id,
+    points: t.points
+      .map(p => ({ distKm: p.distance_m != null ? p.distance_m / 1000 : null, value: valueOf(p) }))
+      .filter((p): p is { distKm: number; value: number } => p.distKm != null && p.value != null)
+      .sort((a, b) => a.distKm - b.distKm),
+  }));
+  const maxDist = Math.max(0, ...series.map(s => (s.points.length ? s.points[s.points.length - 1].distKm : 0)));
+  if (maxDist <= 0) return [];
+  const result: Array<Record<string, number | null>> = [];
+  for (let d = 0; d <= maxDist + 1e-9; d += PROFILE_STEP_KM) {
+    const row: Record<string, number | null> = { dist: Math.round(d * 100) / 100 };
+    for (const s of series) row[`v_${s.id}`] = nearestAtDistance(s.points, d);
+    result.push(row);
+  }
+  return result;
+}
+
+function ProfileTooltip({
+  active, payload, label, tracks, unit,
+}: {
+  active?: boolean;
+  payload?: Array<{ payload: Record<string, number | null> }>;
+  label?: number;
+  tracks: TrackEntry[];
+  unit: string;
+}) {
+  if (!active || !payload?.length) return null;
+  const row = payload[0].payload;
+  const rows = tracks.map(t => {
+    const v = row[`v_${t.id}`];
+    return { label: shortLabel(t.label), value: v != null ? `${v.toFixed(1)} ${unit}` : null, color: t.color };
+  });
+  return <ChartTooltip active={active} label={label != null ? `${label.toFixed(1)} km` : null} rows={rows} />;
+}
 
 interface TrackEntry {
   id: number;
@@ -34,6 +131,8 @@ export default function StreckenPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loadingIds, setLoadingIds] = useState<Set<number>>(new Set());
+  // Distanz (km) unter dem Mauszeiger im Speed-/Höhenprofil – zeigt die Position aller Tracks auf der Karte
+  const [hoverDistKm, setHoverDistKm] = useState<number | null>(null);
 
   const mapContainerRef = useRef<HTMLDivElement>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -42,6 +141,8 @@ export default function StreckenPage() {
   const leafletRef = useRef<any>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const polylineMapRef = useRef<Record<number, any>>({});
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const hoverMarkersRef = useRef<Record<number, any>>({});
 
   // Karte beim Unmount bereinigen
   useEffect(() => {
@@ -66,6 +167,8 @@ export default function StreckenPage() {
     setTracksData({});
     if (mapRef.current) { mapRef.current.remove(); mapRef.current = null; }
     polylineMapRef.current = {};
+    hoverMarkersRef.current = {};
+    setHoverDistKm(null);
     try {
       const [act, similar] = await Promise.all([
         api.activity(id),
@@ -116,6 +219,28 @@ export default function StreckenPage() {
     }
   });
 
+  // Speed-/Höhenprofil über die Distanz (nur wenn mind. 1 Track zusätzlich zur Referenz geladen ist)
+  const speedProfileData = chartTracks.length > 1 ? buildProfileData(chartTracks, p => (p.speed_ms != null && p.speed_ms > 0 ? p.speed_ms * 3.6 : null)) : [];
+  const elevationProfileData = chartTracks.length > 1 ? buildProfileData(chartTracks, p => p.altitude_m) : [];
+
+  // Bestwerte unter Referenz + Auswahl ermitteln (für Highlight in der Stats-Tabelle)
+  const compareRows = refActivity
+    ? [
+        { id: refActivity.id, avg_speed_ms: refActivity.avg_speed_ms, avg_hr: refActivity.avg_hr },
+        ...selectedIds.map(id => similarList.find(a => a.id === id)).filter((a): a is SimilarActivity => a != null),
+      ]
+    : [];
+  const bestSpeedRow = compareRows.reduce<{ id: number; v: number } | null>((best, r) => {
+    if (r.avg_speed_ms == null) return best;
+    return !best || r.avg_speed_ms > best.v ? { id: r.id, v: r.avg_speed_ms } : best;
+  }, null);
+  const effRows = compareRows
+    .map(r => ({ id: r.id, eff: efficiency(r.avg_speed_ms, r.avg_hr) }))
+    .filter((r): r is { id: number; eff: number } => r.eff != null);
+  const bestEfficiencyRow = effRows.length >= 2
+    ? effRows.reduce((best, r) => (r.eff > best.eff ? r : best))
+    : null;
+
   // Karte synchronisieren wenn Tracks sich ändern
   const chartTrackIds = chartTracks.map(t => t.id).join(',');
   useEffect(() => {
@@ -123,6 +248,66 @@ export default function StreckenPage() {
     syncMapPolylines(chartTracks);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chartTrackIds]);
+
+  // Lat/Lon je Track nach Distanz sortiert – Basis für den Karten-Marker beim Chart-Hover
+  const latLonSeriesByTrack = useMemo(() => {
+    const map: Record<number, { distKm: number; lat: number; lon: number }[]> = {};
+    for (const t of chartTracks) {
+      map[t.id] = t.points
+        .filter((p): p is TrackPoint & { distance_m: number; lat: number; lon: number } =>
+          p.distance_m != null && p.lat != null && p.lon != null)
+        .map(p => ({ distKm: p.distance_m / 1000, lat: p.lat, lon: p.lon }))
+        .sort((a, b) => a.distKm - b.distKm);
+    }
+    return map;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chartTrackIds]);
+
+  function handleChartHover(state: { activeLabel?: string | number }) {
+    if (state?.activeLabel != null) setHoverDistKm(Number(state.activeLabel));
+  }
+  function handleChartLeave() {
+    setHoverDistKm(null);
+  }
+
+  // Hover-Position aller Tracks als Marker auf der Karte anzeigen – so sieht man beim Vergleichen
+  // von Speed/Höhe direkt, WO auf der Strecke dieser Punkt liegt (statt nur die Zahl zu lesen).
+  useEffect(() => {
+    if (!mapRef.current || !leafletRef.current) return;
+    const L = leafletRef.current;
+
+    if (hoverDistKm == null) {
+      Object.values(hoverMarkersRef.current).forEach(m => m.remove());
+      hoverMarkersRef.current = {};
+      return;
+    }
+
+    const activeIds = new Set(chartTracks.map(t => t.id));
+    for (const idStr of Object.keys(hoverMarkersRef.current)) {
+      if (!activeIds.has(Number(idStr))) {
+        hoverMarkersRef.current[Number(idStr)].remove();
+        delete hoverMarkersRef.current[Number(idStr)];
+      }
+    }
+
+    for (const track of chartTracks) {
+      const series = latLonSeriesByTrack[track.id];
+      const pt = series ? nearestPoint(series, hoverDistKm) : null;
+      if (!pt) continue;
+      if (!hoverMarkersRef.current[track.id]) {
+        hoverMarkersRef.current[track.id] = L.circleMarker([pt.lat, pt.lon], {
+          radius: 7,
+          color: '#1a1a1a',
+          weight: 2,
+          fillColor: track.color,
+          fillOpacity: 1,
+        }).addTo(mapRef.current);
+      } else {
+        hoverMarkersRef.current[track.id].setLatLng([pt.lat, pt.lon]);
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hoverDistKm, chartTrackIds]);
 
   async function syncMapPolylines(tracks: TrackEntry[]) {
     if (!leafletRef.current) {
@@ -320,6 +505,50 @@ export default function StreckenPage() {
               </div>
             )}
 
+            {/* Speed-/Höhenprofil über die Distanz */}
+            {speedProfileData.length > 0 && (
+              <Card>
+                <CardContent className="p-3 space-y-4">
+                  <div>
+                    <p className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      Geschwindigkeit über Distanz
+                    </p>
+                    <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
+                      <LineChart data={speedProfileData} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}
+                        syncId="strecken-profil" syncMethod="value"
+                        onMouseMove={handleChartHover} onMouseLeave={handleChartLeave}>
+                        <XAxis dataKey="dist" type="number" domain={[0, 'dataMax']} tick={{ fontSize: 11 }} unit=" km" />
+                        <YAxis tick={{ fontSize: 11 }} width={40} />
+                        <Tooltip content={<ProfileTooltip tracks={chartTracks} unit="km/h" />} />
+                        {chartTracks.map(t => (
+                          <Line key={t.id} dataKey={`v_${t.id}`} stroke={t.color} strokeWidth={2}
+                            dot={false} isAnimationActive={false} connectNulls />
+                        ))}
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <div>
+                    <p className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      Höhenprofil
+                    </p>
+                    <ResponsiveContainer width="100%" height={CHART_HEIGHT_COMPACT}>
+                      <LineChart data={elevationProfileData} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}
+                        syncId="strecken-profil" syncMethod="value"
+                        onMouseMove={handleChartHover} onMouseLeave={handleChartLeave}>
+                        <XAxis dataKey="dist" type="number" domain={[0, 'dataMax']} tick={{ fontSize: 11 }} unit=" km" />
+                        <YAxis tick={{ fontSize: 11 }} width={40} />
+                        <Tooltip content={<ProfileTooltip tracks={chartTracks} unit="m" />} />
+                        {chartTracks.map(t => (
+                          <Line key={t.id} dataKey={`v_${t.id}`} stroke={t.color} strokeWidth={2}
+                            dot={false} isAnimationActive={false} connectNulls />
+                        ))}
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             {/* Stats-Tabelle */}
             {selectedIds.length > 0 && (
               <Card className="overflow-x-auto">
@@ -330,9 +559,13 @@ export default function StreckenPage() {
                       <th className="px-3 py-2 font-medium">Datum</th>
                       <th className="px-3 py-2 font-medium">Distanz</th>
                       <th className="px-3 py-2 font-medium">Zeit</th>
+                      <th className="px-3 py-2 font-medium">Δ Zeit</th>
                       <th className="px-3 py-2 font-medium">Ø Speed</th>
+                      <th className="px-3 py-2 font-medium">Δ Speed</th>
                       <th className="px-3 py-2 font-medium">Ø HR</th>
                       <th className="px-3 py-2 font-medium">Hm</th>
+                      <th className="px-3 py-2 font-medium">Temp</th>
+                      <th className="px-3 py-2 font-medium">Wind</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -347,14 +580,28 @@ export default function StreckenPage() {
                       <td className="px-3 py-2 text-muted-foreground">{fmtDate(refActivity.start_date)}</td>
                       <td className="px-3 py-2 font-bold tabular-nums text-primary">{fmtKm(refActivity.distance_m)} km</td>
                       <td className="px-3 py-2 text-muted-foreground">{fmtTime(refActivity.moving_time_s)}</td>
-                      <td className="px-3 py-2 text-muted-foreground">{fmtSpeed(refActivity.avg_speed_ms)}</td>
-                      <td className="px-3 py-2 text-muted-foreground">{fmtHr(refActivity.avg_hr)}</td>
+                      <td className="px-3 py-2 text-muted-foreground" title="Referenz – keine Differenz">–</td>
+                      <td className="px-3 py-2 text-muted-foreground">
+                        {fmtSpeed(refActivity.avg_speed_ms)}
+                        {bestSpeedRow?.id === refActivity.id && <span title="Schnellste Ø-Geschwindigkeit" className="ml-1">🏆</span>}
+                      </td>
+                      <td className="px-3 py-2 text-muted-foreground" title="Referenz – keine Differenz">–</td>
+                      <td className="px-3 py-2 text-muted-foreground">
+                        {fmtHr(refActivity.avg_hr)}
+                        {bestEfficiencyRow?.id === refActivity.id && <span title="Beste aerobe Effizienz (Speed/HF)" className="ml-1">⚡</span>}
+                      </td>
                       <td className="px-3 py-2 text-muted-foreground">{fmtElev(refActivity.elevation_gain_m)}</td>
+                      <td className="px-3 py-2 text-muted-foreground">{fmtTemp(refActivity.weather_temp_c)}</td>
+                      <td className="px-3 py-2 text-muted-foreground">{fmtWind(refActivity.weather_wind_ms)}</td>
                     </tr>
                     {/* Ausgewählte */}
                     {selectedIds.map((id, i) => {
                       const act = similarList.find(a => a.id === id);
                       if (!act) return null;
+                      const deltaTime = act.moving_time_s - refActivity.moving_time_s;
+                      const deltaSpeed = act.avg_speed_ms != null && refActivity.avg_speed_ms != null
+                        ? act.avg_speed_ms - refActivity.avg_speed_ms
+                        : null;
                       return (
                         <tr key={id} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
                           <td className="px-3 py-2">
@@ -368,9 +615,23 @@ export default function StreckenPage() {
                           <td className="px-3 py-2 text-muted-foreground">{fmtDate(act.start_date)}</td>
                           <td className="px-3 py-2 font-bold tabular-nums text-primary">{fmtKm(act.distance_m)} km</td>
                           <td className="px-3 py-2 text-muted-foreground">{fmtTime(act.moving_time_s)}</td>
-                          <td className="px-3 py-2 text-muted-foreground">{fmtSpeed(act.avg_speed_ms)}</td>
-                          <td className="px-3 py-2 text-muted-foreground">{fmtHr(act.avg_hr)}</td>
+                          <td className={`px-3 py-2 font-medium ${deltaTime < 0 ? 'text-green-600' : deltaTime > 0 ? 'text-orange-500' : 'text-muted-foreground'}`}>
+                            {fmtDeltaTime(deltaTime)}
+                          </td>
+                          <td className="px-3 py-2 text-muted-foreground">
+                            {fmtSpeed(act.avg_speed_ms)}
+                            {bestSpeedRow?.id === act.id && <span title="Schnellste Ø-Geschwindigkeit" className="ml-1">🏆</span>}
+                          </td>
+                          <td className={`px-3 py-2 font-medium ${deltaSpeed == null ? 'text-muted-foreground' : deltaSpeed > 0 ? 'text-green-600' : deltaSpeed < 0 ? 'text-orange-500' : 'text-muted-foreground'}`}>
+                            {deltaSpeed != null ? fmtDeltaSpeed(deltaSpeed) : '–'}
+                          </td>
+                          <td className="px-3 py-2 text-muted-foreground">
+                            {fmtHr(act.avg_hr)}
+                            {bestEfficiencyRow?.id === act.id && <span title="Beste aerobe Effizienz (Speed/HF)" className="ml-1">⚡</span>}
+                          </td>
                           <td className="px-3 py-2 text-muted-foreground">{fmtElev(act.elevation_gain_m)}</td>
+                          <td className="px-3 py-2 text-muted-foreground">{fmtTemp(act.weather_temp_c)}</td>
+                          <td className="px-3 py-2 text-muted-foreground">{fmtWind(act.weather_wind_ms)}</td>
                         </tr>
                       );
                     })}

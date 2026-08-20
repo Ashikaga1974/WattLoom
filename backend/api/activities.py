@@ -310,7 +310,8 @@ def get_similar_activities(
         candidates = conn.execute(
             """
             SELECT id, name, start_date, distance_m, moving_time_s,
-                   avg_speed_ms, avg_hr, elevation_gain_m
+                   avg_speed_ms, avg_hr, elevation_gain_m,
+                   weather_temp_c, weather_wind_ms
             FROM activities
             WHERE id != ? AND has_track = 1 AND distance_m BETWEEN ? AND ?
             ORDER BY start_date DESC

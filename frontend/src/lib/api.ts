@@ -184,8 +184,15 @@ export interface Purchase {
   quantity: number;
   notes: string | null;
   component_type: string | null;
+  storage_location_id: number | null;
+  storage_location_name: string | null;
   returns: PurchaseReturn[];
   installed_count: number;
+}
+
+export interface StorageLocation {
+  id: number;
+  name: string;
 }
 
 export interface ZoneInfo {
@@ -286,6 +293,8 @@ export interface SimilarActivity {
   elevation_gain_m: number | null;
   start_distance_km: number;
   path_match_pct: number | null;
+  weather_temp_c: number | null;
+  weather_wind_ms: number | null;
 }
 
 export interface SimilarActivitiesResponse {
@@ -784,11 +793,11 @@ export const api = {
   listPurchases: (): Promise<Purchase[]> =>
     fetch(`${BASE}/purchases`).then(r => { if (!r.ok) throw new Error(`Fehler ${r.status}`); return r.json(); }),
 
-  addPurchase: (data: Omit<Purchase, 'id' | 'returns' | 'installed_count'>): Promise<Purchase> =>
+  addPurchase: (data: Omit<Purchase, 'id' | 'returns' | 'installed_count' | 'storage_location_name'>): Promise<Purchase> =>
     fetch(`${BASE}/purchases`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })
       .then(r => { if (!r.ok) throw new Error(`Fehler ${r.status}`); return r.json(); }),
 
-  updatePurchase: (id: number, data: Omit<Purchase, 'id' | 'returns' | 'installed_count' | 'quantity'>): Promise<Purchase> =>
+  updatePurchase: (id: number, data: Omit<Purchase, 'id' | 'returns' | 'installed_count' | 'quantity' | 'storage_location_name'>): Promise<Purchase> =>
     fetch(`${BASE}/purchases/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })
       .then(r => { if (!r.ok) throw new Error(`Fehler ${r.status}`); return r.json(); }),
 
@@ -798,6 +807,22 @@ export const api = {
 
   deletePurchase: (id: number): Promise<void> =>
     fetch(`${BASE}/purchases/${id}`, { method: 'DELETE' }).then(r => {
+      if (!r.ok && r.status !== 204) return r.json().then(j => { throw new Error(j.detail ?? `Fehler ${r.status}`); });
+    }),
+
+  listStorageLocations: (): Promise<StorageLocation[]> =>
+    fetch(`${BASE}/storage-locations`).then(r => { if (!r.ok) throw new Error(`Fehler ${r.status}`); return r.json(); }),
+
+  addStorageLocation: (name: string): Promise<StorageLocation> =>
+    fetch(`${BASE}/storage-locations`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) })
+      .then(r => { if (!r.ok) return r.json().then(j => { throw new Error(j.detail ?? `Fehler ${r.status}`); }); return r.json(); }),
+
+  renameStorageLocation: (id: number, name: string): Promise<StorageLocation> =>
+    fetch(`${BASE}/storage-locations/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) })
+      .then(r => { if (!r.ok) return r.json().then(j => { throw new Error(j.detail ?? `Fehler ${r.status}`); }); return r.json(); }),
+
+  deleteStorageLocation: (id: number): Promise<void> =>
+    fetch(`${BASE}/storage-locations/${id}`, { method: 'DELETE' }).then(r => {
       if (!r.ok && r.status !== 204) return r.json().then(j => { throw new Error(j.detail ?? `Fehler ${r.status}`); });
     }),
 };

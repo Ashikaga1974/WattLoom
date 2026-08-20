@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { api, type Bike, type BikeCompareData, type BikeComponent, type DeletedComponent, type Purchase } from '@/lib/api';
+import { api, type Bike, type BikeCompareData, type BikeComponent, type DeletedComponent, type Purchase, type StorageLocation } from '@/lib/api';
 import { PageHeader } from '@/components/ui/page-header';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Card, CardContent } from '@/components/ui/card';
@@ -102,6 +102,7 @@ function ComponentRow({
         name: newStockName.trim(), shop: null, url: null, price: null,
         order_date: null, delivery_date: null, quantity: 0, notes: null,
         component_type: comp.type.replace(/ (vorne|hinten)$/, ''),
+        storage_location_id: null,
       });
       return created.id;
     }
@@ -1220,7 +1221,7 @@ function VergleichTab() {
 
 // ─── Einkäufe-Tab ─────────────────────────────────────────────────────────────
 
-const EMPTY_FORM = { name: '', shop: '', url: '', price: '', order_date: '', delivery_date: '', quantity: '1', notes: '', component_type: '' };
+const EMPTY_FORM = { name: '', shop: '', url: '', price: '', order_date: '', delivery_date: '', quantity: '1', notes: '', component_type: '', storage_location_id: '' };
 
 function EinkäufeTab({ externalKey, onChanged }: { externalKey: number; onChanged: () => void }) {
   const [items, setItems] = useState<Purchase[]>([]);
@@ -1233,13 +1234,63 @@ function EinkäufeTab({ externalKey, onChanged }: { externalKey: number; onChang
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Lagerplätze (konfigurierbare Liste)
+  const [locations, setLocations] = useState<StorageLocation[]>([]);
+  const [manageLocationsOpen, setManageLocationsOpen] = useState(false);
+  const [newLocationName, setNewLocationName] = useState('');
+  const [editLocationId, setEditLocationId] = useState<number | null>(null);
+  const [editLocationName, setEditLocationName] = useState('');
+  const [locationError, setLocationError] = useState<string | null>(null);
+
   function reload() {
     api.listPurchases().then(setItems).finally(() => setLoading(false));
+  }
+  function reloadLocations() {
+    api.listStorageLocations().then(setLocations);
   }
   useEffect(() => { reload(); }, [externalKey]);
   useEffect(() => {
     api.bikes().then(bikes => setBikeNames(Object.fromEntries(bikes.map(b => [b.id, b.name]))));
+    reloadLocations();
   }, []);
+
+  async function handleAddLocation() {
+    const name = newLocationName.trim();
+    if (!name) return;
+    setLocationError(null);
+    try {
+      await api.addStorageLocation(name);
+      setNewLocationName('');
+      reloadLocations();
+    } catch (e) {
+      setLocationError(e instanceof Error ? e.message : 'Anlegen fehlgeschlagen');
+    }
+  }
+
+  async function handleRenameLocation(id: number) {
+    const name = editLocationName.trim();
+    if (!name) return;
+    setLocationError(null);
+    try {
+      await api.renameStorageLocation(id, name);
+      setEditLocationId(null);
+      reloadLocations();
+      reload();
+    } catch (e) {
+      setLocationError(e instanceof Error ? e.message : 'Umbenennen fehlgeschlagen');
+    }
+  }
+
+  async function handleDeleteLocation(id: number) {
+    setLocationError(null);
+    try {
+      await api.deleteStorageLocation(id);
+      reloadLocations();
+      reload();
+    } catch (e) {
+      setLocationError(e instanceof Error ? e.message : 'Löschen fehlgeschlagen');
+    }
+  }
 
   function openAdd() { setForm(EMPTY_FORM); setEditId(null); setAddOpen(true); }
   function openEdit(p: Purchase) {
@@ -1249,6 +1300,7 @@ function EinkäufeTab({ externalKey, onChanged }: { externalKey: number; onChang
       order_date: p.order_date ?? '', delivery_date: p.delivery_date ?? '',
       quantity: String(p.quantity), notes: p.notes ?? '',
       component_type: p.component_type ?? '',
+      storage_location_id: p.storage_location_id != null ? String(p.storage_location_id) : '',
     });
     setEditId(p.id);
     setAddOpen(true);
@@ -1267,6 +1319,7 @@ function EinkäufeTab({ externalKey, onChanged }: { externalKey: number; onChang
         delivery_date: form.delivery_date || null,
         notes: form.notes.trim() || null,
         component_type: form.component_type || null,
+        storage_location_id: form.storage_location_id ? parseInt(form.storage_location_id) : null,
       };
       // Menge ist nur beim Anlegen editierbar (legt so viele purchase_items an) – beim
       // Bearbeiten einer bestehenden Bestellung läuft jede Mengenänderung über +/− in der Liste.
@@ -1365,6 +1418,20 @@ function EinkäufeTab({ externalKey, onChanged }: { externalKey: number; onChang
                   ))}
                 </select>
               </div>
+              <div>
+                <label className="text-sm text-muted-foreground">Lagerplatz</label>
+                <select value={form.storage_location_id} onChange={e => setForm(f => ({ ...f, storage_location_id: e.target.value }))}
+                  className={inputCls}>
+                  <option value="">– kein Lagerplatz –</option>
+                  {locations.map(l => (
+                    <option key={l.id} value={l.id}>{l.name}</option>
+                  ))}
+                </select>
+                <button type="button" onClick={() => setManageLocationsOpen(o => !o)}
+                  className="text-sm text-primary hover:underline mt-1">
+                  Lagerplätze verwalten
+                </button>
+              </div>
               <div className="col-span-2 sm:col-span-3">
                 <label className="text-sm text-muted-foreground">Link</label>
                 <input type="url" value={form.url} onChange={e => setForm(f => ({ ...f, url: e.target.value }))}
@@ -1402,6 +1469,59 @@ function EinkäufeTab({ externalKey, onChanged }: { externalKey: number; onChang
                   placeholder="z. B. für Reifen vorne" className={inputCls} />
               </div>
             </div>
+
+            {manageLocationsOpen && (
+              <div className="rounded-lg border border-border bg-muted/20 p-3 space-y-2">
+                <p className="text-sm font-medium">Lagerplätze verwalten</p>
+                {locationError && <p className="text-sm text-red-500">{locationError}</p>}
+                <div className="space-y-1.5">
+                  {locations.map(l => (
+                    <div key={l.id} className="flex items-center gap-2">
+                      {editLocationId === l.id ? (
+                        <>
+                          <input value={editLocationName} onChange={e => setEditLocationName(e.target.value)}
+                            className={inputCls} autoFocus />
+                          <button onClick={() => handleRenameLocation(l.id)}
+                            className="text-sm px-2 py-1 rounded border border-blue-400 text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950">
+                            ✓
+                          </button>
+                          <button onClick={() => setEditLocationId(null)}
+                            className="text-sm px-2 py-1 rounded border border-border text-muted-foreground hover:bg-muted">
+                            ✕
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <span className="text-sm flex-1">{l.name}</span>
+                          <button onClick={() => { setEditLocationId(l.id); setEditLocationName(l.name); }}
+                            className="text-sm px-2 py-1 rounded border border-blue-400 text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950">
+                            ✎
+                          </button>
+                          <button onClick={() => handleDeleteLocation(l.id)}
+                            className="text-sm px-2 py-1 rounded border border-red-300 text-red-500 hover:bg-red-50 dark:hover:bg-red-950">
+                            Löschen
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  ))}
+                  {locations.length === 0 && (
+                    <p className="text-sm text-muted-foreground">Noch keine Lagerplätze angelegt.</p>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 pt-1">
+                  <input value={newLocationName} onChange={e => setNewLocationName(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && handleAddLocation()}
+                    placeholder="Neuer Lagerplatz" className={inputCls} />
+                  <button onClick={handleAddLocation} disabled={!newLocationName.trim()}
+                    className="text-sm px-3 py-1.5 rounded font-medium disabled:opacity-40"
+                    style={{ background: 'var(--primary)', color: 'var(--primary-foreground)' }}>
+                    + Hinzufügen
+                  </button>
+                </div>
+              </div>
+            )}
+
             <div className="flex gap-2">
               <button onClick={handleSave} disabled={busy || !form.name.trim()}
                 className="text-sm px-3 py-1 rounded font-medium disabled:opacity-40"
@@ -1429,6 +1549,7 @@ function EinkäufeTab({ externalKey, onChanged }: { externalKey: number; onChang
               <tr className="border-b border-border bg-muted/40">
                 <th className="text-left px-3 py-2 font-semibold text-muted-foreground">Artikel</th>
                 <th className="text-left px-3 py-2 font-semibold text-muted-foreground">Typ</th>
+                <th className="text-left px-3 py-2 font-semibold text-muted-foreground">Lagerplatz</th>
                 <th className="text-left px-3 py-2 font-semibold text-muted-foreground">Shop</th>
                 <th className="text-right px-3 py-2 font-semibold text-muted-foreground">Preis</th>
                 <th className="text-right px-3 py-2 font-semibold text-muted-foreground">Menge</th>
@@ -1464,6 +1585,7 @@ function EinkäufeTab({ externalKey, onChanged }: { externalKey: number; onChang
                       )}
                     </td>
                     <td className="px-3 py-2 text-muted-foreground">{p.component_type ?? '—'}</td>
+                    <td className="px-3 py-2 text-muted-foreground">{p.storage_location_name ?? '—'}</td>
                     <td className="px-3 py-2 text-muted-foreground">{p.shop ?? '—'}</td>
                     <td className="px-3 py-2 text-right tabular-nums">
                       {p.price != null ? `${fmtNum(p.price, 2)} €` : '—'}

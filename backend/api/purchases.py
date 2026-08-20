@@ -33,6 +33,7 @@ class PurchaseCreate(BaseModel):
     quantity: int = Field(default=1, ge=0)
     notes: str | None = None
     component_type: str | None = None  # Basis-Typ (z.B. "Mantel", "Kette") für Einbauen-Formular
+    storage_location_id: int | None = None
 
 
 class PurchaseUpdate(BaseModel):
@@ -44,6 +45,7 @@ class PurchaseUpdate(BaseModel):
     delivery_date: str | None = None
     notes: str | None = None
     component_type: str | None = None
+    storage_location_id: int | None = None
     # Kein quantity-Feld: die Stückzahl wird ausschließlich über /adjust (+/−) verändert,
     # nicht über das Bearbeiten-Formular der Bestellung.
 
@@ -54,8 +56,10 @@ class AdjustIn(BaseModel):
 
 def _purchase_by_id(conn, purchase_id: int) -> dict:
     row = conn.execute(
-        f"""SELECT p.*, COALESCE(cnt.total, 0) AS quantity, COALESCE(cnt.installed, 0) AS installed_count
+        f"""SELECT p.*, sl.name AS storage_location_name,
+                   COALESCE(cnt.total, 0) AS quantity, COALESCE(cnt.installed, 0) AS installed_count
             FROM purchases p
+            LEFT JOIN storage_locations sl ON sl.id = p.storage_location_id
             LEFT JOIN ({_COUNTS_SUBQUERY}) cnt ON cnt.purchase_id = p.id
             WHERE p.id = ?""",
         (purchase_id,),
@@ -75,8 +79,10 @@ def _purchase_by_id(conn, purchase_id: int) -> dict:
 def list_purchases():
     with db_connection() as conn:
         rows = conn.execute(
-            f"""SELECT p.*, COALESCE(cnt.total, 0) AS quantity, COALESCE(cnt.installed, 0) AS installed_count
+            f"""SELECT p.*, sl.name AS storage_location_name,
+                       COALESCE(cnt.total, 0) AS quantity, COALESCE(cnt.installed, 0) AS installed_count
                 FROM purchases p
+                LEFT JOIN storage_locations sl ON sl.id = p.storage_location_id
                 LEFT JOIN ({_COUNTS_SUBQUERY}) cnt ON cnt.purchase_id = p.id
                 ORDER BY (COALESCE(cnt.installed, 0) >= COALESCE(cnt.total, 0)),
                          p.delivery_date DESC, p.order_date DESC"""
@@ -100,10 +106,10 @@ def list_purchases():
 def add_purchase(data: PurchaseCreate):
     with db_connection() as conn:
         cur = conn.execute(
-            """INSERT INTO purchases (name, shop, url, price, order_date, delivery_date, notes, component_type)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+            """INSERT INTO purchases (name, shop, url, price, order_date, delivery_date, notes, component_type, storage_location_id)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (data.name, data.shop, data.url, data.price,
-             data.order_date, data.delivery_date, data.notes, data.component_type),
+             data.order_date, data.delivery_date, data.notes, data.component_type, data.storage_location_id),
         )
         purchase_id = cur.lastrowid
         conn.executemany(
@@ -119,9 +125,10 @@ def update_purchase(purchase_id: int, data: PurchaseUpdate):
     with db_connection() as conn:
         affected = conn.execute(
             """UPDATE purchases SET name=?, shop=?, url=?, price=?, order_date=?, delivery_date=?,
-               notes=?, component_type=? WHERE id=?""",
+               notes=?, component_type=?, storage_location_id=? WHERE id=?""",
             (data.name, data.shop, data.url, data.price,
-             data.order_date, data.delivery_date, data.notes, data.component_type, purchase_id),
+             data.order_date, data.delivery_date, data.notes, data.component_type,
+             data.storage_location_id, purchase_id),
         ).rowcount
         if not affected:
             raise HTTPException(status_code=404, detail="Purchase not found")

@@ -260,6 +260,30 @@ def init_db() -> None:
         if "used_quantity" in pur_cols:
             conn.execute("ALTER TABLE purchases DROP COLUMN used_quantity")
 
+        # Migration: konfigurierbare Lagerplätze (frei verwaltbare Liste statt Freitext/Hardcoding)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS storage_locations (
+                id   INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL UNIQUE
+            )
+        """)
+        if "storage_location_id" not in pur_cols:
+            conn.execute(
+                "ALTER TABLE purchases ADD COLUMN storage_location_id "
+                "INTEGER REFERENCES storage_locations(id) ON DELETE SET NULL"
+            )
+        loc_count = conn.execute("SELECT COUNT(*) FROM storage_locations").fetchone()[0]
+        if loc_count == 0:
+            conn.executemany(
+                "INSERT INTO storage_locations (name) VALUES (?)",
+                [
+                    ("Kleine Kiste (obere Schublade Durchgang)",),
+                    ("Kleine Kiste (untere Schublade Durchgang)",),
+                    ("Grosse Kiste (Schlafzimmer)",),
+                    ("Rad-Flasche",),
+                ],
+            )
+
         # Migration: Laufleistungs-Historie zurückgelegter Komponenten
         # (bike_components-Zeile wird beim Zurücklegen gelöscht, die Laufleistung bleibt hier erhalten)
         conn.execute("""
