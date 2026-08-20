@@ -1,11 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { api, type Activity, type OtherActivity } from '@/lib/api';
+import { rideTitle } from '@/lib/activity-display';
 import { PageHeader } from '@/components/ui/page-header';
-
-const WEEKDAYS = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
-const MONTHS_SHORT = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
-const MONTHS_FULL = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
 
 // toISOString() gibt immer UTC zurück – bei UTC+2 ist lokale Mitternacht = UTC Vortag 22:00,
 // wodurch alle Kalender-Zellen einen Tag zu früh landen. Daher lokale Datumsmethoden nutzen.
@@ -33,7 +31,7 @@ function colorClass(day: DayCell | null): string {
   return              'bg-primary hover:bg-primary/80';
 }
 
-function buildCalendar(year: number, activities: Activity[], workouts: OtherActivity[]): {
+function buildCalendar(year: number, activities: Activity[], workouts: OtherActivity[], monthsShort: string[]): {
   weeks: (DayCell | null)[][];
   monthLabels: MonthLabel[];
 } {
@@ -78,7 +76,7 @@ function buildCalendar(year: number, activities: Activity[], workouts: OtherActi
         const mo = cursor.getMonth();
         if (dow === 0 && !seenMonths.has(mo)) {
           seenMonths.add(mo);
-          monthLabels.push({ label: MONTHS_SHORT[mo], weekIndex: weeks.length });
+          monthLabels.push({ label: monthsShort[mo], weekIndex: weeks.length });
         }
       } else {
         week.push(null);
@@ -95,6 +93,10 @@ function buildCalendar(year: number, activities: Activity[], workouts: OtherActi
 interface TooltipState { x: number; y: number; day: DayCell; }
 
 export default function CalendarPage() {
+  const { t } = useTranslation(['calendar', 'common']);
+  const weekdaysShort = t('weekdaysShort', { returnObjects: true }) as string[];
+  const monthsShort = t('monthsShort', { returnObjects: true }) as string[];
+  const monthsFull = t('monthsFull', { returnObjects: true }) as string[];
   const currentYear = new Date().getFullYear();
   const [selectedYear, setSelectedYear] = useState(currentYear);
   const [availableYears, setAvailableYears] = useState<string[]>([]);
@@ -116,7 +118,7 @@ export default function CalendarPage() {
       setWorkouts(wo);
     }
     init()
-      .catch(e => setError(e instanceof Error ? e.message : 'Fehler'))
+      .catch(e => setError(e instanceof Error ? e.message : t('error')))
       .finally(() => setLoading(false));
   }, []);
 
@@ -131,7 +133,7 @@ export default function CalendarPage() {
       setActivities(res.items);
       setWorkouts(wo);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Fehler');
+      setError(e instanceof Error ? e.message : t('error'));
     } finally {
       setLoading(false);
     }
@@ -143,7 +145,7 @@ export default function CalendarPage() {
     reload(year);
   }
 
-  const { weeks, monthLabels } = buildCalendar(selectedYear, activities, workouts);
+  const { weeks, monthLabels } = buildCalendar(selectedYear, activities, workouts, monthsShort);
   const activeDays = new Set(activities.map(a => {
     const d = new Date(a.start_date.endsWith('Z') ? a.start_date : a.start_date + 'Z');
     return localDateStr(d);
@@ -153,8 +155,8 @@ export default function CalendarPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Aktivitätskalender"
-        subtitle={!loading ? `${activeDays} aktive Tage · ${Math.round(totalKm).toLocaleString('de-DE')} km` : undefined}
+        title={t('title')}
+        subtitle={!loading ? t('subtitleActiveDays', { days: activeDays, km: Math.round(totalKm).toLocaleString('de-DE') }) : undefined}
         years={availableYears}
         selectedYear={selectedYear}
         onYearChange={handleYearChange}
@@ -172,18 +174,18 @@ export default function CalendarPage() {
         >
           <p className="font-semibold">{tooltip.day.date}</p>
           {tooltip.day.acts.length === 0 && tooltip.day.workouts.length === 0 ? (
-            <p className="text-muted-foreground">Kein Training</p>
+            <p className="text-muted-foreground">{t('noTraining')}</p>
           ) : (
             <>
               {tooltip.day.acts.length > 0 && (
-                <p className="text-primary">{tooltip.day.km.toFixed(1)} km · {tooltip.day.acts.length} Ride{tooltip.day.acts.length > 1 ? 's' : ''}</p>
+                <p className="text-primary">{tooltip.day.km.toFixed(1)} km · {t('rideCount', { count: tooltip.day.acts.length })}</p>
               )}
               {tooltip.day.acts.slice(0, 2).map(a => (
-                <p key={a.id} className="max-w-48 truncate text-muted-foreground">{a.name}</p>
+                <p key={a.id} className="max-w-48 truncate text-muted-foreground">{rideTitle(a, t)}</p>
               ))}
-              {tooltip.day.acts.length > 2 && <p className="text-muted-foreground">+ {tooltip.day.acts.length - 2} weitere</p>}
+              {tooltip.day.acts.length > 2 && <p className="text-muted-foreground">{t('moreCount', { count: tooltip.day.acts.length - 2 })}</p>}
               {tooltip.day.workouts.map((w, i) => (
-                <p key={i} className="text-slate-500">{w.sport_type}</p>
+                <p key={i} className="text-slate-500">{t(`sport.${w.sport_type}`, { defaultValue: w.sport_type })}</p>
               ))}
             </>
           )}
@@ -199,7 +201,7 @@ export default function CalendarPage() {
             <div className="inline-flex gap-1 min-w-max">
               {/* Wochentag-Labels */}
               <div className="flex flex-col gap-1 mr-1 pt-6">
-                {WEEKDAYS.map((wd, i) => (
+                {weekdaysShort.map((wd, i) => (
                   <div key={wd} className="h-3 w-5 text-right text-[10px] leading-3 text-muted-foreground">
                     {i % 2 === 0 ? wd : ''}
                   </div>
@@ -241,7 +243,7 @@ export default function CalendarPage() {
                               className={`h-3 w-3 rounded-sm cursor-pointer transition-colors ${colorClass(day)} ${ringClass}`}
                               onMouseEnter={e => setTooltip({ x: e.pageX, y: e.pageY, day })}
                               onMouseLeave={() => setTooltip(null)}
-                              aria-label={`${day.date}: ${day.km.toFixed(1)} km`}
+                              aria-label={t('dayAriaLabel', { date: day.date, km: day.km.toFixed(1) })}
                             />
                           );
                         }
@@ -263,27 +265,27 @@ export default function CalendarPage() {
 
           {/* Legende */}
           <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-            <span>Weniger</span>
+            <span>{t('legendLess')}</span>
             <div className="h-3 w-3 rounded-sm bg-muted" />
             <div className="h-3 w-3 rounded-sm bg-orange-200" />
             <div className="h-3 w-3 rounded-sm bg-orange-400" />
             <div className="h-3 w-3 rounded-sm bg-orange-500" />
             <div className="h-3 w-3 rounded-sm bg-primary" />
-            <span>Mehr</span>
-            <span className="text-muted-foreground">(&lt;15 / 15–30 / 30–50 / 50+ km)</span>
+            <span>{t('legendMore')}</span>
+            <span className="text-muted-foreground">{t('legendRange')}</span>
             <span className="ml-4 flex items-center gap-1.5">
               <div className="h-3 w-3 rounded-sm bg-slate-300 dark:bg-slate-600" />
-              Workout
+              {t('legendWorkout')}
             </span>
             <span className="flex items-center gap-1.5">
               <div className="h-3 w-3 rounded-sm bg-orange-400 ring-1 ring-slate-400" />
-              Ride + Workout
+              {t('legendRideWorkout')}
             </span>
           </div>
 
           {/* Monatsübersicht */}
           <section>
-            <h2 className="mb-3 text-lg font-semibold">Monatsübersicht</h2>
+            <h2 className="mb-3 text-lg font-semibold">{t('monthOverview')}</h2>
             <div className="grid grid-cols-3 gap-2 md:grid-cols-6">
               {Array.from({ length: 12 }, (_, mo) => {
                 const moActs = activities.filter(a => {
@@ -293,12 +295,12 @@ export default function CalendarPage() {
                 const moKm = moActs.reduce((s, a) => s + a.distance_m / 1000, 0);
                 return (
                   <div key={mo} className={`rounded-lg bg-muted/60 p-3 ${moActs.length === 0 ? 'opacity-40' : ''}`}>
-                    <p className="text-xs text-muted-foreground">{MONTHS_FULL[mo]}</p>
+                    <p className="text-xs text-muted-foreground">{monthsFull[mo]}</p>
                     <p className="mt-0.5 text-lg font-bold">
                       {moActs.length > 0 ? Math.round(moKm) : '–'}
                       <span className="text-xs font-normal text-muted-foreground">{moActs.length > 0 ? ' km' : ''}</span>
                     </p>
-                    <p className="text-xs text-muted-foreground">{moActs.length} Ride{moActs.length !== 1 ? 's' : ''}</p>
+                    <p className="text-xs text-muted-foreground">{t('rideCount', { count: moActs.length })}</p>
                   </div>
                 );
               })}

@@ -1,5 +1,7 @@
 import { Fragment, useEffect, useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import {
   ComposedChart,
   BarChart,
@@ -36,7 +38,7 @@ function formatTs(ts: number): string {
 }
 
 // --- Insights ---
-function buildInsights(data: SpeedTrendData): Insight[] {
+function buildInsights(data: SpeedTrendData, t: TFunction<'speedtrend'>): Insight[] {
   const insights: Insight[] = [];
   const { by_year, monthly_heatmap } = data;
 
@@ -47,11 +49,11 @@ function buildInsights(data: SpeedTrendData): Insight[] {
     if (last.delta_kmh !== null) {
       const abs = Math.abs(last.delta_kmh).toFixed(1);
       if (last.delta_kmh >= 0.5) {
-        insights.push({ text: `${last.year}: +${abs} km/h gegenüber ${prev.year} – du wirst schneller.`, type: 'positive' });
+        insights.push({ text: t('insights.yearTrendUp', { year: last.year, value: abs, prevYear: prev.year }), type: 'positive' });
       } else if (last.delta_kmh <= -0.5) {
-        insights.push({ text: `${last.year}: −${abs} km/h gegenüber ${prev.year} – leichter Rückgang.`, type: 'warning' });
+        insights.push({ text: t('insights.yearTrendDown', { year: last.year, value: abs, prevYear: prev.year }), type: 'warning' });
       } else {
-        insights.push({ text: `${last.year}: Ø-Geschwindigkeit auf gleichem Niveau wie ${prev.year}.`, type: 'neutral' });
+        insights.push({ text: t('insights.yearTrendFlat', { year: last.year, prevYear: prev.year }), type: 'neutral' });
       }
     }
   }
@@ -61,9 +63,9 @@ function buildInsights(data: SpeedTrendData): Insight[] {
     const best = by_year.reduce((a, b) => (a.avg_kmh > b.avg_kmh ? a : b));
     const isCurrentBest = best.year === by_year[by_year.length - 1].year;
     if (isCurrentBest) {
-      insights.push({ text: `${best.year} ist bisher dein schnellstes Jahr (Ø ${best.avg_kmh.toFixed(1)} km/h, ${best.rides} Rides).`, type: 'positive' });
+      insights.push({ text: t('insights.bestYearCurrent', { year: best.year, avg: best.avg_kmh.toFixed(1), rides: best.rides }), type: 'positive' });
     } else {
-      insights.push({ text: `Schnellstes Jahr: ${best.year} mit Ø ${best.avg_kmh.toFixed(1)} km/h. Schaffst du das nochmal?`, type: 'neutral' });
+      insights.push({ text: t('insights.bestYearPast', { year: best.year, avg: best.avg_kmh.toFixed(1) }), type: 'neutral' });
     }
   }
 
@@ -77,9 +79,9 @@ function buildInsights(data: SpeedTrendData): Insight[] {
       const avgS = summer.reduce((s, m) => s + m.avg_kmh, 0) / summer.length;
       const diff = avgS - avgW;
       if (diff >= 0.8) {
-        insights.push({ text: `Saisonaler Effekt: Im Sommer bist du ${diff.toFixed(1)} km/h schneller als im Winter (Ø ${avgS.toFixed(1)} vs. ${avgW.toFixed(1)} km/h).`, type: 'neutral' });
+        insights.push({ text: t('insights.seasonalEffect', { diff: diff.toFixed(1), summer: avgS.toFixed(1), winter: avgW.toFixed(1) }), type: 'neutral' });
       } else if (diff < 0) {
-        insights.push({ text: `Ungewöhnlich: Im Winter fährst du im Schnitt schneller als im Sommer.`, type: 'neutral' });
+        insights.push({ text: t('insights.seasonalUnusual'), type: 'neutral' });
       }
     }
   }
@@ -90,11 +92,11 @@ function buildInsights(data: SpeedTrendData): Insight[] {
     const last = by_year[by_year.length - 1];
     const total = last.avg_kmh - first.avg_kmh;
     if (total >= 0.5) {
-      insights.push({ text: `Langzeittrend seit ${first.year}: +${total.toFixed(1)} km/h Ø – klare Entwicklung nach oben.`, type: 'positive' });
+      insights.push({ text: t('insights.longTermUp', { year: first.year, value: total.toFixed(1) }), type: 'positive' });
     } else if (total <= -0.5) {
-      insights.push({ text: `Langzeittrend seit ${first.year}: −${Math.abs(total).toFixed(1)} km/h Ø – etwas langsamer als damals.`, type: 'warning' });
+      insights.push({ text: t('insights.longTermDown', { year: first.year, value: Math.abs(total).toFixed(1) }), type: 'warning' });
     } else {
-      insights.push({ text: `Langzeittrend seit ${first.year}: Ø-Geschwindigkeit nahezu konstant geblieben.`, type: 'neutral' });
+      insights.push({ text: t('insights.longTermFlat', { year: first.year }), type: 'neutral' });
     }
   }
 
@@ -103,6 +105,7 @@ function buildInsights(data: SpeedTrendData): Insight[] {
 
 // --- Custom Tooltip für Trend-Chart ---
 function TrendTooltip({ active, payload }: { active?: boolean; payload?: any[] }) {
+  const { t } = useTranslation('speedtrend');
   if (!active || !payload?.length) return null;
   const point = payload[0]?.payload;
   if (!point) return null;
@@ -113,10 +116,10 @@ function TrendTooltip({ active, payload }: { active?: boolean; payload?: any[] }
       active={active}
       label={point.name ? `${point.name} · ${fmtDate(point.date)}` : fmtDate(point.date)}
       rows={[
-        { label: 'Geschwindigkeit', value: `${point.speed_kmh} km/h` },
-        { label: 'Distanz', value: `${point.dist_km} km` },
-        ...(point.elevation_m > 0 ? [{ label: 'Höhenmeter', value: `+${point.elevation_m} m` }] : []),
-        ...(rolling?.value != null ? [{ label: 'Gleitender Ø (20)', value: `${Number(rolling.value).toFixed(1)} km/h`, color: 'var(--primary)', separator: true }] : []),
+        { label: t('tooltip.speed'), value: `${point.speed_kmh} km/h` },
+        { label: t('tooltip.distance'), value: `${point.dist_km} km` },
+        ...(point.elevation_m > 0 ? [{ label: t('tooltip.elevation'), value: `+${point.elevation_m} m` }] : []),
+        ...(rolling?.value != null ? [{ label: t('tooltip.rollingAvg'), value: `${Number(rolling.value).toFixed(1)} km/h`, color: 'var(--primary)', separator: true }] : []),
       ]}
     />
   );
@@ -124,6 +127,7 @@ function TrendTooltip({ active, payload }: { active?: boolean; payload?: any[] }
 
 // --- Custom Tooltip für Jahresvergleich-Chart ---
 function YearTooltip({ active, payload, label }: { active?: boolean; payload?: any[]; label?: string }) {
+  const { t } = useTranslation('speedtrend');
   if (!active || !payload?.length) return null;
   const d = payload[0]?.payload;
   return (
@@ -131,25 +135,25 @@ function YearTooltip({ active, payload, label }: { active?: boolean; payload?: a
       active={active}
       label={label}
       rows={[
-        { label: 'Ø Geschwindigkeit', value: `${Number(d?.avg_kmh).toFixed(1)} km/h` },
-        { label: 'Rides', value: d?.rides },
+        { label: t('tooltip.yearAvgSpeed'), value: `${Number(d?.avg_kmh).toFixed(1)} km/h` },
+        { label: t('tooltip.rides'), value: d?.rides },
       ]}
     />
   );
 }
 
-const MONTH_NAMES = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
-
 export default function SpeedTrendPage() {
+  const { t } = useTranslation('speedtrend');
   const config = useConfig();
   const [data, setData] = useState<SpeedTrendData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const monthNames = t('heatmap.monthsShort', { returnObjects: true }) as string[];
 
   useEffect(() => {
     api.speedTrend()
       .then(setData)
-      .catch(e => setError(e instanceof Error ? e.message : 'Fehler beim Laden'))
+      .catch(e => setError(e instanceof Error ? e.message : t('errors.loadFailed')))
       .finally(() => setLoading(false));
   }, []);
 
@@ -191,7 +195,7 @@ export default function SpeedTrendPage() {
   if (loading) {
     return (
       <div className="space-y-6">
-        <PageHeader title="Tempoentwicklung" subtitle="Entwicklung der Durchschnittsgeschwindigkeit" />
+        <PageHeader title={t('pageHeader.title')} subtitle={t('pageHeader.subtitleShort')} />
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {Array.from({ length: 4 }).map((_, i) => (
             <div key={i} className="h-24 bg-muted animate-pulse rounded-xl" />
@@ -206,9 +210,9 @@ export default function SpeedTrendPage() {
   if (error || !data || data.stats.total_rides === 0) {
     return (
       <div className="space-y-6">
-        <PageHeader title="Tempoentwicklung" />
+        <PageHeader title={t('pageHeader.title')} />
         <div className="rounded border border-destructive/50 bg-destructive/10 p-4 text-destructive text-sm">
-          {error || 'Keine Daten verfügbar.'}
+          {error || t('errors.noData')}
         </div>
       </div>
     );
@@ -219,13 +223,13 @@ export default function SpeedTrendPage() {
   const allSpeeds = data.rides.map(r => r.speed_kmh);
   const speedYMin = Math.floor(Math.min(...allSpeeds) - 1.5);
   const speedYMax = Math.ceil(Math.max(...allSpeeds) + 1.5);
-  const insights = buildInsights(data);
+  const insights = buildInsights(data, t);
 
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Tempoentwicklung"
-        subtitle="Entwicklung der Durchschnittsgeschwindigkeit über alle Radtouren"
+        title={t('pageHeader.title')}
+        subtitle={t('pageHeader.subtitle')}
       />
 
       {/* KPI-Kacheln */}
@@ -234,16 +238,16 @@ export default function SpeedTrendPage() {
         {/* Gesamt-Ø */}
         <Card className="shadow-sm border">
           <CardContent className="px-4 py-3 space-y-1">
-            <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Gesamt-Ø</p>
+            <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{t('kpi.totalAvg')}</p>
             <p className="text-2xl font-bold text-foreground">{stats.overall_avg_kmh.toFixed(1)}</p>
-            <p className="text-[10px] text-muted-foreground">km/h · {stats.total_rides} Rides</p>
+            <p className="text-[10px] text-muted-foreground">{t('kpi.totalAvgSub', { count: stats.total_rides })}</p>
           </CardContent>
         </Card>
 
         {/* Schnellste Fahrt */}
         <Card className="shadow-sm" style={{ borderColor: 'rgba(252,76,2,0.25)', background: 'rgba(252,76,2,0.05)' }}>
           <CardContent className="px-4 py-3 space-y-1">
-            <p className="text-[10px] uppercase tracking-wide" style={{ color: '#fc4c02' }}>Schnellste Fahrt</p>
+            <p className="text-[10px] uppercase tracking-wide" style={{ color: '#fc4c02' }}>{t('kpi.bestRide')}</p>
             <p className="text-2xl font-bold" style={{ color: '#fc4c02' }}>{stats.best_kmh}</p>
             {stats.best_ride_id ? (
               <Link
@@ -254,7 +258,7 @@ export default function SpeedTrendPage() {
                 {stats.best_ride_name}
               </Link>
             ) : (
-              <p className="text-[10px] text-muted-foreground">km/h Maximalwert</p>
+              <p className="text-[10px] text-muted-foreground">{t('kpi.bestRideFallback')}</p>
             )}
           </CardContent>
         </Card>
@@ -263,7 +267,7 @@ export default function SpeedTrendPage() {
         <Card className="shadow-sm border">
           <CardContent className="px-4 py-3 space-y-1">
             <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
-              {trendYear ? trendYear.year : 'Aktuelles Jahr'}
+              {trendYear ? trendYear.year : t('kpi.currentYear')}
             </p>
             {trendYear ? (
               <>
@@ -273,7 +277,7 @@ export default function SpeedTrendPage() {
                 </div>
                 {trendYear.delta_kmh !== null && (
                   <p className={`text-[10px] font-semibold ${trendYear.delta_kmh >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
-                    {trendYear.delta_kmh >= 0 ? '▲' : '▼'} {Math.abs(trendYear.delta_kmh).toFixed(1)} km/h vs. Vorjahr
+                    {trendYear.delta_kmh >= 0 ? '▲' : '▼'} {t('kpi.vsPreviousYear', { value: Math.abs(trendYear.delta_kmh).toFixed(1) })}
                   </p>
                 )}
               </>
@@ -286,11 +290,11 @@ export default function SpeedTrendPage() {
         {/* Zeitraum */}
         <Card className="shadow-sm border">
           <CardContent className="px-4 py-3 space-y-1">
-            <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Zeitraum</p>
+            <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{t('kpi.period')}</p>
             <p className="text-xl font-bold text-foreground">
               {stats.first_date?.slice(0, 4)} – {stats.last_date?.slice(0, 4)}
             </p>
-            <p className="text-[10px] text-muted-foreground">{by_year.length} Jahre · {stats.total_rides} Rides</p>
+            <p className="text-[10px] text-muted-foreground">{t('kpi.periodSub', { years: by_year.length, rides: stats.total_rides })}</p>
           </CardContent>
         </Card>
       </div>
@@ -298,9 +302,9 @@ export default function SpeedTrendPage() {
       {/* Trend-Chart: Scatter + Rolling Average */}
       <Card className="shadow-sm border overflow-hidden">
         <CardHeader className="pb-1 border-b">
-          <CardTitle className="text-base font-semibold">Geschwindigkeitsverlauf</CardTitle>
+          <CardTitle className="text-base font-semibold">{t('trendChart.title')}</CardTitle>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Jeder Punkt = eine Ausfahrt · Linie = Gleitender Ø (20 Rides) · Gestrichelt = Gesamt-Ø
+            {t('trendChart.subtitle')}
           </p>
         </CardHeader>
         <CardContent className="pt-4">
@@ -332,7 +336,7 @@ export default function SpeedTrendPage() {
                 strokeDasharray="6 3"
                 strokeOpacity={0.55}
                 label={{
-                  value: `Ø ${stats.overall_avg_kmh} km/h`,
+                  value: t('trendChart.avgReferenceLine', { value: stats.overall_avg_kmh }),
                   fontSize: 9,
                   fill: 'var(--muted-foreground)',
                   position: 'insideBottomRight',
@@ -380,15 +384,15 @@ export default function SpeedTrendPage() {
           <div className="flex items-center gap-6 justify-center mt-2 text-xs text-muted-foreground">
             <div className="flex items-center gap-1.5">
               <div className="w-3 h-3 rounded-full" style={{ background: 'var(--muted-foreground)', opacity: 0.4 }} />
-              <span>Einzelfahrt</span>
+              <span>{t('trendChart.legendSingleRide')}</span>
             </div>
             <div className="flex items-center gap-1.5">
               <div className="w-5 h-0.5 bg-primary rounded" />
-              <span>Gleitender Ø (20)</span>
+              <span>{t('trendChart.legendRolling')}</span>
             </div>
             <div className="flex items-center gap-1.5">
               <div className="w-5 border-t border-dashed border-muted-foreground/55" />
-              <span>Gesamt-Ø</span>
+              <span>{t('trendChart.legendOverallAvg')}</span>
             </div>
           </div>
         </CardContent>
@@ -398,9 +402,9 @@ export default function SpeedTrendPage() {
       {by_year.length > 1 && (
         <Card className="shadow-sm border overflow-hidden">
           <CardHeader className="pb-1 border-b">
-            <CardTitle className="text-base font-semibold">Jahresvergleich</CardTitle>
+            <CardTitle className="text-base font-semibold">{t('yearChart.title')}</CardTitle>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Ø-Geschwindigkeit je Jahr · Pfeile zeigen Veränderung zum Vorjahr
+              {t('yearChart.subtitle')}
             </p>
           </CardHeader>
           <CardContent className="pt-4">
@@ -458,9 +462,9 @@ export default function SpeedTrendPage() {
       {heatmapYears.length > 0 && (
         <Card className="shadow-sm border overflow-hidden">
           <CardHeader className="pb-1 border-b">
-            <CardTitle className="text-base font-semibold">Saison-Heatmap</CardTitle>
+            <CardTitle className="text-base font-semibold">{t('heatmap.title')}</CardTitle>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Ø-Geschwindigkeit je Monat und Jahr · Blau = langsam → Orange = schnell · Leer = keine Ausfahrten
+              {t('heatmap.subtitle')}
             </p>
           </CardHeader>
           <CardContent className="pt-4 overflow-x-auto">
@@ -480,7 +484,7 @@ export default function SpeedTrendPage() {
               ))}
 
               {/* Monats-Zeilen */}
-              {MONTH_NAMES.map((name, mi) => {
+              {monthNames.map((name, mi) => {
                 const cells = heatmapYears.map(year => {
                   const key = `${year}-${String(mi + 1).padStart(2, '0')}`;
                   const cell = heatmapMap.get(key);
@@ -502,7 +506,7 @@ export default function SpeedTrendPage() {
                         background: speedColor(cell.avg_kmh, heatmapMin, heatmapMax),
                         textShadow: '0 1px 2px rgba(0,0,0,0.55)',
                       }}
-                      title={`${name} ${year}: ${cell.avg_kmh.toFixed(1)} km/h · ${cell.rides} Ride${cell.rides !== 1 ? 's' : ''}`}
+                      title={t('heatmap.cellTitle', { month: name, year, speed: cell.avg_kmh.toFixed(1), count: cell.rides })}
                     >
                       {cell.avg_kmh.toFixed(1)}
                     </div>
@@ -524,12 +528,12 @@ export default function SpeedTrendPage() {
 
             {/* Farbskala-Legende */}
             <div className="flex items-center gap-3 mt-4 justify-end">
-              <span className="text-[10px] text-muted-foreground">langsam</span>
+              <span className="text-[10px] text-muted-foreground">{t('heatmap.legendSlow')}</span>
               <div
                 className="h-3 w-32 rounded"
                 style={{ background: `linear-gradient(to right, hsl(240,80%,52%), hsl(135,80%,52%), hsl(30,80%,52%))` }}
               />
-              <span className="text-[10px] text-muted-foreground">schnell</span>
+              <span className="text-[10px] text-muted-foreground">{t('heatmap.legendFast')}</span>
             </div>
           </CardContent>
         </Card>

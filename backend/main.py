@@ -4,7 +4,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
-from backend.api import activities, tracks, bikes, heatmap, analytics, settings, importer, zones, weather, purchases, storage_locations, app_sync
+from backend.api import activities, tracks, bikes, heatmap, analytics, settings, importer, zones, weather, purchases, storage_locations, app_sync, translations
 from backend.database import init_db
 
 _LOG_FILE = Path(__file__).parent.parent / "data" / "mybiking.log"
@@ -40,6 +40,7 @@ app.include_router(weather.router)
 app.include_router(purchases.router)
 app.include_router(storage_locations.router)
 app.include_router(app_sync.router)
+app.include_router(translations.router)
 
 
 MEDIA_DIR = Path(__file__).parent.parent / "data" / "media"

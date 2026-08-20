@@ -3,6 +3,8 @@ import threading
 import sys
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 
+from backend.api.errors import api_error
+
 router = APIRouter(prefix="/import", tags=["import"])
 logger = logging.getLogger(__name__)
 
@@ -180,7 +182,7 @@ async def import_fit_file(
     Workouts werden ohne Rad in other_activities gespeichert.
     """
     if not file.filename or not file.filename.lower().endswith(".fit"):
-        raise HTTPException(status_code=400, detail="Nur .fit-Dateien werden unterstützt")
+        raise api_error(400, "invalid_file_type_fit", "Nur .fit-Dateien werden unterstützt")
 
     data = await file.read()
 
@@ -267,7 +269,7 @@ async def import_tcx_file(
     Workouts werden ohne Rad in other_activities gespeichert.
     """
     if not file.filename or not file.filename.lower().endswith(".tcx"):
-        raise HTTPException(status_code=400, detail="Nur .tcx-Dateien werden unterstützt")
+        raise api_error(400, "invalid_file_type_tcx", "Nur .tcx-Dateien werden unterstützt")
 
     data = await file.read()
 
@@ -304,7 +306,7 @@ async def import_gpx_file(
     Workouts werden ohne Rad in other_activities gespeichert.
     """
     if not file.filename or not file.filename.lower().endswith(".gpx"):
-        raise HTTPException(status_code=400, detail="Nur .gpx-Dateien werden unterstützt")
+        raise api_error(400, "invalid_file_type_gpx", "Nur .gpx-Dateien werden unterstützt")
 
     data = await file.read()
 

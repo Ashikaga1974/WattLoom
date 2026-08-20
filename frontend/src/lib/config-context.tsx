@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useState } from 'rea
 import { api } from './api';
 
 export interface AppConfig {
+  language: string;
   bezier_tension: number;
   sparkline_weeks: number;
   speed_color_buckets: number;
@@ -18,6 +19,7 @@ export interface AppConfig {
 }
 
 export const CONFIG_DEFAULTS: AppConfig = {
+  language: 'de',
   bezier_tension: 0.2,
   sparkline_weeks: 8,
   speed_color_buckets: 20,
@@ -51,6 +53,7 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
       const s = await api.getSettings();
       const colors = s.comparison_colors ? s.comparison_colors.split(',').filter(Boolean) : null;
       setConfig({
+        language:            s.language ?? CONFIG_DEFAULTS.language,
         bezier_tension:      s.bezier_tension      ?? CONFIG_DEFAULTS.bezier_tension,
         sparkline_weeks:     s.sparkline_weeks     ?? CONFIG_DEFAULTS.sparkline_weeks,
         speed_color_buckets: s.speed_color_buckets ?? CONFIG_DEFAULTS.speed_color_buckets,

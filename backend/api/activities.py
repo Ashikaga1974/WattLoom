@@ -1,6 +1,7 @@
 from pathlib import Path
 
-from fastapi import APIRouter, Query, HTTPException
+from fastapi import APIRouter, Query
+from backend.api.errors import api_error
 from backend.database import db_connection
 from backend.utils import (
     haversine_km as _haversine_km,
@@ -213,7 +214,7 @@ def get_other_activity(workout_id: int):
             "SELECT * FROM other_activities WHERE id = ?", (workout_id,)
         ).fetchone()
         if row is None:
-            raise HTTPException(status_code=404, detail="Workout not found")
+            raise api_error(404, "workout_not_found", "Workout not found")
         history = conn.execute("""
             SELECT id, start_date_local, moving_time_s, calories, avg_hr, max_hr
             FROM other_activities
@@ -244,7 +245,7 @@ def get_activity(activity_id: int):
             "SELECT * FROM activities WHERE id = ?", (activity_id,)
         ).fetchone()
     if row is None:
-        raise HTTPException(status_code=404, detail="Activity not found")
+        raise api_error(404, "activity_not_found", "Activity not found")
     return dict(row)
 
 
@@ -292,14 +293,14 @@ def get_similar_activities(
             (activity_id,),
         ).fetchone()
         if ref is None:
-            raise HTTPException(status_code=404, detail="Activity not found or has no track")
+            raise api_error(404, "activity_not_found_or_no_track", "Activity not found or has no track")
 
         ref_start = conn.execute(
             "SELECT lat, lon FROM track_points WHERE activity_id = ? AND lat IS NOT NULL AND lon IS NOT NULL ORDER BY id LIMIT 1",
             (activity_id,),
         ).fetchone()
         if ref_start is None:
-            raise HTTPException(status_code=404, detail="Reference activity has no GPS track points")
+            raise api_error(404, "reference_activity_no_track_points", "Reference activity has no GPS track points")
 
         ref_lat = ref_start["lat"]
         ref_lon = ref_start["lon"]
@@ -409,9 +410,9 @@ def update_activity_power(activity_id: int, body: dict):
             "SELECT id, manual FROM activities WHERE id = ?", (activity_id,)
         ).fetchone()
         if row is None:
-            raise HTTPException(status_code=404, detail="Activity not found")
+            raise api_error(404, "activity_not_found", "Activity not found")
         if not row["manual"]:
-            raise HTTPException(status_code=400, detail="Nur bei manuell importierten Aktivitäten erlaubt")
+            raise api_error(400, "manual_only", "Nur bei manuell importierten Aktivitäten erlaubt")
 
         power = body.get("avg_power_w")
         if power is not None:
@@ -427,7 +428,7 @@ def delete_activity(activity_id: int):
     with db_connection() as conn:
         row = conn.execute("SELECT id FROM activities WHERE id = ?", (activity_id,)).fetchone()
         if row is None:
-            raise HTTPException(status_code=404, detail="Activity not found")
+            raise api_error(404, "activity_not_found", "Activity not found")
 
         # Mediendateinamen merken, aber erst nach erfolgreichem DB-Commit löschen
         media_rows = conn.execute(

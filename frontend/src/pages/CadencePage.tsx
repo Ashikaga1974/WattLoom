@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { PageHeader } from '@/components/ui/page-header';
 import { api, type CadenceData, type CadenceZone } from '@/lib/api';
 
@@ -9,15 +10,6 @@ const ZONE_COLORS: Record<string, string> = {
   Optimal: '#fbbf24',
   Hoch: '#f97316',
   Sprint: '#ef4444',
-};
-
-const ZONE_DESC: Record<string, string> = {
-  Schleppen: 'Zu langsam, schweres Gear',
-  Niedrig: 'Kraftbetont, ermüdend',
-  Moderat: 'Solide Grundlage',
-  Optimal: 'Pedalrhythmus-Sweetspot',
-  Hoch: 'Spinning, effizient',
-  Sprint: 'Max-Sprint',
 };
 
 function cadenceColor(c: number): string {
@@ -115,6 +107,7 @@ function myOf(v: number) {
 }
 
 export default function CadencePage() {
+  const { t } = useTranslation('cadence');
   const [data, setData] = useState<CadenceData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -140,7 +133,7 @@ export default function CadencePage() {
       const res = await api.cadence(year ? Number(year) : undefined);
       setData(res);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Fehler beim Laden');
+      setError(e instanceof Error ? e.message : t('loadError'));
     } finally {
       setLoading(false);
     }
@@ -173,7 +166,7 @@ export default function CadencePage() {
   const totalPointsFmt = (() => {
     if (!data) return '–';
     const n = data.stats.total_points;
-    if (n >= 1000) return `${Math.round(n / 1000)} Tsd.`;
+    if (n >= 1000) return t('stats.thousand', { count: Math.round(n / 1000) });
     return String(n);
   })();
 
@@ -192,8 +185,8 @@ export default function CadencePage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Kadenz-Analyse"
-        subtitle={`Pedalfrequenz-Analyse aus ${data?.stats.rides_with_cadence ?? '–'} Rides mit Kadenz-Daten`}
+        title={t('title')}
+        subtitle={t('subtitle', { count: data?.stats.rides_with_cadence ?? '–' })}
         years={availableYears}
         selectedYear={filterYear}
         onYearChange={handleYearChange}
@@ -217,28 +210,28 @@ export default function CadencePage() {
           {/* Stats-Leiste */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div className="rounded-xl border bg-card shadow-sm px-4 py-4">
-              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Ø Kadenz</p>
+              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{t('stats.avgCadence')}</p>
               <p className="text-3xl font-bold text-amber-400 mt-1">{data.stats.avg_cadence.toFixed(1)}</p>
               <p className="text-xs text-muted-foreground mt-0.5">rpm</p>
             </div>
             <div className="rounded-xl border bg-card shadow-sm px-4 py-4">
-              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Max Kadenz</p>
+              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{t('stats.maxCadence')}</p>
               <p className="text-3xl font-bold text-red-400 mt-1">{data.stats.max_cadence}</p>
               <p className="text-xs text-muted-foreground mt-0.5">rpm</p>
             </div>
             {favoriteZone && (
               <div className="rounded-xl border bg-card shadow-sm px-4 py-4">
-                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Lieblingszone</p>
+                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{t('stats.favoriteZone')}</p>
                 <p className="text-2xl font-bold mt-1" style={{ color: ZONE_COLORS[favoriteZone.name] ?? '#fff' }}>
-                  {favoriteZone.name}
+                  {t(`zones.names.${favoriteZone.name}`, { defaultValue: favoriteZone.name })}
                 </p>
                 <p className="text-xs text-muted-foreground mt-0.5">{favoriteZone.min}–{favoriteZone.max} rpm</p>
               </div>
             )}
             <div className="rounded-xl border bg-card shadow-sm px-4 py-4">
-              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Datenpunkte</p>
+              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{t('stats.dataPoints')}</p>
               <p className="text-3xl font-bold text-emerald-400 mt-1">{totalPointsFmt}</p>
-              <p className="text-xs text-muted-foreground mt-0.5">Sekunden mit Kadenzdaten</p>
+              <p className="text-xs text-muted-foreground mt-0.5">{t('stats.dataPointsUnit')}</p>
             </div>
           </div>
 
@@ -246,7 +239,7 @@ export default function CadencePage() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Radiales Verteilungsdiagramm */}
             <div className="rounded-xl border bg-card shadow-sm p-4">
-              <h3 className="text-sm font-medium mb-3">Kadenz-Verteilung</h3>
+              <h3 className="text-sm font-medium mb-3">{t('distribution.heading')}</h3>
               <svg
                 viewBox="0 0 500 500"
                 width="100%"
@@ -348,12 +341,12 @@ export default function CadencePage() {
 
             {/* Kadenz-Zonen */}
             <div className="rounded-xl border bg-card shadow-sm p-4 flex flex-col justify-center">
-              <h3 className="text-sm font-medium mb-4">Kadenz-Zonen</h3>
+              <h3 className="text-sm font-medium mb-4">{t('zones.heading')}</h3>
               <div className="space-y-3">
                 {data.zones.map(zone => {
                   const pct = totalZoneCount > 0 ? (zone.count / totalZoneCount) * 100 : 0;
                   const color = ZONE_COLORS[zone.name] ?? '#6b7280';
-                  const desc = ZONE_DESC[zone.name] ?? '';
+                  const desc = t(`zones.descriptions.${zone.name}`, { defaultValue: '' });
                   return (
                     <div key={zone.name}>
                       <div className="flex items-center justify-between mb-1">
@@ -363,7 +356,7 @@ export default function CadencePage() {
                             style={{ background: color }}
                           />
                           <span className="text-sm font-medium" style={{ color }}>
-                            {zone.name}
+                            {t(`zones.names.${zone.name}`, { defaultValue: zone.name })}
                           </span>
                           <span className="text-xs text-muted-foreground">
                             {zone.min}–{zone.max === 999 ? '∞' : zone.max} rpm
@@ -388,7 +381,7 @@ export default function CadencePage() {
           {/* Monatsverlauf */}
           {data.monthly.length >= 2 && (
             <div className="rounded-xl border bg-card shadow-sm p-4">
-              <h3 className="text-sm font-medium mb-3">Monatlicher Kadenz-Verlauf</h3>
+              <h3 className="text-sm font-medium mb-3">{t('monthly.heading')}</h3>
               <div className="relative">
                 <svg
                   ref={svgRef}
@@ -491,7 +484,7 @@ export default function CadencePage() {
                     <p className="text-muted-foreground">{monthlyPts[hoveredMonth].month}</p>
                     <p className="text-amber-400 font-bold text-sm">{monthlyPts[hoveredMonth].avg.toFixed(1)} rpm</p>
                     <p className="text-muted-foreground">
-                      {monthlyPts[hoveredMonth].rides} Ride{monthlyPts[hoveredMonth].rides !== 1 ? 's' : ''}
+                      {t('monthly.tooltipRides', { count: monthlyPts[hoveredMonth].rides })}
                     </p>
                   </div>
                 )}
@@ -502,9 +495,9 @@ export default function CadencePage() {
           {/* Effizienz-Kacheln */}
           {data.efficiency.length > 0 && (
             <div className="rounded-xl border bg-card shadow-sm p-4">
-              <h3 className="text-sm font-medium mb-1">Kadenz-Effizienz</h3>
+              <h3 className="text-sm font-medium mb-1">{t('efficiency.heading')}</h3>
               <p className="text-xs text-muted-foreground mb-4">
-                Speed-zu-HR-Ratio je Kadenz-Bucket — höherer Wert = besser (mehr Speed, weniger Herzschlag)
+                {t('efficiency.subtitle')}
               </p>
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
                 {data.efficiency.map((eff, i) => {
@@ -522,7 +515,7 @@ export default function CadencePage() {
                     >
                       {isSweetspot && (
                         <p className="text-[9px] text-amber-400 font-bold uppercase tracking-wide mb-1">
-                          ★ Sweetspot
+                          {t('efficiency.sweetspot')}
                         </p>
                       )}
                       <p className={`text-lg font-bold leading-tight ${isSweetspot ? 'text-amber-400' : 'text-foreground'}`}>
@@ -538,11 +531,11 @@ export default function CadencePage() {
                           {Math.round(eff.avg_hr)}{' '}
                           <span className="text-muted-foreground">bpm</span>
                         </p>
-                        <p className="text-[10px] text-muted-foreground">Ratio {ratio}</p>
+                        <p className="text-[10px] text-muted-foreground">{t('efficiency.ratio', { value: ratio })}</p>
                       </div>
                       {eff.count > 0 && (
                         <p className="text-[9px] text-muted-foreground/50 mt-1">
-                          {eff.count.toLocaleString('de')} Punkte
+                          {t('efficiency.points', { count: eff.count, formatted: eff.count.toLocaleString('de') })}
                         </p>
                       )}
                     </div>
@@ -553,8 +546,7 @@ export default function CadencePage() {
           )}
 
           <p className="text-xs text-muted-foreground/50">
-            Nur Aktivitäten mit Kadenz-Sensor fließen ein ({data.stats.rides_with_cadence} von insgesamt aufgezeichneten Rides).
-            Nullwerte (keine Pedalumdrehung) sind aus der Verteilung ausgeblendet.
+            {t('footer', { count: data.stats.rides_with_cadence })}
           </p>
         </>
       ) : null}

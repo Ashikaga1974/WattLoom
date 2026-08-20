@@ -1,27 +1,29 @@
 from datetime import datetime
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
+from backend.api.errors import api_error
 from backend.database import db_connection
 
 router = APIRouter(prefix="/activities", tags=["zones"])
 
-# HR-Zonen: 5 Zonen basierend auf % HRmax
+# HR-Zonen: 5 Zonen basierend auf % HRmax. "code" ist sprachneutral (siehe sport_codes.py) –
+# das Frontend übersetzt über t(`zones.zoneLabel.${code}`), das Backend liefert kein Label-Text.
 HR_ZONES = [
-    {"zone": 1, "label": "Regeneration", "color": "#60a5fa", "min_pct": 0.00, "max_pct": 0.60},
-    {"zone": 2, "label": "Grundlage",    "color": "#4ade80", "min_pct": 0.60, "max_pct": 0.70},
-    {"zone": 3, "label": "Tempo",        "color": "#facc15", "min_pct": 0.70, "max_pct": 0.80},
-    {"zone": 4, "label": "Schwelle",     "color": "#fb923c", "min_pct": 0.80, "max_pct": 0.90},
-    {"zone": 5, "label": "VO2max",       "color": "#ef4444", "min_pct": 0.90, "max_pct": 1.00},
+    {"zone": 1, "code": "recovery",  "color": "#60a5fa", "min_pct": 0.00, "max_pct": 0.60},
+    {"zone": 2, "code": "endurance", "color": "#4ade80", "min_pct": 0.60, "max_pct": 0.70},
+    {"zone": 3, "code": "tempo",     "color": "#facc15", "min_pct": 0.70, "max_pct": 0.80},
+    {"zone": 4, "code": "threshold", "color": "#fb923c", "min_pct": 0.80, "max_pct": 0.90},
+    {"zone": 5, "code": "vo2max",    "color": "#ef4444", "min_pct": 0.90, "max_pct": 1.00},
 ]
 
 # Power-Zonen: 7 Zonen nach Coggan, basierend auf % FTP
 POWER_ZONES = [
-    {"zone": 1, "label": "Active Recovery", "color": "#60a5fa", "min_pct": 0.00, "max_pct": 0.55},
-    {"zone": 2, "label": "Endurance",       "color": "#4ade80", "min_pct": 0.55, "max_pct": 0.75},
-    {"zone": 3, "label": "Tempo",           "color": "#a3e635", "min_pct": 0.75, "max_pct": 0.90},
-    {"zone": 4, "label": "Schwelle",        "color": "#facc15", "min_pct": 0.90, "max_pct": 1.05},
-    {"zone": 5, "label": "VO2max",          "color": "#fb923c", "min_pct": 1.05, "max_pct": 1.20},
-    {"zone": 6, "label": "Anaerob",         "color": "#f87171", "min_pct": 1.20, "max_pct": 1.50},
-    {"zone": 7, "label": "Neuromuskulär",   "color": "#c084fc", "min_pct": 1.50, "max_pct": None},
+    {"zone": 1, "code": "recovery",     "color": "#60a5fa", "min_pct": 0.00, "max_pct": 0.55},
+    {"zone": 2, "code": "endurance",    "color": "#4ade80", "min_pct": 0.55, "max_pct": 0.75},
+    {"zone": 3, "code": "tempo",        "color": "#a3e635", "min_pct": 0.75, "max_pct": 0.90},
+    {"zone": 4, "code": "threshold",    "color": "#facc15", "min_pct": 0.90, "max_pct": 1.05},
+    {"zone": 5, "code": "vo2max",       "color": "#fb923c", "min_pct": 1.05, "max_pct": 1.20},
+    {"zone": 6, "code": "anaerobic",    "color": "#f87171", "min_pct": 1.20, "max_pct": 1.50},
+    {"zone": 7, "code": "neuromuscular", "color": "#c084fc", "min_pct": 1.50, "max_pct": None},
 ]
 
 MAX_DELTA_SECONDS = 10
@@ -57,7 +59,7 @@ def _build_hr_zone_list(seconds_per_zone: dict, hr_max: int, total_seconds: floa
         pct = round(secs / total_seconds * 100, 1) if total_seconds > 0 else 0.0
         result.append({
             "zone":    zone_id,
-            "label":   z["label"],
+            "code":    z["code"],
             "color":   z["color"],
             "min_bpm": min_bpm,
             "max_bpm": max_bpm,
@@ -79,7 +81,7 @@ def _build_power_zone_list(seconds_per_zone: dict, ftp: int, total_seconds: floa
         pct = round(secs / total_seconds * 100, 1) if total_seconds > 0 else 0.0
         result.append({
             "zone":  zone_id,
-            "label": z["label"],
+            "code":  z["code"],
             "color": z["color"],
             "min_w": min_w,
             "max_w": max_w,
@@ -121,7 +123,7 @@ def get_zones(activity_id: int):
         ).fetchall()
 
     if not rows:
-        raise HTTPException(status_code=404, detail="Keine Track-Punkte für diese Aktivität")
+        raise api_error(404, "no_track_points", "Keine Track-Punkte für diese Aktivität")
 
     # 4. Zeitdeltas berechnen und Zonen akkumulieren
     hr_seconds: dict[int, float] = {z["zone"]: 0.0 for z in HR_ZONES}

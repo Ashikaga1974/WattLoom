@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { api, type Activity, type BestByDistanceBucket } from '@/lib/api';
 import { PageHeader } from '@/components/ui/page-header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { fmtDate } from '@/lib/format';
+import { rideTitle } from '@/lib/activity-display';
 
 interface Category {
   key: string;
@@ -36,13 +38,14 @@ const innerW = CW - PAD.l - PAD.r;
 const innerH = CH - PAD.t - PAD.b;
 
 export default function BestPage() {
+  const { t } = useTranslation(['best', 'common']);
   const [categories, setCategories] = useState<Category[]>([
-    { key: 'distance_m',      label: 'Längste Rides',     format: a => (a.distance_m / 1000).toFixed(1) + ' km', items: [] },
-    { key: 'elevation_gain_m',label: 'Meiste Höhenmeter', format: a => a.elevation_gain_m ? Math.round(a.elevation_gain_m) + ' m' : '-', items: [] },
-    { key: 'moving_time_s',   label: 'Längste Fahrzeit',  format: a => { const h = Math.floor(a.moving_time_s / 3600); const m = Math.floor((a.moving_time_s % 3600) / 60); return `${h}h ${m}m`; }, items: [] },
-    { key: 'avg_speed_ms',    label: 'Schnellste Rides',  format: a => a.avg_speed_ms ? (a.avg_speed_ms * 3.6).toFixed(1) + ' km/h' : '-', items: [] },
-    { key: 'avg_power_w',     label: 'Höchste Leistung',  format: a => a.avg_power_w ? Math.round(a.avg_power_w) + ' W' : '-', items: [] },
-    { key: 'calories',        label: 'Meiste Kalorien',   format: a => a.calories ? Math.round(a.calories) + ' kcal' : '-', items: [] },
+    { key: 'distance_m',      label: t('categories.distance', { ns: 'best' }),     format: a => (a.distance_m / 1000).toFixed(1) + ' km', items: [] },
+    { key: 'elevation_gain_m',label: t('categories.elevation', { ns: 'best' }), format: a => a.elevation_gain_m ? Math.round(a.elevation_gain_m) + ' m' : '-', items: [] },
+    { key: 'moving_time_s',   label: t('categories.movingTime', { ns: 'best' }),  format: a => { const h = Math.floor(a.moving_time_s / 3600); const m = Math.floor((a.moving_time_s % 3600) / 60); return `${h}h ${m}m`; }, items: [] },
+    { key: 'avg_speed_ms',    label: t('categories.avgSpeed', { ns: 'best' }),  format: a => a.avg_speed_ms ? (a.avg_speed_ms * 3.6).toFixed(1) + ' km/h' : '-', items: [] },
+    { key: 'avg_power_w',     label: t('categories.avgPower', { ns: 'best' }),  format: a => a.avg_power_w ? Math.round(a.avg_power_w) + ' W' : '-', items: [] },
+    { key: 'calories',        label: t('categories.calories', { ns: 'best' }),   format: a => a.calories ? Math.round(a.calories) + ' kcal' : '-', items: [] },
   ]);
   const [distBuckets, setDistBuckets] = useState<BestByDistanceBucket[]>([]);
   const [loading, setLoading] = useState(true);
@@ -59,7 +62,7 @@ export default function BestPage() {
       setDistBuckets(distResult.buckets);
     }
     load()
-      .catch(e => setError(e instanceof Error ? e.message : 'Fehler'))
+      .catch(e => setError(e instanceof Error ? e.message : t('error', { ns: 'best' })))
       .finally(() => setLoading(false));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -113,7 +116,7 @@ export default function BestPage() {
 
   return (
     <div className="space-y-8">
-      <PageHeader title="Best of – Persönliche Rekorde" />
+      <PageHeader title={t('title', { ns: 'best' })} />
 
       {error && (
         <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive">{error}</div>
@@ -125,8 +128,8 @@ export default function BestPage() {
       ) : distBuckets.length > 0 && (
         <Card className="overflow-hidden shadow-sm">
           <CardHeader className="border-b border-border px-4 py-3">
-            <CardTitle className="text-base">Beste Ø-Geschwindigkeit nach Distanz</CardTitle>
-            <p className="text-xs text-muted-foreground">Schnellstes zusammenhängendes Segment dieser Länge, über alle Fahrten hinweg</p>
+            <CardTitle className="text-base">{t('distanceChart.title', { ns: 'best' })}</CardTitle>
+            <p className="text-xs text-muted-foreground">{t('distanceChart.subtitle', { ns: 'best' })}</p>
           </CardHeader>
           <CardContent className="p-0">
             {chartData ? (
@@ -219,7 +222,7 @@ export default function BestPage() {
                       x={PAD.l - 36} y={PAD.t + innerH / 2}
                       textAnchor="middle" fontSize={10} fill="#9ca3af"
                       transform={`rotate(-90, ${PAD.l - 36}, ${PAD.t + innerH / 2})`}
-                    >Ø km/h</text>
+                    >{t('distanceChart.yAxisLabel', { ns: 'best' })}</text>
                   </svg>
                 </div>
 
@@ -228,11 +231,11 @@ export default function BestPage() {
                   <table className="w-full text-xs">
                     <thead>
                       <tr className="border-b border-border text-left uppercase tracking-wide text-muted-foreground">
-                        <th className="px-4 py-2 font-medium">Distanz</th>
-                        <th className="px-4 py-2 font-medium">Bestzeit</th>
-                        <th className="px-4 py-2 font-medium">Ø km/h</th>
-                        <th className="px-4 py-2 font-medium">Aktivität</th>
-                        <th className="px-4 py-2 font-medium">Datum</th>
+                        <th className="px-4 py-2 font-medium">{t('distanceChart.table.distance', { ns: 'best' })}</th>
+                        <th className="px-4 py-2 font-medium">{t('distanceChart.table.bestTime', { ns: 'best' })}</th>
+                        <th className="px-4 py-2 font-medium">{t('distanceChart.table.avgSpeed', { ns: 'best' })}</th>
+                        <th className="px-4 py-2 font-medium">{t('distanceChart.table.activity', { ns: 'best' })}</th>
+                        <th className="px-4 py-2 font-medium">{t('distanceChart.table.date', { ns: 'best' })}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border/50">
@@ -251,7 +254,7 @@ export default function BestPage() {
                               <td className="px-4 py-2 text-muted-foreground">{fmtDate2(b.date)}</td>
                             </>
                           ) : (
-                            <td className="px-4 py-2 text-muted-foreground" colSpan={4}>Kein Segment dieser Länge gefahren</td>
+                            <td className="px-4 py-2 text-muted-foreground" colSpan={4}>{t('distanceChart.table.noSegment', { ns: 'best' })}</td>
                           )}
                         </tr>
                       ))}
@@ -260,7 +263,7 @@ export default function BestPage() {
                 </div>
               </>
             ) : (
-              <p className="px-4 py-6 text-sm text-muted-foreground">Zu wenig Daten für den Chart.</p>
+              <p className="px-4 py-6 text-sm text-muted-foreground">{t('distanceChart.noData', { ns: 'best' })}</p>
             )}
           </CardContent>
         </Card>
@@ -282,7 +285,7 @@ export default function BestPage() {
               </CardHeader>
               <ol className="divide-y divide-border/50">
                 {cat.items.length === 0 ? (
-                  <li className="px-4 py-3 text-sm text-muted-foreground">Keine Daten.</li>
+                  <li className="px-4 py-3 text-sm text-muted-foreground">{t('noData', { ns: 'best' })}</li>
                 ) : cat.items.map((act, i) => (
                   <li key={act.id}>
                     <Link
@@ -291,7 +294,7 @@ export default function BestPage() {
                     >
                       <span className="w-7 shrink-0 text-center text-lg">{RANK_SYMBOLS[i]}</span>
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-medium">{act.name}</p>
+                        <p className="truncate text-sm font-medium">{rideTitle(act, t)}</p>
                         <p className="text-xs text-muted-foreground">{fmtDate(act.start_date)}</p>
                       </div>
                       <span className={`shrink-0 text-sm font-semibold ${RANK_COLORS[i]}`}>

@@ -9,6 +9,7 @@ from datetime import datetime, timezone
 from lxml import etree
 
 from backend.importer.gpx import NS, _attr_float, _text_str, _text_float, _text_int, import_gpx, read_gpx_device
+from backend.importer.sport_codes import to_sport_code
 from backend.utils import haversine_m
 
 # Sport-Strings die als Radfahrt in activities landen (case-insensitive)
@@ -17,18 +18,6 @@ from backend.utils import haversine_m
 _MOVING_THRESHOLD_MS = 1.0  # ≈ 3.6 km/h
 
 _CYCLING_SPORTS: set[str] = {"1", "ride", "cycling", "biking", "bike", "e-bike ride"}
-
-_SPORT_LABELS: dict[str, str] = {
-    "run":      "Laufen",
-    "running":  "Laufen",
-    "9":        "Laufen",
-    "walk":     "Gehen",
-    "walking":  "Gehen",
-    "hike":     "Wandern",
-    "hiking":   "Wandern",
-    "swim":     "Schwimmen",
-    "swimming": "Schwimmen",
-}
 
 
 def import_single_gpx(conn: sqlite3.Connection, gpx_bytes: bytes, bike_id: str | None = None) -> dict:
@@ -56,18 +45,16 @@ def import_single_gpx(conn: sqlite3.Connection, gpx_bytes: bytes, bike_id: str |
 
     activity_id = -int(start_dt.timestamp())
     start_date  = start_dt.strftime('%Y-%m-%dT%H:%M:%S')
-    local_date  = start_dt.strftime("%d.%m.%Y")
 
-    # Aktivitätsname: <trk><name> → <metadata><name>
+    # Aktivitätsname: nur ein echter, vom Gerät/Nutzer vergebener Titel wird übernommen –
+    # <trk><name> → <metadata><name>. Kein komponierter deutscher Fallback mehr, siehe
+    # fit_single.py._import_as_ride; ohne echten Titel bleibt name NULL und das Frontend
+    # baut die Anzeige aus sport_type + Datum via i18next.
     trk_name = _text_str(root, "gpx:trk/gpx:name") or _text_str(root, "gpx:metadata/gpx:name")
 
     # Sport-Typ aus <trk><type>
     sport_raw = (_text_str(root, "gpx:trk/gpx:type") or "").strip()
     sport_lower = sport_raw.lower()
-
-    # Gerät aus <creator>-Attribut
-    creator = root.get("creator", "")
-    device_hint = f" ({creator})" if creator else ""
 
     # Trackpunkte aggregieren: Distanz, Dauer, Elevation, HR
     trkpts = root.xpath(".//gpx:trkpt", namespaces=NS)
@@ -79,16 +66,13 @@ def import_single_gpx(conn: sqlite3.Connection, gpx_bytes: bytes, bike_id: str |
     if is_ride:
         if not bike_id:
             raise ValueError("bike_id ist für Radtouren erforderlich")
-        name = trk_name or f"Radfahrt {local_date}{device_hint}"
         return _import_as_ride(
-            conn, gpx_bytes, activity_id, start_date, local_date,
-            name, device_hint, bike_id, stats,
+            conn, gpx_bytes, activity_id, start_date, trk_name, bike_id, stats,
         )
 
-    sport_label = _SPORT_LABELS.get(sport_lower) or (sport_raw.replace("_", " ").title() if sport_raw else "Training")
-    name = trk_name or f"{sport_label} {local_date}{device_hint}"
+    sport_code = to_sport_code(sport_lower)
     return _import_as_workout(
-        conn, activity_id, start_date, name, sport_label, stats,
+        conn, activity_id, start_date, trk_name, sport_code, stats,
     )
 
 
@@ -172,9 +156,7 @@ def _import_as_ride(
     gpx_bytes: bytes,
     activity_id: int,
     start_date: str,
-    local_date: str,
-    name: str,
-    device_hint: str,
+    name: str | None,
     bike_id: str,
     stats: dict,
 ) -> dict:
@@ -199,7 +181,7 @@ def _import_as_ride(
                 track_file, has_track, imported_at, smart_device
             ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         """, (
-            activity_id, name, "Ride", "Ride",
+            activity_id, name, "ride", "ride",
             start_date, start_date, None,
             dist,
             moving, elapsed,
@@ -221,15 +203,18 @@ def _import_as_ride(
         with conn:
             conn.execute("UPDATE activities SET has_track=1 WHERE id=?", (activity_id,))
 
-    return {"activity_id": activity_id, "name": name, "is_ride": True}
+    return {
+        "activity_id": activity_id, "name": name, "is_ride": True,
+        "sport_type": "ride", "start_date_local": start_date,
+    }
 
 
 def _import_as_workout(
     conn: sqlite3.Connection,
     activity_id: int,
     start_date: str,
-    name: str,
-    sport_label: str,
+    name: str | None,
+    sport_code: str,
     stats: dict,
 ) -> dict:
     dup = conn.execute("SELECT id FROM other_activities WHERE id = ?", (activity_id,)).fetchone()
@@ -243,10 +228,13 @@ def _import_as_workout(
                  moving_time_s, elapsed_time_s, avg_hr, max_hr, calories, imported_at)
             VALUES (?,?,?,?,?,?,?,?,?,?)
         """, (
-            activity_id, name, sport_label, start_date,
+            activity_id, name, sport_code, start_date,
             stats["elapsed_s"], stats["elapsed_s"],
             stats["avg_hr"], None, None,
             datetime.now(timezone.utc).isoformat(),
         ))
 
-    return {"activity_id": activity_id, "name": name, "is_ride": False}
+    return {
+        "activity_id": activity_id, "name": name, "is_ride": False,
+        "sport_type": sport_code, "start_date_local": start_date,
+    }

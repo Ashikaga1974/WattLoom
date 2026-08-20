@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
   Sidebar,
   SidebarContent,
@@ -49,61 +50,64 @@ interface NavGroup {
   children?: NavSubItem[];
 }
 
+// `label` ist ein i18n-Key (common.json, Namespace "nav") – Übersetzung erst beim Rendern
+// via t(), damit die Sidebar auf Sprachwechsel reagiert.
 const navGroups: NavGroup[] = [
   {
     href: '/',
-    label: 'Dashboard',
+    label: 'nav.dashboard',
     icon: <LayoutDashboard size={16} />,
     prefixes: ['/'],
   },
   {
     href: '/activities',
-    label: 'Aktivitäten',
+    label: 'nav.activities',
     icon: <Activity size={16} />,
     prefixes: ['/activities', '/calendar', '/best'],
     children: [
-      { href: '/activities', label: 'Liste', icon: <Activity size={13} /> },
-      { href: '/calendar',   label: 'Kalender', icon: <Calendar size={13} /> },
-      { href: '/best',       label: 'Best of', icon: <Trophy size={13} /> },
+      { href: '/activities', label: 'nav.activitiesList', icon: <Activity size={13} /> },
+      { href: '/calendar',   label: 'nav.calendar', icon: <Calendar size={13} /> },
+      { href: '/best',       label: 'nav.best', icon: <Trophy size={13} /> },
     ],
   },
   {
     href: '/heatmap',
-    label: 'Karte',
+    label: 'nav.map',
     icon: <Map size={16} />,
     prefixes: ['/heatmap', '/strecken'],
     children: [
-      { href: '/heatmap',  label: 'Heatmap', icon: <Map size={13} /> },
-      { href: '/strecken', label: 'Streckenvergleich', icon: <GitCompare size={13} /> },
+      { href: '/heatmap',  label: 'nav.heatmap', icon: <Map size={13} /> },
+      { href: '/strecken', label: 'nav.routeComparison', icon: <GitCompare size={13} /> },
     ],
   },
   {
     href: '/progress',
-    label: 'Analyse',
+    label: 'nav.analysis',
     icon: <BarChart2 size={16} />,
     prefixes: ['/progress', '/hrcurve', '/cadence', '/form', '/tempcorr', '/stats', '/wrapped', '/calories', '/speed-trend', '/weekend', '/fitness'],
     children: [
-      { href: '/fitness',       label: 'Fitness-Score',    icon: <Fingerprint size={13} /> },
-      { href: '/progress',      label: 'Jahresübersicht', icon: <TrendingUp size={13} /> },
-      { href: '/hrcurve',       label: 'HR-Analyse', icon: <Heart size={13} /> },
-      { href: '/cadence',       label: 'Kadenz', icon: <Activity size={13} /> },
-      { href: '/form',          label: 'Form (PMC)', icon: <TrendingUp size={13} /> },
-      { href: '/tempcorr',      label: 'Wetter & Leistung', icon: <BarChart size={13} /> },
-      { href: '/calories',      label: 'Kalorien', icon: <Cookie size={13} /> },
-      { href: '/speed-trend',   label: 'Tempoentwicklung', icon: <TrendingUp size={13} /> },
-      { href: '/weekend',       label: 'Wochentag-Analyse', icon: <SunMoon size={13} /> },
-      { href: '/wrapped',       label: 'Jahresrückblick', icon: <Trophy size={13} /> },
+      { href: '/fitness',       label: 'nav.fitnessScore',    icon: <Fingerprint size={13} /> },
+      { href: '/progress',      label: 'nav.yearOverview', icon: <TrendingUp size={13} /> },
+      { href: '/hrcurve',       label: 'nav.hrAnalysis', icon: <Heart size={13} /> },
+      { href: '/cadence',       label: 'nav.cadence', icon: <Activity size={13} /> },
+      { href: '/form',          label: 'nav.form', icon: <TrendingUp size={13} /> },
+      { href: '/tempcorr',      label: 'nav.weatherPerformance', icon: <BarChart size={13} /> },
+      { href: '/calories',      label: 'nav.calories', icon: <Cookie size={13} /> },
+      { href: '/speed-trend',   label: 'nav.speedTrend', icon: <TrendingUp size={13} /> },
+      { href: '/weekend',       label: 'nav.weekdayAnalysis', icon: <SunMoon size={13} /> },
+      { href: '/wrapped',       label: 'nav.yearWrapped', icon: <Trophy size={13} /> },
     ],
   },
   {
     href: '/bikes',
-    label: 'Bikes',
+    label: 'nav.bikes',
     icon: <Bike size={16} />,
     prefixes: ['/bikes'],
   },
 ];
 
 export function AppSidebar() {
+  const { t } = useTranslation('common');
   const location = useLocation();
   const p = location.pathname;
 
@@ -151,7 +155,7 @@ export function AppSidebar() {
                       isActive={active && !group.children}
                     >
                       {group.icon}
-                      <span>{group.label}</span>
+                      <span>{t(group.label)}</span>
                     </SidebarMenuButton>
 
                     {group.children && (
@@ -161,7 +165,7 @@ export function AppSidebar() {
                           e.stopPropagation();
                           toggleExpanded(group.href);
                         }}
-                        aria-label={expanded[group.href] ? 'Untermenü zuklappen' : 'Untermenü aufklappen'}
+                        aria-label={expanded[group.href] ? t('nav.collapseSubmenu') : t('nav.expandSubmenu')}
                       >
                         <ChevronDown
                           size={14}
@@ -179,7 +183,7 @@ export function AppSidebar() {
                               isActive={isSubActive(sub.href)}
                             >
                               {sub.icon}
-                              <span>{sub.label}</span>
+                              <span>{t(sub.label)}</span>
                             </SidebarMenuSubButton>
                           </SidebarMenuSubItem>
                         ))}
@@ -201,7 +205,7 @@ export function AppSidebar() {
               isActive={p === '/berechnungen'}
             >
               <HelpCircle size={16} />
-              <span>Berechnungen</span>
+              <span>{t('nav.calculations')}</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>
@@ -210,7 +214,7 @@ export function AppSidebar() {
               isActive={p === '/settings'}
             >
               <Settings size={16} />
-              <span>Einstellungen</span>
+              <span>{t('nav.settings')}</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>

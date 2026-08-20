@@ -1,11 +1,15 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from pydantic import create_model
+from backend.api.translations import SUPPORTED_LANGUAGES
 from backend.database import db_connection
+
+_LANGUAGE_CODES = {lang["code"] for lang in SUPPORTED_LANGUAGES}
 
 router = APIRouter(prefix="/settings", tags=["settings"])
 
 # Feldname → (Zieltyp, Default). Default=None bedeutet: kein Wert bis Nutzer einträgt.
 _FIELDS: dict[str, tuple[type, object]] = {
+    "language":            (str,   "de"),
     "weight_kg":           (float, None),
     "birth_year":          (int,   None),
     "tz_offset":           (int,   None),
@@ -61,6 +65,8 @@ def get_settings():
 
 @router.post("")
 def update_settings(body: SettingsUpdate):
+    if body.language is not None and body.language not in _LANGUAGE_CODES:
+        raise HTTPException(status_code=400, detail={"code": "invalid_language", "message": f"language muss eine von {sorted(_LANGUAGE_CODES)} sein"})
     with db_connection() as conn:
         for key in _FIELDS:
             val = getattr(body, key, None)

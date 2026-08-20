@@ -9,21 +9,11 @@ from datetime import datetime, timezone
 from lxml import etree
 
 from backend.importer.tcx import NS, _float, _int, _text, import_tcx, read_tcx_device
+from backend.importer.sport_codes import to_sport_code
 
 
 # Sport-Attribute die als Radfahrt in activities landen (case-insensitive)
 _CYCLING_SPORTS: set[str] = {"biking", "cycling", "bike"}
-
-# Anzeigename für andere Sport-Typen in other_activities
-_SPORT_LABELS: dict[str, str] = {
-    "running":          "Laufen",
-    "walking":          "Gehen",
-    "swimming":         "Schwimmen",
-    "hiking":           "Wandern",
-    "other":            "Training",
-    "fitness":          "Fitness",
-    "strength_training": "Krafttraining",
-}
 
 
 def import_single_tcx(conn: sqlite3.Connection, tcx_bytes: bytes, bike_id: str | None = None) -> dict:
@@ -64,15 +54,6 @@ def import_single_tcx(conn: sqlite3.Connection, tcx_bytes: bytes, bike_id: str |
     # Negativer Unix-Timestamp → kein Kollisionsrisiko mit positiven Strava-IDs
     activity_id = -int(start_dt.timestamp())
     start_date  = start_dt.strftime('%Y-%m-%dT%H:%M:%S')
-    local_date  = start_dt.strftime("%d.%m.%Y")
-
-    # Device-Hint: Creator-Subelement hat Vorrang vor root-Attribut
-    creator_name_els = activity_el.xpath("ns:Creator/ns:Name", namespaces=NS)
-    if creator_name_els and creator_name_els[0].text:
-        device_hint = f" ({creator_name_els[0].text})"
-    else:
-        root_creator = root.get("creator", "")
-        device_hint = f" ({root_creator})" if root_creator else ""
 
     # Laps aggregieren
     laps = activity_el.xpath("ns:Lap", namespaces=NS)
@@ -103,13 +84,13 @@ def import_single_tcx(conn: sqlite3.Connection, tcx_bytes: bytes, bike_id: str |
         if not bike_id:
             raise ValueError("bike_id ist für Radtouren erforderlich")
         return _import_as_ride(
-            conn, tcx_bytes, activity_id, start_date, local_date,
-            device_hint, bike_id, total_time, total_distance, total_calories, avg_hr, max_hr,
+            conn, tcx_bytes, activity_id, start_date,
+            bike_id, total_time, total_distance, total_calories, avg_hr, max_hr,
         )
 
     return _import_as_workout(
-        conn, tcx_bytes, activity_id, start_date, local_date,
-        device_hint, sport_lower, total_time, total_calories, avg_hr, max_hr,
+        conn, tcx_bytes, activity_id, start_date,
+        sport_lower, total_time, total_calories, avg_hr, max_hr,
     )
 
 
@@ -120,8 +101,6 @@ def _import_as_ride(
     tcx_bytes: bytes,
     activity_id: int,
     start_date: str,
-    local_date: str,
-    device_hint: str,
     bike_id: str,
     total_time: float | None,
     total_distance: float | None,
@@ -134,7 +113,8 @@ def _import_as_ride(
         raise ValueError(f"Aktivität vom {start_date[:16].replace('T', ' ')} UTC bereits importiert (ID {activity_id})")
 
     avg_speed = (total_distance / total_time) if (total_distance and total_time) else None
-    activity_name = f"Radfahrt {local_date}{device_hint}"
+    # Kein komponierter deutscher Name mehr – siehe fit_single.py._import_as_ride.
+    activity_name = None
 
     with conn:
         conn.execute("""
@@ -148,7 +128,7 @@ def _import_as_ride(
                 track_file, has_track, imported_at, smart_device
             ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         """, (
-            activity_id, activity_name, "Ride", "Ride",
+            activity_id, activity_name, "ride", "ride",
             start_date, start_date, None,
             total_distance,
             int(total_time) if total_time else None,
@@ -171,7 +151,10 @@ def _import_as_ride(
         with conn:
             conn.execute("UPDATE activities SET has_track=1 WHERE id=?", (activity_id,))
 
-    return {"activity_id": activity_id, "name": activity_name, "is_ride": True}
+    return {
+        "activity_id": activity_id, "name": activity_name, "is_ride": True,
+        "sport_type": "ride", "start_date_local": start_date,
+    }
 
 
 def _import_as_workout(
@@ -179,8 +162,6 @@ def _import_as_workout(
     tcx_bytes: bytes,
     activity_id: int,
     start_date: str,
-    local_date: str,
-    device_hint: str,
     sport_lower: str,
     total_time: float | None,
     total_calories: float | None,
@@ -191,8 +172,8 @@ def _import_as_workout(
     if dup:
         raise ValueError(f"Aktivität vom {start_date[:16].replace('T', ' ')} UTC bereits importiert (ID {activity_id})")
 
-    sport_label = _SPORT_LABELS.get(sport_lower) or (sport_lower.replace("_", " ").title() if sport_lower else "Training")
-    activity_name = f"{sport_label} {local_date}{device_hint}"
+    sport_code = to_sport_code(sport_lower)
+    activity_name = None
 
     with conn:
         conn.execute("""
@@ -201,7 +182,7 @@ def _import_as_workout(
                  moving_time_s, elapsed_time_s, avg_hr, max_hr, calories, imported_at)
             VALUES (?,?,?,?,?,?,?,?,?,?)
         """, (
-            activity_id, activity_name, sport_label, start_date,
+            activity_id, activity_name, sport_code, start_date,
             int(total_time) if total_time else None,
             int(total_time) if total_time else None,
             avg_hr, max_hr, total_calories,
@@ -210,4 +191,7 @@ def _import_as_workout(
 
     # Kein import_tcx: track_points und laps haben FK auf activities, nicht other_activities
 
-    return {"activity_id": activity_id, "name": activity_name, "is_ride": False}
+    return {
+        "activity_id": activity_id, "name": activity_name, "is_ride": False,
+        "sport_type": sport_code, "start_date_local": start_date,
+    }

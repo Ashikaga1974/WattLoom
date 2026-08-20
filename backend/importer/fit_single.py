@@ -11,33 +11,12 @@ from typing import Any
 import fitparse
 
 from backend.importer.fit import _SafeProcessor, _val, import_fit, read_fit_device
+from backend.importer.sport_codes import lookup_sport_code, to_sport_code
 from backend.utils import haversine_m
 
 
 # Sportarten die als Radfahrt in activities landen
 _CYCLING_SPORTS: set[str] = {"cycling", "generic"}
-
-# Anzeigename für Sport/Sub-Sport in other_activities.sport_type
-_SUB_SPORT_LABELS: dict[str, str] = {
-    "strength_training": "Krafttraining",
-    "yoga":              "Yoga",
-    "cardio_training":   "Cardio",
-    "flexibility_training": "Dehnen",
-    "warm_up":           "Aufwärmen",
-    "cool_down":         "Abkühlen",
-}
-
-_SPORT_LABELS: dict[str, str] = {
-    "generic":   "Training",
-    "training":  "Training",
-    "running":   "Laufen",
-    "walking":   "Gehen",
-    "swimming":  "Schwimmen",
-    "hiking":    "Wandern",
-    "yoga":      "Yoga",
-    "fitness_equipment": "Fitness",
-    "rowing":    "Rudern",
-}
 
 
 
@@ -52,14 +31,10 @@ def import_single_fit(conn: sqlite3.Connection, fit_bytes: bytes, bike_id: str |
     fit = fitparse.FitFile(io.BytesIO(fit_bytes), data_processor=_SafeProcessor())
 
     session_msg = None
-    device_hint = ""
     for msg in fit.get_messages():
-        if msg.name == "session" and session_msg is None:
+        if msg.name == "session":
             session_msg = msg
-        elif msg.name == "file_id" and not device_hint:
-            pn = _val(msg, "product_name")
-            if pn:
-                device_hint = f" ({pn})"
+            break
 
     if session_msg is None:
         raise ValueError("Keine session-Message in der FIT-Datei gefunden")
@@ -79,7 +54,6 @@ def import_single_fit(conn: sqlite3.Connection, fit_bytes: bytes, bike_id: str |
     # Negativer Unix-Timestamp → kein Kollisionsrisiko mit positiven Strava-IDs
     activity_id = -int(start_dt.timestamp())
     start_date  = start_dt.strftime('%Y-%m-%dT%H:%M:%S')
-    local_date  = start_dt.strftime("%d.%m.%Y")
 
     sport_raw = sv("sport")
     sport_str = str(sport_raw).lower() if sport_raw is not None else "cycling"
@@ -89,12 +63,11 @@ def import_single_fit(conn: sqlite3.Connection, fit_bytes: bytes, bike_id: str |
     if sport_str in _CYCLING_SPORTS:
         if bike_id:
             return _import_as_ride(conn, fit, fit_bytes, session_msg, sv,
-                                   activity_id, start_date, local_date, device_hint, bike_id)
+                                   activity_id, start_date, bike_id)
         if sport_str != "generic":
             raise ValueError("bike_id ist für Radtouren erforderlich")
 
-    return _import_as_workout(conn, session_msg, sv,
-                              activity_id, start_date, local_date, device_hint, sport_str)
+    return _import_as_workout(conn, session_msg, sv, activity_id, start_date, sport_str)
 
 
 # ── interne Helfer ────────────────────────────────────────────────────────────
@@ -107,8 +80,6 @@ def _import_as_ride(
     sv: Any,
     activity_id: int,
     start_date: str,
-    local_date: str,
-    device_hint: str,
     bike_id: str,
 ) -> dict:
     """Speichert eine Radtour in der activities-Tabelle."""
@@ -124,7 +95,10 @@ def _import_as_ride(
         avg_speed = sv("avg_speed") or sv("enhanced_avg_speed")
     max_speed = sv("max_speed") or sv("enhanced_max_speed")
 
-    activity_name = f"Radfahrt {local_date}{device_hint}"
+    # Kein komponierter deutscher Name mehr – das Frontend baut den Titel aus
+    # sport_type + Datum via i18next (siehe lib/activity-display.ts). Ein evtl.
+    # Geräte-Hinweis ist über smart_device (unten) bereits separat gespeichert.
+    activity_name = None
 
     with conn:
         conn.execute("""
@@ -140,8 +114,8 @@ def _import_as_ride(
         """, (
             activity_id,
             activity_name,
-            "Ride",
-            "Ride",
+            "ride",
+            "ride",
             start_date,
             start_date,
             None,
@@ -175,7 +149,10 @@ def _import_as_ride(
         with conn:
             conn.execute("UPDATE activities SET has_track=1 WHERE id=?", (activity_id,))
 
-    return {"activity_id": activity_id, "name": activity_name, "is_ride": True}
+    return {
+        "activity_id": activity_id, "name": activity_name, "is_ride": True,
+        "sport_type": "ride", "start_date_local": start_date,
+    }
 
 
 def _import_as_workout(
@@ -184,8 +161,6 @@ def _import_as_workout(
     sv: Any,
     activity_id: int,
     start_date: str,
-    local_date: str,
-    device_hint: str,
     sport_str: str,
 ) -> dict:
     """Speichert ein Nicht-Rad-Workout in der other_activities-Tabelle."""
@@ -200,14 +175,11 @@ def _import_as_workout(
     sub_sport_raw = _val(session_msg, "sub_sport")
     sub_sport_str = str(sub_sport_raw).lower().replace(" ", "_") if sub_sport_raw else ""
 
-    # Anzeigename: Sub-Sport hat Vorrang vor Sport
-    sport_label = (
-        _SUB_SPORT_LABELS.get(sub_sport_str)
-        or _SPORT_LABELS.get(sport_str)
-        or sport_str.replace("_", " ").title()
-    )
-
-    activity_name = f"{sport_label} {local_date}{device_hint}"
+    # Kanonischer Code: Sub-Sport hat Vorrang vor Sport, wenn er einer bekannten Zuordnung
+    # entspricht – sonst Sport, sonst "training". Kein komponierter Name mehr, siehe
+    # Kommentar in _import_as_ride.
+    sport_code = lookup_sport_code(sub_sport_str) or to_sport_code(sport_str)
+    activity_name = None
     moving_time  = sv("total_timer_time")
     elapsed_time = sv("total_elapsed_time")
 
@@ -220,7 +192,7 @@ def _import_as_workout(
         """, (
             activity_id,
             activity_name,
-            sport_label,
+            sport_code,
             start_date,
             int(float(moving_time))  if moving_time  is not None else None,
             int(float(elapsed_time)) if elapsed_time is not None else None,
@@ -230,7 +202,10 @@ def _import_as_workout(
             datetime.now(timezone.utc).isoformat(),
         ))
 
-    return {"activity_id": activity_id, "name": activity_name, "is_ride": False}
+    return {
+        "activity_id": activity_id, "name": activity_name, "is_ride": False,
+        "sport_type": sport_code, "start_date_local": start_date,
+    }
 
 
 def _check_duplicate(conn: sqlite3.Connection, activity_id: int, start_date: str) -> None:

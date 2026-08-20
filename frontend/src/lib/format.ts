@@ -1,3 +1,13 @@
+// Von lib/i18n.ts bei Sprachwechsel gesetzt. Modul-globale Variable statt Parameter an jeder
+// fmt*-Funktion – format.ts ist ein reines Util-Modul ohne React-Context-Zugriff, und so
+// müssen nicht alle bestehenden Call-Sites (die heute keinen Locale-Parameter übergeben)
+// angefasst werden.
+let _locale: string = 'de-DE';
+
+export function setFormatLocale(locale: string): void {
+  _locale = locale;
+}
+
 /** Meter → km mit einer Nachkommastelle */
 export function fmtKm(m: number): string {
   return (m / 1000).toFixed(1);
@@ -34,30 +44,30 @@ export function fmtPace(ms: number): string {
 /** ISO-Datum → lesbares Datum (z.B. "17.06.2023") */
 export function fmtDate(dateStr: string): string {
   const d = new Date(dateStr.endsWith('Z') ? dateStr : dateStr + 'Z');
-  return d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  return d.toLocaleDateString(_locale, { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 
 /** ISO-Datum → Kurzdatum (z.B. "17.06.23") */
 export function fmtDateShort(dateStr: string): string {
   const d = new Date(dateStr.endsWith('Z') ? dateStr : dateStr + 'Z');
-  return d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: '2-digit' });
+  return d.toLocaleDateString(_locale, { day: '2-digit', month: '2-digit', year: '2-digit' });
 }
 
 /** ISO-Datum → Wochentag-Kürzel (z.B. "Mo.") */
 export function fmtWeekday(dateStr: string): string {
   const d = new Date(dateStr.endsWith('Z') ? dateStr : dateStr + 'Z');
-  return d.toLocaleDateString('de-DE', { weekday: 'short' });
+  return d.toLocaleDateString(_locale, { weekday: 'short' });
 }
 
 /** ISO-Datum → Uhrzeit (z.B. "08:45") */
 export function fmtClock(dateStr: string): string {
   const d = new Date(dateStr.endsWith('Z') ? dateStr : dateStr + 'Z');
-  return d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+  return d.toLocaleTimeString(_locale, { hour: '2-digit', minute: '2-digit' });
 }
 
 /** Zahl mit Tausender-Trennzeichen */
 export function fmtNum(n: number, decimals = 0): string {
-  return n.toLocaleString('de-DE', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+  return n.toLocaleString(_locale, { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
 }
 
 /** Höhenmeter formatiert (z.B. "1.234 m") */

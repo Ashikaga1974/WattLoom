@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { api } from '@/lib/api';
 import { PageHeader } from '@/components/ui/page-header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -57,15 +58,16 @@ function buildWindBuckets(pts: WindPt[]): WindBucket[] {
 }
 
 function WindTooltip({ active, payload, label }: { active?: boolean; payload?: { payload: WindBucket }[]; label?: string }) {
+  const { t } = useTranslation('tempcorr');
   if (!active || !payload?.length) return null;
   const d = payload[0].payload;
   return (
     <div className="rounded-lg border border-border bg-background/95 px-3 py-2 text-sm shadow-md backdrop-blur">
       <p className="font-semibold mb-1.5">{label}</p>
       <div className="flex flex-col gap-1 text-xs">
-        <span style={{ color: 'var(--primary)' }}>Ø Geschwindigkeit: {d.avg_speed} km/h</span>
-        <span style={{ color: 'var(--chart-2)' }}>Ø Herzfrequenz: {d.avg_hr} bpm</span>
-        <span className="text-muted-foreground">{d.count} Rides</span>
+        <span style={{ color: 'var(--primary)' }}>{t('tooltip.avgSpeed', { value: d.avg_speed })}</span>
+        <span style={{ color: 'var(--chart-2)' }}>{t('tooltip.avgHr', { value: d.avg_hr })}</span>
+        <span className="text-muted-foreground">{t('tooltip.rides', { count: d.count })}</span>
       </div>
     </div>
   );
@@ -123,31 +125,34 @@ function buildBuckets(pts: Pt[]): Bucket[] {
 }
 
 function MainTooltip({ active, payload, label }: { active?: boolean; payload?: { payload: Bucket }[]; label?: string }) {
+  const { t } = useTranslation('tempcorr');
   if (!active || !payload?.length) return null;
   const d = payload[0].payload;
   return (
     <div className="rounded-lg border border-border bg-background/95 px-3 py-2 text-sm shadow-md backdrop-blur">
       <p className="font-semibold mb-1.5">{label}</p>
       <div className="flex flex-col gap-1 text-xs">
-        <span style={{ color: 'var(--primary)' }}>Ø Geschwindigkeit: {d.avg_speed} km/h</span>
-        <span style={{ color: 'var(--chart-2)' }}>Ø Herzfrequenz: {d.avg_hr} bpm</span>
-        <span className="text-muted-foreground">{d.count} Rides</span>
+        <span style={{ color: 'var(--primary)' }}>{t('tooltip.avgSpeed', { value: d.avg_speed })}</span>
+        <span style={{ color: 'var(--chart-2)' }}>{t('tooltip.avgHr', { value: d.avg_hr })}</span>
+        <span className="text-muted-foreground">{t('tooltip.rides', { count: d.count })}</span>
       </div>
     </div>
   );
 }
 
 function EffTooltip({ active, payload, label }: { active?: boolean; payload?: { value?: number }[]; label?: string }) {
+  const { t } = useTranslation('tempcorr');
   if (!active || !payload?.length) return null;
   return (
     <div className="rounded-lg border border-border bg-background/95 px-3 py-2 text-sm shadow-md backdrop-blur">
       <p className="font-semibold mb-1">{label}</p>
-      <p className="text-xs" style={{ color: 'var(--primary)' }}>Effizienz: {Number(payload[0].value).toFixed(2)}</p>
+      <p className="text-xs" style={{ color: 'var(--primary)' }}>{t('tooltip.efficiency', { value: Number(payload[0].value).toFixed(2) })}</p>
     </div>
   );
 }
 
 export default function TempCorrPage() {
+  const { t } = useTranslation('tempcorr');
   const config = useConfig();
   const [pts, setPts] = useState<Pt[]>([]);
   const [windPts, setWindPts] = useState<WindPt[]>([]);
@@ -160,7 +165,7 @@ export default function TempCorrPage() {
         setPts(tempRes.points.filter(p => p.year >= 2000));
         setWindPts(windRes.points);
       })
-      .catch(e => setError(e instanceof Error ? e.message : 'Fehler'))
+      .catch(e => setError(e instanceof Error ? e.message : t('errorFallback')))
       .finally(() => setLoading(false));
   }, []);
 
@@ -185,8 +190,8 @@ export default function TempCorrPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Wetter & Leistung"
-        subtitle={`Temperatur und Wind aus Open-Meteo · ${pts.length} Rides mit Wetterdaten`}
+        title={t('title')}
+        subtitle={t('subtitle', { count: pts.length })}
       />
 
       {error && (
@@ -206,37 +211,37 @@ export default function TempCorrPage() {
         <>
           {/* Disclaimer */}
           <p className="text-xs text-muted-foreground border border-border rounded-md px-3 py-2">
-            Korrelation, keine Kausalität – Temperatur, Jahreszeit und Trainingsform sind eng verknüpft. Die Werte spiegeln Muster in deinen Daten wider, erlauben aber keine direkten Rückschlüsse auf den Einfluss der Temperatur allein.
+            {t('disclaimer')}
           </p>
 
           {/* KPI-Kacheln */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <Card className="ring-2 ring-primary/30">
               <CardContent className="pt-4 pb-4">
-                <p className="text-xs text-muted-foreground">Sweet Spot ★</p>
+                <p className="text-xs text-muted-foreground">{t('kpi.sweetSpot')}</p>
                 <p className="text-2xl font-bold mt-1" style={{ color: 'var(--primary)' }}>
                   {sweet?.label ?? '–'}
                 </p>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Effizienz {sweet?.efficiency.toFixed(2)} · {sweet?.count} Rides
+                  {t('kpi.sweetSpotDetail', { efficiency: sweet?.efficiency.toFixed(2), count: sweet?.count })}
                 </p>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="pt-4 pb-4">
-                <p className="text-xs text-muted-foreground">Schnellster Bereich</p>
+                <p className="text-xs text-muted-foreground">{t('kpi.fastestRange')}</p>
                 <p className="text-2xl font-bold mt-1">{fastest?.label ?? '–'}</p>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Ø {fastest?.avg_speed} km/h · {fastest?.count} Rides
+                  {t('kpi.fastestDetail', { speed: fastest?.avg_speed, count: fastest?.count })}
                 </p>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="pt-4 pb-4">
-                <p className="text-xs text-muted-foreground">Entspanntester Bereich</p>
+                <p className="text-xs text-muted-foreground">{t('kpi.calmestRange')}</p>
                 <p className="text-2xl font-bold mt-1">{calmest?.label ?? '–'}</p>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Ø {calmest?.avg_hr} bpm · {calmest?.count} Rides
+                  {t('kpi.calmestDetail', { hr: calmest?.avg_hr, count: calmest?.count })}
                 </p>
               </CardContent>
             </Card>
@@ -246,7 +251,7 @@ export default function TempCorrPage() {
           <Card>
             <CardHeader>
               <CardTitle className="text-sm font-medium">
-                Ø Geschwindigkeit & Herzfrequenz je Temperaturbereich
+                {t('chart.mainTitle')}
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -302,15 +307,15 @@ export default function TempCorrPage() {
               <div className="flex gap-5 justify-end text-xs text-muted-foreground mt-3 pr-1">
                 <span className="flex items-center gap-1.5">
                   <span className="w-3 h-3 rounded-sm inline-block" style={{ background: 'var(--primary)' }} />
-                  Geschwindigkeit
+                  {t('chart.legendSpeed')}
                 </span>
                 <span className="flex items-center gap-1.5">
                   <span className="w-4 h-0.5 inline-block rounded" style={{ background: 'var(--chart-2)' }} />
-                  Herzfrequenz
+                  {t('chart.legendHeartRate')}
                 </span>
                 <span className="flex items-center gap-1.5">
                   <span className="w-3 h-3 rounded-sm inline-block opacity-100" style={{ background: 'var(--primary)', opacity: 1 }} />
-                  = Sweet Spot
+                  {t('chart.legendSweetSpot')}
                 </span>
               </div>
             </CardContent>
@@ -320,8 +325,8 @@ export default function TempCorrPage() {
           <Card>
             <CardHeader>
               <CardTitle className="text-sm font-medium">
-                Effizienz-Index{' '}
-                <span className="font-normal text-muted-foreground">(Geschwindigkeit ÷ Herzfrequenz × 100)</span>
+                {t('chart.efficiencyTitle')}{' '}
+                <span className="font-normal text-muted-foreground">{t('chart.efficiencyFormula')}</span>
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -368,7 +373,7 @@ export default function TempCorrPage() {
                 </AreaChart>
               </ResponsiveContainer>
               <p className="text-xs text-muted-foreground mt-2">
-                Höher = mehr km/h pro Herzschlag = du fährst effizienter. ★ markiert den Sweet Spot.
+                {t('chart.efficiencyCaption')}
               </p>
             </CardContent>
           </Card>
@@ -376,18 +381,18 @@ export default function TempCorrPage() {
           {/* Detail-Tabelle */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-sm font-medium">Übersicht nach Temperaturbereich</CardTitle>
+              <CardTitle className="text-sm font-medium">{t('table.title')}</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="text-xs text-muted-foreground border-b border-border">
-                      <th className="text-left pb-2 font-medium">Temperatur</th>
-                      <th className="text-right pb-2 font-medium">Rides</th>
-                      <th className="text-right pb-2 font-medium">Ø Speed</th>
-                      <th className="text-right pb-2 font-medium">Ø HR</th>
-                      <th className="text-right pb-2 font-medium">Effizienz</th>
+                      <th className="text-left pb-2 font-medium">{t('table.temperature')}</th>
+                      <th className="text-right pb-2 font-medium">{t('table.rides')}</th>
+                      <th className="text-right pb-2 font-medium">{t('table.avgSpeed')}</th>
+                      <th className="text-right pb-2 font-medium">{t('table.avgHr')}</th>
+                      <th className="text-right pb-2 font-medium">{t('table.efficiency')}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -429,8 +434,8 @@ export default function TempCorrPage() {
               <Card>
                 <CardHeader>
                   <CardTitle className="text-sm font-medium">
-                    Wind-Impact{' '}
-                    <span className="font-normal text-muted-foreground">Ø Geschwindigkeit & Herzfrequenz je Windstärke</span>
+                    {t('wind.title')}{' '}
+                    <span className="font-normal text-muted-foreground">{t('wind.subtitle')}</span>
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -480,7 +485,7 @@ export default function TempCorrPage() {
                   </ResponsiveContainer>
                   {bestWind && (
                     <p className="text-xs text-muted-foreground mt-2">
-                      Schnellstes Segment: <span className="font-medium text-foreground">{bestWind.label}</span> mit Ø {bestWind.avg_speed} km/h ({bestWind.count} Rides)
+                      {t('wind.fastestSegmentPrefix')} <span className="font-medium text-foreground">{bestWind.label}</span> {t('wind.fastestSegmentSuffix', { speed: bestWind.avg_speed, count: bestWind.count })}
                     </p>
                   )}
                 </CardContent>
@@ -490,7 +495,7 @@ export default function TempCorrPage() {
         </>
       ) : (
         <p className="text-muted-foreground text-sm">
-          Keine Wetterdaten vorhanden – bitte zuerst in den Einstellungen „Wetterdaten abrufen" starten.
+          {t('emptyState')}
         </p>
       )}
     </div>

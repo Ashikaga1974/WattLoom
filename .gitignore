@@ -14,6 +14,8 @@ data/*.bak*
 data/mybiking.log
 data/media/*
 !data/media/.gitkeep
+data/backups/*
+!data/backups/.gitkeep
 
 # Strava-Export
 download/*

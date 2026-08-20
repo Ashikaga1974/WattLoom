@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useSearchParams, Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { api, type ActivityDetail, type SimilarActivity, type TrackPoint } from '@/lib/api';
 import { PageHeader } from '@/components/ui/page-header';
@@ -7,6 +8,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { RouteThumbnail } from '@/components/RouteThumbnail';
 import { ChartTooltip } from '@/components/ui/chart-tooltip';
 import { fmtDate, fmtKm, fmtTime, fmtTimeShort } from '@/lib/format';
+import { rideTitle } from '@/lib/activity-display';
 import { useConfig } from '@/lib/config-context';
 
 function fmtSpeed(ms: number | null) { return ms != null ? (ms * 3.6).toFixed(1) + ' km/h' : '–'; }
@@ -116,6 +118,7 @@ interface TrackEntry {
 }
 
 export default function StreckenPage() {
+  const { t } = useTranslation(['strecken', 'common']);
   const config = useConfig();
   const { id: paramId } = useParams<{ id?: string }>();
   const [searchParams] = useSearchParams();
@@ -181,7 +184,7 @@ export default function StreckenPage() {
         setTracksData({ [id]: track.points });
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Fehler beim Laden');
+      setError(e instanceof Error ? e.message : t('errors.loadFailed'));
     } finally {
       setLoading(false);
     }
@@ -210,7 +213,7 @@ export default function StreckenPage() {
   // Chart-Tracks zusammenbauen
   const chartTracks: TrackEntry[] = [];
   if (refActivity && tracksData[refActivity.id]) {
-    chartTracks.push({ id: refActivity.id, label: refActivity.name, color: config.comparison_colors[0], points: tracksData[refActivity.id] });
+    chartTracks.push({ id: refActivity.id, label: rideTitle(refActivity, t), color: config.comparison_colors[0], points: tracksData[refActivity.id] });
   }
   selectedIds.forEach((id, i) => {
     if (tracksData[id]) {
@@ -355,33 +358,32 @@ export default function StreckenPage() {
 
   return (
     <div className="max-w-7xl mx-auto space-y-6">
-      <PageHeader title="Streckenvergleich" />
+      <PageHeader title={t('header.title')} />
 
       {refActivity && (
         <p className="mt-0.5 text-sm text-muted-foreground">
-          Referenz: {refActivity.name} · {fmtDate(refActivity.start_date)}
+          {t('reference.prefix')} {rideTitle(refActivity, t)} · {fmtDate(refActivity.start_date)}
         </p>
       )}
 
       {!refId && !loading && (
         <div className="py-16 text-center text-muted-foreground">
-          <p className="text-lg">Keine Aktivität ausgewählt.</p>
+          <p className="text-lg">{t('emptyState.noActivitySelected')}</p>
           <p className="mt-2 text-sm">
-            Auf einer Aktivitäts-Detailseite auf{' '}
-            <span className="font-medium text-primary">Ähnliche vergleichen</span> klicken,
-            um sie hier als Referenz zu setzen.
+            {t('emptyState.hintPrefix')}{' '}
+            <span className="font-medium text-primary">{t('emptyState.hintButton')}</span> {t('emptyState.hintSuffix')}
           </p>
           <Link
             to="/activities"
             className="mt-4 inline-block rounded-md border border-primary/40 px-4 py-2 text-sm font-medium text-primary hover:bg-primary/5 transition-colors"
           >
-            Zu den Aktivitäten →
+            {t('emptyState.toActivities')}
           </Link>
         </div>
       )}
 
       {loading && (
-        <div className="py-16 text-center text-muted-foreground">Lade…</div>
+        <div className="py-16 text-center text-muted-foreground">{t('loading')}</div>
       )}
 
       {error && (
@@ -397,12 +399,12 @@ export default function StreckenPage() {
               <CardContent className="p-3">
                 <div className="mb-1 flex items-center gap-2">
                   <span className="inline-block h-3 w-3 shrink-0 rounded-full" style={{ background: config.comparison_colors[0] }} />
-                  <span className="text-xs font-medium uppercase tracking-wide text-primary">Referenz</span>
+                  <span className="text-xs font-medium uppercase tracking-wide text-primary">{t('list.referenceLabel')}</span>
                 </div>
                 <div className="flex items-start gap-3">
                   <RouteThumbnail activityId={refActivity.id} size={48} />
                   <div className="min-w-0">
-                    <p className="text-sm font-semibold leading-snug">{refActivity.name}</p>
+                    <p className="text-sm font-semibold leading-snug">{rideTitle(refActivity, t)}</p>
                     <div className="mt-1.5 flex items-center gap-2 flex-wrap">
                       <span className="rounded-full bg-primary/15 px-2.5 py-1 text-sm font-bold tabular-nums text-primary">
                         {fmtKm(refActivity.distance_m)} km
@@ -419,13 +421,13 @@ export default function StreckenPage() {
             {/* Ähnliche Aktivitäten */}
             <div>
               <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                Ähnliche ({similarList.length})
+                {t('list.similarLabel', { count: similarList.length })}
                 {selectedIds.length > 0 && (
-                  <span className="ml-1 text-primary">· {selectedIds.length} ausgewählt</span>
+                  <span className="ml-1 text-primary">{t('list.selectedSuffix', { count: selectedIds.length })}</span>
                 )}
               </p>
               {similarList.length === 0 && (
-                <p className="text-sm italic text-muted-foreground">Keine ähnlichen Aktivitäten gefunden.</p>
+                <p className="text-sm italic text-muted-foreground">{t('list.noneFound')}</p>
               )}
               <div className="max-h-[60vh] space-y-1.5 overflow-y-auto pr-1">
                 {[...similarList].sort((a, b) => b.distance_m - a.distance_m).map(act => {
@@ -454,7 +456,7 @@ export default function StreckenPage() {
                         <RouteThumbnail activityId={act.id} size={40} />
                         <div className="min-w-0">
                           <div className="flex items-center justify-between gap-2">
-                            <p className="truncate font-medium leading-snug">{act.name}</p>
+                            <p className="truncate font-medium leading-snug">{rideTitle(act, t)}</p>
                             {act.path_match_pct != null && (
                               <span
                                 className="shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-bold tabular-nums"
@@ -465,7 +467,7 @@ export default function StreckenPage() {
                                     ? { background: 'rgba(245,158,11,0.15)', color: '#f59e0b' }
                                     : { background: 'var(--muted)', color: 'var(--muted-foreground)' }
                                 }
-                                title="Streckenübereinstimmung (Trackpunkt-Abgleich)"
+                                title={t('list.pathMatchTooltip')}
                               >
                                 {act.path_match_pct}%
                               </span>
@@ -511,7 +513,7 @@ export default function StreckenPage() {
                 <CardContent className="p-3 space-y-4">
                   <div>
                     <p className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                      Geschwindigkeit über Distanz
+                      {t('profile.speedTitle')}
                     </p>
                     <ResponsiveContainer width="100%" height={config.chart_height}>
                       <LineChart data={speedProfileData} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}
@@ -529,7 +531,7 @@ export default function StreckenPage() {
                   </div>
                   <div>
                     <p className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                      Höhenprofil
+                      {t('profile.elevationTitle')}
                     </p>
                     <ResponsiveContainer width="100%" height={config.chart_height_compact}>
                       <LineChart data={elevationProfileData} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}
@@ -555,17 +557,17 @@ export default function StreckenPage() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
-                      <th className="px-3 py-2 font-medium">Aktivität</th>
-                      <th className="px-3 py-2 font-medium">Datum</th>
-                      <th className="px-3 py-2 font-medium">Distanz</th>
-                      <th className="px-3 py-2 font-medium">Zeit</th>
-                      <th className="px-3 py-2 font-medium">Δ Zeit</th>
-                      <th className="px-3 py-2 font-medium">Ø Speed</th>
-                      <th className="px-3 py-2 font-medium">Δ Speed</th>
-                      <th className="px-3 py-2 font-medium">Ø HR</th>
-                      <th className="px-3 py-2 font-medium">Hm</th>
-                      <th className="px-3 py-2 font-medium">Temp</th>
-                      <th className="px-3 py-2 font-medium">Wind</th>
+                      <th className="px-3 py-2 font-medium">{t('table.activity')}</th>
+                      <th className="px-3 py-2 font-medium">{t('table.date')}</th>
+                      <th className="px-3 py-2 font-medium">{t('table.distance')}</th>
+                      <th className="px-3 py-2 font-medium">{t('table.time')}</th>
+                      <th className="px-3 py-2 font-medium">{t('table.deltaTime')}</th>
+                      <th className="px-3 py-2 font-medium">{t('table.avgSpeed')}</th>
+                      <th className="px-3 py-2 font-medium">{t('table.deltaSpeed')}</th>
+                      <th className="px-3 py-2 font-medium">{t('table.avgHr')}</th>
+                      <th className="px-3 py-2 font-medium">{t('table.elevation')}</th>
+                      <th className="px-3 py-2 font-medium">{t('table.temp')}</th>
+                      <th className="px-3 py-2 font-medium">{t('table.wind')}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -574,21 +576,21 @@ export default function StreckenPage() {
                       <td className="flex items-center gap-2 px-3 py-2">
                         <span className="inline-block h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: config.comparison_colors[0] }} />
                         <Link to={`/activities/${refActivity.id}`} className="max-w-[140px] truncate font-medium hover:text-primary">
-                          {refActivity.name}
+                          {rideTitle(refActivity, t)}
                         </Link>
                       </td>
                       <td className="px-3 py-2 text-muted-foreground">{fmtDate(refActivity.start_date)}</td>
                       <td className="px-3 py-2 font-bold tabular-nums text-primary">{fmtKm(refActivity.distance_m)} km</td>
                       <td className="px-3 py-2 text-muted-foreground">{fmtTime(refActivity.moving_time_s)}</td>
-                      <td className="px-3 py-2 text-muted-foreground" title="Referenz – keine Differenz">–</td>
+                      <td className="px-3 py-2 text-muted-foreground" title={t('table.referenceNoDeltaTooltip')}>–</td>
                       <td className="px-3 py-2 text-muted-foreground">
                         {fmtSpeed(refActivity.avg_speed_ms)}
-                        {bestSpeedRow?.id === refActivity.id && <span title="Schnellste Ø-Geschwindigkeit" className="ml-1">🏆</span>}
+                        {bestSpeedRow?.id === refActivity.id && <span title={t('table.bestSpeedTooltip')} className="ml-1">🏆</span>}
                       </td>
-                      <td className="px-3 py-2 text-muted-foreground" title="Referenz – keine Differenz">–</td>
+                      <td className="px-3 py-2 text-muted-foreground" title={t('table.referenceNoDeltaTooltip')}>–</td>
                       <td className="px-3 py-2 text-muted-foreground">
                         {fmtHr(refActivity.avg_hr)}
-                        {bestEfficiencyRow?.id === refActivity.id && <span title="Beste aerobe Effizienz (Speed/HF)" className="ml-1">⚡</span>}
+                        {bestEfficiencyRow?.id === refActivity.id && <span title={t('table.bestEfficiencyTooltip')} className="ml-1">⚡</span>}
                       </td>
                       <td className="px-3 py-2 text-muted-foreground">{fmtElev(refActivity.elevation_gain_m)}</td>
                       <td className="px-3 py-2 text-muted-foreground">{fmtTemp(refActivity.weather_temp_c)}</td>
@@ -608,7 +610,7 @@ export default function StreckenPage() {
                             <div className="flex items-center gap-2">
                               <span className="inline-block h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: config.comparison_colors[(i + 1) % config.comparison_colors.length] }} />
                               <Link to={`/activities/${act.id}`} className="max-w-[140px] truncate hover:text-primary">
-                                {act.name}
+                                {rideTitle(act, t)}
                               </Link>
                             </div>
                           </td>
@@ -620,14 +622,14 @@ export default function StreckenPage() {
                           </td>
                           <td className="px-3 py-2 text-muted-foreground">
                             {fmtSpeed(act.avg_speed_ms)}
-                            {bestSpeedRow?.id === act.id && <span title="Schnellste Ø-Geschwindigkeit" className="ml-1">🏆</span>}
+                            {bestSpeedRow?.id === act.id && <span title={t('table.bestSpeedTooltip')} className="ml-1">🏆</span>}
                           </td>
                           <td className={`px-3 py-2 font-medium ${deltaSpeed == null ? 'text-muted-foreground' : deltaSpeed > 0 ? 'text-green-600' : deltaSpeed < 0 ? 'text-orange-500' : 'text-muted-foreground'}`}>
                             {deltaSpeed != null ? fmtDeltaSpeed(deltaSpeed) : '–'}
                           </td>
                           <td className="px-3 py-2 text-muted-foreground">
                             {fmtHr(act.avg_hr)}
-                            {bestEfficiencyRow?.id === act.id && <span title="Beste aerobe Effizienz (Speed/HF)" className="ml-1">⚡</span>}
+                            {bestEfficiencyRow?.id === act.id && <span title={t('table.bestEfficiencyTooltip')} className="ml-1">⚡</span>}
                           </td>
                           <td className="px-3 py-2 text-muted-foreground">{fmtElev(act.elevation_gain_m)}</td>
                           <td className="px-3 py-2 text-muted-foreground">{fmtTemp(act.weather_temp_c)}</td>

@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef, useCallback, lazy, Suspense } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
   AreaChart,
   Area,
@@ -12,6 +13,7 @@ import {
 
 import { api, type ActivityDetail, type TrackPoint, type ActivityZones, type SimilarActivity } from '@/lib/api';
 import { fmtKm, fmtTime, fmtDate, fmtSpeed, fmtHm } from '@/lib/format';
+import { rideTitle } from '@/lib/activity-display';
 import { useConfig } from '@/lib/config-context';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -94,37 +96,40 @@ type HoverFn = (pt: { lat: number; lon: number } | null) => void;
 // Custom Tooltips für die Profil-Charts
 
 function ElevationTooltip({ active, payload }: { active?: boolean; payload?: any[] }) {
+  const { t } = useTranslation('activitydetail');
   if (!active || !payload?.length) return null;
   const d = payload[0]?.payload;
   return (
     <ChartTooltip
       active={active}
       label={d?.dist != null ? `${d.dist} km` : undefined}
-      rows={[{ label: 'Höhe', value: d?.alt != null ? `${d.alt} m` : null }]}
+      rows={[{ label: t('charts.tooltip.elevation'), value: d?.alt != null ? `${d.alt} m` : null }]}
     />
   );
 }
 
 function HRTooltip({ active, payload }: { active?: boolean; payload?: any[] }) {
+  const { t } = useTranslation('activitydetail');
   if (!active || !payload?.length) return null;
   const d = payload[0]?.payload;
   return (
     <ChartTooltip
       active={active}
       label={d?.dist != null ? `${d.dist} km` : undefined}
-      rows={[{ label: 'Herzrate', value: d?.hr != null ? `${d.hr} bpm` : null, color: '#ef4444' }]}
+      rows={[{ label: t('charts.tooltip.heartRate'), value: d?.hr != null ? `${d.hr} bpm` : null, color: '#ef4444' }]}
     />
   );
 }
 
 function SpeedTooltip({ active, payload }: { active?: boolean; payload?: any[] }) {
+  const { t } = useTranslation('activitydetail');
   if (!active || !payload?.length) return null;
   const d = payload[0]?.payload;
   return (
     <ChartTooltip
       active={active}
       label={d?.dist != null ? `${d.dist} km` : undefined}
-      rows={[{ label: 'Geschw.', value: d?.speed != null ? `${d.speed} km/h` : null }]}
+      rows={[{ label: t('charts.tooltip.speed'), value: d?.speed != null ? `${d.speed} km/h` : null }]}
     />
   );
 }
@@ -159,6 +164,7 @@ function useChartHover(
 }
 
 function ElevationChart({ points, onHover, activeDist }: { points: TrackPoint[]; onHover?: HoverFn; activeDist?: number | null }) {
+  const { t } = useTranslation('activitydetail');
   const { chart_height_mini } = useConfig();
   const valid = points.map((p, i) => ({ p, i })).filter(({ p }) => p.altitude_m != null && p.distance_m != null);
   if (valid.length < 2) return null;
@@ -173,7 +179,7 @@ function ElevationChart({ points, onHover, activeDist }: { points: TrackPoint[];
 
   return (
     <div>
-      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Höhenprofil</p>
+      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">{t('charts.elevationTitle')}</p>
       <ResponsiveContainer width="100%" height={chart_height_mini}>
         <AreaChart data={data} margin={{ top: 0, right: 0, left: -30, bottom: 0 }}
           syncId="ap" syncMethod="value"
@@ -198,6 +204,7 @@ function ElevationChart({ points, onHover, activeDist }: { points: TrackPoint[];
 }
 
 function HRChart({ points, onHover, activeDist }: { points: TrackPoint[]; onHover?: HoverFn; activeDist?: number | null }) {
+  const { t } = useTranslation('activitydetail');
   const { chart_height_mini } = useConfig();
   const valid = points.map((p, i) => ({ p, i })).filter(({ p }) => p.hr != null && p.distance_m != null);
   if (valid.length < 2) return null;
@@ -212,7 +219,7 @@ function HRChart({ points, onHover, activeDist }: { points: TrackPoint[]; onHove
 
   return (
     <div>
-      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Herzfrequenz</p>
+      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">{t('charts.heartRateTitle')}</p>
       <ResponsiveContainer width="100%" height={chart_height_mini}>
         <AreaChart data={data} margin={{ top: 0, right: 0, left: -30, bottom: 0 }}
           syncId="ap" syncMethod="value"
@@ -243,6 +250,7 @@ function speedHue(kmh: number, minSpd: number, maxSpd: number): string {
 }
 
 function SpeedChart({ points, onHover, activeDist }: { points: TrackPoint[]; onHover?: HoverFn; activeDist?: number | null }) {
+  const { t } = useTranslation('activitydetail');
   const { chart_height_mini } = useConfig();
   const valid = points.map((p, i) => ({ p, i })).filter(({ p }) => p.speed_ms != null && p.speed_ms > 0 && p.distance_m != null);
   if (valid.length < 2) return null;
@@ -271,7 +279,7 @@ function SpeedChart({ points, onHover, activeDist }: { points: TrackPoint[]; onH
 
   return (
     <div>
-      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Geschwindigkeit</p>
+      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">{t('charts.speedTitle')}</p>
       <ResponsiveContainer width="100%" height={chart_height_mini}>
         <AreaChart data={data} margin={{ top: 0, right: 0, left: -30, bottom: 0 }}
           syncId="ap" syncMethod="value"
@@ -316,6 +324,7 @@ function windArrow(deg: number): string {
 // --- Hauptseite ---
 
 export default function ActivityDetailPage() {
+  const { t } = useTranslation(['activitydetail', 'common']);
   const { id } = useParams<{ id: string }>();
   const activityId = Number(id);
   const config = useConfig();
@@ -388,7 +397,7 @@ export default function ActivityDetailPage() {
         .then(z => setZones(z))
         .catch(() => {/* Zonen optional */});
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Fehler beim Laden');
+      setError(e instanceof Error ? e.message : t('errors.loadFailed'));
     } finally {
       setLoading(false);
     }
@@ -416,7 +425,7 @@ export default function ActivityDetailPage() {
       await api.deleteActivity(activityId);
       navigate('/activities');
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Fehler beim Löschen');
+      setError(e instanceof Error ? e.message : t('errors.deleteFailed'));
       setDeleting(false);
       setConfirmDelete(false);
     }
@@ -433,7 +442,7 @@ export default function ActivityDetailPage() {
       <div>
         <div className="flex items-center justify-between mb-1">
           <Link to="/activities" className="text-sm text-muted-foreground hover:text-primary transition-colors">
-            ← Aktivitäten
+            ← {t('nav.activities')}
           </Link>
           <div className="flex items-center gap-2">
             {hasTrack && (
@@ -441,24 +450,24 @@ export default function ActivityDetailPage() {
                 to={`/strecken?ref=${activity.id}`}
                 className="text-xs px-3 py-1 rounded-lg bg-primary text-primary-foreground hover:bg-primary/80 transition-colors"
               >
-                Ähnliche vergleichen
+                {t('header.compareSimilar')}
               </Link>
             )}
             {confirmDelete ? (
               <span className="flex items-center gap-2">
-                <span className="text-xs text-muted-foreground">Wirklich löschen?</span>
+                <span className="text-xs text-muted-foreground">{t('header.confirmDeleteQuestion')}</span>
                 <button
                   onClick={handleDelete}
                   disabled={deleting}
                   className="text-xs px-3 py-1 rounded-lg bg-destructive text-destructive-foreground hover:bg-destructive/80 transition-colors disabled:opacity-50"
                 >
-                  {deleting ? 'Lösche…' : 'Ja, löschen'}
+                  {deleting ? t('header.deleting') : t('header.confirmDeleteYes')}
                 </button>
                 <button
                   onClick={() => setConfirmDelete(false)}
                   className="text-xs px-3 py-1 rounded-lg bg-muted text-muted-foreground hover:bg-muted/80 transition-colors"
                 >
-                  Abbrechen
+                  {t('actions.cancel')}
                 </button>
               </span>
             ) : (
@@ -466,17 +475,17 @@ export default function ActivityDetailPage() {
                 onClick={() => setConfirmDelete(true)}
                 className="text-xs px-3 py-1 rounded-lg border border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground transition-colors"
               >
-                Löschen
+                {t('actions.delete')}
               </button>
             )}
           </div>
         </div>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">{activity.name}</h1>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">{rideTitle(activity, t)}</h1>
         <div className="flex items-center gap-2 mt-1">
           <p className="text-sm text-muted-foreground">{fmtDate(activity.start_date)}</p>
           <Badge variant="outline" className="text-xs">{activity.activity_type}</Badge>
-          {activity.commute === 1 && <Badge variant="secondary" className="text-xs">Weg zur Arbeit</Badge>}
-          {activity.trainer === 1 && <Badge variant="secondary" className="text-xs">Trainer</Badge>}
+          {activity.commute === 1 && <Badge variant="secondary" className="text-xs">{t('header.commuteBadge')}</Badge>}
+          {activity.trainer === 1 && <Badge variant="secondary" className="text-xs">{t('header.trainerBadge')}</Badge>}
         </div>
       </div>
 
@@ -507,27 +516,27 @@ export default function ActivityDetailPage() {
       {zones && (zones.has_hr || zones.has_power) && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm font-semibold">Zeit in Zonen</CardTitle>
+            <CardTitle className="text-sm font-semibold">{t('zones.title')}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {zones.has_hr && (
                 <div className="space-y-2">
                   <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">
-                    Herzfrequenz
+                    {t('zones.heartRate')}
                   </p>
                   {zones.hr_zones.map(z => (
-                    <ZoneBar key={z.zone} label={z.label} pct={z.pct} color={z.color} seconds={z.seconds} />
+                    <ZoneBar key={z.zone} label={t(`zones.zoneLabel.${z.code}`)} pct={z.pct} color={z.color} seconds={z.seconds} />
                   ))}
                 </div>
               )}
               {zones.has_power && (
                 <div className="space-y-2">
                   <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">
-                    Leistung
+                    {t('zones.power')}
                   </p>
                   {zones.power_zones.map(z => (
-                    <ZoneBar key={z.zone} label={z.label} pct={z.pct} color={z.color} seconds={z.seconds} />
+                    <ZoneBar key={z.zone} label={t(`zones.zoneLabel.${z.code}`)} pct={z.pct} color={z.color} seconds={z.seconds} />
                   ))}
                 </div>
               )}
@@ -544,19 +553,19 @@ export default function ActivityDetailPage() {
       {/* Hauptstats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <StatTile
-          label="Distanz"
+          label={t('stats.distance')}
           value={`${(activity.distance_m / 1000).toFixed(2)} km`}
         />
         <StatTile
-          label="Fahrzeit"
+          label={t('stats.movingTime')}
           value={fmtHm(activity.moving_time_s)}
         />
         <StatTile
-          label="⌀ Geschw."
+          label={t('stats.avgSpeed')}
           value={activity.avg_speed_ms ? `${fmtSpeed(activity.avg_speed_ms)} km/h` : '–'}
         />
         <StatTile
-          label="Höhenmeter"
+          label={t('stats.elevationGain')}
           value={activity.elevation_gain_m ? `${Math.round(activity.elevation_gain_m)} m` : '–'}
         />
       </div>
@@ -568,14 +577,14 @@ export default function ActivityDetailPage() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {activity.avg_hr && (
             <StatTileSecondary
-              label="⌀ Herzfreq."
+              label={t('stats.avgHr')}
               value={`${Math.round(activity.avg_hr)} bpm`}
               sub={activity.max_hr ? `max ${activity.max_hr} bpm` : undefined}
             />
           )}
           {activity.avg_power_w && (
             <StatTileSecondary
-              label="⌀ Leistung"
+              label={t('stats.avgPower')}
               value={`${Math.round(activity.avg_power_w)} W`}
               sub={activity.max_power_w ? `max ${Math.round(activity.max_power_w)} W` : undefined}
             />
@@ -589,7 +598,7 @@ export default function ActivityDetailPage() {
               parts.push(`${(activity.est_avg_power_w / config.weight_kg).toFixed(2)} W/kg`);
             return (
               <StatTileSecondary
-                label="~ Leistung"
+                label={t('stats.estPower')}
                 value={`~${Math.round(activity.est_avg_power_w)} W`}
                 sub={parts.length > 0 ? parts.join(' · ') : undefined}
               />
@@ -597,25 +606,25 @@ export default function ActivityDetailPage() {
           })()}
           {activity.max_speed_ms && (
             <StatTileSecondary
-              label="Max. Geschw."
+              label={t('stats.maxSpeed')}
               value={`${fmtSpeed(activity.max_speed_ms)} km/h`}
             />
           )}
           {activity.avg_cadence && (
             <StatTileSecondary
-              label="⌀ Kadenz"
+              label={t('stats.avgCadence')}
               value={`${Math.round(activity.avg_cadence)} rpm`}
             />
           )}
           {activity.calories && (
             <StatTileSecondary
-              label="Kalorien"
+              label={t('stats.calories')}
               value={`${Math.round(activity.calories)} kcal`}
             />
           )}
           {activity.elevation_loss_m && (
             <StatTileSecondary
-              label="Abstieg"
+              label={t('stats.elevationLoss')}
               value={`${Math.round(activity.elevation_loss_m)} m`}
             />
           )}
@@ -626,7 +635,7 @@ export default function ActivityDetailPage() {
       {(activity.weather_temp_c != null || activity.weather_wind_ms != null) && (
         <Card size="sm">
           <CardContent>
-            <p className="text-xs text-muted-foreground uppercase tracking-wider mb-2">Wetter (Open-Meteo)</p>
+            <p className="text-xs text-muted-foreground uppercase tracking-wider mb-2">{t('weather.title')}</p>
             <div className="flex flex-wrap gap-4 text-sm">
               {activity.weather_temp_c != null && (
                 <span className="text-foreground font-medium">
@@ -643,11 +652,11 @@ export default function ActivityDetailPage() {
               )}
               {activity.weather_precip_mm != null && activity.weather_precip_mm > 0 && (
                 <span className="text-foreground font-medium">
-                  {activity.weather_precip_mm.toFixed(1)} mm Regen
+                  {t('weather.rain', { value: activity.weather_precip_mm.toFixed(1) })}
                 </span>
               )}
               {activity.weather_precip_mm === 0 && (
-                <span className="text-muted-foreground text-xs">kein Regen</span>
+                <span className="text-muted-foreground text-xs">{t('weather.noRain')}</span>
               )}
             </div>
           </CardContent>
@@ -658,7 +667,7 @@ export default function ActivityDetailPage() {
       {mediaFiles.length > 0 && (
         <section>
           <h2 className="text-lg font-semibold mb-3">
-            Fotos{' '}
+            {t('media.title')}{' '}
             <span className="text-sm font-normal text-muted-foreground">({mediaFiles.length})</span>
           </h2>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
@@ -678,19 +687,19 @@ export default function ActivityDetailPage() {
       {/* Ähnliche Rides */}
       {similar.length > 0 && (
         <section>
-          <h2 className="text-lg font-semibold mb-3">Ähnliche Aktivitäten</h2>
+          <h2 className="text-lg font-semibold mb-3">{t('similar.title')}</h2>
           <Card className="overflow-hidden p-0 gap-0">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border bg-muted/50">
-                    <th className="text-left px-4 py-2 font-medium text-muted-foreground text-xs">Datum</th>
-                    <th className="text-left px-4 py-2 font-medium text-muted-foreground text-xs">Name</th>
-                    <th className="text-right px-4 py-2 font-medium text-muted-foreground text-xs">Distanz</th>
-                    <th className="text-right px-4 py-2 font-medium text-muted-foreground text-xs">Zeit</th>
+                    <th className="text-left px-4 py-2 font-medium text-muted-foreground text-xs">{t('similar.table.date')}</th>
+                    <th className="text-left px-4 py-2 font-medium text-muted-foreground text-xs">{t('similar.table.name')}</th>
+                    <th className="text-right px-4 py-2 font-medium text-muted-foreground text-xs">{t('similar.table.distance')}</th>
+                    <th className="text-right px-4 py-2 font-medium text-muted-foreground text-xs">{t('similar.table.time')}</th>
                     <th className="text-right px-4 py-2 font-medium text-muted-foreground text-xs">km/h</th>
                     <th className="text-right px-4 py-2 font-medium text-muted-foreground text-xs hidden md:table-cell">HR</th>
-                    <th className="text-right px-4 py-2 font-medium text-muted-foreground text-xs hidden md:table-cell">Hm</th>
+                    <th className="text-right px-4 py-2 font-medium text-muted-foreground text-xs hidden md:table-cell">{t('similar.table.elevation')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -704,7 +713,7 @@ export default function ActivityDetailPage() {
                         {fmtDate(act.start_date)}
                       </td>
                       <td className="px-4 py-2 max-w-xs">
-                        <span className="truncate block">{act.name}</span>
+                        <span className="truncate block">{rideTitle(act, t)}</span>
                       </td>
                       <td className="px-4 py-2 text-right tabular-nums text-xs">
                         {fmtKm(act.distance_m)} km

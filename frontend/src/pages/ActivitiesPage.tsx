@@ -1,9 +1,12 @@
 import { useEffect, useState } from 'react';
 import { GitCompare, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 
 import { api, type Activity, type Bike, type OtherActivity } from '@/lib/api';
 import { fmtKm, fmtTime, fmtDate, fmtClock, fmtWeekday, fmtSpeed } from '@/lib/format';
+import { rideTitle } from '@/lib/activity-display';
 import { cn } from '@/lib/utils';
 import { PageHeader } from '@/components/ui/page-header';
 import { Card, CardContent } from '@/components/ui/card';
@@ -17,24 +20,22 @@ const PAGE_SIZE = 50;
 
 type Tab = 'rides' | 'workouts';
 
-// Sport-Typ → deutsches Label + Badge-Farbe
-const SPORT_MAP: Record<string, { label: string; cls: string }> = {
-  'Weight Training':   { label: 'Krafttraining', cls: 'bg-orange-500/15 text-orange-500 dark:text-orange-400 border border-orange-500/20' },
-  'Krafttraining':     { label: 'Krafttraining', cls: 'bg-orange-500/15 text-orange-500 dark:text-orange-400 border border-orange-500/20' },
-  'Strength Training': { label: 'Krafttraining', cls: 'bg-orange-500/15 text-orange-500 dark:text-orange-400 border border-orange-500/20' },
-  'Fitness':           { label: 'Fitness',        cls: 'bg-yellow-500/15 text-yellow-600 dark:text-yellow-400 border border-yellow-500/20' },
-  'Run':               { label: 'Laufen',         cls: 'bg-green-500/15 text-green-600 dark:text-green-400 border border-green-500/20' },
-  'Trail Run':         { label: 'Trail Run',       cls: 'bg-green-600/15 text-green-700 dark:text-green-400 border border-green-600/20' },
-  'Walk':              { label: 'Wandern',         cls: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20' },
-  'Hike':              { label: 'Wandern',         cls: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20' },
-  'Swim':              { label: 'Schwimmen',       cls: 'bg-blue-500/15 text-blue-500 dark:text-blue-400 border border-blue-500/20' },
-  'Yoga':              { label: 'Yoga',            cls: 'bg-purple-500/15 text-purple-600 dark:text-purple-400 border border-purple-500/20' },
+// sport_type ist seit der i18n-Umstellung ein kanonischer Code (backend/importer/sport_codes.py)
+// – nur noch die Badge-Farbe je Code, das Label kommt aus common.json (Namespace "sport").
+const SPORT_CLS: Record<string, string> = {
+  strength_training: 'bg-orange-500/15 text-orange-500 dark:text-orange-400 border border-orange-500/20',
+  cardio:            'bg-yellow-500/15 text-yellow-600 dark:text-yellow-400 border border-yellow-500/20',
+  running:           'bg-green-500/15 text-green-600 dark:text-green-400 border border-green-500/20',
+  hiking:            'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20',
+  walking:           'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20',
+  swimming:          'bg-blue-500/15 text-blue-500 dark:text-blue-400 border border-blue-500/20',
+  yoga:              'bg-purple-500/15 text-purple-600 dark:text-purple-400 border border-purple-500/20',
 };
 
-function getSport(sportType: string) {
-  return SPORT_MAP[sportType] ?? {
-    label: sportType,
-    cls: 'bg-muted text-muted-foreground border border-border/60',
+function getSport(sportType: string, t: TFunction<['activities', 'common']>) {
+  return {
+    label: t(`common:sport.${sportType}`, { defaultValue: sportType }),
+    cls: SPORT_CLS[sportType] ?? 'bg-muted text-muted-foreground border border-border/60',
   };
 }
 
@@ -51,6 +52,7 @@ function fmtWorkoutDate(d: string) { return fmtDate(d + 'T12:00:00'); }
 function fmtWorkoutDay(d: string)  { return fmtWeekday(d + 'T12:00:00'); }
 
 export default function ActivitiesPage() {
+  const { t } = useTranslation(['activities', 'common']);
   const navigate = useNavigate();
 
   const [activeTab, setActiveTab] = useState<Tab>('rides');
@@ -82,8 +84,8 @@ export default function ActivitiesPage() {
   const [editingPowerValue, setEditingPowerValue] = useState('');
 
   const sortLabels: Record<string, string> = {
-    start_date: 'Datum', distance_m: 'Distanz', moving_time_s: 'Zeit',
-    avg_speed_ms: 'Geschwindigkeit', elevation_gain_m: 'Höhenmeter',
+    start_date: t('sort.date'), distance_m: t('sort.distance'), moving_time_s: t('sort.time'),
+    avg_speed_ms: t('sort.speed'), elevation_gain_m: t('sort.elevation'),
   };
 
   async function loadMeta() {
@@ -92,7 +94,7 @@ export default function ActivitiesPage() {
       setAvailableYears(s.available_years);
       setBikes(b);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Filterdaten konnten nicht geladen werden');
+      setError(e instanceof Error ? e.message : t('errors.loadFilters'));
     }
   }
 
@@ -110,7 +112,7 @@ export default function ActivitiesPage() {
       setActivities(res.items);
       setTotal(res.total);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Unbekannter Fehler');
+      setError(e instanceof Error ? e.message : t('errors.unknown'));
     } finally {
       setLoading(false);
     }
@@ -178,7 +180,7 @@ export default function ActivitiesPage() {
       setTotal(prev => prev - 1);
       setConfirmingId(null);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Fehler beim Löschen');
+      setError(e instanceof Error ? e.message : t('errors.delete'));
     } finally {
       setDeletingId(null);
     }
@@ -187,10 +189,9 @@ export default function ActivitiesPage() {
   const totalPages  = Math.ceil(total / PAGE_SIZE);
   const currentPage = Math.floor(offset / PAGE_SIZE) + 1;
 
-  // Workout-Statistik: Label → Anzahl (für die Chip-Leiste)
+  // Workout-Statistik: sport_type-Code → Anzahl (für die Chip-Leiste)
   const workoutStats = workouts.reduce((acc, w) => {
-    const key = getSport(w.sport_type).label;
-    acc[key] = (acc[key] || 0) + 1;
+    acc[w.sport_type] = (acc[w.sport_type] || 0) + 1;
     return acc;
   }, {} as Record<string, number>);
 
@@ -199,7 +200,7 @@ export default function ActivitiesPage() {
 
   return (
     <div className="space-y-4">
-      <PageHeader title="Aktivitäten" />
+      <PageHeader title={t('title')} />
 
       {/* ── Tab-Leiste ─────────────────────────────────────────────── */}
       <div className="flex items-center gap-8 border-b border-border">
@@ -214,7 +215,7 @@ export default function ActivitiesPage() {
                 : 'text-muted-foreground hover:text-foreground',
             )}
           >
-            {tab === 'rides' ? 'Radtouren' : 'Workouts'}
+            {tab === 'rides' ? t('tabs.rides') : t('tabs.workouts')}
             <span className={cn(
               'text-xs px-2 py-0.5 rounded-full font-normal transition-colors',
               activeTab === tab
@@ -238,10 +239,10 @@ export default function ActivitiesPage() {
           <div className="flex flex-wrap gap-3 items-center">
             <Select value={filterYear || 'all'} onValueChange={v => setFilterYear(!v || v === 'all' ? '' : v)}>
               <SelectTrigger className="w-32 h-8 text-sm">
-                <SelectValue>{filterYear || 'Alle Jahre'}</SelectValue>
+                <SelectValue>{filterYear || t('filters.allYears')}</SelectValue>
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Alle Jahre</SelectItem>
+                <SelectItem value="all">{t('filters.allYears')}</SelectItem>
                 {availableYears.map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}
               </SelectContent>
             </Select>
@@ -251,11 +252,11 @@ export default function ActivitiesPage() {
                 <Select value={filterBike || 'all'} onValueChange={v => setFilterBike(!v || v === 'all' ? '' : v)}>
                   <SelectTrigger className="w-40 h-8 text-sm">
                     <SelectValue>
-                      {filterBike ? (bikes.find(b => b.id === filterBike)?.name ?? filterBike) : 'Alle Bikes'}
+                      {filterBike ? (bikes.find(b => b.id === filterBike)?.name ?? filterBike) : t('filters.allBikes')}
                     </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">Alle Bikes</SelectItem>
+                    <SelectItem value="all">{t('filters.allBikes')}</SelectItem>
                     {bikes.map(b => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
@@ -265,11 +266,11 @@ export default function ActivitiesPage() {
                     <SelectValue>{sortLabels[sortBy] ?? sortBy}</SelectValue>
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="start_date">Datum</SelectItem>
-                    <SelectItem value="distance_m">Distanz</SelectItem>
-                    <SelectItem value="moving_time_s">Zeit</SelectItem>
-                    <SelectItem value="avg_speed_ms">Geschwindigkeit</SelectItem>
-                    <SelectItem value="elevation_gain_m">Höhenmeter</SelectItem>
+                    <SelectItem value="start_date">{t('sort.date')}</SelectItem>
+                    <SelectItem value="distance_m">{t('sort.distance')}</SelectItem>
+                    <SelectItem value="moving_time_s">{t('sort.time')}</SelectItem>
+                    <SelectItem value="avg_speed_ms">{t('sort.speed')}</SelectItem>
+                    <SelectItem value="elevation_gain_m">{t('sort.elevation')}</SelectItem>
                   </SelectContent>
                 </Select>
 
@@ -280,17 +281,17 @@ export default function ActivitiesPage() {
                     onChange={e => setFilterHasTrack(e.target.checked)}
                     className="accent-primary w-4 h-4"
                   />
-                  Nur mit Track
+                  {t('filters.onlyWithTrack')}
                 </label>
               </>
             )}
 
-            <Button size="sm" onClick={applyFilters}>Anwenden</Button>
+            <Button size="sm" onClick={applyFilters}>{t('filters.apply')}</Button>
 
             <span className="ml-auto text-sm text-muted-foreground">
               {activeTab === 'rides'
-                ? `${total.toLocaleString('de-DE')} Radtouren`
-                : `${workouts.length.toLocaleString('de-DE')} Workouts`}
+                ? t('filters.countRides', { count: total, formattedCount: total.toLocaleString('de-DE') })
+                : t('filters.countWorkouts', { count: workouts.length, formattedCount: workouts.length.toLocaleString('de-DE') })}
             </span>
           </div>
         </CardContent>
@@ -306,15 +307,15 @@ export default function ActivitiesPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border bg-muted/50">
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Datum</th>
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider hidden sm:table-cell">Uhrzeit</th>
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Name</th>
-                    <th className="text-right px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Distanz</th>
-                    <th className="text-right px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Dauer</th>
-                    <th className="text-right px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">km/h</th>
-                    <th className="text-right px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider hidden md:table-cell">Hm</th>
-                    <th className="text-right px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider hidden md:table-cell">HR</th>
-                    <th className="text-right px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider hidden lg:table-cell">Watt</th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">{t('table.date')}</th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider hidden sm:table-cell">{t('table.time')}</th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">{t('table.name')}</th>
+                    <th className="text-right px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">{t('table.distance')}</th>
+                    <th className="text-right px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">{t('table.duration')}</th>
+                    <th className="text-right px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">{t('table.speed')}</th>
+                    <th className="text-right px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider hidden md:table-cell">{t('table.elevation')}</th>
+                    <th className="text-right px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider hidden md:table-cell">{t('table.hr')}</th>
+                    <th className="text-right px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider hidden lg:table-cell">{t('table.power')}</th>
                     <th className="px-4 py-3" />
                   </tr>
                 </thead>
@@ -330,7 +331,7 @@ export default function ActivitiesPage() {
                   ) : activities.length === 0 ? (
                     <tr>
                       <td colSpan={10} className="px-4 py-10 text-center text-muted-foreground">
-                        Keine Aktivitäten gefunden.
+                        {t('empty.activities')}
                       </td>
                     </tr>
                   ) : (
@@ -350,7 +351,7 @@ export default function ActivitiesPage() {
                           {fmtClock(act.start_date)}
                         </td>
                         <td className="px-4 py-3 max-w-xs">
-                          <span className="truncate block font-medium">{act.name}</span>
+                          <span className="truncate block font-medium">{rideTitle(act, t)}</span>
                           <span className="flex items-center gap-1.5 flex-wrap">
                             {act.bike_id && (
                               <span className="text-xs text-muted-foreground">
@@ -391,11 +392,11 @@ export default function ActivitiesPage() {
                             />
                           ) : act.manual ? (
                             <span className="flex flex-col items-end leading-tight">
-                              <span className="cursor-pointer underline decoration-dotted hover:text-foreground" title="Klicken zum Bearbeiten">
+                              <span className="cursor-pointer underline decoration-dotted hover:text-foreground" title={t('actions.editPower')}>
                                 {act.avg_power_w != null ? `${Math.round(act.avg_power_w)} W` : act.est_avg_power_w ? `~${Math.round(act.est_avg_power_w)} W` : '+ W'}
                               </span>
                               {act.est_norm_power_w && (
-                                <span className="text-muted-foreground/60 text-xs" title="Normalized Power (Schätzung)">
+                                <span className="text-muted-foreground/60 text-xs" title={t('actions.normalizedPower')}>
                                   NP ~{Math.round(act.est_norm_power_w)}
                                 </span>
                               )}
@@ -404,13 +405,13 @@ export default function ActivitiesPage() {
                             <span className="flex flex-col items-end leading-tight">
                               <span>{Math.round(act.avg_power_w)} W</span>
                               {act.est_norm_power_w && (
-                                <span className="text-muted-foreground/60 text-xs" title="Normalized Power (Schätzung)">
+                                <span className="text-muted-foreground/60 text-xs" title={t('actions.normalizedPower')}>
                                   NP ~{Math.round(act.est_norm_power_w)}
                                 </span>
                               )}
                             </span>
                           ) : act.est_avg_power_w ? (
-                            <span className="flex flex-col items-end leading-tight" title="Physikalische Schätzung">
+                            <span className="flex flex-col items-end leading-tight" title={t('actions.physicalEstimate')}>
                               <span className="text-muted-foreground">~{Math.round(act.est_avg_power_w)} W</span>
                               {act.est_norm_power_w && (
                                 <span className="text-muted-foreground/60 text-xs">
@@ -428,13 +429,13 @@ export default function ActivitiesPage() {
                                 disabled={deletingId === act.id}
                                 className="text-xs px-2 py-0.5 rounded bg-destructive text-destructive-foreground hover:bg-destructive/80 disabled:opacity-50"
                               >
-                                {deletingId === act.id ? '…' : 'Ja'}
+                                {deletingId === act.id ? '…' : t('actions.yes')}
                               </button>
                               <button
                                 onClick={() => setConfirmingId(null)}
                                 className="text-xs px-2 py-0.5 rounded bg-muted text-muted-foreground hover:bg-muted/80"
                               >
-                                Nein
+                                {t('actions.no')}
                               </button>
                             </span>
                           ) : (
@@ -443,7 +444,7 @@ export default function ActivitiesPage() {
                                 <button
                                   onClick={() => navigate(`/strecken?ref=${act.id}`)}
                                   className="text-muted-foreground/30 hover:text-primary transition-colors p-1 rounded hover:bg-primary/10"
-                                  title="Ähnliche vergleichen"
+                                  title={t('actions.compareRoute')}
                                 >
                                   <GitCompare size={13} />
                                 </button>
@@ -451,7 +452,7 @@ export default function ActivitiesPage() {
                               <button
                                 onClick={() => setConfirmingId(act.id)}
                                 className="text-muted-foreground/30 hover:text-destructive transition-colors p-1 rounded hover:bg-destructive/10"
-                                title="Löschen"
+                                title={t('actions.delete')}
                               >
                                 <Trash2 size={13} />
                               </button>
@@ -469,11 +470,11 @@ export default function ActivitiesPage() {
           {totalPages > 1 && (
             <div className="flex items-center justify-between text-sm">
               <Button variant="outline" size="sm" onClick={prevPage} disabled={offset === 0}>
-                ← Zurück
+                {t('pagination.prev')}
               </Button>
-              <span className="text-muted-foreground">Seite {currentPage} / {totalPages}</span>
+              <span className="text-muted-foreground">{t('pagination.page', { page: currentPage, total: totalPages })}</span>
               <Button variant="outline" size="sm" onClick={nextPage} disabled={offset + PAGE_SIZE >= total}>
-                Weiter →
+                {t('pagination.next')}
               </Button>
             </div>
           )}
@@ -488,12 +489,11 @@ export default function ActivitiesPage() {
             <div className="flex flex-wrap gap-2">
               {Object.entries(workoutStats)
                 .sort(([, a], [, b]) => b - a)
-                .map(([label, count]) => {
-                  const entry = Object.values(SPORT_MAP).find(s => s.label === label);
-                  const cls = entry?.cls ?? 'bg-muted text-muted-foreground border border-border/60';
+                .map(([sportType, count]) => {
+                  const sport = getSport(sportType, t);
                   return (
-                    <span key={label} className={cn('inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium', cls)}>
-                      {label}
+                    <span key={sportType} className={cn('inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium', sport.cls)}>
+                      {sport.label}
                       <span className="opacity-60 text-xs font-normal">{count}×</span>
                     </span>
                   );
@@ -506,11 +506,11 @@ export default function ActivitiesPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border bg-muted/50">
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Datum</th>
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider hidden sm:table-cell">Tag</th>
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Sportart</th>
-                    <th className="text-right px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Dauer</th>
-                    <th className="text-right px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">kcal</th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">{t('table.date')}</th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider hidden sm:table-cell">{t('table.day')}</th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">{t('table.sport')}</th>
+                    <th className="text-right px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">{t('table.duration')}</th>
+                    <th className="text-right px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">{t('table.kcal')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -525,12 +525,12 @@ export default function ActivitiesPage() {
                   ) : workoutsSorted.length === 0 ? (
                     <tr>
                       <td colSpan={5} className="px-4 py-10 text-center text-muted-foreground">
-                        Keine Workouts gefunden.
+                        {t('empty.workouts')}
                       </td>
                     </tr>
                   ) : (
                     workoutsSorted.map((w, i) => {
-                      const sport = getSport(w.sport_type);
+                      const sport = getSport(w.sport_type, t);
                       return (
                         <tr key={i} onClick={() => navigate(`/workouts/${w.id}`)} className="border-b border-border/50 hover:bg-muted/30 transition-colors cursor-pointer">
                           <td className="px-4 py-3 whitespace-nowrap text-xs text-muted-foreground">

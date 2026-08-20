@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
   BarChart,
   Bar,
@@ -12,13 +13,12 @@ import {
 
 import { api, type WrappedData } from '@/lib/api';
 import { fmtDate, fmtNum } from '@/lib/format';
+import { rideTitle } from '@/lib/activity-display';
 import { useConfig } from '@/lib/config-context';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ChartTooltip } from '@/components/ui/chart-tooltip';
 
-const MONTH_NAMES = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
-const WEEKDAY_NAMES = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
 const ORANGE = '#fc4c02';
 const BLUE = '#3b82f6';
 
@@ -55,6 +55,7 @@ function BigStatCard({ label, value, unit, delta }: { label: string; value: stri
 }
 
 function MonthlyKmTooltip({ active, payload, label }: { active?: boolean; payload?: any[]; label?: string }) {
+  const { t } = useTranslation('wrapped');
   if (!active || !payload?.length) return null;
   const d = payload[0]?.payload;
   return (
@@ -62,7 +63,7 @@ function MonthlyKmTooltip({ active, payload, label }: { active?: boolean; payloa
       active={active}
       label={label}
       rows={[
-        { label: 'Distanz', value: `${Number(d?.km ?? 0).toFixed(0)} km`, color: d?.isBest ? ORANGE : BLUE },
+        { label: t('tooltip.distance'), value: `${Number(d?.km ?? 0).toFixed(0)} km`, color: d?.isBest ? ORANGE : BLUE },
       ]}
     />
   );
@@ -87,7 +88,10 @@ function HighlightCard({ label, headline, subline, linkId }: { label: string; he
 }
 
 export default function WrappedPage() {
+  const { t } = useTranslation(['wrapped', 'common']);
   const config = useConfig();
+  const MONTH_NAMES = t('monthNames', { returnObjects: true }) as string[];
+  const WEEKDAY_NAMES = t('weekdayNames', { returnObjects: true }) as string[];
   const [data, setData] = useState<WrappedData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -102,7 +106,7 @@ export default function WrappedPage() {
       setData(result);
       setSelectedYear(result.year);
     } catch (e) {
-      setError('Fehler beim Laden der Daten.');
+      setError(t('errorLoading'));
     } finally {
       setLoading(false);
     }
@@ -113,7 +117,7 @@ export default function WrappedPage() {
   if (loading) {
     return (
       <div className="space-y-6">
-        <h1 className="text-2xl font-semibold tracking-tight">Jahresrückblick</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">{t('title')}</h1>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {Array.from({ length: 4 }).map((_, i) => (
             <Card key={i}><CardContent className="pt-6"><Skeleton className="h-10 w-full" /></CardContent></Card>
@@ -126,7 +130,7 @@ export default function WrappedPage() {
   if (error) {
     return (
       <div className="space-y-4">
-        <h1 className="text-2xl font-semibold tracking-tight">Jahresrückblick</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">{t('title')}</h1>
         <p className="text-red-500 text-sm">{error}</p>
       </div>
     );
@@ -135,8 +139,8 @@ export default function WrappedPage() {
   if (!data || data.totals.rides === 0) {
     return (
       <div className="space-y-4">
-        <h1 className="text-2xl font-semibold tracking-tight">Jahresrückblick</h1>
-        <p className="text-muted-foreground text-sm">Keine Daten für dieses Jahr.</p>
+        <h1 className="text-2xl font-semibold tracking-tight">{t('title')}</h1>
+        <p className="text-muted-foreground text-sm">{t('noData')}</p>
       </div>
     );
   }
@@ -156,7 +160,7 @@ export default function WrappedPage() {
     <div className="space-y-6">
       {/* Kopfzeile + Jahresauswahl */}
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <h1 className="text-2xl font-semibold tracking-tight">Jahresrückblick {data.year}</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">{t('titleWithYear', { year: data.year })}</h1>
         <div className="flex gap-2 flex-wrap">
           {data.available_years.map((yr) => (
             <button
@@ -177,23 +181,23 @@ export default function WrappedPage() {
       {/* Gesamt-Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <BigStatCard
-          label="Fahrten"
+          label={t('stats.rides')}
           value={fmtNum(data.totals.rides)}
           delta={data.vs_prev_year?.rides_pct ?? null}
         />
         <BigStatCard
-          label="Kilometer"
+          label={t('stats.km')}
           value={fmtNum(data.totals.distance_km, 0)}
           unit="km"
           delta={data.vs_prev_year?.distance_pct ?? null}
         />
         <BigStatCard
-          label="Stunden"
+          label={t('stats.hours')}
           value={data.totals.moving_hours.toFixed(1)}
           unit="h"
         />
         <BigStatCard
-          label="Höhenmeter"
+          label={t('stats.elevation')}
           value={fmtNum(data.totals.elevation_m, 0)}
           unit="m"
         />
@@ -203,54 +207,54 @@ export default function WrappedPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {data.best_ride && (
           <HighlightCard
-            label="Längste Fahrt"
+            label={t('highlights.longestRide')}
             headline={`${data.best_ride.distance_km.toFixed(1)} km`}
-            subline={`${data.best_ride.name} · ${fmtDate(data.best_ride.date)} · ${fmtMovingTime(data.best_ride.moving_time_s)}`}
+            subline={`${rideTitle(data.best_ride, t)} · ${fmtDate(data.best_ride.date)} · ${fmtMovingTime(data.best_ride.moving_time_s)}`}
             linkId={data.best_ride.id}
           />
         )}
         {data.most_elevation_ride && (
           <HighlightCard
-            label="Meiste Höhenmeter"
+            label={t('highlights.mostElevation')}
             headline={`${fmtNum(data.most_elevation_ride.elevation_m, 0)} m`}
-            subline={`${data.most_elevation_ride.name} · ${fmtDate(data.most_elevation_ride.date)} · ${data.most_elevation_ride.distance_km.toFixed(1)} km`}
+            subline={`${rideTitle(data.most_elevation_ride, t)} · ${fmtDate(data.most_elevation_ride.date)} · ${data.most_elevation_ride.distance_km.toFixed(1)} km`}
             linkId={data.most_elevation_ride.id}
           />
         )}
         {data.fastest_ride && (
           <HighlightCard
-            label="Schnellste Fahrt"
+            label={t('highlights.fastestRide')}
             headline={`${data.fastest_ride.avg_speed_kmh.toFixed(1)} km/h`}
-            subline={`${data.fastest_ride.name} · ${fmtDate(data.fastest_ride.date)} · ${data.fastest_ride.distance_km.toFixed(1)} km`}
+            subline={`${rideTitle(data.fastest_ride, t)} · ${fmtDate(data.fastest_ride.date)} · ${data.fastest_ride.distance_km.toFixed(1)} km`}
             linkId={data.fastest_ride.id}
           />
         )}
         {data.best_month && (
           <HighlightCard
-            label="Bester Monat"
+            label={t('highlights.bestMonth')}
             headline={MONTH_NAMES[data.best_month.month - 1]}
-            subline={`${data.best_month.distance_km.toFixed(0)} km · ${data.best_month.rides} Fahrten`}
+            subline={`${data.best_month.distance_km.toFixed(0)} km · ${data.best_month.rides} ${t('subline.rides')}`}
           />
         )}
         {data.best_week && (
           <HighlightCard
-            label="Beste Woche"
+            label={t('highlights.bestWeek')}
             headline={`${data.best_week.distance_km.toFixed(0)} km`}
-            subline={`ab ${fmtDate(data.best_week.week_start)} · ${data.best_week.rides} Fahrten`}
+            subline={`${t('subline.since')} ${fmtDate(data.best_week.week_start)} · ${data.best_week.rides} ${t('subline.rides')}`}
           />
         )}
         {data.longest_streak && (
           <HighlightCard
-            label="Längste Streak"
-            headline={`${data.longest_streak.days} Tage`}
+            label={t('highlights.longestStreak')}
+            headline={`${data.longest_streak.days} ${t('subline.days')}`}
             subline={`${fmtDate(data.longest_streak.from)} – ${fmtDate(data.longest_streak.to)}`}
           />
         )}
         {data.favorite_bike && (
           <HighlightCard
-            label="Lieblingsbike"
+            label={t('highlights.favoriteBike')}
             headline={data.favorite_bike.name}
-            subline={`${data.favorite_bike.rides} Fahrten · ${data.favorite_bike.distance_km.toFixed(0)} km`}
+            subline={`${data.favorite_bike.rides} ${t('subline.rides')} · ${data.favorite_bike.distance_km.toFixed(0)} km`}
           />
         )}
       </div>
@@ -258,7 +262,7 @@ export default function WrappedPage() {
       {/* Monatsverlauf */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-sm font-medium">Monatsverlauf {data.year}</CardTitle>
+          <CardTitle className="text-sm font-medium">{t('charts.monthlyProgression', { year: data.year })}</CardTitle>
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={config.chart_height_compact}>
@@ -281,7 +285,7 @@ export default function WrappedPage() {
         {/* Wochentag */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm font-medium">Fahrten nach Wochentag</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('charts.ridesByWeekday')}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-end gap-1 h-16">
@@ -306,7 +310,7 @@ export default function WrappedPage() {
         {/* Tageszeit */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm font-medium">Fahrten nach Tageszeit</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('charts.ridesByHour')}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-end gap-px h-14">
@@ -318,7 +322,7 @@ export default function WrappedPage() {
                     key={i}
                     className="flex-1 rounded-sm"
                     style={{ height: `${Math.max(h, 2)}px`, background: isMax ? ORANGE : BLUE }}
-                    title={`${i}:00 – ${count} Fahrten`}
+                    title={`${i}:00 – ${count} ${t('subline.rides')}`}
                   />
                 );
               })}

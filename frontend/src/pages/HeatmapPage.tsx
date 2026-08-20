@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { api } from '@/lib/api';
 import { PageHeader } from '@/components/ui/page-header';
 
 export default function HeatmapPage() {
+  const { t } = useTranslation('heatmap');
   const mapContainerRef = useRef<HTMLDivElement>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const mapRef = useRef<any>(null);
@@ -97,7 +99,7 @@ export default function HeatmapPage() {
         heatLayerRef.current = layerGroup;
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Fehler beim Laden');
+      setError(e instanceof Error ? e.message : t('errorLoadingFallback'));
     } finally {
       setLoading(false);
     }
@@ -111,7 +113,7 @@ export default function HeatmapPage() {
       await loadAndRender('');
     }
     init().catch(e => {
-      setError(e instanceof Error ? e.message : 'Fehler');
+      setError(e instanceof Error ? e.message : t('errorFallback'));
       setLoading(false);
     });
 
@@ -134,8 +136,8 @@ export default function HeatmapPage() {
   return (
     <div className="space-y-4">
       <PageHeader
-        title="Heatmap"
-        subtitle={!loading ? `${pointCount.toLocaleString('de-DE')} GPS-Punkte` : undefined}
+        title={t('title')}
+        subtitle={!loading ? t('gpsPoints', { value: pointCount.toLocaleString('de-DE') }) : undefined}
         years={availableYears}
         selectedYear={selectedYear || null}
         onYearChange={handleYearChange}
@@ -152,7 +154,7 @@ export default function HeatmapPage() {
           <div className="absolute inset-0 z-10 flex items-center justify-center rounded-xl bg-background/70">
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-              Lade Track-Daten…
+              {t('loadingTrackData')}
             </div>
           </div>
         )}

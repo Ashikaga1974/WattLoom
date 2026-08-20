@@ -2,7 +2,7 @@ const BASE = 'http://localhost:8000';
 
 export interface Activity {
   id: number;
-  name: string;
+  name: string | null;
   activity_type: string;
   start_date: string;
   distance_m: number;
@@ -19,6 +19,14 @@ export interface Activity {
   smart_device: string | null;
   est_avg_power_w: number | null;
   est_norm_power_w: number | null;
+}
+
+export interface SingleImportResult {
+  activity_id: number;
+  name: string | null;
+  is_ride: boolean;
+  sport_type: string;
+  start_date_local: string;
 }
 
 export interface ActivitiesResponse {
@@ -193,9 +201,15 @@ export interface StorageLocation {
   name: string;
 }
 
+export interface Language {
+  code: string;
+  name: string;
+  available: boolean;
+}
+
 export interface ZoneInfo {
   zone: number;
-  label: string;
+  code: string;
   color: string;
   min_bpm?: number;
   max_bpm?: number;
@@ -238,7 +252,7 @@ export interface WeeklyVolume {
 
 export interface OtherActivity {
   id: number;
-  name: string;
+  name: string | null;
   date: string;
   sport_type: string;
   moving_time_s: number;
@@ -258,7 +272,7 @@ export interface WorkoutHistoryEntry {
 
 export interface WorkoutDetail {
   id: number;
-  name: string;
+  name: string | null;
   sport_type: string;
   start_date_local: string;
   moving_time_s: number;
@@ -282,7 +296,7 @@ export interface PmcResponse {
 
 export interface SimilarActivity {
   id: number;
-  name: string;
+  name: string | null;
   start_date: string;
   distance_m: number;
   moving_time_s: number;
@@ -365,7 +379,7 @@ export interface CadenceData {
 
 export interface SpeedTrendRide {
   id: number;
-  name: string;
+  name: string | null;
   date: string;
   speed_kmh: number;
   dist_km: number;
@@ -442,9 +456,9 @@ export interface WrappedData {
     calories: number;
   };
   vs_prev_year: { rides_pct: number; distance_pct: number } | null;
-  best_ride: { id: number; name: string; date: string; distance_km: number; moving_time_s: number } | null;
-  most_elevation_ride: { id: number; name: string; date: string; elevation_m: number; distance_km: number } | null;
-  fastest_ride: { id: number; name: string; date: string; avg_speed_kmh: number; distance_km: number } | null;
+  best_ride: { id: number; name: string | null; date: string; distance_km: number; moving_time_s: number } | null;
+  most_elevation_ride: { id: number; name: string | null; date: string; elevation_m: number; distance_km: number } | null;
+  fastest_ride: { id: number; name: string | null; date: string; avg_speed_kmh: number; distance_km: number } | null;
   best_month: { month: number; distance_km: number; rides: number } | null;
   best_week: { week_start: string; distance_km: number; rides: number } | null;
   longest_streak: { days: number; from: string; to: string } | null;
@@ -455,6 +469,7 @@ export interface WrappedData {
 }
 
 export interface Settings {
+  language: string;
   weight_kg: number | null;
   birth_year: number | null;
   tz_offset: number | null;
@@ -503,8 +518,19 @@ export interface FitnessFingerprint {
     consistency: FitnessComponent;
   };
   trend: 'up' | 'down' | 'neutral';
-  insight: string;
+  insight_parts: string[];
   history: { month: string; score: number; level: string }[];
+}
+
+// HTTPException.detail ist inzwischen teils ein reiner String (nicht umgestellte Endpunkte),
+// teils {code, message} (siehe backend/api/errors.py) – hier vereinheitlicht extrahiert,
+// damit new Error(...) nie "[object Object]" als Message bekommt.
+function errorMessage(detail: unknown, status: number): string {
+  if (typeof detail === 'string') return detail;
+  if (detail && typeof detail === 'object' && 'message' in detail) {
+    return String((detail as { message: unknown }).message);
+  }
+  return `Fehler ${status}`;
 }
 
 async function get<T>(path: string): Promise<T> {
@@ -519,7 +545,7 @@ async function post<T>(path: string, body: unknown): Promise<T> {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
-  if (!res.ok) return res.json().then(j => { throw new Error(j.detail ?? `Fehler ${res.status}`); });
+  if (!res.ok) return res.json().then(j => { throw new Error(errorMessage(j.detail, res.status)); });
   return res.json() as Promise<T>;
 }
 
@@ -678,13 +704,13 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ avg_power_w }),
     }).then(r => {
-      if (!r.ok) return r.json().then(j => { throw new Error(j.detail ?? `Fehler ${r.status}`); });
+      if (!r.ok) return r.json().then(j => { throw new Error(errorMessage(j.detail, r.status)); });
       return r.json();
     }),
 
   deleteActivity: (id: number): Promise<{ ok: boolean; deleted_id: number }> =>
     fetch(`${BASE}/activities/${id}`, { method: 'DELETE' }).then(r => {
-      if (!r.ok) return r.json().then(j => { throw new Error(j.detail ?? `Fehler ${r.status}`); });
+      if (!r.ok) return r.json().then(j => { throw new Error(errorMessage(j.detail, r.status)); });
       return r.json() as Promise<{ ok: boolean; deleted_id: number }>;
     }),
 
@@ -719,33 +745,33 @@ export const api = {
   fitnessFingerprint: (): Promise<FitnessFingerprint> =>
     get('/analytics/fitness-fingerprint'),
 
-  importFitFile: (file: File, bikeId?: string): Promise<{ activity_id: number; name: string; is_ride: boolean }> => {
+  importFitFile: (file: File, bikeId?: string): Promise<SingleImportResult> => {
     const form = new FormData();
     form.append('file', file);
     if (bikeId) form.append('bike_id', bikeId);
     return fetch(`${BASE}/import/fit-file`, { method: 'POST', body: form }).then(r => {
-      if (!r.ok) return r.json().then(j => { throw new Error(j.detail ?? `Fehler ${r.status}`); });
-      return r.json() as Promise<{ activity_id: number; name: string; is_ride: boolean }>;
+      if (!r.ok) return r.json().then(j => { throw new Error(errorMessage(j.detail, r.status)); });
+      return r.json() as Promise<SingleImportResult>;
     });
   },
 
-  importTcxFile: (file: File, bikeId?: string): Promise<{ activity_id: number; name: string; is_ride: boolean }> => {
+  importTcxFile: (file: File, bikeId?: string): Promise<SingleImportResult> => {
     const form = new FormData();
     form.append('file', file);
     if (bikeId) form.append('bike_id', bikeId);
     return fetch(`${BASE}/import/tcx-file`, { method: 'POST', body: form }).then(r => {
-      if (!r.ok) return r.json().then(j => { throw new Error(j.detail ?? `Fehler ${r.status}`); });
-      return r.json() as Promise<{ activity_id: number; name: string; is_ride: boolean }>;
+      if (!r.ok) return r.json().then(j => { throw new Error(errorMessage(j.detail, r.status)); });
+      return r.json() as Promise<SingleImportResult>;
     });
   },
 
-  importGpxFile: (file: File, bikeId?: string): Promise<{ activity_id: number; name: string; is_ride: boolean }> => {
+  importGpxFile: (file: File, bikeId?: string): Promise<SingleImportResult> => {
     const form = new FormData();
     form.append('file', file);
     if (bikeId) form.append('bike_id', bikeId);
     return fetch(`${BASE}/import/gpx-file`, { method: 'POST', body: form }).then(r => {
-      if (!r.ok) return r.json().then(j => { throw new Error(j.detail ?? `Fehler ${r.status}`); });
-      return r.json() as Promise<{ activity_id: number; name: string; is_ride: boolean }>;
+      if (!r.ok) return r.json().then(j => { throw new Error(errorMessage(j.detail, r.status)); });
+      return r.json() as Promise<SingleImportResult>;
     });
   },
 
@@ -801,7 +827,7 @@ export const api = {
     const form = new FormData();
     form.append('file', file);
     return fetch(`${BASE}/bikes/${bikeId}/image`, { method: 'POST', body: form })
-      .then(r => { if (!r.ok) return r.json().then(j => { throw new Error(j.detail ?? `Fehler ${r.status}`); }); return r.json(); });
+      .then(r => { if (!r.ok) return r.json().then(j => { throw new Error(errorMessage(j.detail, r.status)); }); return r.json(); });
   },
 
   bikeImageUrl: (bikeId: string) => `${BASE}/bikes/${bikeId}/image`,
@@ -823,7 +849,7 @@ export const api = {
 
   deletePurchase: (id: number): Promise<void> =>
     fetch(`${BASE}/purchases/${id}`, { method: 'DELETE' }).then(r => {
-      if (!r.ok && r.status !== 204) return r.json().then(j => { throw new Error(j.detail ?? `Fehler ${r.status}`); });
+      if (!r.ok && r.status !== 204) return r.json().then(j => { throw new Error(errorMessage(j.detail, r.status)); });
     }),
 
   listStorageLocations: (): Promise<StorageLocation[]> =>
@@ -831,14 +857,24 @@ export const api = {
 
   addStorageLocation: (name: string): Promise<StorageLocation> =>
     fetch(`${BASE}/storage-locations`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) })
-      .then(r => { if (!r.ok) return r.json().then(j => { throw new Error(j.detail ?? `Fehler ${r.status}`); }); return r.json(); }),
+      .then(r => { if (!r.ok) return r.json().then(j => { throw new Error(errorMessage(j.detail, r.status)); }); return r.json(); }),
 
   renameStorageLocation: (id: number, name: string): Promise<StorageLocation> =>
     fetch(`${BASE}/storage-locations/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) })
-      .then(r => { if (!r.ok) return r.json().then(j => { throw new Error(j.detail ?? `Fehler ${r.status}`); }); return r.json(); }),
+      .then(r => { if (!r.ok) return r.json().then(j => { throw new Error(errorMessage(j.detail, r.status)); }); return r.json(); }),
 
   deleteStorageLocation: (id: number): Promise<void> =>
     fetch(`${BASE}/storage-locations/${id}`, { method: 'DELETE' }).then(r => {
-      if (!r.ok && r.status !== 204) return r.json().then(j => { throw new Error(j.detail ?? `Fehler ${r.status}`); });
+      if (!r.ok && r.status !== 204) return r.json().then(j => { throw new Error(errorMessage(j.detail, r.status)); });
     }),
+
+  getLanguages: (): Promise<Language[]> =>
+    fetch(`${BASE}/translations/languages`).then(r => { if (!r.ok) throw new Error(`Fehler ${r.status}`); return r.json(); }),
+
+  exportTranslations: (lang: string): Promise<Record<string, Record<string, unknown>>> =>
+    fetch(`${BASE}/translations/export?lang=${lang}`).then(r => { if (!r.ok) throw new Error(`Fehler ${r.status}`); return r.json(); }),
+
+  importTranslations: (lang: string, translations: Record<string, Record<string, unknown>>): Promise<void> =>
+    fetch(`${BASE}/translations/import`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ lang, translations }) })
+      .then(r => { if (!r.ok) return r.json().then(j => { throw new Error(errorMessage(j.detail, r.status)); }); }),
 };

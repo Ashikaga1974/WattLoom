@@ -1,16 +1,27 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { api, type Bike, type Settings, type WeatherStatus } from '@/lib/api';
+import { useTranslation } from 'react-i18next';
+import { api, type Bike, type Language, type Settings, type SingleImportResult, type WeatherStatus } from '@/lib/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { CONFIG_DEFAULTS, useConfigReload } from '@/lib/config-context';
 import { fmtClock, fmtDate } from '@/lib/format';
+import { rideTitle, workoutTitle } from '@/lib/activity-display';
 
 type ImportStatus = 'idle' | 'running' | 'done' | 'error';
 
 export default function SettingsPage() {
+  const { t } = useTranslation('common');
+  const { t: ts } = useTranslation('settings');
   // Einstellungen-Felder
+  const [languageInput, setLanguageInput] = useState<string>(CONFIG_DEFAULTS.language);
+  const [languages, setLanguages]         = useState<Language[]>([]);
+  const [importLangInput, setImportLangInput] = useState('');
+  const [translationImportBusy, setTranslationImportBusy]   = useState(false);
+  const [translationImportError, setTranslationImportError] = useState<string | null>(null);
+  const [translationImportSuccess, setTranslationImportSuccess] = useState(false);
+  const translationFileRef = useRef<HTMLInputElement>(null);
   const [weightInput, setWeightInput]     = useState('');
   const [birthYearInput, setBirthYearInput] = useState('');
   const [hrMaxInput, setHrMaxInput]       = useState('185');
@@ -37,7 +48,7 @@ export default function SettingsPage() {
   const [fitFile, setFitFile]             = useState<File | null>(null);
   const [fitBikeId, setFitBikeId]         = useState('');
   const [fitUploading, setFitUploading]   = useState(false);
-  const [fitResult, setFitResult]         = useState<{ activity_id: number; name: string; is_ride: boolean } | null>(null);
+  const [fitResult, setFitResult]         = useState<SingleImportResult | null>(null);
   const [fitError, setFitError]           = useState<string | null>(null);
   const fitInputRef                       = useRef<HTMLInputElement>(null);
 
@@ -45,7 +56,7 @@ export default function SettingsPage() {
   const [tcxFile, setTcxFile]             = useState<File | null>(null);
   const [tcxBikeId, setTcxBikeId]         = useState('');
   const [tcxUploading, setTcxUploading]   = useState(false);
-  const [tcxResult, setTcxResult]         = useState<{ activity_id: number; name: string; is_ride: boolean } | null>(null);
+  const [tcxResult, setTcxResult]         = useState<SingleImportResult | null>(null);
   const [tcxError, setTcxError]           = useState<string | null>(null);
   const tcxInputRef                       = useRef<HTMLInputElement>(null);
 
@@ -53,7 +64,7 @@ export default function SettingsPage() {
   const [gpxFile, setGpxFile]             = useState<File | null>(null);
   const [gpxBikeId, setGpxBikeId]         = useState('');
   const [gpxUploading, setGpxUploading]   = useState(false);
-  const [gpxResult, setGpxResult]         = useState<{ activity_id: number; name: string; is_ride: boolean } | null>(null);
+  const [gpxResult, setGpxResult]         = useState<SingleImportResult | null>(null);
   const [gpxError, setGpxError]           = useState<string | null>(null);
   const gpxInputRef                       = useRef<HTMLInputElement>(null);
 
@@ -171,7 +182,7 @@ export default function SettingsPage() {
         setPowerError(res.message);
       }
     } catch (e: unknown) {
-      setPowerError(e instanceof Error ? e.message : 'Unbekannter Fehler');
+      setPowerError(e instanceof Error ? e.message : ts('common.unknownError'));
     } finally {
       setPowerBusy(false);
     }
@@ -191,7 +202,7 @@ export default function SettingsPage() {
       if (!res.ok) setAppSyncError(res.message);
       await loadAppSyncStatus();
     } catch (e: unknown) {
-      setAppSyncError(e instanceof Error ? e.message : 'Unbekannter Fehler');
+      setAppSyncError(e instanceof Error ? e.message : ts('common.unknownError'));
     } finally {
       setAppSyncBusy(false);
     }
@@ -217,6 +228,8 @@ export default function SettingsPage() {
       try {
         const res = await api.getSettings();
         setSaved(res);
+        setLanguageInput(res.language ?? CONFIG_DEFAULTS.language);
+        try { setLanguages(await api.getLanguages()); } catch { /* ignorieren */ }
         if (res.weight_kg != null)  setWeightInput(String(res.weight_kg));
         if (res.birth_year != null) setBirthYearInput(String(res.birth_year));
         setHrMaxInput(String(res.hr_max ?? 185));
@@ -272,20 +285,60 @@ export default function SettingsPage() {
     else stopPolling();
   }, [importStatus]);
 
+  async function changeLanguage(lang: string) {
+    setLanguageInput(lang);
+    try {
+      const res = await api.saveSettings({ language: lang });
+      setSaved(res);
+      await reloadConfig();
+    } catch { /* Sprache bleibt lokal gesetzt, nächster Reload versucht es erneut */ }
+  }
+
+  function exportTranslations(lang: string) {
+    api.exportTranslations(lang).then(data => {
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `wattloom-translations-${lang}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }).catch(() => { /* ignorieren */ });
+  }
+
+  async function importTranslations(file: File) {
+    if (!importLangInput) return;
+    setTranslationImportBusy(true);
+    setTranslationImportError(null);
+    setTranslationImportSuccess(false);
+    try {
+      const text = await file.text();
+      const parsed = JSON.parse(text);
+      await api.importTranslations(importLangInput, parsed);
+      setLanguages(await api.getLanguages());
+      setTranslationImportSuccess(true);
+    } catch (e) {
+      setTranslationImportError(e instanceof Error ? e.message : 'Import fehlgeschlagen');
+    } finally {
+      setTranslationImportBusy(false);
+      if (translationFileRef.current) translationFileRef.current.value = '';
+    }
+  }
+
   async function save() {
     const kg = parseFloat(weightInput.replace(',', '.'));
     if (weightInput && (isNaN(kg) || kg < 30 || kg > 200)) {
-      setSaveError('Gewicht muss zwischen 30 und 200 kg liegen');
+      setSaveError(ts('personalData.errors.weightRange'));
       return;
     }
     const year = birthYearInput ? parseInt(birthYearInput) : null;
     if (year !== null && (year < 1920 || year > 2010)) {
-      setSaveError('Geburtsjahr muss zwischen 1920 und 2010 liegen');
+      setSaveError(ts('personalData.errors.birthYearRange'));
       return;
     }
     const hrMax = parseInt(hrMaxInput);
     if (isNaN(hrMax) || hrMax < 100 || hrMax > 240) {
-      setSaveError('HRmax muss zwischen 100 und 240 bpm liegen');
+      setSaveError(ts('personalData.errors.hrMaxRange'));
       return;
     }
     setSaving(true);
@@ -302,7 +355,7 @@ export default function SettingsPage() {
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 2500);
     } catch (e) {
-      setSaveError(e instanceof Error ? e.message : 'Speichern fehlgeschlagen');
+      setSaveError(e instanceof Error ? e.message : ts('common.saveFailed'));
     } finally {
       setSaving(false);
     }
@@ -311,12 +364,12 @@ export default function SettingsPage() {
   async function saveGoals() {
     const km = yearlyKmGoalInput ? parseFloat(yearlyKmGoalInput.replace(',', '.')) : null;
     if (km !== null && (isNaN(km) || km <= 0)) {
-      setGoalError('Jahres-km-Ziel muss größer als 0 sein');
+      setGoalError(ts('goals.errors.yearlyPositive'));
       return;
     }
     const hours = weeklyHoursGoalInput ? parseFloat(weeklyHoursGoalInput.replace(',', '.')) : null;
     if (hours !== null && (isNaN(hours) || hours <= 0)) {
-      setGoalError('Wochenstunden-Ziel muss größer als 0 sein');
+      setGoalError(ts('goals.errors.weeklyPositive'));
       return;
     }
     setGoalSaving(true);
@@ -330,7 +383,7 @@ export default function SettingsPage() {
       setGoalSuccess(true);
       setTimeout(() => setGoalSuccess(false), 2500);
     } catch (e) {
-      setGoalError(e instanceof Error ? e.message : 'Speichern fehlgeschlagen');
+      setGoalError(e instanceof Error ? e.message : ts('common.saveFailed'));
     } finally {
       setGoalSaving(false);
     }
@@ -343,23 +396,23 @@ export default function SettingsPage() {
     const simplify = parseInt(simplifyInput);
     const wearPct = parseFloat(wearPctInput.replace(',', '.'));
     if (isNaN(bezier) || bezier < 0 || bezier > 0.5) {
-      setConfigError('Kurvenglättung: 0.0 – 0.5');
+      setConfigError(ts('appConfig.errors.bezierRange'));
       return;
     }
     if (isNaN(sparkline) || sparkline < 4 || sparkline > 16) {
-      setConfigError('Sparkline-Wochen: 4 – 16');
+      setConfigError(ts('appConfig.errors.sparklineRange'));
       return;
     }
     if (isNaN(buckets) || buckets < 5 || buckets > 40) {
-      setConfigError('Farbstufen: 5 – 40');
+      setConfigError(ts('appConfig.errors.bucketsRange'));
       return;
     }
     if (isNaN(simplify) || simplify < 1 || simplify > 20) {
-      setConfigError('Track-Toleranz: 1 – 20 m');
+      setConfigError(ts('appConfig.errors.simplifyRange'));
       return;
     }
     if (isNaN(wearPct) || wearPct < 50 || wearPct > 100) {
-      setConfigError('Verschleiß-Warnschwelle: 50 – 100 %');
+      setConfigError(ts('appConfig.errors.wearPctRange'));
       return;
     }
     setConfigSaving(true);
@@ -376,7 +429,7 @@ export default function SettingsPage() {
       setConfigSuccess(true);
       setTimeout(() => setConfigSuccess(false), 2500);
     } catch (e) {
-      setConfigError(e instanceof Error ? e.message : 'Speichern fehlgeschlagen');
+      setConfigError(e instanceof Error ? e.message : ts('common.saveFailed'));
     } finally {
       setConfigSaving(false);
     }
@@ -393,35 +446,35 @@ export default function SettingsPage() {
     const matchRadiusM = parseFloat(matchRadiusMInput.replace(',', '.'));
 
     if (isNaN(crr) || crr <= 0 || crr > 0.02) {
-      setAdvancedError('Rollwiderstand (Crr): 0.001 – 0.02');
+      setAdvancedError(ts('advanced.errors.crrRange'));
       return;
     }
     if (isNaN(cda) || cda <= 0 || cda > 0.6) {
-      setAdvancedError('Luftwiderstand (CdA): 0.1 – 0.6 m²');
+      setAdvancedError(ts('advanced.errors.cdaRange'));
       return;
     }
     if (isNaN(bikeKg) || bikeKg <= 0 || bikeKg > 30) {
-      setAdvancedError('Bike-Gewicht: 1 – 30 kg');
+      setAdvancedError(ts('advanced.errors.bikeKgRange'));
       return;
     }
     if (isNaN(thresholdPct) || thresholdPct < 50 || thresholdPct > 100) {
-      setAdvancedError('Schwellen-HR: 50 – 100 % HRmax');
+      setAdvancedError(ts('advanced.errors.thresholdHrRange'));
       return;
     }
     if (isNaN(ctlDays) || ctlDays < 7 || ctlDays > 90) {
-      setAdvancedError('CTL-Zeitkonstante: 7 – 90 Tage');
+      setAdvancedError(ts('advanced.errors.ctlDaysRange'));
       return;
     }
     if (isNaN(atlDays) || atlDays < 3 || atlDays > 21) {
-      setAdvancedError('ATL-Zeitkonstante: 3 – 21 Tage');
+      setAdvancedError(ts('advanced.errors.atlDaysRange'));
       return;
     }
     if (isNaN(maxSpeedKmh) || maxSpeedKmh < 40 || maxSpeedKmh > 200) {
-      setAdvancedError('GPS-Sprung-Filter: 40 – 200 km/h');
+      setAdvancedError(ts('advanced.errors.gpsFilterRange'));
       return;
     }
     if (isNaN(matchRadiusM) || matchRadiusM < 100 || matchRadiusM > 2000) {
-      setAdvancedError('Streckenvergleich-Toleranz: 100 – 2000 m');
+      setAdvancedError(ts('advanced.errors.matchRadiusRange'));
       return;
     }
     setAdvancedSaving(true);
@@ -442,7 +495,7 @@ export default function SettingsPage() {
       setAdvancedSuccess(true);
       setTimeout(() => setAdvancedSuccess(false), 2500);
     } catch (e) {
-      setAdvancedError(e instanceof Error ? e.message : 'Speichern fehlgeschlagen');
+      setAdvancedError(e instanceof Error ? e.message : ts('common.saveFailed'));
     } finally {
       setAdvancedSaving(false);
     }
@@ -462,31 +515,31 @@ export default function SettingsPage() {
     const chartHeightDense = parseInt(chartHeightDenseInput);
 
     if (isNaN(comparisonSimplify) || comparisonSimplify < 5 || comparisonSimplify > 50) {
-      setDisplayError('Track-Vereinfachung Vergleich: 5 – 50 m');
+      setDisplayError(ts('display.errors.comparisonSimplifyRange'));
       return;
     }
     if (isNaN(blockHours) || blockHours < 1 || blockHours > 12 || 24 % blockHours !== 0) {
-      setDisplayError('Zeitblock-Stunden: 1 – 12, muss 24 teilen (z.B. 1, 2, 3, 4, 6, 8, 12)');
+      setDisplayError(ts('display.errors.blockHoursRange'));
       return;
     }
     if (isNaN(volumeTrendWeeks) || volumeTrendWeeks < 2 || volumeTrendWeeks > 12) {
-      setDisplayError('Volumen-Trend-Fenster: 2 – 12 Wochen');
+      setDisplayError(ts('display.errors.volumeTrendWeeksRange'));
       return;
     }
     if (isNaN(chartHeightMini) || chartHeightMini < 60 || chartHeightMini > 200) {
-      setDisplayError('Chart-Höhe Mini: 60 – 200 px');
+      setDisplayError(ts('display.errors.chartHeightMiniRange'));
       return;
     }
     if (isNaN(chartHeightCompact) || chartHeightCompact < 80 || chartHeightCompact > 260) {
-      setDisplayError('Chart-Höhe Kompakt: 80 – 260 px');
+      setDisplayError(ts('display.errors.chartHeightCompactRange'));
       return;
     }
     if (isNaN(chartHeightVal) || chartHeightVal < 120 || chartHeightVal > 320) {
-      setDisplayError('Chart-Höhe Standard: 120 – 320 px');
+      setDisplayError(ts('display.errors.chartHeightRange'));
       return;
     }
     if (isNaN(chartHeightDense) || chartHeightDense < 140 || chartHeightDense > 360) {
-      setDisplayError('Chart-Höhe Dicht: 140 – 360 px');
+      setDisplayError(ts('display.errors.chartHeightDenseRange'));
       return;
     }
     setDisplaySaving(true);
@@ -506,7 +559,7 @@ export default function SettingsPage() {
       setDisplaySuccess(true);
       setTimeout(() => setDisplaySuccess(false), 2500);
     } catch (e) {
-      setDisplayError(e instanceof Error ? e.message : 'Speichern fehlgeschlagen');
+      setDisplayError(e instanceof Error ? e.message : ts('common.saveFailed'));
     } finally {
       setDisplaySaving(false);
     }
@@ -531,7 +584,7 @@ export default function SettingsPage() {
       startPolling();
     } catch (e) {
       setImportStatus('error');
-      setImportLog([e instanceof Error ? e.message : 'Fehler beim Starten']);
+      setImportLog([e instanceof Error ? e.message : ts('import.startError')]);
     }
   }
 
@@ -541,7 +594,7 @@ export default function SettingsPage() {
     setResetDone(false);
     try {
       const res = await api.resetDb();
-      if (!res.ok) throw new Error(res.message ?? 'Fehler');
+      if (!res.ok) throw new Error(res.message ?? ts('reset.genericFailure'));
       setResetDone(true);
       setResetBackupName(res.backup ?? null);
       setResetConfirm(false);
@@ -549,7 +602,7 @@ export default function SettingsPage() {
       setImportLog([]);
       setImportZip(null);
     } catch (e) {
-      setResetError(e instanceof Error ? e.message : 'Fehler beim Zurücksetzen');
+      setResetError(e instanceof Error ? e.message : ts('reset.genericError'));
     } finally {
       setResetBusy(false);
     }
@@ -567,7 +620,7 @@ export default function SettingsPage() {
       setFitFile(null);
       if (fitInputRef.current) fitInputRef.current.value = '';
     } catch (err) {
-      setFitError(err instanceof Error ? err.message : 'Unbekannter Fehler');
+      setFitError(err instanceof Error ? err.message : ts('common.unknownError'));
     } finally {
       setFitUploading(false);
     }
@@ -585,7 +638,7 @@ export default function SettingsPage() {
       setTcxFile(null);
       if (tcxInputRef.current) tcxInputRef.current.value = '';
     } catch (err) {
-      setTcxError(err instanceof Error ? err.message : 'Unbekannter Fehler');
+      setTcxError(err instanceof Error ? err.message : ts('common.unknownError'));
     } finally {
       setTcxUploading(false);
     }
@@ -603,7 +656,7 @@ export default function SettingsPage() {
       setGpxFile(null);
       if (gpxInputRef.current) gpxInputRef.current.value = '';
     } catch (err) {
-      setGpxError(err instanceof Error ? err.message : 'Unbekannter Fehler');
+      setGpxError(err instanceof Error ? err.message : ts('common.unknownError'));
     } finally {
       setGpxUploading(false);
     }
@@ -619,23 +672,85 @@ export default function SettingsPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Einstellungen</h1>
-        <p className="text-sm text-muted-foreground mt-0.5">Persönliche Daten · Import · Datenbank</p>
+        <h1 className="text-2xl font-semibold tracking-tight">{ts('pageTitle')}</h1>
+        <p className="text-sm text-muted-foreground mt-0.5">{ts('pageSubtitle')}</p>
       </div>
 
       <Tabs value={tab} onValueChange={handleTabChange}>
         <TabsList>
-          <TabsTrigger value="allgemein">Allgemein</TabsTrigger>
-          <TabsTrigger value="importe">Importe</TabsTrigger>
+          <TabsTrigger value="allgemein">{ts('tabs.general')}</TabsTrigger>
+          <TabsTrigger value="importe">{ts('tabs.imports')}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="allgemein" className="mt-6 space-y-8">
 
+      {/* ── Sprache ── */}
+      <Card>
+        <CardHeader className="border-b border-border pb-3">
+          <CardTitle className="text-sm font-semibold">{ts('language.title')}</CardTitle>
+        </CardHeader>
+        <CardContent className="pt-5 space-y-5">
+          <div className="inline-flex rounded-md border border-input overflow-hidden flex-wrap">
+            {languages.filter(l => l.available).map((lang) => (
+              <button
+                key={lang.code}
+                type="button"
+                onClick={() => changeLanguage(lang.code)}
+                className={`px-4 py-2 text-sm transition-colors ${
+                  languageInput === lang.code
+                    ? 'bg-orange-500 text-white'
+                    : 'bg-background hover:bg-muted text-foreground'
+                }`}
+              >
+                {lang.name}
+              </button>
+            ))}
+          </div>
+
+          <div className="border-t border-border pt-4 space-y-3">
+            <p className="text-xs text-muted-foreground">{ts('language.translateHint')}</p>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => exportTranslations(languageInput)}
+                className="px-3 py-1.5 text-sm rounded-md border border-input bg-background hover:bg-muted"
+              >
+                {ts('language.exportButton')}
+              </button>
+              <span className="text-xs text-muted-foreground">{ts('language.exportHint')}</span>
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <select
+                value={importLangInput}
+                onChange={e => setImportLangInput(e.target.value)}
+                className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+              >
+                <option value="">{ts('language.importLangPlaceholder')}</option>
+                {languages.map(l => (
+                  <option key={l.code} value={l.code}>{l.name}{l.available ? ` (${ts('language.alreadyTranslated')})` : ''}</option>
+                ))}
+              </select>
+              <input
+                ref={translationFileRef}
+                type="file"
+                accept="application/json"
+                disabled={!importLangInput || translationImportBusy}
+                onChange={e => { const f = e.target.files?.[0]; if (f) importTranslations(f); }}
+                className="text-sm"
+              />
+            </div>
+            {translationImportBusy && <p className="text-xs text-muted-foreground">{ts('language.importBusy')}</p>}
+            {translationImportSuccess && <p className="text-xs text-green-500">{ts('language.importSuccess')}</p>}
+            {translationImportError && <p className="text-xs text-destructive">{translationImportError}</p>}
+          </div>
+        </CardContent>
+      </Card>
+
       {/* ── Persönliche Daten ── */}
       <Card>
         <CardHeader className="border-b border-border pb-3">
-          <CardTitle className="text-sm font-semibold">Persönliche Daten</CardTitle>
-          <p className="text-xs text-muted-foreground">Für w/kg-Berechnungen</p>
+          <CardTitle className="text-sm font-semibold">{ts('personalData.title')}</CardTitle>
+          <p className="text-xs text-muted-foreground">{ts('personalData.subtitle')}</p>
         </CardHeader>
         <CardContent className="pt-5 space-y-5">
           {loadingSettings ? (
@@ -649,7 +764,7 @@ export default function SettingsPage() {
                 {/* Gewicht */}
                 <div>
                   <label className="block text-xs text-muted-foreground uppercase tracking-wider mb-2">
-                    Körpergewicht
+                    {ts('personalData.weightLabel')}
                   </label>
                   <div className="flex items-center gap-2">
                     <input
@@ -663,17 +778,17 @@ export default function SettingsPage() {
                       placeholder="75.5"
                       className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-colors"
                     />
-                    <span className="text-xs text-muted-foreground whitespace-nowrap">kg</span>
+                    <span className="text-xs text-muted-foreground whitespace-nowrap">{ts('units.kg')}</span>
                   </div>
                   {saved?.weight_kg != null && (
-                    <p className="text-xs text-muted-foreground/60 mt-1.5">{saved.weight_kg} kg gespeichert</p>
+                    <p className="text-xs text-muted-foreground/60 mt-1.5">{ts('personalData.weightSaved', { value: saved.weight_kg })}</p>
                   )}
                 </div>
 
                 {/* Geburtsjahr */}
                 <div>
                   <label className="block text-xs text-muted-foreground uppercase tracking-wider mb-2">
-                    Geburtsjahr
+                    {ts('personalData.birthYearLabel')}
                   </label>
                   <input
                     type="number"
@@ -688,7 +803,7 @@ export default function SettingsPage() {
                   />
                   {saved?.birth_year != null && (
                     <p className="text-xs text-muted-foreground/60 mt-1.5">
-                      {saved.birth_year} · {new Date().getFullYear() - saved.birth_year} Jahre
+                      {ts('personalData.birthYearInfo', { year: saved.birth_year, age: new Date().getFullYear() - saved.birth_year })}
                     </p>
                   )}
                 </div>
@@ -696,7 +811,7 @@ export default function SettingsPage() {
                 {/* HRmax */}
                 <div>
                   <label className="block text-xs text-muted-foreground uppercase tracking-wider mb-2">
-                    HRmax
+                    {ts('personalData.hrMaxLabel')}
                   </label>
                   <div className="flex items-center gap-2">
                     <input
@@ -710,27 +825,27 @@ export default function SettingsPage() {
                       placeholder="185"
                       className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-colors"
                     />
-                    <span className="text-xs text-muted-foreground whitespace-nowrap">bpm</span>
+                    <span className="text-xs text-muted-foreground whitespace-nowrap">{ts('units.bpm')}</span>
                   </div>
-                  <p className="text-xs text-muted-foreground/50 mt-1.5">Für hrTSS- und PMC-Berechnungen (Standard 185)</p>
+                  <p className="text-xs text-muted-foreground/50 mt-1.5">{ts('personalData.hrMaxHint')}</p>
                 </div>
 
                 {/* Zeitzone */}
                 <div>
                   <label className="block text-xs text-muted-foreground uppercase tracking-wider mb-2">
-                    Zeitzone
+                    {ts('personalData.timezoneLabel')}
                   </label>
                   <select
                     value={tzInput}
                     onChange={(e) => setTzInput(e.target.value)}
                     className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-colors"
                   >
-                    <option value="auto">Auto (Systemzeit)</option>
-                    <option value="1">+1h (CET – Winter)</option>
-                    <option value="2">+2h (CEST – Sommer)</option>
+                    <option value="auto">{ts('personalData.timezoneAuto')}</option>
+                    <option value="1">{ts('personalData.timezoneCet')}</option>
+                    <option value="2">{ts('personalData.timezoneCest')}</option>
                   </select>
                   <p className="text-xs text-muted-foreground/50 mt-1.5">
-                    Aktivitätszeiten sind in UTC. Auto nutzt die Browser-Zeitzone.
+                    {ts('personalData.timezoneHint')}
                   </p>
                 </div>
               </div>
@@ -741,9 +856,9 @@ export default function SettingsPage() {
                   disabled={saving}
                   className="rounded-md px-5 py-2 text-sm font-medium bg-orange-500 hover:bg-orange-600 disabled:opacity-50 transition-colors text-white cursor-pointer"
                 >
-                  {saving ? 'Speichern…' : 'Speichern'}
+                  {saving ? ts('common.saving') : t('actions.save')}
                 </button>
-                {saveSuccess && <span className="text-sm text-green-600">Gespeichert</span>}
+                {saveSuccess && <span className="text-sm text-green-600">{ts('common.saved')}</span>}
                 {saveError && <span className="text-sm text-red-500">{saveError}</span>}
               </div>
             </>
@@ -754,14 +869,14 @@ export default function SettingsPage() {
       {/* ── Trainingsziele ── */}
       <Card>
         <CardHeader className="border-b border-border pb-3">
-          <CardTitle className="text-sm font-semibold">Trainingsziele</CardTitle>
-          <p className="text-xs text-muted-foreground">Fortschrittsanzeige im Dashboard – leer lassen zum Deaktivieren</p>
+          <CardTitle className="text-sm font-semibold">{ts('goals.title')}</CardTitle>
+          <p className="text-xs text-muted-foreground">{ts('goals.subtitle')}</p>
         </CardHeader>
         <CardContent className="pt-5 space-y-5">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             <div>
               <label className="block text-xs text-muted-foreground uppercase tracking-wider mb-2">
-                Jahresziel
+                {ts('goals.yearlyLabel')}
               </label>
               <div className="flex items-center gap-2">
                 <input
@@ -774,13 +889,13 @@ export default function SettingsPage() {
                   placeholder="3000"
                   className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-colors"
                 />
-                <span className="text-xs text-muted-foreground whitespace-nowrap">km / Jahr</span>
+                <span className="text-xs text-muted-foreground whitespace-nowrap">{ts('units.kmPerYear')}</span>
               </div>
             </div>
 
             <div>
               <label className="block text-xs text-muted-foreground uppercase tracking-wider mb-2">
-                Wochenziel
+                {ts('goals.weeklyLabel')}
               </label>
               <div className="flex items-center gap-2">
                 <input
@@ -793,9 +908,9 @@ export default function SettingsPage() {
                   placeholder="5"
                   className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-colors"
                 />
-                <span className="text-xs text-muted-foreground whitespace-nowrap">h / Woche</span>
+                <span className="text-xs text-muted-foreground whitespace-nowrap">{ts('units.hoursPerWeek')}</span>
               </div>
-              <p className="text-xs text-muted-foreground/50 mt-1.5">Rad + Workout + Kraft zusammen</p>
+              <p className="text-xs text-muted-foreground/50 mt-1.5">{ts('goals.weeklyHint')}</p>
             </div>
           </div>
 
@@ -805,9 +920,9 @@ export default function SettingsPage() {
               disabled={goalSaving}
               className="rounded-md px-5 py-2 text-sm font-medium bg-orange-500 hover:bg-orange-600 disabled:opacity-50 transition-colors text-white cursor-pointer"
             >
-              {goalSaving ? 'Speichern…' : 'Speichern'}
+              {goalSaving ? ts('common.saving') : t('actions.save')}
             </button>
-            {goalSuccess && <span className="text-sm text-green-600">Gespeichert</span>}
+            {goalSuccess && <span className="text-sm text-green-600">{ts('common.saved')}</span>}
             {goalError && <span className="text-sm text-red-500">{goalError}</span>}
           </div>
         </CardContent>
@@ -816,14 +931,14 @@ export default function SettingsPage() {
       {/* ── App-Konfiguration ── */}
       <Card>
         <CardHeader className="border-b border-border pb-3">
-          <CardTitle className="text-sm font-semibold">App-Konfiguration</CardTitle>
-          <p className="text-xs text-muted-foreground">Anzeigeoptionen und Performance-Parameter</p>
+          <CardTitle className="text-sm font-semibold">{ts('appConfig.title')}</CardTitle>
+          <p className="text-xs text-muted-foreground">{ts('appConfig.subtitle')}</p>
         </CardHeader>
         <CardContent className="pt-5 space-y-5">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             <div>
               <label className="block text-xs text-muted-foreground uppercase tracking-wider mb-2">
-                Kurvenglättung
+                {ts('appConfig.bezierLabel')}
               </label>
               <div className="flex items-center gap-2">
                 <input
@@ -836,12 +951,12 @@ export default function SettingsPage() {
                   className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-colors"
                 />
               </div>
-              <p className="text-xs text-muted-foreground/50 mt-1.5">0 = gerade · 0.5 = stark gerundet</p>
+              <p className="text-xs text-muted-foreground/50 mt-1.5">{ts('appConfig.bezierHint')}</p>
             </div>
 
             <div>
               <label className="block text-xs text-muted-foreground uppercase tracking-wider mb-2">
-                Sparkline-Wochen
+                {ts('appConfig.sparklineLabel')}
               </label>
               <input
                 type="number"
@@ -852,12 +967,12 @@ export default function SettingsPage() {
                 onChange={e => setSparklineInput(e.target.value)}
                 className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-colors"
               />
-              <p className="text-xs text-muted-foreground/50 mt-1.5">Wochen im Dashboard-Verlauf (4–16)</p>
+              <p className="text-xs text-muted-foreground/50 mt-1.5">{ts('appConfig.sparklineHint')}</p>
             </div>
 
             <div>
               <label className="block text-xs text-muted-foreground uppercase tracking-wider mb-2">
-                Geschwindigkeits-Farbstufen
+                {ts('appConfig.bucketsLabel')}
               </label>
               <input
                 type="number"
@@ -868,12 +983,12 @@ export default function SettingsPage() {
                 onChange={e => setBucketInput(e.target.value)}
                 className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-colors"
               />
-              <p className="text-xs text-muted-foreground/50 mt-1.5">Farbstufen auf der Aktivitätskarte (5–40)</p>
+              <p className="text-xs text-muted-foreground/50 mt-1.5">{ts('appConfig.bucketsHint')}</p>
             </div>
 
             <div>
               <label className="block text-xs text-muted-foreground uppercase tracking-wider mb-2">
-                Track-Toleranz
+                {ts('appConfig.simplifyLabel')}
               </label>
               <div className="flex items-center gap-2">
                 <input
@@ -885,14 +1000,14 @@ export default function SettingsPage() {
                   onChange={e => setSimplifyInput(e.target.value)}
                   className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-colors"
                 />
-                <span className="text-xs text-muted-foreground whitespace-nowrap">m</span>
+                <span className="text-xs text-muted-foreground whitespace-nowrap">{ts('units.m')}</span>
               </div>
-              <p className="text-xs text-muted-foreground/50 mt-1.5">RDP-Vereinfachung beim Track-Laden (1–20 m)</p>
+              <p className="text-xs text-muted-foreground/50 mt-1.5">{ts('appConfig.simplifyHint')}</p>
             </div>
 
             <div>
               <label className="block text-xs text-muted-foreground uppercase tracking-wider mb-2">
-                Verschleiß-Warnschwelle
+                {ts('appConfig.wearPctLabel')}
               </label>
               <div className="flex items-center gap-2">
                 <input
@@ -904,9 +1019,9 @@ export default function SettingsPage() {
                   onChange={e => setWearPctInput(e.target.value)}
                   className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-colors"
                 />
-                <span className="text-xs text-muted-foreground whitespace-nowrap">%</span>
+                <span className="text-xs text-muted-foreground whitespace-nowrap">{ts('units.percent')}</span>
               </div>
-              <p className="text-xs text-muted-foreground/50 mt-1.5">Ab diesem Verschleiß-% erscheint die Dashboard-Warnung (50–100)</p>
+              <p className="text-xs text-muted-foreground/50 mt-1.5">{ts('appConfig.wearPctHint')}</p>
             </div>
           </div>
 
@@ -916,9 +1031,9 @@ export default function SettingsPage() {
               disabled={configSaving}
               className="rounded-md px-5 py-2 text-sm font-medium bg-orange-500 hover:bg-orange-600 disabled:opacity-50 transition-colors text-white cursor-pointer"
             >
-              {configSaving ? 'Speichern…' : 'Speichern'}
+              {configSaving ? ts('common.saving') : t('actions.save')}
             </button>
-            {configSuccess && <span className="text-sm text-green-600">Gespeichert</span>}
+            {configSuccess && <span className="text-sm text-green-600">{ts('common.saved')}</span>}
             {configError && <span className="text-sm text-red-500">{configError}</span>}
           </div>
         </CardContent>
@@ -927,17 +1042,16 @@ export default function SettingsPage() {
       {/* ── Erweiterte Einstellungen ── */}
       <Card>
         <CardHeader className="border-b border-border pb-3">
-          <CardTitle className="text-sm font-semibold">Erweiterte Einstellungen</CardTitle>
+          <CardTitle className="text-sm font-semibold">{ts('advanced.title')}</CardTitle>
           <p className="text-xs text-muted-foreground">
-            Physikalische und algorithmische Parameter für Leistungsschätzung, PMC und Streckenvergleich –
-            Standardwerte passen meist, nur bei Bedarf anpassen.
+            {ts('advanced.subtitle')}
           </p>
         </CardHeader>
         <CardContent className="pt-5 space-y-5">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             <div>
               <label className="block text-xs text-muted-foreground uppercase tracking-wider mb-2">
-                Standard-Bike
+                {ts('advanced.defaultBikeLabel')}
               </label>
               <select
                 value={defaultBikeIdInput}
@@ -948,12 +1062,12 @@ export default function SettingsPage() {
                   <option key={b.id} value={b.id}>{b.name}</option>
                 ))}
               </select>
-              <p className="text-xs text-muted-foreground/50 mt-1.5">Fallback für Aktivitäten ohne Strava-Gear-Zuordnung</p>
+              <p className="text-xs text-muted-foreground/50 mt-1.5">{ts('advanced.defaultBikeHint')}</p>
             </div>
 
             <div>
               <label className="block text-xs text-muted-foreground uppercase tracking-wider mb-2">
-                Bike-Gewicht (Leistungsschätzung)
+                {ts('advanced.bikeKgLabel')}
               </label>
               <div className="flex items-center gap-2">
                 <input
@@ -965,14 +1079,14 @@ export default function SettingsPage() {
                   onChange={e => setBikeKgInput(e.target.value)}
                   className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-colors"
                 />
-                <span className="text-xs text-muted-foreground whitespace-nowrap">kg</span>
+                <span className="text-xs text-muted-foreground whitespace-nowrap">{ts('units.kg')}</span>
               </div>
-              <p className="text-xs text-muted-foreground/50 mt-1.5">Inkl. Anbauteile (Standard 8 kg)</p>
+              <p className="text-xs text-muted-foreground/50 mt-1.5">{ts('advanced.bikeKgHint')}</p>
             </div>
 
             <div>
               <label className="block text-xs text-muted-foreground uppercase tracking-wider mb-2">
-                Rollwiderstand (Crr)
+                {ts('advanced.crrLabel')}
               </label>
               <input
                 type="number"
@@ -983,12 +1097,12 @@ export default function SettingsPage() {
                 onChange={e => setCrrInput(e.target.value)}
                 className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-colors"
               />
-              <p className="text-xs text-muted-foreground/50 mt-1.5">Rennreifen 0.004 · Gravel/MTB höher</p>
+              <p className="text-xs text-muted-foreground/50 mt-1.5">{ts('advanced.crrHint')}</p>
             </div>
 
             <div>
               <label className="block text-xs text-muted-foreground uppercase tracking-wider mb-2">
-                Luftwiderstand (CdA)
+                {ts('advanced.cdaLabel')}
               </label>
               <div className="flex items-center gap-2">
                 <input
@@ -1000,14 +1114,14 @@ export default function SettingsPage() {
                   onChange={e => setCdaInput(e.target.value)}
                   className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-colors"
                 />
-                <span className="text-xs text-muted-foreground whitespace-nowrap">m²</span>
+                <span className="text-xs text-muted-foreground whitespace-nowrap">{ts('units.m2')}</span>
               </div>
-              <p className="text-xs text-muted-foreground/50 mt-1.5">Rennposition 0.32 · Hoods ~0.36</p>
+              <p className="text-xs text-muted-foreground/50 mt-1.5">{ts('advanced.cdaHint')}</p>
             </div>
 
             <div>
               <label className="block text-xs text-muted-foreground uppercase tracking-wider mb-2">
-                Schwellen-HR
+                {ts('advanced.thresholdHrLabel')}
               </label>
               <div className="flex items-center gap-2">
                 <input
@@ -1019,14 +1133,14 @@ export default function SettingsPage() {
                   onChange={e => setThresholdHrPctInput(e.target.value)}
                   className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-colors"
                 />
-                <span className="text-xs text-muted-foreground whitespace-nowrap">% HRmax</span>
+                <span className="text-xs text-muted-foreground whitespace-nowrap">{ts('units.percentHrMax')}</span>
               </div>
-              <p className="text-xs text-muted-foreground/50 mt-1.5">Für hrTSS/PMC (Standard 85 %)</p>
+              <p className="text-xs text-muted-foreground/50 mt-1.5">{ts('advanced.thresholdHrHint')}</p>
             </div>
 
             <div>
               <label className="block text-xs text-muted-foreground uppercase tracking-wider mb-2">
-                GPS-Sprung-Filter
+                {ts('advanced.gpsFilterLabel')}
               </label>
               <div className="flex items-center gap-2">
                 <input
@@ -1038,14 +1152,14 @@ export default function SettingsPage() {
                   onChange={e => setMaxSpeedKmhInput(e.target.value)}
                   className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-colors"
                 />
-                <span className="text-xs text-muted-foreground whitespace-nowrap">km/h</span>
+                <span className="text-xs text-muted-foreground whitespace-nowrap">{ts('units.kmh')}</span>
               </div>
-              <p className="text-xs text-muted-foreground/50 mt-1.5">Kappt Best-Effort-Segmente oberhalb (Standard 90, E-Bike ggf. höher)</p>
+              <p className="text-xs text-muted-foreground/50 mt-1.5">{ts('advanced.gpsFilterHint')}</p>
             </div>
 
             <div>
               <label className="block text-xs text-muted-foreground uppercase tracking-wider mb-2">
-                CTL-Zeitkonstante
+                {ts('advanced.ctlDaysLabel')}
               </label>
               <div className="flex items-center gap-2">
                 <input
@@ -1057,14 +1171,14 @@ export default function SettingsPage() {
                   onChange={e => setCtlDaysInput(e.target.value)}
                   className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-colors"
                 />
-                <span className="text-xs text-muted-foreground whitespace-nowrap">Tage</span>
+                <span className="text-xs text-muted-foreground whitespace-nowrap">{ts('units.days')}</span>
               </div>
-              <p className="text-xs text-muted-foreground/50 mt-1.5">Trainingslast-Glättung (Standard 42)</p>
+              <p className="text-xs text-muted-foreground/50 mt-1.5">{ts('advanced.ctlDaysHint')}</p>
             </div>
 
             <div>
               <label className="block text-xs text-muted-foreground uppercase tracking-wider mb-2">
-                ATL-Zeitkonstante
+                {ts('advanced.atlDaysLabel')}
               </label>
               <div className="flex items-center gap-2">
                 <input
@@ -1076,14 +1190,14 @@ export default function SettingsPage() {
                   onChange={e => setAtlDaysInput(e.target.value)}
                   className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-colors"
                 />
-                <span className="text-xs text-muted-foreground whitespace-nowrap">Tage</span>
+                <span className="text-xs text-muted-foreground whitespace-nowrap">{ts('units.days')}</span>
               </div>
-              <p className="text-xs text-muted-foreground/50 mt-1.5">Ermüdungs-Glättung (Standard 7)</p>
+              <p className="text-xs text-muted-foreground/50 mt-1.5">{ts('advanced.atlDaysHint')}</p>
             </div>
 
             <div>
               <label className="block text-xs text-muted-foreground uppercase tracking-wider mb-2">
-                Streckenvergleich-Toleranz
+                {ts('advanced.matchRadiusLabel')}
               </label>
               <div className="flex items-center gap-2">
                 <input
@@ -1095,9 +1209,9 @@ export default function SettingsPage() {
                   onChange={e => setMatchRadiusMInput(e.target.value)}
                   className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-colors"
                 />
-                <span className="text-xs text-muted-foreground whitespace-nowrap">m</span>
+                <span className="text-xs text-muted-foreground whitespace-nowrap">{ts('units.m')}</span>
               </div>
-              <p className="text-xs text-muted-foreground/50 mt-1.5">GPS-Toleranz je Distanz-Marke (Standard 500 m)</p>
+              <p className="text-xs text-muted-foreground/50 mt-1.5">{ts('advanced.matchRadiusHint')}</p>
             </div>
           </div>
 
@@ -1107,9 +1221,9 @@ export default function SettingsPage() {
               disabled={advancedSaving}
               className="rounded-md px-5 py-2 text-sm font-medium bg-orange-500 hover:bg-orange-600 disabled:opacity-50 transition-colors text-white cursor-pointer"
             >
-              {advancedSaving ? 'Speichern…' : 'Speichern'}
+              {advancedSaving ? ts('common.saving') : t('actions.save')}
             </button>
-            {advancedSuccess && <span className="text-sm text-green-600">Gespeichert</span>}
+            {advancedSuccess && <span className="text-sm text-green-600">{ts('common.saved')}</span>}
             {advancedError && <span className="text-sm text-red-500">{advancedError}</span>}
           </div>
         </CardContent>
@@ -1118,16 +1232,16 @@ export default function SettingsPage() {
       {/* ── Diagramm & Darstellung ── */}
       <Card>
         <CardHeader className="border-b border-border pb-3">
-          <CardTitle className="text-sm font-semibold">Diagramm & Darstellung</CardTitle>
+          <CardTitle className="text-sm font-semibold">{ts('display.title')}</CardTitle>
           <p className="text-xs text-muted-foreground">
-            Chart-Höhen, Zeitraster und Streckenvergleich-Farben – Standardwerte passen meist.
+            {ts('display.subtitle')}
           </p>
         </CardHeader>
         <CardContent className="pt-5 space-y-5">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             <div>
               <label className="block text-xs text-muted-foreground uppercase tracking-wider mb-2">
-                Track-Vereinfachung Vergleich
+                {ts('display.comparisonSimplifyLabel')}
               </label>
               <div className="flex items-center gap-2">
                 <input
@@ -1139,14 +1253,14 @@ export default function SettingsPage() {
                   onChange={e => setComparisonSimplifyInput(e.target.value)}
                   className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-colors"
                 />
-                <span className="text-xs text-muted-foreground whitespace-nowrap">m</span>
+                <span className="text-xs text-muted-foreground whitespace-nowrap">{ts('units.m')}</span>
               </div>
-              <p className="text-xs text-muted-foreground/50 mt-1.5">RDP-Toleranz auf der Streckenvergleich-Seite (Standard 20)</p>
+              <p className="text-xs text-muted-foreground/50 mt-1.5">{ts('display.comparisonSimplifyHint')}</p>
             </div>
 
             <div>
               <label className="block text-xs text-muted-foreground uppercase tracking-wider mb-2">
-                Zeitblock-Stunden
+                {ts('display.blockHoursLabel')}
               </label>
               <div className="flex items-center gap-2">
                 <input
@@ -1158,14 +1272,14 @@ export default function SettingsPage() {
                   onChange={e => setBlockHoursInput(e.target.value)}
                   className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-colors"
                 />
-                <span className="text-xs text-muted-foreground whitespace-nowrap">h</span>
+                <span className="text-xs text-muted-foreground whitespace-nowrap">{ts('units.hours')}</span>
               </div>
-              <p className="text-xs text-muted-foreground/50 mt-1.5">Blockbreite Tageszeit-Auswertung, muss 24 teilen (Standard 3)</p>
+              <p className="text-xs text-muted-foreground/50 mt-1.5">{ts('display.blockHoursHint')}</p>
             </div>
 
             <div>
               <label className="block text-xs text-muted-foreground uppercase tracking-wider mb-2">
-                Volumen-Trend-Fenster
+                {ts('display.volumeTrendWeeksLabel')}
               </label>
               <div className="flex items-center gap-2">
                 <input
@@ -1177,14 +1291,14 @@ export default function SettingsPage() {
                   onChange={e => setVolumeTrendWeeksInput(e.target.value)}
                   className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-colors"
                 />
-                <span className="text-xs text-muted-foreground whitespace-nowrap">Wochen</span>
+                <span className="text-xs text-muted-foreground whitespace-nowrap">{ts('units.weeks')}</span>
               </div>
-              <p className="text-xs text-muted-foreground/50 mt-1.5">Rolling-Ø-Fenster Volumen-Trendlinie (Standard 4)</p>
+              <p className="text-xs text-muted-foreground/50 mt-1.5">{ts('display.volumeTrendWeeksHint')}</p>
             </div>
 
             <div>
               <label className="block text-xs text-muted-foreground uppercase tracking-wider mb-2">
-                Chart-Höhe Mini
+                {ts('display.chartHeightMiniLabel')}
               </label>
               <div className="flex items-center gap-2">
                 <input
@@ -1196,14 +1310,14 @@ export default function SettingsPage() {
                   onChange={e => setChartHeightMiniInput(e.target.value)}
                   className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-colors"
                 />
-                <span className="text-xs text-muted-foreground whitespace-nowrap">px</span>
+                <span className="text-xs text-muted-foreground whitespace-nowrap">{ts('units.px')}</span>
               </div>
-              <p className="text-xs text-muted-foreground/50 mt-1.5">Winzige Inline-Sparklines (Standard 100)</p>
+              <p className="text-xs text-muted-foreground/50 mt-1.5">{ts('display.chartHeightMiniHint')}</p>
             </div>
 
             <div>
               <label className="block text-xs text-muted-foreground uppercase tracking-wider mb-2">
-                Chart-Höhe Kompakt
+                {ts('display.chartHeightCompactLabel')}
               </label>
               <div className="flex items-center gap-2">
                 <input
@@ -1215,14 +1329,14 @@ export default function SettingsPage() {
                   onChange={e => setChartHeightCompactInput(e.target.value)}
                   className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-colors"
                 />
-                <span className="text-xs text-muted-foreground whitespace-nowrap">px</span>
+                <span className="text-xs text-muted-foreground whitespace-nowrap">{ts('units.px')}</span>
               </div>
-              <p className="text-xs text-muted-foreground/50 mt-1.5">Kleine Trend-Charts, z.B. Dashboard (Standard 140)</p>
+              <p className="text-xs text-muted-foreground/50 mt-1.5">{ts('display.chartHeightCompactHint')}</p>
             </div>
 
             <div>
               <label className="block text-xs text-muted-foreground uppercase tracking-wider mb-2">
-                Chart-Höhe Standard
+                {ts('display.chartHeightLabel')}
               </label>
               <div className="flex items-center gap-2">
                 <input
@@ -1234,14 +1348,14 @@ export default function SettingsPage() {
                   onChange={e => setChartHeightInput(e.target.value)}
                   className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-colors"
                 />
-                <span className="text-xs text-muted-foreground whitespace-nowrap">px</span>
+                <span className="text-xs text-muted-foreground whitespace-nowrap">{ts('units.px')}</span>
               </div>
-              <p className="text-xs text-muted-foreground/50 mt-1.5">Standard-Analyse-Chart (Standard 200)</p>
+              <p className="text-xs text-muted-foreground/50 mt-1.5">{ts('display.chartHeightHint')}</p>
             </div>
 
             <div>
               <label className="block text-xs text-muted-foreground uppercase tracking-wider mb-2">
-                Chart-Höhe Dicht
+                {ts('display.chartHeightDenseLabel')}
               </label>
               <div className="flex items-center gap-2">
                 <input
@@ -1253,15 +1367,15 @@ export default function SettingsPage() {
                   onChange={e => setChartHeightDenseInput(e.target.value)}
                   className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-colors"
                 />
-                <span className="text-xs text-muted-foreground whitespace-nowrap">px</span>
+                <span className="text-xs text-muted-foreground whitespace-nowrap">{ts('units.px')}</span>
               </div>
-              <p className="text-xs text-muted-foreground/50 mt-1.5">Dichte Mehrserien-Charts (Standard 220)</p>
+              <p className="text-xs text-muted-foreground/50 mt-1.5">{ts('display.chartHeightDenseHint')}</p>
             </div>
           </div>
 
           <div>
             <label className="block text-xs text-muted-foreground uppercase tracking-wider mb-2">
-              Streckenvergleich-Farben
+              {ts('display.colorsLabel')}
             </label>
             <div className="flex items-center gap-3 flex-wrap">
               {comparisonColorsInput.map((color, i) => (
@@ -1276,7 +1390,7 @@ export default function SettingsPage() {
                 </div>
               ))}
             </div>
-            <p className="text-xs text-muted-foreground/50 mt-1.5">Reihenfolge: Referenz-Track zuerst, dann bis zu 4 Vergleichsfahrten</p>
+            <p className="text-xs text-muted-foreground/50 mt-1.5">{ts('display.colorsHint')}</p>
           </div>
 
           <div className="flex items-center gap-4 pt-1">
@@ -1285,9 +1399,9 @@ export default function SettingsPage() {
               disabled={displaySaving}
               className="rounded-md px-5 py-2 text-sm font-medium bg-orange-500 hover:bg-orange-600 disabled:opacity-50 transition-colors text-white cursor-pointer"
             >
-              {displaySaving ? 'Speichern…' : 'Speichern'}
+              {displaySaving ? ts('common.saving') : t('actions.save')}
             </button>
-            {displaySuccess && <span className="text-sm text-green-600">Gespeichert</span>}
+            {displaySuccess && <span className="text-sm text-green-600">{ts('common.saved')}</span>}
             {displayError && <span className="text-sm text-red-500">{displayError}</span>}
           </div>
         </CardContent>
@@ -1296,18 +1410,17 @@ export default function SettingsPage() {
       {/* ── WattLoomApp-Sync ── */}
       <Card>
         <CardHeader className="border-b border-border pb-3">
-          <CardTitle className="text-sm font-semibold">WattLoomApp-Sync</CardTitle>
+          <CardTitle className="text-sm font-semibold">{ts('appSync.title')}</CardTitle>
           <p className="text-xs text-muted-foreground">
-            Spiegelt die Daten in die Cloud-DB der mobilen App (Neon Postgres). Manuell anstoßen,
-            z.B. nach jedem Strava-Import.
+            {ts('appSync.subtitle')}
           </p>
         </CardHeader>
         <CardContent className="pt-5 space-y-4">
           {appSyncStatus?.last_synced_at && (
             <p className="text-sm text-muted-foreground">
-              Letzter Sync: {fmtDate(appSyncStatus.last_synced_at)} {fmtClock(appSyncStatus.last_synced_at)}
+              {ts('appSync.lastSync', { date: fmtDate(appSyncStatus.last_synced_at), time: fmtClock(appSyncStatus.last_synced_at) })}
               {appSyncStatus.last_status === 'error' && (
-                <span className="text-red-500"> – fehlgeschlagen: {appSyncStatus.last_message}</span>
+                <span className="text-red-500"> {ts('appSync.failedPrefix')} {appSyncStatus.last_message}</span>
               )}
               {appSyncStatus.last_status === 'ok' && (
                 <span className="text-green-600"> – {appSyncStatus.last_message}</span>
@@ -1315,7 +1428,7 @@ export default function SettingsPage() {
             </p>
           )}
           {!appSyncStatus?.last_synced_at && (
-            <p className="text-sm text-muted-foreground">Noch nicht synchronisiert.</p>
+            <p className="text-sm text-muted-foreground">{ts('appSync.notSyncedYet')}</p>
           )}
           {appSyncError && <p className="text-sm text-red-500">{appSyncError}</p>}
           <button
@@ -1323,7 +1436,7 @@ export default function SettingsPage() {
             disabled={appSyncBusy}
             className="rounded-md px-5 py-2 text-sm font-medium bg-orange-500 hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-white cursor-pointer"
           >
-            {appSyncBusy ? 'Synchronisiert…' : 'Jetzt synchronisieren'}
+            {appSyncBusy ? ts('appSync.syncing') : ts('appSync.syncNow')}
           </button>
         </CardContent>
       </Card>
@@ -1331,16 +1444,16 @@ export default function SettingsPage() {
       {/* ── Datenbank zurücksetzen ── */}
       <Card>
         <CardHeader className="border-b border-border pb-3">
-          <CardTitle className="text-sm font-semibold">Datenbank zurücksetzen</CardTitle>
+          <CardTitle className="text-sm font-semibold">{ts('reset.title')}</CardTitle>
           <p className="text-xs text-muted-foreground">
-            Löscht alle Aktivitäten, Tracks, Laps und Bikes – persönliche Einstellungen bleiben erhalten.
+            {ts('reset.subtitle')}
           </p>
         </CardHeader>
         <CardContent className="pt-5">
           {resetDone && (
             <p className="text-sm text-green-600 mb-3">
-              Datenbank wurde geleert.
-              {resetBackupName && <> Backup vorher gesichert: <code className="text-xs">{resetBackupName}</code></>}
+              {ts('reset.done')}
+              {resetBackupName && <> {ts('reset.backupSavedPrefix')} <code className="text-xs">{resetBackupName}</code></>}
             </p>
           )}
           {resetError && <p className="text-sm text-red-500 mb-3">{resetError}</p>}
@@ -1351,12 +1464,12 @@ export default function SettingsPage() {
               disabled={importStatus === 'running'}
               className="rounded-md px-5 py-2 text-sm font-medium border border-destructive/40 text-destructive hover:bg-destructive/10 hover:border-destructive/70 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
             >
-              Datenbank leeren
+              {ts('reset.clearButton')}
             </button>
           ) : (
             <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-4 space-y-3">
               <p className="text-sm text-destructive">
-                Alle importierten Daten werden unwiderruflich gelöscht. Wirklich fortfahren?
+                {ts('reset.confirmText')}
               </p>
               <div className="flex gap-3">
                 <button
@@ -1364,14 +1477,14 @@ export default function SettingsPage() {
                   disabled={resetBusy}
                   className="rounded-md px-4 py-2 text-sm font-medium bg-red-600 hover:bg-red-700 disabled:opacity-50 transition-colors text-white cursor-pointer"
                 >
-                  {resetBusy ? 'Lösche…' : 'Ja, jetzt leeren'}
+                  {resetBusy ? ts('reset.deleting') : ts('reset.confirmYes')}
                 </button>
                 <button
                   onClick={() => setResetConfirm(false)}
                   disabled={resetBusy}
                   className="rounded-md px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
                 >
-                  Abbrechen
+                  {t('actions.cancel')}
                 </button>
               </div>
             </div>
@@ -1386,35 +1499,35 @@ export default function SettingsPage() {
       {/* ── Import ── */}
       <Card>
         <CardHeader className="border-b border-border pb-3">
-          <CardTitle className="text-sm font-semibold">Daten importieren</CardTitle>
+          <CardTitle className="text-sm font-semibold">{ts('import.title')}</CardTitle>
           <p className="text-xs text-muted-foreground">
-            Neuen Strava-Export in den{' '}
+            {ts('import.subtitlePrefix')}{' '}
             <code className="bg-muted px-1 rounded text-foreground text-xs">download/</code>
-            {' '}Ordner legen, dann Import starten – die neueste ZIP wird automatisch erkannt.
+            {' '}{ts('import.subtitleSuffix')}
           </p>
         </CardHeader>
         <CardContent className="pt-5 space-y-4">
           {importConfirm ? (
             <div className="rounded-lg border border-orange-500/40 bg-orange-500/10 p-4 space-y-3">
               <p className="text-sm font-medium text-orange-600 dark:text-orange-400">
-                ⚠ Datenbank enthält bereits Aktivitäten
+                {ts('import.confirmTitle')}
               </p>
               <p className="text-xs text-muted-foreground">
-                Ein erneuter Import dupliziert Track-Punkte, Laps und Streckenvergleiche.
-                Zuerst <strong>Datenbank zurücksetzen</strong>, dann importieren.
+                {ts('import.confirmTextIntro')}
+                {' '}{ts('import.confirmTextBeforeStrong')} <strong>{ts('import.confirmTextStrong')}</strong>{ts('import.confirmTextAfterStrong')}
               </p>
               <div className="flex gap-3">
                 <button
                   onClick={doStartImport}
                   className="rounded-md px-4 py-1.5 text-xs font-medium bg-orange-500 hover:bg-orange-600 text-white transition-colors cursor-pointer"
                 >
-                  Trotzdem importieren
+                  {ts('import.importAnyway')}
                 </button>
                 <button
                   onClick={() => setImportConfirm(false)}
                   className="rounded-md px-4 py-1.5 text-xs font-medium border border-border hover:bg-muted transition-colors cursor-pointer"
                 >
-                  Abbrechen
+                  {t('actions.cancel')}
                 </button>
               </div>
             </div>
@@ -1425,13 +1538,13 @@ export default function SettingsPage() {
                 disabled={importStatus === 'running'}
                 className="rounded-md px-5 py-2 text-sm font-medium bg-orange-500 hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-white cursor-pointer"
               >
-                {importStatus === 'running' ? 'Import läuft…' : 'Import starten'}
+                {importStatus === 'running' ? ts('import.running') : ts('import.startButton')}
               </button>
               {importZip && (
                 <span className="text-xs text-muted-foreground font-mono">{importZip}</span>
               )}
-              {importStatus === 'done' && <span className="text-sm text-green-600">Abgeschlossen</span>}
-              {importStatus === 'error' && <span className="text-sm text-red-500">Fehler beim Import</span>}
+              {importStatus === 'done' && <span className="text-sm text-green-600">{ts('import.done')}</span>}
+              {importStatus === 'error' && <span className="text-sm text-red-500">{ts('import.error')}</span>}
             </div>
           )}
 
@@ -1451,9 +1564,9 @@ export default function SettingsPage() {
       {/* ── FIT-Datei Einzelimport ── */}
       <Card>
         <CardHeader className="border-b border-border pb-3">
-          <CardTitle className="text-sm font-semibold">FIT-Datei importieren</CardTitle>
+          <CardTitle className="text-sm font-semibold">{ts('fitImport.title')}</CardTitle>
           <p className="text-xs text-muted-foreground">
-            Einzelne .fit-Datei von Garmin, Zepp/Amazfit oder anderen Geräten direkt importieren.
+            {ts('fitImport.subtitle')}
           </p>
         </CardHeader>
         <CardContent className="pt-5">
@@ -1462,7 +1575,7 @@ export default function SettingsPage() {
               {/* Datei-Auswahl */}
               <div>
                 <label className="block text-xs text-muted-foreground uppercase tracking-wider mb-2">
-                  FIT-Datei
+                  {ts('fitImport.fileLabel')}
                 </label>
                 <input
                   ref={fitInputRef}
@@ -1480,14 +1593,14 @@ export default function SettingsPage() {
               {/* Bike-Dropdown (optional – nur für Radtouren) */}
               <div>
                 <label className="block text-xs text-muted-foreground uppercase tracking-wider mb-2">
-                  Bike <span className="normal-case font-normal">(optional, nur für Radtouren)</span>
+                  {ts('importCommon.bikeLabel')} <span className="normal-case font-normal">{ts('importCommon.bikeOptionalHint')}</span>
                 </label>
                 <select
                   value={fitBikeId}
                   onChange={e => setFitBikeId(e.target.value)}
                   className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-colors"
                 >
-                  <option value="">– kein Rad / Workout –</option>
+                  <option value="">{ts('importCommon.noBikeOption')}</option>
                   {bikes.map(b => (
                     <option key={b.id} value={b.id}>{b.name}</option>
                   ))}
@@ -1501,13 +1614,13 @@ export default function SettingsPage() {
                 disabled={!fitFile || fitUploading}
                 className="rounded-md px-5 py-2 text-sm font-medium bg-orange-500 hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-white cursor-pointer"
               >
-                {fitUploading ? 'Importiere…' : 'Importieren'}
+                {fitUploading ? ts('importCommon.importing') : ts('importCommon.importButton')}
               </button>
 
               {fitResult && (
                 <div className="flex items-center gap-3">
                   <span className="text-sm text-green-600">
-                    Importiert: <span className="font-medium">{fitResult.name}</span>
+                    Importiert: <span className="font-medium">{fitResult.is_ride ? rideTitle(fitResult, t) : workoutTitle(fitResult, t)}</span>
                   </span>
                   {fitResult.is_ride && (
                     <button
@@ -1515,7 +1628,7 @@ export default function SettingsPage() {
                       onClick={() => navigate(`/activities/${fitResult.activity_id}`)}
                       className="text-xs text-orange-500 hover:text-orange-400 underline underline-offset-2 transition-colors"
                     >
-                      Aktivität öffnen →
+                      {ts('importCommon.openActivity')}
                     </button>
                   )}
                 </div>
@@ -1532,9 +1645,9 @@ export default function SettingsPage() {
       {/* ── TCX-Datei Einzelimport ── */}
       <Card>
         <CardHeader className="border-b border-border pb-3">
-          <CardTitle className="text-sm font-semibold">TCX-Datei importieren</CardTitle>
+          <CardTitle className="text-sm font-semibold">{ts('tcxImport.title')}</CardTitle>
           <p className="text-xs text-muted-foreground">
-            Einzelne .tcx-Datei von Amazfit/Mi Fitness, Garmin oder anderen Geräten direkt importieren.
+            {ts('tcxImport.subtitle')}
           </p>
         </CardHeader>
         <CardContent className="pt-5">
@@ -1543,7 +1656,7 @@ export default function SettingsPage() {
               {/* Datei-Auswahl */}
               <div>
                 <label className="block text-xs text-muted-foreground uppercase tracking-wider mb-2">
-                  TCX-Datei
+                  {ts('tcxImport.fileLabel')}
                 </label>
                 <input
                   ref={tcxInputRef}
@@ -1561,14 +1674,14 @@ export default function SettingsPage() {
               {/* Bike-Dropdown (optional – nur für Radtouren) */}
               <div>
                 <label className="block text-xs text-muted-foreground uppercase tracking-wider mb-2">
-                  Bike <span className="normal-case font-normal">(optional, nur für Radtouren)</span>
+                  {ts('importCommon.bikeLabel')} <span className="normal-case font-normal">{ts('importCommon.bikeOptionalHint')}</span>
                 </label>
                 <select
                   value={tcxBikeId}
                   onChange={e => setTcxBikeId(e.target.value)}
                   className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-colors"
                 >
-                  <option value="">– kein Rad / Workout –</option>
+                  <option value="">{ts('importCommon.noBikeOption')}</option>
                   {bikes.map(b => (
                     <option key={b.id} value={b.id}>{b.name}</option>
                   ))}
@@ -1582,13 +1695,13 @@ export default function SettingsPage() {
                 disabled={!tcxFile || tcxUploading}
                 className="rounded-md px-5 py-2 text-sm font-medium bg-orange-500 hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-white cursor-pointer"
               >
-                {tcxUploading ? 'Importiere…' : 'Importieren'}
+                {tcxUploading ? ts('importCommon.importing') : ts('importCommon.importButton')}
               </button>
 
               {tcxResult && (
                 <div className="flex items-center gap-3">
                   <span className="text-sm text-green-600">
-                    Importiert: <span className="font-medium">{tcxResult.name}</span>
+                    Importiert: <span className="font-medium">{tcxResult.is_ride ? rideTitle(tcxResult, t) : workoutTitle(tcxResult, t)}</span>
                   </span>
                   {tcxResult.is_ride && (
                     <button
@@ -1596,7 +1709,7 @@ export default function SettingsPage() {
                       onClick={() => navigate(`/activities/${tcxResult.activity_id}`)}
                       className="text-xs text-orange-500 hover:text-orange-400 underline underline-offset-2 transition-colors"
                     >
-                      Aktivität öffnen →
+                      {ts('importCommon.openActivity')}
                     </button>
                   )}
                   {!tcxResult.is_ride && (
@@ -1605,7 +1718,7 @@ export default function SettingsPage() {
                       onClick={() => navigate('/activities?tab=workouts')}
                       className="text-xs text-orange-500 hover:text-orange-400 underline underline-offset-2 transition-colors"
                     >
-                      Workouts öffnen →
+                      {ts('importCommon.openWorkouts')}
                     </button>
                   )}
                 </div>
@@ -1622,9 +1735,9 @@ export default function SettingsPage() {
       {/* ── GPX-Datei Einzelimport ── */}
       <Card>
         <CardHeader className="border-b border-border pb-3">
-          <CardTitle className="text-sm font-semibold">GPX-Datei importieren</CardTitle>
+          <CardTitle className="text-sm font-semibold">{ts('gpxImport.title')}</CardTitle>
           <p className="text-xs text-muted-foreground">
-            Einzelne .gpx-Datei von Garmin, Komoot, Strava oder anderen Quellen direkt importieren.
+            {ts('gpxImport.subtitle')}
           </p>
         </CardHeader>
         <CardContent className="pt-5">
@@ -1632,7 +1745,7 @@ export default function SettingsPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs text-muted-foreground uppercase tracking-wider mb-2">
-                  GPX-Datei
+                  {ts('gpxImport.fileLabel')}
                 </label>
                 <input
                   ref={gpxInputRef}
@@ -1649,14 +1762,14 @@ export default function SettingsPage() {
 
               <div>
                 <label className="block text-xs text-muted-foreground uppercase tracking-wider mb-2">
-                  Bike <span className="normal-case font-normal">(optional, nur für Radtouren)</span>
+                  {ts('importCommon.bikeLabel')} <span className="normal-case font-normal">{ts('importCommon.bikeOptionalHint')}</span>
                 </label>
                 <select
                   value={gpxBikeId}
                   onChange={e => setGpxBikeId(e.target.value)}
                   className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-colors"
                 >
-                  <option value="">– kein Rad / Workout –</option>
+                  <option value="">{ts('importCommon.noBikeOption')}</option>
                   {bikes.map(b => (
                     <option key={b.id} value={b.id}>{b.name}</option>
                   ))}
@@ -1670,13 +1783,13 @@ export default function SettingsPage() {
                 disabled={!gpxFile || gpxUploading}
                 className="rounded-md px-5 py-2 text-sm font-medium bg-orange-500 hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-white cursor-pointer"
               >
-                {gpxUploading ? 'Importiere…' : 'Importieren'}
+                {gpxUploading ? ts('importCommon.importing') : ts('importCommon.importButton')}
               </button>
 
               {gpxResult && (
                 <div className="flex items-center gap-3">
                   <span className="text-sm text-green-600">
-                    Importiert: <span className="font-medium">{gpxResult.name}</span>
+                    Importiert: <span className="font-medium">{gpxResult.is_ride ? rideTitle(gpxResult, t) : workoutTitle(gpxResult, t)}</span>
                   </span>
                   {gpxResult.is_ride && (
                     <button
@@ -1684,7 +1797,7 @@ export default function SettingsPage() {
                       onClick={() => navigate(`/activities/${gpxResult.activity_id}`)}
                       className="text-xs text-orange-500 hover:text-orange-400 underline underline-offset-2 transition-colors"
                     >
-                      Aktivität öffnen →
+                      {ts('importCommon.openActivity')}
                     </button>
                   )}
                   {!gpxResult.is_ride && (
@@ -1693,7 +1806,7 @@ export default function SettingsPage() {
                       onClick={() => navigate('/activities?tab=workouts')}
                       className="text-xs text-orange-500 hover:text-orange-400 underline underline-offset-2 transition-colors"
                     >
-                      Workouts öffnen →
+                      {ts('importCommon.openWorkouts')}
                     </button>
                   )}
                 </div>
@@ -1710,29 +1823,29 @@ export default function SettingsPage() {
       {/* ── Wetterdaten ── */}
       <Card>
         <CardHeader className="border-b border-border pb-3">
-          <CardTitle className="text-sm font-semibold">Wetterdaten abrufen</CardTitle>
+          <CardTitle className="text-sm font-semibold">{ts('weather.title')}</CardTitle>
           <p className="text-xs text-muted-foreground">
-            Temperatur, Wind und Niederschlag für jede Aktivität von Open-Meteo (kostenlos, kein API-Key).
+            {ts('weather.subtitle')}
           </p>
         </CardHeader>
         <CardContent className="pt-5 space-y-4">
           {weatherStatus && (
             <div className="text-sm text-muted-foreground">
               <span className="font-medium text-foreground">{weatherStatus.with_weather}</span>
-              {' '}von{' '}
+              {' '}{ts('weather.statusJoiner')}{' '}
               <span className="font-medium text-foreground">{weatherStatus.total_activities}</span>
-              {' '}Aktivitäten haben Wetterdaten
+              {' '}{ts('weather.statusSuffix')}
               {weatherStatus.without_weather > 0 && (
-                <span className="ml-1 text-xs">({weatherStatus.without_weather} fehlen noch)</span>
+                <span className="ml-1 text-xs">{ts('weather.missing', { count: weatherStatus.without_weather })}</span>
               )}
             </div>
           )}
 
           {weatherStatus?.running && (
             <div className="text-xs text-muted-foreground">
-              Abrufen… {weatherStatus.done} / {weatherStatus.total}
+              {ts('weather.fetchingProgress', { done: weatherStatus.done, total: weatherStatus.total })}
               {weatherStatus.errors > 0 && (
-                <span className="text-orange-500 ml-2">{weatherStatus.errors} Fehler</span>
+                <span className="text-orange-500 ml-2">{ts('weather.errorsCount', { count: weatherStatus.errors })}</span>
               )}
             </div>
           )}
@@ -1742,10 +1855,10 @@ export default function SettingsPage() {
             disabled={weatherFetching || weatherStatus?.running || weatherStatus?.without_weather === 0}
             className="rounded-md px-5 py-2 text-sm font-medium bg-orange-500 hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-white cursor-pointer"
           >
-            {weatherFetching || weatherStatus?.running ? 'Läuft…' : 'Wetterdaten abrufen'}
+            {weatherFetching || weatherStatus?.running ? ts('weather.running') : ts('weather.fetchButton')}
           </button>
           {weatherStatus?.with_weather === weatherStatus?.total_activities && weatherStatus?.total_activities > 0 && !weatherStatus?.running && (
-            <p className="text-xs text-green-600">Alle Aktivitäten haben Wetterdaten.</p>
+            <p className="text-xs text-green-600">{ts('weather.allDone')}</p>
           )}
         </CardContent>
       </Card>
@@ -1753,23 +1866,20 @@ export default function SettingsPage() {
       {/* ── Leistungsschätzung ── */}
       <Card>
         <CardHeader className="border-b border-border pb-3">
-          <CardTitle className="text-sm font-semibold">Leistung schätzen</CardTitle>
+          <CardTitle className="text-sm font-semibold">{ts('power.title')}</CardTitle>
           <p className="text-xs text-muted-foreground">
-            Berechnet Durchschnittsleistung und Normalized Power aus GPS + Höhenprofil für alle Radtouren
-            mit Track-Daten. Physikalisches Modell: Rollwiderstand (Crr 0.004), Luftwiderstand (CdA 0.32 m²),
-            Steigungsarbeit. Genauigkeit ca. ±15 % – Wind wird nicht berücksichtigt.
-            Setzt voraus, dass Körpergewicht gesetzt ist.
+            {ts('power.subtitle')}
           </p>
         </CardHeader>
         <CardContent className="pt-5 space-y-4">
-          {powerMsg && <p className="text-sm text-green-600">{powerMsg} – läuft im Hintergrund.</p>}
+          {powerMsg && <p className="text-sm text-green-600">{powerMsg} {ts('power.backgroundSuffix')}</p>}
           {powerError && <p className="text-sm text-red-500">{powerError}</p>}
           <button
             onClick={startPowerRecalc}
             disabled={powerBusy}
             className="rounded-md px-5 py-2 text-sm font-medium bg-orange-500 hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-white cursor-pointer"
           >
-            {powerBusy ? 'Startet…' : 'Leistung für alle Fahrten schätzen'}
+            {powerBusy ? ts('power.starting') : ts('power.estimateButton')}
           </button>
         </CardContent>
       </Card>

@@ -1,5 +1,7 @@
 import { useEffect, useState, useMemo, Fragment } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import { api, type WeeklyVolume, type FitnessFingerprint } from '@/lib/api';
 import { useConfig } from '@/lib/config-context';
 import { PageHeader } from '@/components/ui/page-header';
@@ -37,6 +39,7 @@ function JahresfortschrittTooltip({ active, payload, label }: { active?: boolean
 }
 
 function JahresbalkenTooltip({ active, payload }: { active?: boolean; payload?: any[] }) {
+  const { t } = useTranslation('progress');
   if (!active || !payload?.length) return null;
   const d = payload[0]?.payload as { year: string; km: number; projected?: number };
   return (
@@ -44,14 +47,15 @@ function JahresbalkenTooltip({ active, payload }: { active?: boolean; payload?: 
       active={active}
       label={d.year}
       rows={[
-        { label: 'Ist', value: `${d.km.toFixed(0)} km` },
-        ...(d.projected != null ? [{ label: 'Prognose', value: `${d.projected.toFixed(0)} km`, color: '#fc4c02' }] : []),
+        { label: t('progressTab.tooltip.actual'), value: `${d.km.toFixed(0)} km` },
+        ...(d.projected != null ? [{ label: t('progressTab.tooltip.forecast'), value: `${d.projected.toFixed(0)} km`, color: '#fc4c02' }] : []),
       ]}
     />
   );
 }
 
 function MonatsverlaufTooltip({ active, payload, label }: { active?: boolean; payload?: any[]; label?: string }) {
+  const { t } = useTranslation('progress');
   if (!active || !payload?.length) return null;
   const km = payload.find(p => p.dataKey === 'km');
   return (
@@ -59,7 +63,7 @@ function MonatsverlaufTooltip({ active, payload, label }: { active?: boolean; pa
       active={active}
       label={label}
       rows={[
-        { label: 'Distanz', value: km?.value != null ? `${Number(km.value).toFixed(0)} km` : null },
+        { label: t('progressTab.tooltip.distance'), value: km?.value != null ? `${Number(km.value).toFixed(0)} km` : null },
       ]}
     />
   );
@@ -81,20 +85,21 @@ function VergleichTooltip({ active, payload, label, years }: { active?: boolean;
 }
 
 function VolumenTooltip({ active, payload }: { active?: boolean; payload?: any[] }) {
+  const { t } = useTranslation('progress');
   if (!active || !payload?.length) return null;
   const d = payload[0]?.payload as { label: string; week_start?: string; Radfahren: number; Workout: number; Kraft: number; Trend?: number };
-  let weekLabel = `Woche ${d.label}`;
+  let weekLabel = t('volumeTab.tooltip.weekLabel', { date: d.label });
   if (d.week_start) {
     const date = new Date(d.week_start.endsWith('Z') ? d.week_start : d.week_start + 'Z');
-    weekLabel = `Woche ${date.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })}`;
+    weekLabel = t('volumeTab.tooltip.weekLabel', { date: date.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' }) });
   }
   const rows = [
-    { label: 'Radfahren', value: fmtTime(d.Radfahren * 60), color: '#fc4c02' },
-    { label: 'Workout', value: fmtTime(d.Workout * 60), color: '#60a5fa' },
-    { label: 'Kraft', value: fmtTime(d.Kraft * 60), color: '#4ade80' },
+    { label: t('volumeTab.tooltip.cycling'), value: fmtTime(d.Radfahren * 60), color: '#fc4c02' },
+    { label: t('volumeTab.tooltip.workout'), value: fmtTime(d.Workout * 60), color: '#60a5fa' },
+    { label: t('volumeTab.tooltip.strength'), value: fmtTime(d.Kraft * 60), color: '#4ade80' },
   ];
   if (d.Trend != null) {
-    rows.push({ label: '4-Wochen-Ø', value: fmtTime(d.Trend * 60), color: '#facc15' });
+    rows.push({ label: t('volumeTab.tooltip.fixedWeekAvgLabel'), value: fmtTime(d.Trend * 60), color: '#facc15' });
   }
   return <ChartTooltip active={active} label={weekLabel} rows={rows} />;
 }
@@ -156,6 +161,7 @@ function weekTotalMinutes(w: WeeklyVolume): number {
 // Fasst langfristigen (Jahre) und kurzfristigen (12-Wochen) Trend + Fitness-Score
 // zu einer Gesamteinschätzung zusammen – beantwortet "habe ich mich gesteigert?"
 function buildTrendInsights(
+  t: TFunction<'progress'>,
   years: string[],
   yearData: YearData,
   currentYear: string,
@@ -175,17 +181,17 @@ function buildTrendInsights(
       const diffPct = Math.round(((lastKm - firstKm) / firstKm) * 100);
       if (diffPct >= 15) {
         insights.push({
-          text: `Langfristig klar gesteigert: ${first} ${Math.round(firstKm)} km, ${last} bereits ${Math.round(lastKm)} km (+${diffPct}%).`,
+          text: t('progressTab.insights.longTermUp', { first, firstKm: Math.round(firstKm), last, lastKm: Math.round(lastKm), pct: diffPct }),
           type: 'positive',
         });
       } else if (diffPct <= -15) {
         insights.push({
-          text: `Langfristig rückläufig: ${first} noch ${Math.round(firstKm)} km, ${last} nur noch ${Math.round(lastKm)} km (${diffPct}%).`,
+          text: t('progressTab.insights.longTermDown', { first, firstKm: Math.round(firstKm), last, lastKm: Math.round(lastKm), pct: diffPct }),
           type: 'warning',
         });
       } else {
         insights.push({
-          text: `Langfristig auf ähnlichem Niveau: ${first} ${Math.round(firstKm)} km, ${last} ${Math.round(lastKm)} km.`,
+          text: t('progressTab.insights.longTermFlat', { first, firstKm: Math.round(firstKm), last, lastKm: Math.round(lastKm) }),
           type: 'neutral',
         });
       }
@@ -201,17 +207,17 @@ function buildTrendInsights(
     const diff = avgLast - avgPrev;
     if (diff >= 30) {
       insights.push({
-        text: `Kurzfristig (letzte 12 Wochen) im Aufwärtstrend: Ø ${fmtTime(Math.round(avgLast) * 60)}/Woche, mehr als die 12 Wochen davor (${fmtTime(Math.round(avgPrev) * 60)}).`,
+        text: t('progressTab.insights.shortTermUp', { avgLast: fmtTime(Math.round(avgLast) * 60), avgPrev: fmtTime(Math.round(avgPrev) * 60) }),
         type: 'positive',
       });
     } else if (diff <= -30) {
       insights.push({
-        text: `Kurzfristig (letzte 12 Wochen) eher rückläufig: Ø ${fmtTime(Math.round(avgLast) * 60)}/Woche, weniger als die 12 Wochen davor (${fmtTime(Math.round(avgPrev) * 60)}).`,
+        text: t('progressTab.insights.shortTermDown', { avgLast: fmtTime(Math.round(avgLast) * 60), avgPrev: fmtTime(Math.round(avgPrev) * 60) }),
         type: 'warning',
       });
     } else {
       insights.push({
-        text: `Kurzfristig (letzte 12 Wochen) stabil bei Ø ${fmtTime(Math.round(avgLast) * 60)}/Woche.`,
+        text: t('progressTab.insights.shortTermFlat', { avgLast: fmtTime(Math.round(avgLast) * 60) }),
         type: 'neutral',
       });
     }
@@ -220,11 +226,11 @@ function buildTrendInsights(
   // Fitness-Score als dritte, unabhängige Perspektive (CTL/Form/Effizienz/Kontinuität)
   if (fitness && fitness.score > 0) {
     if (fitness.trend === 'up') {
-      insights.push({ text: `Fitness-Score bestätigt den Aufwärtstrend: aktuell ${fitness.score} Punkte (${fitness.level}).`, type: 'positive' });
+      insights.push({ text: t('progressTab.insights.fitnessUp', { score: fitness.score, level: fitness.level }), type: 'positive' });
     } else if (fitness.trend === 'down') {
-      insights.push({ text: `Fitness-Score zeigt zuletzt eher abwärts: aktuell ${fitness.score} Punkte (${fitness.level}).`, type: 'warning' });
+      insights.push({ text: t('progressTab.insights.fitnessDown', { score: fitness.score, level: fitness.level }), type: 'warning' });
     } else {
-      insights.push({ text: `Fitness-Score stabil bei ${fitness.score} Punkten (${fitness.level}).`, type: 'neutral' });
+      insights.push({ text: t('progressTab.insights.fitnessFlat', { score: fitness.score, level: fitness.level }), type: 'neutral' });
     }
   }
 
@@ -232,6 +238,7 @@ function buildTrendInsights(
 }
 
 function FortschrittTab() {
+  const { t } = useTranslation('progress');
   const config = useConfig();
   const [yearData, setYearData] = useState<YearData>({});
   const [monthlyAll, setMonthlyAll] = useState<MonthlyEntry[]>([]);
@@ -252,7 +259,7 @@ function FortschrittTab() {
         setWeeklyData(weekly);
         setFitness(fit);
       })
-      .catch(e => setError(e instanceof Error ? e.message : 'Fehler'))
+      .catch(e => setError(e instanceof Error ? e.message : t('common.genericError')))
       .finally(() => setLoading(false));
   }, []);
 
@@ -298,8 +305,8 @@ function FortschrittTab() {
   );
 
   const trendInsights = useMemo(
-    () => buildTrendInsights(years, yearData, currentYear, weeklyData, fitness),
-    [years, yearData, currentYear, weeklyData, fitness]
+    () => buildTrendInsights(t, years, yearData, currentYear, weeklyData, fitness),
+    [t, years, yearData, currentYear, weeklyData, fitness]
   );
 
   if (loading) return <div className="h-80 bg-muted animate-pulse rounded-xl" />;
@@ -314,13 +321,13 @@ function FortschrittTab() {
         <div className="flex flex-wrap gap-3">
           <Card className="shadow-sm">
             <CardContent className="px-4 py-3 text-center min-w-36">
-              <p className="text-xs text-muted-foreground">{currentYear} bis heute</p>
+              <p className="text-xs text-muted-foreground">{t('progressTab.sinceStartOfYear', { year: currentYear })}</p>
               <p className="text-xl font-bold text-[#fc4c02] mt-0.5">{vsLastYear.curKm.toFixed(0)} km</p>
             </CardContent>
           </Card>
           <Card className="shadow-sm">
             <CardContent className="px-4 py-3 text-center min-w-36">
-              <p className="text-xs text-muted-foreground">{vsLastYear.prevYear} bis heute</p>
+              <p className="text-xs text-muted-foreground">{t('progressTab.sinceStartOfYear', { year: vsLastYear.prevYear })}</p>
               <p className="text-xl font-bold text-[#60a5fa] mt-0.5">{vsLastYear.prevKm.toFixed(0)} km</p>
             </CardContent>
           </Card>
@@ -329,7 +336,7 @@ function FortschrittTab() {
             borderColor: vsLastYear.diff >= 0 ? 'hsl(var(--chart-2) / 0.3)' : 'hsl(var(--destructive) / 0.3)',
           }}>
             <CardContent className="px-4 py-3 text-center min-w-36">
-              <p className="text-xs text-muted-foreground">Differenz</p>
+              <p className="text-xs text-muted-foreground">{t('progressTab.difference')}</p>
               <p className="text-xl font-bold mt-0.5" style={{ color: vsLastYear.diff >= 0 ? '#4ade80' : '#f87171' }}>
                 {vsLastYear.diff >= 0 ? '+' : ''}{vsLastYear.diff.toFixed(0)} km
               </p>
@@ -341,7 +348,7 @@ function FortschrittTab() {
       {years.length > 0 && (
         <Card className="shadow-sm border">
           <CardHeader className="pb-2">
-            <CardTitle className="text-base font-semibold">Kumulierte km je Jahr</CardTitle>
+            <CardTitle className="text-base font-semibold">{t('progressTab.cumulativeKmTitle')}</CardTitle>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={config.chart_height_dense}>
@@ -366,7 +373,7 @@ function FortschrittTab() {
                   x={doy}
                   stroke="hsl(var(--muted-foreground))"
                   strokeDasharray="5 3"
-                  label={{ value: 'heute', fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+                  label={{ value: t('progressTab.today'), fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
                 />
                 {years.map(y => (
                   <Line
@@ -390,7 +397,7 @@ function FortschrittTab() {
       {years.length > 0 && (
         <Card className="shadow-sm border">
           <CardHeader className="pb-2">
-            <CardTitle className="text-base font-semibold">km pro Jahr</CardTitle>
+            <CardTitle className="text-base font-semibold">{t('progressTab.kmPerYearTitle')}</CardTitle>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={config.chart_height}>
@@ -408,7 +415,7 @@ function FortschrittTab() {
                     <rect key={entry.year} fill={entry.color} fillOpacity={entry.year === currentYear ? 1 : 0.65} />
                   ))}
                 </Bar>
-                <Bar dataKey="projected" name="Prognose" fill="#fc4c02" fillOpacity={0.2} radius={[3, 3, 0, 0]} isAnimationActive={false} />
+                <Bar dataKey="projected" name={t('progressTab.tooltip.forecast')} fill="#fc4c02" fillOpacity={0.2} radius={[3, 3, 0, 0]} isAnimationActive={false} />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
@@ -418,7 +425,7 @@ function FortschrittTab() {
       {areaData.length > 1 && (
         <Card className="shadow-sm border">
           <CardHeader className="pb-2">
-            <CardTitle className="text-base font-semibold">Monatlicher Gesamtverlauf</CardTitle>
+            <CardTitle className="text-base font-semibold">{t('progressTab.monthlyOverviewTitle')}</CardTitle>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={config.chart_height_dense}>
@@ -452,22 +459,22 @@ function FortschrittTab() {
       {projection && (
         <div className="space-y-3">
           <h2 className="text-lg font-semibold">
-            Jahresprognose {currentYear}
+            {t('progressTab.yearForecastTitle', { year: currentYear })}
             <span className="text-xs font-normal text-muted-foreground ml-2">
-              auf Basis ⌀ {projection.dailyRate.toFixed(1)} km/Tag
+              {t('progressTab.forecastBasis', { rate: projection.dailyRate.toFixed(1) })}
             </span>
           </h2>
           <div className="flex flex-wrap gap-3">
             <Card className="shadow-sm">
               <CardContent className="px-4 py-3 text-center min-w-36">
-                <p className="text-xs text-muted-foreground">Prognose Jahresende</p>
+                <p className="text-xs text-muted-foreground">{t('progressTab.forecastYearEnd')}</p>
                 <p className="text-xl font-bold text-[#fc4c02] mt-0.5">{projection.projEnd.toLocaleString('de-DE')} km</p>
               </CardContent>
             </Card>
             <Card className="shadow-sm">
               <CardContent className="px-4 py-3 text-center min-w-36">
-                <p className="text-xs text-muted-foreground">Noch {projection.remainingDays} Tage</p>
-                <p className="text-xl font-bold mt-0.5">{projection.remainingKm.toLocaleString('de-DE')} km offen</p>
+                <p className="text-xs text-muted-foreground">{t('progressTab.daysRemaining', { days: projection.remainingDays })}</p>
+                <p className="text-xl font-bold mt-0.5">{t('progressTab.kmOpen', { km: projection.remainingKm.toLocaleString('de-DE') })}</p>
               </CardContent>
             </Card>
             {projection.prevEnd !== null && (
@@ -477,7 +484,7 @@ function FortschrittTab() {
               }}>
                 <CardContent className="px-4 py-3 text-center min-w-36">
                   <p className="text-xs text-muted-foreground">
-                    vs. {projection.prevYear} ({Math.round(projection.prevEnd).toLocaleString('de-DE')} km)
+                    {t('progressTab.vsYear', { year: projection.prevYear, km: Math.round(projection.prevEnd).toLocaleString('de-DE') })}
                   </p>
                   <p className="text-xl font-bold mt-0.5" style={{ color: projection.projEnd >= projection.prevEnd ? '#4ade80' : '#f87171' }}>
                     {projection.projEnd >= projection.prevEnd ? '+' : ''}
@@ -492,8 +499,8 @@ function FortschrittTab() {
 
       <InsightCard
         insights={trendInsights}
-        title="Trainingsentwicklung"
-        subtitle="Langfristig vs. kurzfristig – automatisch aus deinen Daten abgeleitet"
+        title={t('progressTab.insightsTitle')}
+        subtitle={t('progressTab.insightsSubtitle')}
       />
     </div>
   );
@@ -529,6 +536,7 @@ function yearStats(data: MonthlyEntry[], year: number) {
 }
 
 function VergleichTab() {
+  const { t } = useTranslation('progress');
   const config = useConfig();
   const [rawData, setRawData] = useState<MonthlyEntry[]>([]);
   const [availableYears, setAvailableYears] = useState<number[]>([]);
@@ -546,7 +554,7 @@ function VergleichTab() {
         setAvailableYears(years);
         setSelectedYears(years.slice(0, 2).sort((a, b) => b - a));
       })
-      .catch(e => setError(e instanceof Error ? e.message : 'Fehler'))
+      .catch(e => setError(e instanceof Error ? e.message : t('common.genericError')))
       .finally(() => setLoading(false));
   }, []);
 
@@ -634,7 +642,7 @@ function VergleichTab() {
                     <span className="text-xs font-normal text-muted-foreground">km</span>
                   </p>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    {s.activeMonths} aktive Monate · ⌀ {s.avgKm} km/M
+                    {t('yearComparisonTab.activeMonthsStat', { count: s.activeMonths, avg: s.avgKm })}
                   </p>
                 </CardContent>
               </Card>
@@ -665,6 +673,7 @@ function calcStats(data: WeeklyVolume[]) {
 }
 
 function buildVolumeInsights(
+  t: TFunction<'progress'>,
   chartData: { label: string; total: number }[],
   stats: ReturnType<typeof calcStats>,
   volumeTrendWeeks: number
@@ -673,7 +682,7 @@ function buildVolumeInsights(
 
   if (stats.activeWeeks > 0) {
     insights.push({
-      text: `Ø ${fmtTime(stats.avgTotal * 60)} Training pro aktiver Woche (${stats.activeWeeks} von ${stats.total} Wochen aktiv).`,
+      text: t('volumeTab.insights.avgPerActiveWeek', { avg: fmtTime(stats.avgTotal * 60), activeWeeks: stats.activeWeeks, total: stats.total }),
       type: 'neutral',
     });
   }
@@ -686,17 +695,17 @@ function buildVolumeInsights(
     const diff = avgLast - avgPrev;
     if (diff >= 30) {
       insights.push({
-        text: `Aufwärtstrend: ${fmtTime(Math.round(avgLast) * 60)} Ø/Woche in den letzten ${volumeTrendWeeks} Wochen, mehr als die ${volumeTrendWeeks} Wochen davor (${fmtTime(Math.round(avgPrev) * 60)}).`,
+        text: t('volumeTab.insights.upTrend', { avgLast: fmtTime(Math.round(avgLast) * 60), weeks: volumeTrendWeeks, avgPrev: fmtTime(Math.round(avgPrev) * 60) }),
         type: 'positive',
       });
     } else if (diff <= -30) {
       insights.push({
-        text: `Rückgang: ${fmtTime(Math.round(avgLast) * 60)} Ø/Woche in den letzten ${volumeTrendWeeks} Wochen, weniger als davor (${fmtTime(Math.round(avgPrev) * 60)}).`,
+        text: t('volumeTab.insights.downTrend', { avgLast: fmtTime(Math.round(avgLast) * 60), weeks: volumeTrendWeeks, avgPrev: fmtTime(Math.round(avgPrev) * 60) }),
         type: 'warning',
       });
     } else {
       insights.push({
-        text: `Trainingsumfang der letzten ${volumeTrendWeeks} Wochen ist stabil (Ø ${fmtTime(Math.round(avgLast) * 60)}/Woche).`,
+        text: t('volumeTab.insights.stableTrend', { weeks: volumeTrendWeeks, avgLast: fmtTime(Math.round(avgLast) * 60) }),
         type: 'neutral',
       });
     }
@@ -705,20 +714,21 @@ function buildVolumeInsights(
   if (chartData.length > 0) {
     const peak = chartData.reduce((a, b) => (b.total > a.total ? b : a));
     if (peak.total > 0) {
-      insights.push({ text: `Stärkste Einzelwoche: ${peak.label} mit ${fmtTime(peak.total * 60)}.`, type: 'neutral' });
+      insights.push({ text: t('volumeTab.insights.peakWeek', { label: peak.label, value: fmtTime(peak.total * 60) }), type: 'neutral' });
     }
   }
 
   if (stats.totalWorkout > 0 || stats.totalWeight > 0) {
     const totalAll = stats.totalRide + stats.totalWorkout + stats.totalWeight;
     const pctOther = totalAll > 0 ? Math.round(((stats.totalWorkout + stats.totalWeight) / totalAll) * 100) : 0;
-    insights.push({ text: `Workouts & Krafttraining machen ${pctOther}% deiner erfassten Trainingszeit aus.`, type: 'neutral' });
+    insights.push({ text: t('volumeTab.insights.otherShare', { pct: pctOther }), type: 'neutral' });
   }
 
   return insights;
 }
 
 function VolumenTab() {
+  const { t } = useTranslation('progress');
   const config = useConfig();
   const [allData, setAllData] = useState<WeeklyVolume[]>([]);
   const [loading, setLoading] = useState(true);
@@ -728,7 +738,7 @@ function VolumenTab() {
   useEffect(() => {
     api.weeklyVolume(520)
       .then(data => setAllData(data))
-      .catch(e => setError(e instanceof Error ? e.message : 'Fehler'))
+      .catch(e => setError(e instanceof Error ? e.message : t('common.genericError')))
       .finally(() => setLoading(false));
   }, []);
 
@@ -754,8 +764,8 @@ function VolumenTab() {
 
   const stats = useMemo(() => calcStats(viewData), [viewData]);
   const insights = useMemo(
-    () => buildVolumeInsights(chartData, stats, config.volume_trend_weeks),
-    [chartData, stats, config.volume_trend_weeks]
+    () => buildVolumeInsights(t, chartData, stats, config.volume_trend_weeks),
+    [t, chartData, stats, config.volume_trend_weeks]
   );
   const currentWeek = chartData.find(w => w.weeks_ago === 0);
 
@@ -763,19 +773,19 @@ function VolumenTab() {
   if (error) return <div className="rounded border border-destructive/50 bg-destructive/10 p-4 text-destructive text-sm">{error}</div>;
 
   const tiles = [
-    { label: 'Rad gesamt', value: fmtTime(stats.totalRide * 60), color: '#fc4c02' },
-    stats.totalWorkout > 0 ? { label: 'Workout gesamt', value: fmtTime(stats.totalWorkout * 60), color: '#60a5fa' } : null,
-    stats.totalWeight > 0 ? { label: 'Kraft gesamt', value: fmtTime(stats.totalWeight * 60), color: '#4ade80' } : null,
-    { label: 'Aktive Wochen', value: `${stats.activeWeeks} / ${stats.total}`, color: 'var(--foreground)' },
-    { label: 'Beste Woche', value: fmtTime(stats.peakTotal * 60), color: 'var(--foreground)' },
-    { label: 'Ø Woche (aktiv)', value: fmtTime(stats.avgTotal * 60), color: 'var(--foreground)' },
-  ].filter((t): t is { label: string; value: string; color: string } => t !== null);
+    { label: t('volumeTab.tiles.rideTotal'), value: fmtTime(stats.totalRide * 60), color: '#fc4c02' },
+    stats.totalWorkout > 0 ? { label: t('volumeTab.tiles.workoutTotal'), value: fmtTime(stats.totalWorkout * 60), color: '#60a5fa' } : null,
+    stats.totalWeight > 0 ? { label: t('volumeTab.tiles.strengthTotal'), value: fmtTime(stats.totalWeight * 60), color: '#4ade80' } : null,
+    { label: t('volumeTab.tiles.activeWeeks'), value: `${stats.activeWeeks} / ${stats.total}`, color: 'var(--foreground)' },
+    { label: t('volumeTab.tiles.bestWeek'), value: fmtTime(stats.peakTotal * 60), color: 'var(--foreground)' },
+    { label: t('volumeTab.tiles.avgWeekActive'), value: fmtTime(stats.avgTotal * 60), color: 'var(--foreground)' },
+  ].filter((tile): tile is { label: string; value: string; color: string } => tile !== null);
 
   return (
     <div className="space-y-6">
       <div className="flex justify-end">
         <Button variant={showAll ? 'default' : 'outline'} size="sm" onClick={() => setShowAll(v => !v)}>
-          {showAll ? 'Letzte 52 Wochen' : 'Alle Jahre'}
+          {showAll ? t('volumeTab.toggleLast52') : t('volumeTab.toggleAllYears')}
         </Button>
       </div>
 
@@ -802,16 +812,16 @@ function VolumenTab() {
                   stroke="var(--foreground)"
                   strokeOpacity={0.4}
                   strokeDasharray="2 2"
-                  label={{ value: 'Aktuell', position: 'top', fontSize: 10, fill: 'var(--muted-foreground)' }}
+                  label={{ value: t('volumeTab.currentLabel'), position: 'top', fontSize: 10, fill: 'var(--muted-foreground)' }}
                 />
               )}
-              <Bar dataKey="Radfahren" stackId="a" fill="#fc4c02" fillOpacity={0.85} isAnimationActive={false} />
-              <Bar dataKey="Workout" stackId="a" fill="#60a5fa" fillOpacity={0.85} isAnimationActive={false} />
-              <Bar dataKey="Kraft" stackId="a" fill="#4ade80" fillOpacity={0.85} radius={[2, 2, 0, 0]} isAnimationActive={false} />
+              <Bar dataKey="Radfahren" name={t('volumeTab.tooltip.cycling')} stackId="a" fill="#fc4c02" fillOpacity={0.85} isAnimationActive={false} />
+              <Bar dataKey="Workout" name={t('volumeTab.tooltip.workout')} stackId="a" fill="#60a5fa" fillOpacity={0.85} isAnimationActive={false} />
+              <Bar dataKey="Kraft" name={t('volumeTab.tooltip.strength')} stackId="a" fill="#4ade80" fillOpacity={0.85} radius={[2, 2, 0, 0]} isAnimationActive={false} />
               <Line
                 type="monotone"
                 dataKey="Trend"
-                name={`${config.volume_trend_weeks}-Wochen-Ø`}
+                name={t('volumeTab.tooltip.weekAvg', { weeks: config.volume_trend_weeks })}
                 stroke="#facc15"
                 strokeWidth={2}
                 strokeDasharray="8,4"
@@ -841,23 +851,18 @@ function VolumenTab() {
 
 // ─── Tageszeit Tab ────────────────────────────────────────────────────────────
 
-const DAYS_SHORT = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
-const DAYS_FULL  = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag', 'Sonntag'];
-
 // Zeitblöcke statt 24 Einzelstunden – deutlich lesbarer. Standard 3h → 8 benannte Blöcke;
 // bei abweichender block_hours-Einstellung dient der Stundenbereich selbst als Label.
 function pad2(n: number): string { return String(n).padStart(2, '0'); }
 
-const BLOCK_LABELS_3H = ['Nacht', 'Früh', 'Morgen', 'Vormittag', 'Mittag', 'Nachmittag', 'Abend', 'Spätabend'];
-
-function buildBlocks(blockHours: number): { label: string; sub: string }[] {
+function buildBlocks(blockHours: number, blockLabels3h: string[]): { label: string; sub: string }[] {
   const hours = blockHours > 0 && blockHours <= 24 ? blockHours : 3;
   const count = Math.max(1, Math.floor(24 / hours));
   return Array.from({ length: count }, (_, i) => {
     const start = i * hours;
     const end = Math.min(24, start + hours);
     const sub = `${pad2(start)}–${pad2(end)}`;
-    const label = hours === 3 && count === 8 ? BLOCK_LABELS_3H[i] : sub;
+    const label = hours === 3 && count === 8 ? blockLabels3h[i] : sub;
     return { label, sub };
   });
 }
@@ -875,8 +880,12 @@ interface BlockCell { rideCount: number; rideMinutes: number; workoutCount: numb
 interface TooltipState { x: number; y: number; wd: number; block: number; cell: BlockCell; }
 
 function TageszeitTab() {
+  const { t } = useTranslation('progress');
   const { block_hours } = useConfig();
-  const BLOCKS = useMemo(() => buildBlocks(block_hours), [block_hours]);
+  const blockLabels3h = t('timeOfDayTab.blocks', { returnObjects: true }) as string[];
+  const daysShort = t('timeOfDayTab.daysShort', { returnObjects: true }) as string[];
+  const daysFull = t('timeOfDayTab.daysFull', { returnObjects: true }) as string[];
+  const BLOCKS = useMemo(() => buildBlocks(block_hours, blockLabels3h), [block_hours, blockLabels3h]);
   const [cells, setCells] = useState<{
     weekday: number; hour: number;
     ride_count: number; ride_minutes: number;
@@ -896,7 +905,7 @@ function TageszeitTab() {
       const res = await api.timeHeatmap(year ? Number(year) : undefined, tzOffset);
       setCells(res.cells);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Fehler beim Laden');
+      setError(e instanceof Error ? e.message : t('timeOfDayTab.loadError'));
     } finally {
       setLoading(false);
     }
@@ -952,26 +961,33 @@ function TageszeitTab() {
   const insights: Insight[] = [];
   if (peakMinutes > 0) {
     insights.push({
-      text: `Am liebsten trainierst du ${DAYS_FULL[peakWd].toLowerCase()}s ${BLOCKS[peakBlock].label.toLowerCase()} (${fmtTime(peakMinutes * 60)} insgesamt in diesem Slot).`,
+      text: t('timeOfDayTab.insights.peakSlot', {
+        day: daysFull[peakWd].toLowerCase(),
+        block: BLOCKS[peakBlock].label.toLowerCase(),
+        time: fmtTime(peakMinutes * 60),
+      }),
       type: 'positive',
     });
   }
   if (weekdayBlock !== null && weekendBlock !== null) {
     if (weekdayBlock !== weekendBlock) {
       insights.push({
-        text: `Unter der Woche liegt dein Schwerpunkt ${BLOCKS[weekdayBlock].label.toLowerCase()}, am Wochenende eher ${BLOCKS[weekendBlock].label.toLowerCase()}.`,
+        text: t('timeOfDayTab.insights.weekdayFocus', {
+          weekdayBlock: BLOCKS[weekdayBlock].label.toLowerCase(),
+          weekendBlock: BLOCKS[weekendBlock].label.toLowerCase(),
+        }),
         type: 'neutral',
       });
     } else {
       insights.push({
-        text: `Werktags wie am Wochenende trainierst du meist ${BLOCKS[weekdayBlock].label.toLowerCase()}.`,
+        text: t('timeOfDayTab.insights.sameFocus', { block: BLOCKS[weekdayBlock].label.toLowerCase() }),
         type: 'neutral',
       });
     }
   }
   if (totalMinutes > 0 && totalWorkoutMinutes > 0) {
     const pct = Math.round((totalWorkoutMinutes / totalMinutes) * 100);
-    insights.push({ text: `Workouts machen ${pct}% deiner erfassten Trainingszeit aus, Radtouren ${100 - pct}%.`, type: 'neutral' });
+    insights.push({ text: t('timeOfDayTab.insights.workoutShare', { pct, ridePct: 100 - pct }), type: 'neutral' });
   }
 
   return (
@@ -988,10 +1004,10 @@ function TageszeitTab() {
             }}
           >
             <SelectTrigger className="w-36">
-              <SelectValue>{selectedYear ?? 'Alle Jahre'}</SelectValue>
+              <SelectValue>{selectedYear ?? t('timeOfDayTab.allYears')}</SelectValue>
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Alle Jahre</SelectItem>
+              <SelectItem value="all">{t('timeOfDayTab.allYears')}</SelectItem>
               {availableYears.map(y => (
                 <SelectItem key={y} value={y}>{y}</SelectItem>
               ))}
@@ -1010,20 +1026,20 @@ function TageszeitTab() {
           style={{ left: tooltip.x + 12, top: tooltip.y - 8 }}
         >
           <p className="font-semibold">
-            {DAYS_FULL[tooltip.wd]} · {BLOCKS[tooltip.block].label} ({BLOCKS[tooltip.block].sub})
+            {daysFull[tooltip.wd]} · {BLOCKS[tooltip.block].label} ({BLOCKS[tooltip.block].sub})
           </p>
           {tooltip.cell.rideCount === 0 && tooltip.cell.workoutCount === 0 ? (
-            <p className="text-muted-foreground mt-0.5">Keine Aktivität</p>
+            <p className="text-muted-foreground mt-0.5">{t('timeOfDayTab.noActivity')}</p>
           ) : (
             <>
               {tooltip.cell.rideCount > 0 && (
                 <p className="text-primary mt-0.5">
-                  {tooltip.cell.rideCount} {tooltip.cell.rideCount === 1 ? 'Ride' : 'Rides'} · {fmtTime(tooltip.cell.rideMinutes * 60)}
+                  {t('timeOfDayTab.rideCount', { count: tooltip.cell.rideCount, time: fmtTime(tooltip.cell.rideMinutes * 60) })}
                 </p>
               )}
               {tooltip.cell.workoutCount > 0 && (
                 <p className="text-violet-400 mt-0.5">
-                  {tooltip.cell.workoutCount} {tooltip.cell.workoutCount === 1 ? 'Workout' : 'Workouts'} · {fmtTime(tooltip.cell.workoutMinutes * 60)}
+                  {t('timeOfDayTab.workoutCount', { count: tooltip.cell.workoutCount, time: fmtTime(tooltip.cell.workoutMinutes * 60) })}
                 </p>
               )}
             </>
@@ -1037,10 +1053,10 @@ function TageszeitTab() {
         <>
           <div className="flex flex-wrap gap-2">
             {[
-              { label: 'Trainingszeit gesamt', value: fmtTime(totalMinutes * 60) },
-              { label: 'Aktivitäten', value: fmtNum(totalCount) },
-              { label: 'Aktivste Zeit', value: `${DAYS_SHORT[peakWd]} · ${BLOCKS[peakBlock].label}` },
-              { label: 'Rad / Workout', value: `${fmtNum(Math.round(totalRideMinutes / 60))}h / ${fmtNum(Math.round(totalWorkoutMinutes / 60))}h` },
+              { label: t('timeOfDayTab.stats.totalTrainingTime'), value: fmtTime(totalMinutes * 60) },
+              { label: t('timeOfDayTab.stats.activities'), value: fmtNum(totalCount) },
+              { label: t('timeOfDayTab.stats.mostActiveTime'), value: `${daysShort[peakWd]} · ${BLOCKS[peakBlock].label}` },
+              { label: t('timeOfDayTab.stats.rideWorkoutSplit'), value: `${fmtNum(Math.round(totalRideMinutes / 60))}h / ${fmtNum(Math.round(totalWorkoutMinutes / 60))}h` },
             ].map(({ label, value }) => (
               <div key={label} className="rounded-lg bg-muted/60 p-3 text-center min-w-[8rem]">
                 <p className="text-xs text-muted-foreground">{label}</p>
@@ -1062,7 +1078,7 @@ function TageszeitTab() {
                 </div>
               ))}
 
-              {DAYS_SHORT.map((day, wd) => (
+              {daysShort.map((day, wd) => (
                 <Fragment key={day}>
                   <div className="text-xs text-muted-foreground text-right pr-2">{day}</div>
                   {BLOCKS.map((_, b) => {
@@ -1085,19 +1101,19 @@ function TageszeitTab() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-            <span>Weniger Trainingszeit</span>
+            <span>{t('timeOfDayTab.lessTrainingTime')}</span>
             <div className="h-3 w-3 rounded-sm bg-muted" />
             <div className="h-3 w-3 rounded-sm bg-orange-200" />
             <div className="h-3 w-3 rounded-sm bg-orange-400" />
             <div className="h-3 w-3 rounded-sm bg-orange-500" />
             <div className="h-3 w-3 rounded-sm bg-primary" />
-            <span>Mehr</span>
+            <span>{t('timeOfDayTab.moreTrainingTime')}</span>
           </div>
 
           <InsightCard insights={insights} />
         </>
       ) : (
-        <p className="text-muted-foreground text-sm">Keine Daten vorhanden.</p>
+        <p className="text-muted-foreground text-sm">{t('timeOfDayTab.noData')}</p>
       )}
     </div>
   );
@@ -1106,22 +1122,23 @@ function TageszeitTab() {
 // ─── Container ────────────────────────────────────────────────────────────────
 
 export default function ProgressPage() {
+  const { t } = useTranslation('progress');
   const [searchParams, setSearchParams] = useSearchParams();
   const tab = searchParams.get('tab') ?? 'fortschritt';
 
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Jahresübersicht"
-        subtitle="Fortschritt · Jahresvergleich · Wochenvolumen · Tageszeit"
+        title={t('header.title')}
+        subtitle={t('header.subtitle')}
       />
 
-      <Tabs value={tab} onValueChange={t => setSearchParams({ tab: t }, { replace: true })}>
+      <Tabs value={tab} onValueChange={newTab => setSearchParams({ tab: newTab }, { replace: true })}>
         <TabsList>
-          <TabsTrigger value="fortschritt">Fortschritt</TabsTrigger>
-          <TabsTrigger value="vergleich">Jahresvergleich</TabsTrigger>
-          <TabsTrigger value="volumen">Volumen</TabsTrigger>
-          <TabsTrigger value="tageszeit">Tageszeit</TabsTrigger>
+          <TabsTrigger value="fortschritt">{t('tabs.progress')}</TabsTrigger>
+          <TabsTrigger value="vergleich">{t('tabs.yearComparison')}</TabsTrigger>
+          <TabsTrigger value="volumen">{t('tabs.volume')}</TabsTrigger>
+          <TabsTrigger value="tageszeit">{t('tabs.timeOfDay')}</TabsTrigger>
         </TabsList>
         <TabsContent value="fortschritt" className="mt-6">
           <FortschrittTab />

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, ReferenceLine,
@@ -50,11 +51,25 @@ const LEVEL_THRESHOLDS = [
   { y: 75, label: 'Amateur',         color: '#8b5cf6' },
 ];
 
-const MONTHS_DE = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
+// Rohe Level-Werte kommen so vom Backend (Deutsch) – Mapping auf die i18n-Keys
+// unter "levels.*" für die angezeigten Labels.
+const LEVEL_I18N_KEY: Record<string, string> = {
+  'Einsteiger':      'levels.beginner',
+  'Aktiv':           'levels.active',
+  'Enthusiast':      'levels.enthusiast',
+  'Fortgeschritten': 'levels.advanced',
+  'Amateur':         'levels.amateur',
+  'Elite':           'levels.elite',
+};
 
-function fmtMonth(m: string): string {
+function levelLabel(t: (key: string) => string, level: string | undefined | null): string {
+  if (!level) return '';
+  return t(LEVEL_I18N_KEY[level] ?? level);
+}
+
+function fmtMonth(m: string, months: string[]): string {
   const [year, month] = m.split('-');
-  return `${MONTHS_DE[parseInt(month) - 1]} '${year.slice(2)}`;
+  return `${months[parseInt(month) - 1]} '${year.slice(2)}`;
 }
 
 // Kreisbogen-Gauge (Halbkreis, 180°)
@@ -62,6 +77,7 @@ const R = 90, CX = 120, CY = 118;
 const HALF_CIRC = Math.PI * R; // ~282.7
 
 function ArcGauge({ score, color }: { score: number; color: string }) {
+  const { t } = useTranslation('fitness');
   const animated = useCountUp(score, 1400);
   const dashLen = HALF_CIRC * (Math.max(0, Math.min(100, animated)) / 100);
 
@@ -114,7 +130,7 @@ function ArcGauge({ score, color }: { score: number; color: string }) {
         fill="var(--muted-foreground)"
         fontFamily="inherit"
       >
-        von 100 Punkten
+        {t('gauge.outOf100')}
       </text>
     </svg>
   );
@@ -138,6 +154,7 @@ function ComponentCard({
   color: string;
   description: string;
 }) {
+  const { t } = useTranslation('fitness');
   const pct = Math.round((score / max) * 100);
   return (
     <Card>
@@ -148,7 +165,7 @@ function ComponentCard({
             <span className="text-sm font-medium leading-tight">{label}</span>
           </div>
           <span className="text-xs text-muted-foreground whitespace-nowrap shrink-0">
-            {score}/{max} Pkt.
+            {t('componentCard.points', { score, max })}
           </span>
         </div>
         {/* Fortschrittsbalken */}
@@ -179,22 +196,24 @@ function tsbColor(tsb: number): string {
 
 // Tooltip für History-Chart
 function HistoryTooltip({ active, payload }: { active?: boolean; payload?: any[] }) {
+  const { t } = useTranslation('fitness');
   if (!active || !payload?.length) return null;
   const d = payload[0]?.payload;
   const cfg = LEVEL_CONFIG[d?.level] ?? LEVEL_CONFIG['Einsteiger'];
+  const months = t('months', { returnObjects: true }) as string[];
   return (
     <ChartTooltip
       active={active}
-      label={fmtMonth(d?.month ?? '')}
+      label={fmtMonth(d?.month ?? '', months)}
       rows={[
         {
-          label: 'Score',
+          label: t('history.tooltipScore'),
           value: `${d?.score} / 100`,
           color: cfg.color,
         },
         {
-          label: 'Level',
-          value: d?.level ?? '',
+          label: t('history.tooltipLevel'),
+          value: levelLabel(t, d?.level),
         },
       ]}
     />
@@ -202,10 +221,12 @@ function HistoryTooltip({ active, payload }: { active?: boolean; payload?: any[]
 }
 
 export default function FitnessPage() {
+  const { t } = useTranslation('fitness');
   const config = useConfig();
   const [data, setData] = useState<FitnessFingerprint | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const months = t('months', { returnObjects: true }) as string[];
 
   useEffect(() => {
     api.fitnessFingerprint()
@@ -217,7 +238,7 @@ export default function FitnessPage() {
   if (loading) {
     return (
       <div className="flex flex-col gap-6">
-        <PageHeader title="Fitness-Fingerprint" subtitle="Dein aktueller Fitnesszustand auf einen Blick" />
+        <PageHeader title={t('page.title')} subtitle={t('page.subtitleLoading')} />
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <Skeleton className="h-64" />
           <Skeleton className="h-64" />
@@ -233,13 +254,14 @@ export default function FitnessPage() {
   if (error || !data) {
     return (
       <div className="flex flex-col gap-6">
-        <PageHeader title="Fitness-Fingerprint" />
-        <Card><CardContent className="pt-6 text-muted-foreground">{error ?? 'Keine Daten.'}</CardContent></Card>
+        <PageHeader title={t('page.title')} />
+        <Card><CardContent className="pt-6 text-muted-foreground">{error ?? t('page.noData')}</CardContent></Card>
       </div>
     );
   }
 
-  const { score, level, components, trend, insight, history } = data;
+  const { score, level, components, trend, insight_parts, history } = data;
+  const insight = insight_parts.map(code => t(`insights.${code}`)).join(' ');
   const cfg = LEVEL_CONFIG[level] ?? LEVEL_CONFIG['Einsteiger'];
 
   // Radar-Daten: alle Achsen auf 0-100% normiert
@@ -250,17 +272,17 @@ export default function FitnessPage() {
       fullMark: 100,
     },
     {
-      axis: 'Effizienz',
+      axis: t('radar.axisEfficiency'),
       value: Math.round((components.efficiency.score / components.efficiency.max) * 100),
       fullMark: 100,
     },
     {
-      axis: 'Form',
+      axis: t('radar.axisForm'),
       value: Math.round((components.form.score / components.form.max) * 100),
       fullMark: 100,
     },
     {
-      axis: 'Kontinuität',
+      axis: t('radar.axisConsistency'),
       value: Math.round((components.consistency.score / components.consistency.max) * 100),
       fullMark: 100,
     },
@@ -276,13 +298,13 @@ export default function FitnessPage() {
   const formVal = components.form.value !== null
     ? `TSB ${components.form.value >= 0 ? '+' : ''}${components.form.value}`
     : '—';
-  const consVal = `${components.consistency.value}/8 Wo.`;
+  const consVal = t('components.consistency.unit', { count: components.consistency.value });
 
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        title="Fitness-Fingerprint"
-        subtitle="Gesamtscore aus Trainingslast, Effizienz, Form und Kontinuität"
+        title={t('page.title')}
+        subtitle={t('page.subtitle')}
       />
 
       {/* Hero: Gauge + Radar */}
@@ -298,21 +320,21 @@ export default function FitnessPage() {
               <span
                 className={`text-sm font-semibold px-4 py-1.5 rounded-full border ${cfg.bg} ${cfg.text} ${cfg.border}`}
               >
-                {level}
+                {levelLabel(t, level)}
               </span>
               {trend === 'up' && (
                 <span className="flex items-center gap-1 text-green-400 text-sm font-medium">
-                  <TrendingUp size={14} /> Aufwärtstrend
+                  <TrendingUp size={14} /> {t('trend.up')}
                 </span>
               )}
               {trend === 'down' && (
                 <span className="flex items-center gap-1 text-orange-400 text-sm font-medium">
-                  <TrendingDown size={14} /> Abwärtstrend
+                  <TrendingDown size={14} /> {t('trend.down')}
                 </span>
               )}
               {trend === 'neutral' && (
                 <span className="flex items-center gap-1 text-muted-foreground text-sm">
-                  <Minus size={14} /> Stabil
+                  <Minus size={14} /> {t('trend.neutral')}
                 </span>
               )}
             </div>
@@ -327,7 +349,7 @@ export default function FitnessPage() {
         {/* Radar-Karte */}
         <Card className="lg:col-span-2">
           <CardHeader>
-            <CardTitle className="text-sm">Stärken-Profil</CardTitle>
+            <CardTitle className="text-sm">{t('radar.title')}</CardTitle>
           </CardHeader>
           <CardContent className="pt-0">
             <ResponsiveContainer width="100%" height={config.chart_height}>
@@ -359,39 +381,39 @@ export default function FitnessPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         <ComponentCard
           icon={<TrendingUp size={16} />}
-          label="Trainingslast (CTL)"
+          label={t('components.ctl.label')}
           score={components.ctl.score}
           max={components.ctl.max}
           value={ctlVal}
           color="#3b82f6"
-          description="42-Tage-Ø aus hrTSS"
+          description={t('components.ctl.description')}
         />
         <ComponentCard
           icon={<Zap size={16} />}
-          label="Aerobe Effizienz"
+          label={t('components.efficiency.label')}
           score={components.efficiency.score}
           max={components.efficiency.max}
           value={effVal}
           color="#10b981"
-          description="Speed/HR-Verhältnis, 3M-Mittel"
+          description={t('components.efficiency.description')}
         />
         <ComponentCard
           icon={<Wind size={16} />}
-          label="Form (TSB)"
+          label={t('components.form.label')}
           score={components.form.score}
           max={components.form.max}
           value={formVal}
           color={tsbColor(components.form.value ?? 0)}
-          description="CTL − ATL (Frische)"
+          description={t('components.form.description')}
         />
         <ComponentCard
           icon={<Calendar size={16} />}
-          label="Kontinuität"
+          label={t('components.consistency.label')}
           score={components.consistency.score}
           max={components.consistency.max}
           value={consVal}
           color="#8b5cf6"
-          description="Aktive Wochen (letzte 8)"
+          description={t('components.consistency.description')}
         />
       </div>
 
@@ -399,7 +421,7 @@ export default function FitnessPage() {
       {history.length > 1 && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm">Score-Verlauf (letzte 13 Monate)</CardTitle>
+            <CardTitle className="text-sm">{t('history.title')}</CardTitle>
           </CardHeader>
           <CardContent className="pt-0">
             <ResponsiveContainer width="100%" height={config.chart_height}>
@@ -407,7 +429,7 @@ export default function FitnessPage() {
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                 <XAxis
                   dataKey="month"
-                  tickFormatter={fmtMonth}
+                  tickFormatter={(m: string) => fmtMonth(m, months)}
                   tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
                 />
                 <YAxis
@@ -417,18 +439,18 @@ export default function FitnessPage() {
                 />
                 <Tooltip content={<HistoryTooltip />} />
                 {/* Level-Schwellen als gestrichelte Linien */}
-                {LEVEL_THRESHOLDS.map(t => (
+                {LEVEL_THRESHOLDS.map(th => (
                   <ReferenceLine
-                    key={t.y}
-                    y={t.y}
-                    stroke={t.color}
+                    key={th.y}
+                    y={th.y}
+                    stroke={th.color}
                     strokeDasharray="4 4"
                     strokeOpacity={0.5}
                     label={{
-                      value: t.label,
+                      value: levelLabel(t, th.label),
                       position: 'insideTopRight',
                       fontSize: 10,
-                      fill: t.color,
+                      fill: th.color,
                     }}
                   />
                 ))}
@@ -449,25 +471,25 @@ export default function FitnessPage() {
       {/* Legende / Erklärung */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-sm">Score-Berechnung</CardTitle>
+          <CardTitle className="text-sm">{t('legend.title')}</CardTitle>
         </CardHeader>
         <CardContent className="pt-0">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-2 text-sm text-muted-foreground">
             <div className="flex justify-between gap-4">
-              <span className="font-medium text-blue-400">Trainingslast (CTL)</span>
-              <span>bis 35 Punkte</span>
+              <span className="font-medium text-blue-400">{t('components.ctl.label')}</span>
+              <span>{t('legend.ctlPoints')}</span>
             </div>
             <div className="flex justify-between gap-4">
-              <span className="font-medium text-emerald-400">Aerobe Effizienz</span>
-              <span>bis 25 Punkte</span>
+              <span className="font-medium text-emerald-400">{t('components.efficiency.label')}</span>
+              <span>{t('legend.efficiencyPoints')}</span>
             </div>
             <div className="flex justify-between gap-4">
-              <span className="font-medium text-amber-400">Form (TSB)</span>
-              <span>bis 20 Punkte</span>
+              <span className="font-medium text-amber-400">{t('components.form.label')}</span>
+              <span>{t('legend.formPoints')}</span>
             </div>
             <div className="flex justify-between gap-4">
-              <span className="font-medium text-violet-400">Kontinuität</span>
-              <span>bis 20 Punkte</span>
+              <span className="font-medium text-violet-400">{t('components.consistency.label')}</span>
+              <span>{t('legend.consistencyPoints')}</span>
             </div>
           </div>
           <div className="mt-4 flex flex-wrap gap-3">
@@ -476,14 +498,12 @@ export default function FitnessPage() {
                 key={lv}
                 className={`text-xs px-2.5 py-0.5 rounded-full border ${lc.bg} ${lc.text} ${lc.border}`}
               >
-                {lv}
+                {levelLabel(t, lv)}
               </span>
             ))}
           </div>
           <p className="mt-3 text-xs text-muted-foreground leading-relaxed">
-            CTL = 42-Tage-EMA aus hrTSS. Effizienz = Ø Speed (km/h) / Ø HR × 100, letzter 3-Monats-Schnitt,
-            bewertet als Perzentile deiner persönlichen Geschichte.
-            Form = CTL − ATL (7-Tage EMA). Kontinuität = Wochen mit mind. 1 Ride in den letzten 8 Wochen.
+            {t('legend.explanation')}
           </p>
         </CardContent>
       </Card>

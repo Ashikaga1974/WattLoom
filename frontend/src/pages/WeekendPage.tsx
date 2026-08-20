@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Cell, LineChart, Line, Legend,
@@ -13,7 +14,8 @@ import { useConfig } from '@/lib/config-context';
 
 type WwData = Awaited<ReturnType<typeof api.weekendWeekday>>;
 
-const WEEKDAY_LABELS = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
+// Reihenfolge der Wochentags-Kürzel; Übersetzung erfolgt je Komponente via t(`weekday.${key}`)
+const WEEKDAY_KEYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const;
 const IS_WEEKEND = [false, false, false, false, false, true, true];
 
 const COLOR_WEEKDAY = 'hsl(221, 83%, 53%)'; // blue
@@ -31,18 +33,19 @@ interface MetricRow {
 }
 
 function DuelCard({ data }: { data: WwData }) {
+  const { t } = useTranslation('weekend');
   const wd = data.weekday;
   const we = data.weekend;
 
   const metrics: MetricRow[] = [
-    { label: 'Rides',          weekday: wd.rides,            weekend: we.rides,            unit: '',      higherIsBetter: true },
-    { label: 'Ø Distanz',      weekday: wd.avg_km,           weekend: we.avg_km,           unit: ' km',   higherIsBetter: true },
-    { label: 'Ø Geschw.',      weekday: wd.avg_kmh,          weekend: we.avg_kmh,          unit: ' km/h', higherIsBetter: true },
-    { label: 'Ø Dauer',        weekday: wd.avg_duration_min, weekend: we.avg_duration_min, unit: ' min',  higherIsBetter: false },
-    { label: 'Ø Höhenmeter',   weekday: wd.avg_elevation_m,  weekend: we.avg_elevation_m,  unit: ' m',    higherIsBetter: true },
-    { label: 'Ø Herzfrequenz', weekday: wd.avg_hr,           weekend: we.avg_hr,           unit: ' bpm',  higherIsBetter: false },
-    { label: 'Ø Kalorien',     weekday: wd.avg_calories,     weekend: we.avg_calories,     unit: ' kcal', higherIsBetter: true },
-    { label: 'Gesamt-km',      weekday: wd.total_km,         weekend: we.total_km,         unit: ' km',   higherIsBetter: true,
+    { label: t('metrics.rides'),          weekday: wd.rides,            weekend: we.rides,            unit: '',      higherIsBetter: true },
+    { label: t('metrics.avgDistance'),    weekday: wd.avg_km,           weekend: we.avg_km,           unit: ' km',   higherIsBetter: true },
+    { label: t('metrics.avgSpeed'),       weekday: wd.avg_kmh,          weekend: we.avg_kmh,          unit: ' km/h', higherIsBetter: true },
+    { label: t('metrics.avgDuration'),    weekday: wd.avg_duration_min, weekend: we.avg_duration_min, unit: ' min',  higherIsBetter: false },
+    { label: t('metrics.avgElevation'),   weekday: wd.avg_elevation_m,  weekend: we.avg_elevation_m,  unit: ' m',    higherIsBetter: true },
+    { label: t('metrics.avgHeartRate'),   weekday: wd.avg_hr,           weekend: we.avg_hr,           unit: ' bpm',  higherIsBetter: false },
+    { label: t('metrics.avgCalories'),    weekday: wd.avg_calories,     weekend: we.avg_calories,     unit: ' kcal', higherIsBetter: true },
+    { label: t('metrics.totalKm'),        weekday: wd.total_km,         weekend: we.total_km,         unit: ' km',   higherIsBetter: true,
       fmt: v => fmtNum(v, 0) },
   ];
 
@@ -66,18 +69,18 @@ function DuelCard({ data }: { data: WwData }) {
       {/* Header-Duel */}
       <div className="grid grid-cols-[1fr_auto_1fr] border-b border-border">
         <div className="flex flex-col items-center gap-0.5 py-4" style={{ background: `${COLOR_WEEKDAY}18` }}>
-          <p className="text-xs font-medium uppercase tracking-wider" style={{ color: COLOR_WEEKDAY }}>Werktag</p>
+          <p className="text-xs font-medium uppercase tracking-wider" style={{ color: COLOR_WEEKDAY }}>{t('duel.weekdayLabel')}</p>
           <p className="text-3xl font-bold tabular-nums" style={{ color: COLOR_WEEKDAY }}>{wd.rides}</p>
-          <p className="text-xs text-muted-foreground">Rides</p>
+          <p className="text-xs text-muted-foreground">{t('duel.rides')}</p>
         </div>
         <div className="flex flex-col items-center justify-center px-4 py-4 border-x border-border">
           <p className="text-lg font-bold text-muted-foreground">vs.</p>
           <p className="text-xs text-muted-foreground mt-1">{wdWins}:{weWins}</p>
         </div>
         <div className="flex flex-col items-center gap-0.5 py-4" style={{ background: `${COLOR_WEEKEND}18` }}>
-          <p className="text-xs font-medium uppercase tracking-wider" style={{ color: COLOR_WEEKEND }}>Wochenende</p>
+          <p className="text-xs font-medium uppercase tracking-wider" style={{ color: COLOR_WEEKEND }}>{t('duel.weekendLabel')}</p>
           <p className="text-3xl font-bold tabular-nums" style={{ color: COLOR_WEEKEND }}>{we.rides}</p>
-          <p className="text-xs text-muted-foreground">Rides</p>
+          <p className="text-xs text-muted-foreground">{t('duel.rides')}</p>
         </div>
       </div>
 
@@ -116,6 +119,7 @@ function DuelCard({ data }: { data: WwData }) {
 // ─── Custom Tooltips ──────────────────────────────────────────────────────────
 
 function WochentagTooltip({ active, payload, label }: { active?: boolean; payload?: any[]; label?: string }) {
+  const { t } = useTranslation('weekend');
   if (!active || !payload?.length) return null;
   const d = payload[0]?.payload;
   return (
@@ -123,15 +127,16 @@ function WochentagTooltip({ active, payload, label }: { active?: boolean; payloa
       active={active}
       label={label}
       rows={[
-        { label: 'Rides', value: `${d?.rides ?? 0}` },
-        { label: 'Ø Distanz', value: `${d?.avg_km?.toFixed(1) ?? '–'} km` },
-        { label: 'Ø Speed', value: `${d?.avg_kmh?.toFixed(1) ?? '–'} km/h` },
+        { label: t('tooltip.rides'), value: `${d?.rides ?? 0}` },
+        { label: t('tooltip.avgDistance'), value: `${d?.avg_km?.toFixed(1) ?? '–'} km` },
+        { label: t('tooltip.avgSpeed'), value: `${d?.avg_kmh?.toFixed(1) ?? '–'} km/h` },
       ]}
     />
   );
 }
 
 function DistanzTooltip({ active, payload, label }: { active?: boolean; payload?: any[]; label?: string }) {
+  const { t } = useTranslation('weekend');
   if (!active || !payload?.length) return null;
   const d = payload[0]?.payload;
   return (
@@ -139,14 +144,15 @@ function DistanzTooltip({ active, payload, label }: { active?: boolean; payload?
       active={active}
       label={label}
       rows={[
-        { label: 'Ø Distanz', value: `${fmtNum(d?.avg_km ?? 0, 1)} km` },
-        { label: 'Ø Speed', value: `${fmtNum(d?.avg_kmh ?? 0, 1)} km/h` },
+        { label: t('tooltip.avgDistance'), value: `${fmtNum(d?.avg_km ?? 0, 1)} km` },
+        { label: t('tooltip.avgSpeed'), value: `${fmtNum(d?.avg_kmh ?? 0, 1)} km/h` },
       ]}
     />
   );
 }
 
 function MonatsverlaufTooltip({ active, payload, label }: { active?: boolean; payload?: any[]; label?: string }) {
+  const { t } = useTranslation('weekend');
   if (!active || !payload?.length) return null;
   const weekday = payload.find((p: any) => p.dataKey === 'weekday_km');
   const weekend = payload.find((p: any) => p.dataKey === 'weekend_km');
@@ -155,8 +161,8 @@ function MonatsverlaufTooltip({ active, payload, label }: { active?: boolean; pa
       active={active}
       label={label}
       rows={[
-        { label: 'Werktag', value: weekday ? `${fmtNum(weekday.value, 0)} km` : null, color: COLOR_WEEKDAY },
-        { label: 'Wochenende', value: weekend ? `${fmtNum(weekend.value, 0)} km` : null, color: COLOR_WEEKEND },
+        { label: t('tooltip.weekday'), value: weekday ? `${fmtNum(weekday.value, 0)} km` : null, color: COLOR_WEEKDAY },
+        { label: t('tooltip.weekend'), value: weekend ? `${fmtNum(weekend.value, 0)} km` : null, color: COLOR_WEEKEND },
       ]}
     />
   );
@@ -165,8 +171,10 @@ function MonatsverlaufTooltip({ active, payload, label }: { active?: boolean; pa
 // ─── Wochentag-Chart ──────────────────────────────────────────────────────────
 
 function WochentagChart({ data }: { data: WwData['by_weekday'] }) {
+  const { t } = useTranslation('weekend');
   const { chart_height } = useConfig();
-  const chartData = WEEKDAY_LABELS.map((label, i) => {
+  const weekdayLabels = WEEKDAY_KEYS.map(k => t(`weekday.${k}`));
+  const chartData = weekdayLabels.map((label, i) => {
     const row = data.find(r => r.weekday_idx === i);
     return {
       label,
@@ -181,7 +189,7 @@ function WochentagChart({ data }: { data: WwData['by_weekday'] }) {
     <Card className="shadow-sm">
       <CardHeader>
         <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-          Rides pro Wochentag
+          {t('charts.ridesPerWeekday')}
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -203,10 +211,10 @@ function WochentagChart({ data }: { data: WwData['by_weekday'] }) {
         {/* Legende */}
         <div className="mt-3 flex justify-center gap-6 text-xs text-muted-foreground">
           <span className="flex items-center gap-1.5">
-            <span className="inline-block h-3 w-3 rounded-sm" style={{ background: COLOR_WEEKDAY }} /> Werktag
+            <span className="inline-block h-3 w-3 rounded-sm" style={{ background: COLOR_WEEKDAY }} /> {t('legend.weekday')}
           </span>
           <span className="flex items-center gap-1.5">
-            <span className="inline-block h-3 w-3 rounded-sm" style={{ background: COLOR_WEEKEND }} /> Wochenende
+            <span className="inline-block h-3 w-3 rounded-sm" style={{ background: COLOR_WEEKEND }} /> {t('legend.weekend')}
           </span>
         </div>
       </CardContent>
@@ -217,6 +225,7 @@ function WochentagChart({ data }: { data: WwData['by_weekday'] }) {
 // ─── Monatsverlauf ────────────────────────────────────────────────────────────
 
 function MonatsverlaufChart({ data }: { data: WwData['monthly'] }) {
+  const { t } = useTranslation('weekend');
   const { chart_height } = useConfig();
   const filtered = data.filter(d => d.month >= '2020');
   const chartData = filtered.map(d => ({
@@ -232,7 +241,7 @@ function MonatsverlaufChart({ data }: { data: WwData['monthly'] }) {
     <Card className="shadow-sm">
       <CardHeader>
         <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-          Monatsverlauf · km Werktag vs. Wochenende
+          {t('charts.monthlyProgression')}
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -245,7 +254,7 @@ function MonatsverlaufChart({ data }: { data: WwData['monthly'] }) {
               tickFormatter={v => `${v}`} />
             <Tooltip content={<MonatsverlaufTooltip />} />
             <Legend
-              formatter={(value) => value === 'weekday_km' ? 'Werktag' : 'Wochenende'}
+              formatter={(value) => value === 'weekday_km' ? t('legend.weekday') : t('legend.weekend')}
               wrapperStyle={{ fontSize: 12 }}
             />
             <Line type="monotone" dataKey="weekday_km" stroke={COLOR_WEEKDAY}
@@ -262,6 +271,7 @@ function MonatsverlaufChart({ data }: { data: WwData['monthly'] }) {
 // ─── Haupt-Seite ──────────────────────────────────────────────────────────────
 
 export default function WeekendPage() {
+  const { t } = useTranslation('weekend');
   const { chart_height } = useConfig();
   const [searchParams, setSearchParams] = useSearchParams();
   const yearParam = searchParams.get('year');
@@ -293,7 +303,7 @@ export default function WeekendPage() {
   if (loading || !data) {
     return (
       <div className="space-y-6">
-        <PageHeader title="Wochenend- vs. Werktagsvergleich" />
+        <PageHeader title={t('title')} />
         <div className="h-64 animate-pulse rounded-xl bg-muted" />
         <div className="grid gap-6 lg:grid-cols-2">
           <div className="h-48 animate-pulse rounded-xl bg-muted" />
@@ -306,8 +316,8 @@ export default function WeekendPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Wochenend- vs. Werktagsvergleich"
-        subtitle="Wie unterscheiden sich Samstag/Sonntag von Montag–Freitag?"
+        title={t('title')}
+        subtitle={t('subtitle')}
         years={availableYears}
         selectedYear={filterYear ?? null}
         onYearChange={onYearChange}
@@ -324,15 +334,15 @@ export default function WeekendPage() {
         <Card className="shadow-sm">
           <CardHeader>
             <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-              Ø Distanz pro Wochentag
+              {t('charts.avgDistancePerWeekday')}
             </CardTitle>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={chart_height}>
               <BarChart
-                data={WEEKDAY_LABELS.map((label, i) => {
+                data={WEEKDAY_KEYS.map((key, i) => {
                   const row = data.by_weekday.find(r => r.weekday_idx === i);
-                  return { label, avg_km: row?.avg_km ?? 0, avg_kmh: row?.avg_kmh ?? 0, isWeekend: IS_WEEKEND[i] };
+                  return { label: t(`weekday.${key}`), avg_km: row?.avg_km ?? 0, avg_kmh: row?.avg_kmh ?? 0, isWeekend: IS_WEEKEND[i] };
                 })}
                 margin={{ top: 4, right: 8, bottom: 0, left: 0 }}
                 barCategoryGap="28%"
@@ -343,13 +353,13 @@ export default function WeekendPage() {
                   tickFormatter={v => `${v}`} />
                 <Tooltip content={<DistanzTooltip />} />
                 <Bar dataKey="avg_km" radius={[4, 4, 0, 0]} maxBarSize={48} name="avg_km">
-                  {WEEKDAY_LABELS.map((_, i) => (
+                  {WEEKDAY_KEYS.map((_, i) => (
                     <Cell key={i} fill={IS_WEEKEND[i] ? COLOR_WEEKEND : COLOR_WEEKDAY} fillOpacity={0.85} />
                   ))}
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
-            <div className="mt-1 text-center text-xs text-muted-foreground">km</div>
+            <div className="mt-1 text-center text-xs text-muted-foreground">{t('charts.km')}</div>
           </CardContent>
         </Card>
       </div>

@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface PageHeaderProps {
@@ -10,6 +11,7 @@ interface PageHeaderProps {
 }
 
 export function PageHeader({ title, subtitle, years, selectedYear, onYearChange, children }: PageHeaderProps) {
+  const { t } = useTranslation('common');
   return (
     <div className="flex items-start justify-between mb-6">
       <div>
@@ -26,11 +28,11 @@ export function PageHeader({ title, subtitle, years, selectedYear, onYearChange,
               <SelectValue>
                 {selectedYear !== null && selectedYear !== undefined && String(selectedYear) !== 'all'
                   ? String(selectedYear)
-                  : 'Alle Jahre'}
+                  : t('allYears')}
               </SelectValue>
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Alle Jahre</SelectItem>
+              <SelectItem value="all">{t('allYears')}</SelectItem>
               {years.map(y => (
                 <SelectItem key={y} value={String(y)}>{y}</SelectItem>
               ))}

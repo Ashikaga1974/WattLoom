@@ -5,11 +5,9 @@ from backend.utils import MS_TO_KMH
 
 router = APIRouter(prefix="/analytics", tags=["analytics"])
 
-# Beide Sprachvarianten (EN + DE Strava-Export)
-RIDE_TYPES = (
-    'Ride', 'VirtualRide', 'EBikeRide', 'GravelRide', 'MountainBikeRide',
-    'Radfahrt', 'Virtuelles Radfahren', 'E-Bike-Fahrt', 'Gravelbike-Fahrt', 'Mountainbikefahrt',
-)
+# activity_type/sport_type ist seit der i18n-Migration ein kanonischer Code (siehe
+# backend/importer/sport_codes.py) statt eines deutschen/englischen Klartext-Werts.
+RIDE_TYPES = ('ride',)
 
 def _hr_max_fallback(conn) -> float:
     """Liest hr_max aus der Config (Einstellungen); Standard 185 wenn nicht gesetzt."""
@@ -356,10 +354,9 @@ def weekly_volume(weeks: int = Query(52)):
                 GROUP BY sport_type
             """, (ws, we)).fetchall()
 
-            # Kraft-ähnliche Typen aus Strava und FIT-Import zusammenfassen
-            _KRAFT = {"Weight Training", "Krafttraining", "Strength Training", "Fitness"}
-            weight_s  = sum(r["total_s"] for r in other if r["sport_type"] in _KRAFT)
-            workout_s = sum(r["total_s"] for r in other if r["sport_type"] not in _KRAFT)
+            # sport_type ist seit der i18n-Migration ein kanonischer Code (sport_codes.py)
+            weight_s  = sum(r["total_s"] for r in other if r["sport_type"] == "strength_training")
+            workout_s = sum(r["total_s"] for r in other if r["sport_type"] != "strength_training")
             result.append({
                 "week_start": ws,
                 "weeks_ago": i,
@@ -1451,7 +1448,7 @@ def fitness_fingerprint():
             "score": 0, "level": "Einsteiger",
             "components": {}, "history": [],
             "trend": "neutral",
-            "insight": "Noch keine Aktivitätsdaten vorhanden.",
+            "insight_parts": ["no_data"],
         }
 
     ride_dates: set[str] = {r["date"] for r in ride_date_rows}
@@ -1564,34 +1561,36 @@ def fitness_fingerprint():
         if s >= 30: return "Aktiv"
         return "Einsteiger"
 
-    # --- Insight-Text ---
+    # --- Insight: Codes statt fertigem Satz – Frontend übersetzt und fügt zusammen
+    # (siehe backend/importer/sport_codes.py für dieselbe Begründung: Backend kennt bei
+    # dieser lokalen Single-User-App kein zuverlässiges Sprachsignal pro Request).
     parts: list[str] = []
     if current_ctl >= 60:
-        parts.append("Sehr hohe Trainingslast – starke CTL.")
+        parts.append("ctl_very_high")
     elif current_ctl >= 35:
-        parts.append("Solide Trainingsbasis.")
+        parts.append("ctl_solid")
     else:
-        parts.append("CTL noch ausbaufähig.")
+        parts.append("ctl_developing")
 
     if eff_percentile is not None:
         if eff_percentile >= 75:
-            parts.append("Aerobe Effizienz überdurchschnittlich stark.")
+            parts.append("efficiency_above_avg")
         elif eff_percentile >= 40:
-            parts.append("Aerobe Effizienz im Normbereich.")
+            parts.append("efficiency_normal")
         else:
-            parts.append("Effizienz noch unter dem persönlichen Schnitt.")
+            parts.append("efficiency_below_avg")
 
     if current_tsb >= 5:
-        parts.append("Gute Frische – ideal für intensive Einheiten oder Wettkampf.")
+        parts.append("form_good_freshness")
     elif current_tsb >= -10:
-        parts.append("Normale Ermüdung – Trainingsblock läuft.")
+        parts.append("form_normal_fatigue")
     else:
-        parts.append("TSB niedrig – Erholung einplanen.")
+        parts.append("form_low")
 
     if weeks_active >= 7:
-        parts.append("Sehr regelmäßig in den letzten 8 Wochen.")
+        parts.append("consistency_very_regular")
     elif weeks_active <= 3:
-        parts.append("Kontinuität noch verbesserungsfähig.")
+        parts.append("consistency_improvable")
 
     # --- Monatliche Score-History (letzte 13 Monate) ---
     history: list[dict] = []
@@ -1640,6 +1639,6 @@ def fitness_fingerprint():
             },
         },
         "trend": trend,
-        "insight": " ".join(parts),
+        "insight_parts": parts,
         "history": history,
     }

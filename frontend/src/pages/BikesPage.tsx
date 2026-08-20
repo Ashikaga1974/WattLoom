@@ -1,11 +1,19 @@
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import { api, type Bike, type BikeCompareData, type BikeComponent, type DeletedComponent, type Purchase, type StorageLocation } from '@/lib/api';
 import { PageHeader } from '@/components/ui/page-header';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { fmtNum } from '@/lib/format';
+
+// Übersetzt einen Komponenten-Typ-Code (chain, tire_front, …) fürs Anzeigen. Unbekannte/
+// freihändig gepflegte Alt-Werte (nicht per Migration erkannt) fallen auf den Rohwert zurück.
+function componentLabel(code: string, t: TFunction<'common'>): string {
+  return t(`component.${code}`, { defaultValue: code });
+}
 
 // ─── Vergleich-Hilfsfunktionen ────────────────────────────────────────────────
 
@@ -32,31 +40,46 @@ function yTicks(maxVal: number, steps = 5): number[] {
 }
 
 const ROWS = [
-  { label: 'Rides',             key: 'rides',             fmt: (v: number) => fmtNum(v),    unit: '' },
-  { label: 'Gesamt km',         key: 'total_km',          fmt: (v: number) => fmtNum(v, 1), unit: ' km' },
-  { label: 'Gesamt Höhenmeter', key: 'total_elevation_m', fmt: (v: number) => fmtNum(v),    unit: ' m' },
-  { label: 'Gesamt Stunden',    key: 'total_hours',       fmt: (v: number) => fmtNum(v, 1), unit: ' h' },
-  { label: 'Ø Distanz',         key: 'avg_dist_km',       fmt: (v: number) => fmtNum(v, 1), unit: ' km' },
-  { label: 'Ø Geschwindigkeit', key: 'avg_speed_kmh',     fmt: (v: number) => fmtNum(v, 1), unit: ' km/h' },
-  { label: 'Ø Höhenmeter/Ride', key: 'avg_elevation_m',   fmt: (v: number) => fmtNum(v),    unit: ' m' },
-  { label: 'Unterhaltskosten',  key: 'total_cost',        fmt: (v: number) => fmtNum(v, 2), unit: ' €' },
-  { label: 'Kosten/100 km',     key: 'cost_per_100km',    fmt: (v: number | null) => fmtNum(v ?? 0, 2), unit: ' €' },
+  { labelKey: 'compare.rows.rides',              key: 'rides',             fmt: (v: number) => fmtNum(v),    unit: '' },
+  { labelKey: 'compare.rows.totalKm',            key: 'total_km',          fmt: (v: number) => fmtNum(v, 1), unit: ' km' },
+  { labelKey: 'compare.rows.totalElevation',     key: 'total_elevation_m', fmt: (v: number) => fmtNum(v),    unit: ' m' },
+  { labelKey: 'compare.rows.totalHours',         key: 'total_hours',       fmt: (v: number) => fmtNum(v, 1), unit: ' h' },
+  { labelKey: 'compare.rows.avgDistance',        key: 'avg_dist_km',       fmt: (v: number) => fmtNum(v, 1), unit: ' km' },
+  { labelKey: 'compare.rows.avgSpeed',           key: 'avg_speed_kmh',     fmt: (v: number) => fmtNum(v, 1), unit: ' km/h' },
+  { labelKey: 'compare.rows.avgElevationPerRide', key: 'avg_elevation_m',  fmt: (v: number) => fmtNum(v),    unit: ' m' },
+  { labelKey: 'compare.rows.totalCost',          key: 'total_cost',       fmt: (v: number) => fmtNum(v, 2), unit: ' €' },
+  { labelKey: 'compare.rows.costPer100km',       key: 'cost_per_100km',   fmt: (v: number | null) => fmtNum(v ?? 0, 2), unit: ' €' },
 ];
 
 // ─── Verschleiß-Hilfsfunktionen ──────────────────────────────────────────────
 
+// Codes statt deutscher Literale (siehe backend/database.py-Migration, die bestehende Zeilen
+// auf dieselben Codes umstellt) – Anzeige über componentLabel()/t('component.<code>').
 const COMPONENT_TYPES: { type: string; threshold: number }[] = [
-  { type: 'Kette',         threshold: 2000  },
-  { type: 'Kassette',      threshold: 8000  },
-  { type: 'Mantel vorne',   threshold: 5000  },
-  { type: 'Mantel hinten',  threshold: 5000  },
-  { type: 'Schlauch vorne', threshold: 5000  },
-  { type: 'Schlauch hinten',threshold: 5000  },
-  { type: 'Bremsbeläge',   threshold: 5000  },
-  { type: 'Kabel',         threshold: 10000 },
-  { type: 'Schaltwerk',    threshold: 20000 },
-  { type: 'Sonstiges',     threshold: 5000  },
+  { type: 'chain',      threshold: 2000  },
+  { type: 'cassette',   threshold: 8000  },
+  { type: 'tire_front', threshold: 5000  },
+  { type: 'tire_rear',  threshold: 5000  },
+  { type: 'tube_front', threshold: 5000  },
+  { type: 'tube_rear',  threshold: 5000  },
+  { type: 'brake_pads', threshold: 5000  },
+  { type: 'cable',      threshold: 10000 },
+  { type: 'derailleur', threshold: 20000 },
+  { type: 'other',      threshold: 5000  },
 ];
+
+// Stichwörter (DE+EN) zur Namens-Erkennung von Einkäufen ohne expliziten component_type
+// (z.B. "Fincci Bicycle Tyre 700X23C") – unabhängig von den Anzeige-Codes oben, da ein
+// deutscher oder fremdsprachiger Artikelname nie die Codes selbst enthält.
+const BASE_KEYWORDS: Record<string, string> = {
+  kette: 'chain', chain: 'chain',
+  kassette: 'cassette', cassette: 'cassette',
+  mantel: 'tire', reifen: 'tire', tire: 'tire', tyre: 'tire',
+  schlauch: 'tube', tube: 'tube',
+  bremsbelag: 'brake_pads', bremsbeläge: 'brake_pads', 'brake pad': 'brake_pads',
+  kabel: 'cable', cable: 'cable',
+  schaltwerk: 'derailleur', derailleur: 'derailleur',
+};
 
 function wearColor(pct: number): string {
   if (pct >= 100) return '#ef4444';
@@ -76,6 +99,7 @@ function ComponentRow({
   stockItems: Purchase[];
   onChanged: () => void;
 }) {
+  const { t } = useTranslation(['bikes', 'common']);
   const pct = comp.pct_used ?? 0;
   const color = wearColor(pct);
   const [busy, setBusy] = useState(false);
@@ -101,7 +125,7 @@ function ComponentRow({
       const created = await api.addPurchase({
         name: newStockName.trim(), shop: null, url: null, price: null,
         order_date: null, delivery_date: null, quantity: 0, notes: null,
-        component_type: comp.type.replace(/ (vorne|hinten)$/, ''),
+        component_type: comp.type.replace(/_(front|rear)$/, ''),
         storage_location_id: null,
       });
       return created.id;
@@ -178,21 +202,21 @@ function ComponentRow({
   if (editing) {
     return (
       <div className="rounded-xl border p-4 space-y-4" style={{ borderColor: 'var(--primary)' }}>
-        <p className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Komponente bearbeiten</p>
+        <p className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">{t('componentRow.editTitle')}</p>
         <div className="grid grid-cols-2 gap-3">
           <label className={labelCls}>
-            <span className="block">Typ</span>
+            <span className="block">{t('fields.type')}</span>
             <select value={editType} onChange={e => setEditType(e.target.value)} className={fieldCls}>
-              {COMPONENT_TYPES.map(c => <option key={c.type} value={c.type}>{c.type}</option>)}
+              {COMPONENT_TYPES.map(c => <option key={c.type} value={c.type}>{componentLabel(c.type, t)}</option>)}
             </select>
           </label>
           <label className={labelCls}>
-            <span className="block">Wartungsintervall (km)</span>
+            <span className="block">{t('fields.maintenanceInterval')}</span>
             <input type="number" value={editThreshold} onChange={e => setEditThreshold(Number(e.target.value))}
               className={fieldCls} min={100} step={100} />
           </label>
           <label className={labelCls}>
-            <span className="block">Einbaudatum</span>
+            <span className="block">{t('fields.installDate')}</span>
             <input type="date" value={editDate} onChange={e => setEditDate(e.target.value)} className={fieldCls} />
           </label>
         </div>
@@ -200,11 +224,11 @@ function ComponentRow({
           <button onClick={handleSave} disabled={busy}
             className="text-sm px-4 py-1.5 rounded-md font-medium disabled:opacity-40"
             style={{ background: 'var(--primary)', color: 'var(--primary-foreground)' }}>
-            Speichern
+            {t('actions.save')}
           </button>
           <button onClick={() => setEditing(false)}
             className="text-sm px-4 py-1.5 rounded-md border border-border text-muted-foreground hover:bg-muted">
-            Abbrechen
+            {t('actions.cancel')}
           </button>
         </div>
       </div>
@@ -220,22 +244,22 @@ function ComponentRow({
       {/* Titel + Metadaten + Fortschritt in % */}
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-x-2.5 gap-y-1 min-w-0 flex-wrap">
-          <span className="text-sm font-semibold truncate">{comp.type}</span>
-          {isRetired && <Badge variant="secondary">Inaktiv</Badge>}
+          <span className="text-sm font-semibold truncate">{componentLabel(comp.type, t)}</span>
+          {isRetired && <Badge variant="secondary">{t('status.inactive')}</Badge>}
           {comp.purchase_name && (
-            <span className="text-sm text-muted-foreground" title="Verknüpfter Lagerartikel">
+            <span className="text-sm text-muted-foreground" title={t('componentRow.linkedPurchaseTitle')}>
               📦 {comp.purchase_name}
             </span>
           )}
           {comp.purchase_url && (
             <a href={comp.purchase_url} target="_blank" rel="noopener noreferrer"
-              className="text-sm text-primary hover:underline" title="Bestelllink öffnen">
-              ↗ Link
+              className="text-sm text-primary hover:underline" title={t('componentRow.orderLinkTitle')}>
+              {t('componentRow.orderLinkText')}
             </a>
           )}
-          {installedLabel && <span className="text-sm text-muted-foreground">seit {installedLabel}</span>}
+          {installedLabel && <span className="text-sm text-muted-foreground">{t('componentRow.since', { date: installedLabel })}</span>}
           {isRetired && comp.uninstalled_km != null && (
-            <span className="text-sm text-muted-foreground">ausgebaut nach {fmtNum(Math.round(comp.uninstalled_km))} km</span>
+            <span className="text-sm text-muted-foreground">{t('componentRow.uninstalledAfter', { km: fmtNum(Math.round(comp.uninstalled_km)) })}</span>
           )}
         </div>
         <span className="text-sm font-bold tabular-nums shrink-0" style={{ color }}>
@@ -252,9 +276,9 @@ function ComponentRow({
         <div className="flex items-center justify-between text-sm text-muted-foreground">
           <span className="tabular-nums">{fmtNum(Math.round(comp.km_since_service))} / {fmtNum(comp.km_threshold ?? 0)} km</span>
           {pct >= 100
-            ? <span className="font-semibold" style={{ color }}>Wartung fällig!</span>
+            ? <span className="font-semibold" style={{ color }}>{t('componentRow.maintenanceDue')}</span>
             : comp.estimated_service_date
-              ? <span>ca. {new Date(comp.estimated_service_date + 'T00:00:00').toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })}</span>
+              ? <span>{t('componentRow.estimatedDate', { date: new Date(comp.estimated_service_date + 'T00:00:00').toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' }) })}</span>
               : null}
         </div>
       </div>
@@ -263,34 +287,34 @@ function ComponentRow({
       <div className="flex flex-wrap items-center justify-end gap-1.5">
         <button onClick={openEdit} disabled={busy}
           className={`${actionBtn} border-blue-400 text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950`}
-          title="Bearbeiten">
-          ✎ Bearbeiten
+          title={t('common:actions.edit')}>
+          ✎ {t('common:actions.edit')}
         </button>
         {!isRetired && (
           <button onClick={() => { setUninstallKm(Math.round(comp.km_since_service)); setUninstalling(v => !v); }} disabled={busy}
             className={`${actionBtn} border-amber-400 text-amber-600 dark:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-950`}
-            title="Komponente ausbauen und ggf. ins Lager zurücklegen">
-            Ausbauen
+            title={t('componentRow.uninstallButtonTitle')}>
+            {t('componentRow.uninstallButton')}
           </button>
         )}
         {isRetired && comp.uninstalled_km != null && comp.purchase_item_id == null && (
           <button onClick={() => setLinking(v => !v)} disabled={busy}
             className={`${actionBtn} border-amber-400 text-amber-600 dark:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-950`}
-            title="Nachträglich einem Lagerartikel zuordnen und zurücklegen">
-            Ins Lager
+            title={t('componentRow.toStockButtonTitle')}>
+            {t('componentRow.toStockButton')}
           </button>
         )}
         {comp.uninstalled_km == null && comp.purchase_item_id == null && (
           <button onClick={() => setLinking(v => !v)} disabled={busy}
             className={`${actionBtn} border-amber-400 text-amber-600 dark:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-950`}
-            title="Noch verbaute Komponente nachträglich einem Einkauf zuordnen (bleibt verbaut)">
-            Verknüpfen
+            title={t('componentRow.linkButtonTitle')}>
+            {t('componentRow.linkButton')}
           </button>
         )}
         <button onClick={handleDelete} disabled={busy}
           className={`${actionBtn} border-red-300 text-red-500 hover:bg-red-50 dark:hover:bg-red-950`}
-          title="Komponente entfernen">
-          Löschen
+          title={t('componentRow.deleteButtonTitle')}>
+          {t('common:actions.delete')}
         </button>
       </div>
 
@@ -299,7 +323,7 @@ function ComponentRow({
         <div className="rounded-lg border border-amber-300 dark:border-amber-800 bg-amber-50/60 dark:bg-amber-950/30 p-3 space-y-3">
           <div className="flex flex-wrap items-end gap-3">
             <label className="space-y-1">
-              <span className="block text-sm text-muted-foreground">Gelaufene km</span>
+              <span className="block text-sm text-muted-foreground">{t('componentRow.kmRiddenLabel')}</span>
               <input
                 type="number"
                 value={uninstallKm}
@@ -310,31 +334,31 @@ function ComponentRow({
             </label>
             {comp.purchase_item_id == null && (
               <label className="space-y-1 flex-1 min-w-[200px]">
-                <span className="block text-sm text-muted-foreground">Lagerbezug (optional)</span>
+                <span className="block text-sm text-muted-foreground">{t('componentRow.stockRefLabel')}</span>
                 <select
                   value={uninstallPurchaseId}
                   onChange={e => setUninstallPurchaseId(e.target.value)}
                   className={panelFieldCls}
-                  title="Für Altbestand ohne Lagerbezug: nachträglich einem Einkauf zuordnen und zurücklegen"
+                  title={t('componentRow.stockRefTitle')}
                 >
-                  <option value="">– kein Lagerbezug –</option>
+                  <option value="">{t('componentRow.noStockRefOption')}</option>
                   {availableStock.map(p => (
                     <option key={p.id} value={p.id}>
                       {p.name} ({p.quantity - p.installed_count}x)
                     </option>
                   ))}
-                  <option value="__new__">Als Lagerartikel anlegen</option>
+                  <option value="__new__">{t('fields.createNewStockOption')}</option>
                 </select>
               </label>
             )}
             {uninstallPurchaseId === '__new__' && (
               <label className="space-y-1 flex-1 min-w-[160px]">
-                <span className="block text-sm text-muted-foreground">Name des Lagerartikels</span>
+                <span className="block text-sm text-muted-foreground">{t('fields.newItemName')}</span>
                 <input
                   type="text"
                   value={newStockName}
                   onChange={e => setNewStockName(e.target.value)}
-                  placeholder="z.B. Continental GP5000"
+                  placeholder={t('fields.newItemNamePlaceholder')}
                   className={panelFieldCls}
                 />
               </label>
@@ -343,11 +367,11 @@ function ComponentRow({
           <div className="flex gap-2">
             <button onClick={handleUninstall} disabled={busy || (uninstallPurchaseId === '__new__' && !newStockName.trim())}
               className="text-sm px-4 py-1.5 rounded-md font-medium border border-amber-400 text-amber-700 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/40 disabled:opacity-40">
-              {returnsToStock ? 'Bestätigen + ins Lager' : 'Bestätigen'}
+              {returnsToStock ? t('componentRow.confirmAndStock') : t('componentRow.confirm')}
             </button>
             <button onClick={() => { setUninstalling(false); setUninstallPurchaseId(''); setNewStockName(''); }}
               className="text-sm text-muted-foreground hover:underline">
-              Abbrechen
+              {t('common:actions.cancel')}
             </button>
           </div>
         </div>
@@ -358,34 +382,34 @@ function ComponentRow({
         <div className="rounded-lg border border-amber-300 dark:border-amber-800 bg-amber-50/60 dark:bg-amber-950/30 p-3 space-y-3">
           <p className="text-sm text-muted-foreground">
             {comp.uninstalled_km != null
-              ? 'Ordnet die ausgebaute Komponente einem Einkauf zu und legt sie ins Lager zurück.'
-              : 'Ordnet diese aktuell verbaute Komponente nachträglich einem Einkauf zu – sie bleibt verbaut.'}
+              ? t('componentRow.linkDescReturned')
+              : t('componentRow.linkDescStillInstalled')}
           </p>
           <div className="flex flex-wrap items-end gap-3">
             <label className="space-y-1 flex-1 min-w-[200px]">
-              <span className="block text-sm text-muted-foreground">Lagerartikel</span>
+              <span className="block text-sm text-muted-foreground">{t('fields.stockItem')}</span>
               <select
                 value={linkPurchaseId}
                 onChange={e => setLinkPurchaseId(e.target.value)}
                 className={panelFieldCls}
               >
-                <option value="">– Lagerartikel wählen –</option>
+                <option value="">{t('fields.noStockItemOption')}</option>
                 {availableStock.map(p => (
                   <option key={p.id} value={p.id}>
                     {p.name} ({p.quantity - p.installed_count}x)
                   </option>
                 ))}
-                <option value="__new__">Als Lagerartikel anlegen</option>
+                <option value="__new__">{t('fields.createNewStockOption')}</option>
               </select>
             </label>
             {linkPurchaseId === '__new__' && (
               <label className="space-y-1 flex-1 min-w-[160px]">
-                <span className="block text-sm text-muted-foreground">Name des Lagerartikels</span>
+                <span className="block text-sm text-muted-foreground">{t('fields.newItemName')}</span>
                 <input
                   type="text"
                   value={newStockName}
                   onChange={e => setNewStockName(e.target.value)}
-                  placeholder="z.B. Continental GP5000"
+                  placeholder={t('fields.newItemNamePlaceholder')}
                   className={panelFieldCls}
                 />
               </label>
@@ -394,11 +418,11 @@ function ComponentRow({
           <div className="flex gap-2">
             <button onClick={handleLinkToStock} disabled={busy || linkPurchaseId === '' || (linkPurchaseId === '__new__' && !newStockName.trim())}
               className="text-sm px-4 py-1.5 rounded-md font-medium border border-amber-400 text-amber-700 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/40 disabled:opacity-40">
-              Bestätigen
+              {t('componentRow.confirm')}
             </button>
             <button onClick={() => { setLinking(false); setLinkPurchaseId(''); setNewStockName(''); }}
               className="text-sm text-muted-foreground hover:underline">
-              Abbrechen
+              {t('common:actions.cancel')}
             </button>
           </div>
         </div>
@@ -407,25 +431,34 @@ function ComponentRow({
   );
 }
 
-// Typen die es in vorne/hinten-Varianten gibt
+// Typen die es in front/rear-Varianten gibt
 const POSITIONAL_BASES = Array.from(new Set(
   COMPONENT_TYPES
-    .filter(c => / (vorne|hinten)$/.test(c.type))
-    .map(c => c.type.replace(/ (vorne|hinten)$/, ''))
+    .filter(c => /_(front|rear)$/.test(c.type))
+    .map(c => c.type.replace(/_(front|rear)$/, ''))
     .filter(base =>
-      COMPONENT_TYPES.some(c => c.type === `${base} vorne`) &&
-      COMPONENT_TYPES.some(c => c.type === `${base} hinten`)
+      COMPONENT_TYPES.some(c => c.type === `${base}_front`) &&
+      COMPONENT_TYPES.some(c => c.type === `${base}_rear`)
     )
 ));
 
-// Basis-Typen für die Typ-Zuordnung bei Einkäufen (Vorne/Hinten-Varianten zusammengefasst)
+// Basis-Typen für die Typ-Zuordnung bei Einkäufen (Front/Rear-Varianten zusammengefasst)
 const PURCHASE_TYPE_OPTIONS = Array.from(new Set(
-  COMPONENT_TYPES.map(c => c.type.replace(/ (vorne|hinten)$/, ''))
+  COMPONENT_TYPES.map(c => c.type.replace(/_(front|rear)$/, ''))
 ));
 
+// Nur unter den positionalen Basen (tire, tube, …) suchen – für den Vorne/Hinten-Toggle
 function detectBase(purchaseName: string): string | null {
   const lower = purchaseName.toLowerCase();
-  return POSITIONAL_BASES.find(b => lower.includes(b.toLowerCase())) ?? null;
+  const code = Object.entries(BASE_KEYWORDS).find(([kw]) => lower.includes(kw))?.[1] ?? null;
+  return code && POSITIONAL_BASES.includes(code) ? code : null;
+}
+
+// Über alle Basis-Typen suchen – Fallback für nicht-positionale Typen ohne expliziten
+// component_type (z.B. "Kette" im Namen)
+function detectAnyBase(purchaseName: string): string | null {
+  const lower = purchaseName.toLowerCase();
+  return Object.entries(BASE_KEYWORDS).find(([kw]) => lower.includes(kw))?.[1] ?? null;
 }
 
 // Positional-Basis eines Einkaufs ermitteln: expliziter Typ hat Vorrang vor Namens-Erkennung
@@ -442,11 +475,12 @@ function AddComponentForm({
   stockItems: Purchase[];
   onAdded: () => void;
 }) {
+  const { t } = useTranslation(['bikes', 'common']);
   const [open, setOpen] = useState(false);
   const [selectedPurchaseId, setSelectedPurchaseId] = useState<number | ''>('');
   const [selectedType, setSelectedType] = useState(COMPONENT_TYPES[0].type);
   const [threshold, setThreshold] = useState(COMPONENT_TYPES[0].threshold);
-  const [position, setPosition] = useState<'vorne' | 'hinten'>('vorne');
+  const [position, setPosition] = useState<'front' | 'rear'>('front');
   const [installedAt, setInstalledAt] = useState(new Date().toISOString().slice(0, 10));
   const [carryOverReturnId, setCarryOverReturnId] = useState<number | ''>('');
   const [busy, setBusy] = useState(false);
@@ -456,7 +490,7 @@ function AddComponentForm({
 
   const detectedBase = selectedPurchase ? resolvePositionalBase(selectedPurchase) : null;
   const isPositional = detectedBase !== null;
-  const effectiveType = isPositional ? `${detectedBase} ${position}` : selectedType;
+  const effectiveType = isPositional ? `${detectedBase}_${position}` : selectedType;
 
   // Rückläufer dieses Einkaufs (Vorbelastung übernehmbar) – Backend liefert hier immer nur noch
   // nicht wiedereingebaute (offene) Rückgaben, da ein wiedereingebauter Eintrag gelöscht statt
@@ -475,8 +509,8 @@ function AddComponentForm({
     if (!p) return;
     const base = resolvePositionalBase(p);
     if (base) {
-      // Positional: threshold aus dem vorne-Typ lesen
-      const def = COMPONENT_TYPES.find(c => c.type === `${base} vorne`);
+      // Positional: threshold aus dem front-Typ lesen
+      const def = COMPONENT_TYPES.find(c => c.type === `${base}_front`);
       if (def) setThreshold(def.threshold);
     } else if (p.component_type) {
       // Expliziter, nicht-positionaler Typ am Einkauf hinterlegt
@@ -484,15 +518,15 @@ function AddComponentForm({
       if (def) { setSelectedType(def.type); setThreshold(def.threshold); }
     } else {
       // Kein expliziter Typ: ersten zum Namen passenden Typ vorauswählen
-      const lower = p.name.toLowerCase();
-      const match = COMPONENT_TYPES.find(c => lower.includes(c.type.toLowerCase()));
+      const matchedCode = detectAnyBase(p.name);
+      const match = matchedCode ? COMPONENT_TYPES.find(c => c.type === matchedCode) : undefined;
       if (match) { setSelectedType(match.type); setThreshold(match.threshold); }
     }
   }
 
-  function handleTypeChange(t: string) {
-    setSelectedType(t);
-    const def = COMPONENT_TYPES.find(c => c.type === t);
+  function handleTypeChange(newType: string) {
+    setSelectedType(newType);
+    const def = COMPONENT_TYPES.find(c => c.type === newType);
     if (def) setThreshold(def.threshold);
   }
 
@@ -509,7 +543,7 @@ function AddComponentForm({
       });
       setOpen(false);
       setSelectedPurchaseId('');
-      setPosition('vorne');
+      setPosition('front');
       setCarryOverReturnId('');
       onAdded();
     } finally {
@@ -523,9 +557,9 @@ function AddComponentForm({
         onClick={() => setOpen(true)}
         disabled={available.length === 0}
         className="w-full text-sm font-medium py-2.5 rounded-xl border border-dashed border-border text-primary hover:bg-primary/5 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-        title={available.length === 0 ? 'Kein Lagerbestand vorhanden' : undefined}
+        title={available.length === 0 ? t('addForm.noStockTitle') : undefined}
       >
-        + Komponente einbauen
+        {t('addForm.closedButton')}
       </button>
     );
   }
@@ -535,15 +569,15 @@ function AddComponentForm({
 
   return (
     <div className="rounded-xl border p-4 space-y-4" style={{ borderColor: 'var(--primary)' }}>
-      <p className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Komponente einbauen</p>
+      <p className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">{t('addForm.panelTitle')}</p>
       <label className={labelCls}>
-        <span className="block">Lagerartikel</span>
+        <span className="block">{t('fields.stockItem')}</span>
         <select
           value={selectedPurchaseId}
           onChange={e => handlePurchaseChange(e.target.value)}
           className={fieldCls}
         >
-          <option value="">– Lagerartikel wählen –</option>
+          <option value="">{t('fields.noStockItemOption')}</option>
           {available.map(p => (
             <option key={p.id} value={p.id}>
               {p.name} ({p.quantity - p.installed_count}x)
@@ -555,11 +589,11 @@ function AddComponentForm({
       {selectedPurchaseId !== '' && (
         <div className="grid grid-cols-2 gap-3">
           <label className={labelCls}>
-            <span className="block">Typ</span>
+            <span className="block">{t('fields.type')}</span>
             {isPositional ? (
               // Vorne/Hinten-Toggle für Schlauch, Mantel etc.
               <div className="flex rounded-md overflow-hidden border border-border">
-                {(['vorne', 'hinten'] as const).map(pos => (
+                {(['front', 'rear'] as const).map(pos => (
                   <button
                     key={pos}
                     onClick={() => setPosition(pos)}
@@ -570,7 +604,7 @@ function AddComponentForm({
                     }`}
                     style={position === pos ? { background: 'var(--primary)' } : {}}
                   >
-                    {pos.charAt(0).toUpperCase() + pos.slice(1)}
+                    {t(`position.${pos}`)}
                   </button>
                 ))}
               </div>
@@ -581,13 +615,13 @@ function AddComponentForm({
                 className={fieldCls}
               >
                 {COMPONENT_TYPES.map(c => (
-                  <option key={c.type} value={c.type}>{c.type}</option>
+                  <option key={c.type} value={c.type}>{componentLabel(c.type, t)}</option>
                 ))}
               </select>
             )}
           </label>
           <label className={labelCls}>
-            <span className="block">Wartungsintervall (km)</span>
+            <span className="block">{t('fields.maintenanceInterval')}</span>
             <input
               type="number"
               value={threshold}
@@ -598,7 +632,7 @@ function AddComponentForm({
             />
           </label>
           <label className={labelCls}>
-            <span className="block">Einbaudatum</span>
+            <span className="block">{t('fields.installDate')}</span>
             <input
               type="date"
               value={installedAt}
@@ -610,17 +644,17 @@ function AddComponentForm({
       )}
       {openReturns.length > 0 && (
         <label className={labelCls}>
-          <span className="block">Vorbelastung übernehmen (welches Exemplar wird eingebaut?)</span>
+          <span className="block">{t('addForm.carryOverLabel')}</span>
           <select
             value={carryOverReturnId}
             onChange={e => setCarryOverReturnId(e.target.value === '' ? '' : Number(e.target.value))}
             className={fieldCls}
           >
-            <option value="">– neu, keine Vorbelastung –</option>
+            <option value="">{t('addForm.noCarryOverOption')}</option>
             {openReturns.map(r => (
               <option key={r.id} value={r.id}>
                 {fmtNum(Math.round(r.km_ridden ?? 0))} km
-                {r.returned_at ? ` (zurückgelegt ${new Date(r.returned_at + 'T00:00:00').toLocaleDateString('de-DE')})` : ''}
+                {r.returned_at ? t('addForm.carryOverReturnedSuffix', { date: new Date(r.returned_at + 'T00:00:00').toLocaleDateString('de-DE') }) : ''}
               </option>
             ))}
           </select>
@@ -633,10 +667,10 @@ function AddComponentForm({
           className="text-sm px-4 py-1.5 rounded-md font-medium disabled:opacity-40"
           style={{ background: 'var(--primary)', color: 'var(--primary-foreground)' }}
         >
-          Einbauen{isPositional && selectedPurchaseId !== '' ? ` (${effectiveType})` : ''}
+          {t('addForm.install')}{isPositional && selectedPurchaseId !== '' ? ` (${componentLabel(effectiveType, t)})` : ''}
         </button>
         <button onClick={() => setOpen(false)} className="text-sm px-4 py-1.5 rounded-md border border-border text-muted-foreground hover:bg-muted">
-          Abbrechen
+          {t('common:actions.cancel')}
         </button>
       </div>
     </div>
@@ -659,6 +693,7 @@ function BikeCard({
   onAdded: () => void;
   className?: string;
 }) {
+  const { t } = useTranslation(['bikes', 'common']);
   return (
     <Card className={`shadow-sm overflow-hidden${className ? ` ${className}` : ''}`}>
       <CardContent className="p-4 flex flex-col gap-3">
@@ -690,7 +725,7 @@ function BikeCard({
                 }}
               />
               <span className="text-sm px-1.5 py-0.5 mb-1 rounded bg-black/70 text-white">
-                {bike.image_filename ? 'Ändern' : 'Hochladen'}
+                {bike.image_filename ? t('bikeCard.changeImage') : t('bikeCard.uploadImage')}
               </span>
             </label>
           </div>
@@ -713,7 +748,7 @@ function BikeCard({
               ) : (
                 <h2
                   className="text-lg font-bold truncate cursor-pointer hover:text-primary transition-colors"
-                  title="Klicken zum Bearbeiten"
+                  title={t('bikeCard.editNameTitle')}
                   onClick={() => onEditName({ bikeId: bike.id, value: bike.name })}
                 >
                   {bike.name}
@@ -737,9 +772,9 @@ function BikeCard({
                 ? { background: 'var(--muted)', color: 'var(--muted-foreground)', borderColor: 'var(--border)' }
                 : { background: 'rgba(34,197,94,0.1)', color: '#22c55e', borderColor: 'rgba(34,197,94,0.3)' }
               }
-              title="Klicken um Status zu wechseln"
+              title={t('bikeCard.toggleTitle')}
             >
-              {bike.retired ? 'Inaktiv' : '● Aktiv'}
+              {bike.retired ? t('status.inactive') : t('status.active')}
             </button>
           </div>
         </div>
@@ -747,20 +782,20 @@ function BikeCard({
         {/* Stats */}
         <div className="grid grid-cols-2 gap-2.5">
           <div className="rounded-lg bg-muted/60 px-3 py-2 flex items-baseline justify-between gap-2">
-            <span className="text-sm uppercase tracking-wider text-muted-foreground">Rides</span>
+            <span className="text-sm uppercase tracking-wider text-muted-foreground">{t('bikeCard.statRides')}</span>
             <span className="text-xl font-bold text-primary">{bike.ride_count}</span>
           </div>
           <div className="rounded-lg bg-muted/60 px-3 py-2 flex items-baseline justify-between gap-2">
-            <span className="text-sm uppercase tracking-wider text-muted-foreground">Gesamt km</span>
+            <span className="text-sm uppercase tracking-wider text-muted-foreground">{t('bikeCard.statTotalKm')}</span>
             <span className="text-xl font-bold">{fmtNum(Math.round(bike.current_km))}</span>
           </div>
         </div>
 
         {/* Verschleiß */}
         <div className="border-t border-border pt-3 space-y-1.5">
-          <p className="text-sm font-semibold">Verschleiß</p>
+          <p className="text-sm font-semibold">{t('bikeCard.wearTitle')}</p>
           {bike.components.length === 0 && (
-            <p className="text-sm text-muted-foreground">Keine Komponenten erfasst.</p>
+            <p className="text-sm text-muted-foreground">{t('bikeCard.noComponents')}</p>
           )}
           {bike.components.map(comp => (
             <ComponentRow key={comp.id} comp={comp} bikeId={bike.id} stockItems={stockItems} onChanged={onChanged} />
@@ -772,7 +807,7 @@ function BikeCard({
           to={`/activities?bike=${bike.id}`}
           className="w-full text-center text-sm font-medium py-2 rounded-xl border border-border text-primary hover:bg-primary/5 transition-colors mt-auto"
         >
-          Alle Aktivitäten →
+          {t('bikeCard.allActivitiesLink')}
         </Link>
       </CardContent>
     </Card>
@@ -782,6 +817,7 @@ function BikeCard({
 // ─── Übersicht-Tab ────────────────────────────────────────────────────────────
 
 function UebersichtTab() {
+  const { t } = useTranslation(['bikes', 'common']);
   const [bikes, setBikes] = useState<Bike[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -816,7 +852,7 @@ function UebersichtTab() {
     setLoading(true);
     api.bikes()
       .then(setBikes)
-      .catch(e => setError(e instanceof Error ? e.message : 'Fehler'))
+      .catch(e => setError(e instanceof Error ? e.message : t('common:genericError')))
       .finally(() => setLoading(false));
     api.listPurchases().then(setStockItems).catch(() => {});
   }, [refreshKey]);
@@ -857,25 +893,25 @@ function UebersichtTab() {
       ))}
 
       {bikes.length === 0 && (
-        <p className="col-span-2 text-muted-foreground">Keine Bikes gefunden.</p>
+        <p className="col-span-2 text-muted-foreground">{t('overview.noBikes')}</p>
       )}
     </div>
 
     <div className="mt-8 space-y-3">
-      <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">Einkäufe / Lager</h2>
+      <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">{t('overview.purchasesHeading')}</h2>
       <EinkäufeTab externalKey={purchaseRefreshKey} onChanged={reloadAll} />
     </div>
 
     {inactiveBikes.length > 0 && (
       <div className="mt-8 rounded-xl border border-border p-4 space-y-4">
         <div className="flex items-center gap-3 flex-wrap">
-          <span className="text-sm font-medium text-muted-foreground">Inaktive Räder</span>
+          <span className="text-sm font-medium text-muted-foreground">{t('overview.inactiveBikesHeading')}</span>
           <select
             value={selectedInactiveId ?? ''}
             onChange={e => setSelectedInactiveId(e.target.value || null)}
             className="text-sm rounded-md border border-border bg-background px-2.5 py-1.5 focus:outline-none max-w-[240px]"
           >
-            <option value="">– Rad wählen –</option>
+            <option value="">{t('overview.selectBikePlaceholder')}</option>
             {inactiveBikes.map(b => (
               <option key={b.id} value={b.id}>{b.name}</option>
             ))}
@@ -905,6 +941,7 @@ function UebersichtTab() {
 // ─── Vergleich-Tab ────────────────────────────────────────────────────────────
 
 function VergleichTab() {
+  const { t } = useTranslation(['bikes', 'common']);
   const [data, setData] = useState<BikeCompareData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -912,7 +949,7 @@ function VergleichTab() {
   useEffect(() => {
     api.bikeCompare()
       .then(setData)
-      .catch(e => setError(e instanceof Error ? e.message : 'Fehler'))
+      .catch(e => setError(e instanceof Error ? e.message : t('common:genericError')))
       .finally(() => setLoading(false));
   }, []);
 
@@ -927,7 +964,7 @@ function VergleichTab() {
   if (error || !data?.summary.length) {
     return error
       ? <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive">{error}</div>
-      : <p className="text-sm text-muted-foreground">Keine Bike-Daten vorhanden. Erst importieren.</p>;
+      : <p className="text-sm text-muted-foreground">{t('compare.noData')}</p>;
   }
 
   const filteredYearly = data.yearly.filter(y => parseInt(y.year) >= 2000);
@@ -1029,7 +1066,7 @@ function VergleichTab() {
     <div className="space-y-8">
       {/* Kennzahlen-Tabelle */}
       <section>
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">Kennzahlen</h2>
+        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">{t('compare.kennzahlenHeading')}</h2>
         <Card className="overflow-x-auto shadow-sm">
           <table className="w-full text-sm">
             <thead>
@@ -1045,7 +1082,7 @@ function VergleichTab() {
             <tbody className="divide-y divide-border">
               {ROWS.map(row => (
                 <tr key={row.key} className="hover:bg-muted/30 transition-colors">
-                  <td className="py-2.5 pr-4 text-xs text-muted-foreground">{row.label}</td>
+                  <td className="py-2.5 pr-4 text-xs text-muted-foreground">{t(row.labelKey)}</td>
                   {data.summary.map((bike, i) => {
                     const val = (bike as unknown as Record<string, number>)[row.key];
                     return (
@@ -1065,7 +1102,7 @@ function VergleichTab() {
       {/* Rides pro Jahr */}
       {filteredYearly.length > 0 && (
         <section>
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">Aktivitäten pro Jahr</h2>
+          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">{t('compare.ridesPerYearHeading')}</h2>
           <Card className="shadow-sm">
             <CardContent className="p-4">
               <div className="mb-3 flex gap-5 text-xs text-muted-foreground">
@@ -1116,7 +1153,7 @@ function VergleichTab() {
       {/* Ø Geschwindigkeit über Jahre */}
       {filteredYearly.length > 1 && (
         <section>
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">Ø Geschwindigkeit über Jahre</h2>
+          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">{t('compare.avgSpeedHeading')}</h2>
           <Card className="shadow-sm">
             <CardContent className="p-4">
               <div className="mb-3 flex gap-5 text-xs text-muted-foreground">
@@ -1171,7 +1208,7 @@ function VergleichTab() {
       {/* Distanzverteilung */}
       {Object.keys(data.distances).length > 0 && (
         <section>
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">Distanzverteilung</h2>
+          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">{t('compare.distanceDistHeading')}</h2>
           <Card className="shadow-sm">
             <CardContent className="p-4">
               <div className="mb-3 flex gap-5 text-xs text-muted-foreground">
@@ -1209,7 +1246,7 @@ function VergleichTab() {
                   </g>
                 ))}
                 <line x1={HIST_PAD.left} y1={HIST_PAD.top + histChartH} x2={HIST_W - HIST_PAD.right} y2={HIST_PAD.top + histChartH} stroke="#e5e7eb" strokeWidth={1} />
-                <text x={HIST_PAD.left + histChartW / 2} y={HIST_H} fontSize={10} fill="#9ca3af" textAnchor="middle">Distanz (km)</text>
+                <text x={HIST_PAD.left + histChartW / 2} y={HIST_H} fontSize={10} fill="#9ca3af" textAnchor="middle">{t('compare.distanceAxisLabel')}</text>
               </svg>
             </CardContent>
           </Card>
@@ -1224,6 +1261,7 @@ function VergleichTab() {
 const EMPTY_FORM = { name: '', shop: '', url: '', price: '', order_date: '', delivery_date: '', quantity: '1', notes: '', component_type: '', storage_location_id: '' };
 
 function EinkäufeTab({ externalKey, onChanged }: { externalKey: number; onChanged: () => void }) {
+  const { t } = useTranslation(['bikes', 'common']);
   const [items, setItems] = useState<Purchase[]>([]);
   const [bikeNames, setBikeNames] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
@@ -1263,7 +1301,7 @@ function EinkäufeTab({ externalKey, onChanged }: { externalKey: number; onChang
       setNewLocationName('');
       reloadLocations();
     } catch (e) {
-      setLocationError(e instanceof Error ? e.message : 'Anlegen fehlgeschlagen');
+      setLocationError(e instanceof Error ? e.message : t('purchases.locations.addFailed'));
     }
   }
 
@@ -1277,7 +1315,7 @@ function EinkäufeTab({ externalKey, onChanged }: { externalKey: number; onChang
       reloadLocations();
       reload();
     } catch (e) {
-      setLocationError(e instanceof Error ? e.message : 'Umbenennen fehlgeschlagen');
+      setLocationError(e instanceof Error ? e.message : t('purchases.locations.renameFailed'));
     }
   }
 
@@ -1288,7 +1326,7 @@ function EinkäufeTab({ externalKey, onChanged }: { externalKey: number; onChang
       reloadLocations();
       reload();
     } catch (e) {
-      setLocationError(e instanceof Error ? e.message : 'Löschen fehlgeschlagen');
+      setLocationError(e instanceof Error ? e.message : t('purchases.locations.deleteFailed'));
     }
   }
 
@@ -1345,7 +1383,7 @@ function EinkäufeTab({ externalKey, onChanged }: { externalKey: number; onChang
       reload();
       onChanged();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Löschen fehlgeschlagen');
+      setError(e instanceof Error ? e.message : t('purchases.deleteFailed'));
     } finally {
       setBusy(false);
     }
@@ -1375,18 +1413,18 @@ function EinkäufeTab({ externalKey, onChanged }: { externalKey: number; onChang
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <div className="flex items-center gap-3">
           <span className="text-sm font-medium">
-            {stockCount} {stockCount === 1 ? 'Artikel' : 'Artikel'} auf Lager
+            {t('purchases.stockCount', { count: stockCount })}
           </span>
           <label className="flex items-center gap-1.5 text-sm text-muted-foreground cursor-pointer select-none">
             <input type="checkbox" checked={onlyStock} onChange={e => setOnlyStock(e.target.checked)}
               className="accent-primary" />
-            Nur Lagerbestand
+            {t('purchases.onlyStock')}
           </label>
         </div>
         <button onClick={openAdd}
           className="text-sm px-3 py-1.5 rounded font-medium"
           style={{ background: 'var(--primary)', color: 'var(--primary-foreground)' }}>
-          + Einkauf erfassen
+          {t('purchases.addButton')}
         </button>
       </div>
 
@@ -1395,58 +1433,58 @@ function EinkäufeTab({ externalKey, onChanged }: { externalKey: number; onChang
         <Card>
           <CardContent className="pt-4 space-y-3">
             <p className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
-              {editId !== null ? 'Einkauf bearbeiten' : 'Neuer Einkauf'}
+              {editId !== null ? t('purchases.editTitle') : t('purchases.newTitle')}
             </p>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
               <div className="col-span-2 sm:col-span-2">
-                <label className="text-sm text-muted-foreground">Artikel *</label>
+                <label className="text-sm text-muted-foreground">{t('purchases.fields.article')}</label>
                 <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-                  placeholder="z. B. Schlauch 28&quot; Conti" className={inputCls} />
+                  placeholder={t('purchases.fields.articlePlaceholder')} className={inputCls} />
               </div>
               <div>
-                <label className="text-sm text-muted-foreground">Shop</label>
+                <label className="text-sm text-muted-foreground">{t('purchases.fields.shop')}</label>
                 <input value={form.shop} onChange={e => setForm(f => ({ ...f, shop: e.target.value }))}
-                  placeholder="Amazon" className={inputCls} />
+                  placeholder={t('purchases.fields.shopPlaceholder')} className={inputCls} />
               </div>
               <div>
-                <label className="text-sm text-muted-foreground">Komponenten-Typ</label>
+                <label className="text-sm text-muted-foreground">{t('purchases.fields.componentType')}</label>
                 <select value={form.component_type} onChange={e => setForm(f => ({ ...f, component_type: e.target.value }))}
-                  className={inputCls} title="Legt fest, welchem Komponenten-Typ dieser Artikel beim Einbauen zugeordnet wird">
-                  <option value="">– automatisch erkennen –</option>
-                  {PURCHASE_TYPE_OPTIONS.map(t => (
-                    <option key={t} value={t}>{t}</option>
+                  className={inputCls} title={t('purchases.fields.componentTypeTitle')}>
+                  <option value="">{t('purchases.fields.autoDetectOption')}</option>
+                  {PURCHASE_TYPE_OPTIONS.map(code => (
+                    <option key={code} value={code}>{componentLabel(code, t)}</option>
                   ))}
                 </select>
               </div>
               <div>
-                <label className="text-sm text-muted-foreground">Lagerplatz</label>
+                <label className="text-sm text-muted-foreground">{t('purchases.fields.storageLocation')}</label>
                 <select value={form.storage_location_id} onChange={e => setForm(f => ({ ...f, storage_location_id: e.target.value }))}
                   className={inputCls}>
-                  <option value="">– kein Lagerplatz –</option>
+                  <option value="">{t('purchases.fields.noStorageLocationOption')}</option>
                   {locations.map(l => (
                     <option key={l.id} value={l.id}>{l.name}</option>
                   ))}
                 </select>
                 <button type="button" onClick={() => setManageLocationsOpen(o => !o)}
                   className="text-sm text-primary hover:underline mt-1">
-                  Lagerplätze verwalten
+                  {t('purchases.fields.manageLocationsButton')}
                 </button>
               </div>
               <div className="col-span-2 sm:col-span-3">
-                <label className="text-sm text-muted-foreground">Link</label>
+                <label className="text-sm text-muted-foreground">{t('purchases.fields.link')}</label>
                 <input type="url" value={form.url} onChange={e => setForm(f => ({ ...f, url: e.target.value }))}
                   placeholder="https://..." className={inputCls} />
               </div>
               <div>
-                <label className="text-sm text-muted-foreground">Preis (€)</label>
+                <label className="text-sm text-muted-foreground">{t('purchases.fields.price')}</label>
                 <input type="number" value={form.price} onChange={e => setForm(f => ({ ...f, price: e.target.value }))}
                   placeholder="0.00" min={0} step={0.01} className={inputCls} />
               </div>
               <div>
-                <label className="text-sm text-muted-foreground">Menge</label>
+                <label className="text-sm text-muted-foreground">{t('purchases.fields.quantity')}</label>
                 {editId !== null ? (
-                  <p className="text-sm text-muted-foreground px-2.5 py-1.5" title="Änderung der Stückzahl nur über +/− in der Liste">
-                    wird über +/− in der Liste angepasst
+                  <p className="text-sm text-muted-foreground px-2.5 py-1.5" title={t('purchases.fields.quantityLockedTitle')}>
+                    {t('purchases.fields.quantityLockedNote')}
                   </p>
                 ) : (
                   <input type="number" value={form.quantity} onChange={e => setForm(f => ({ ...f, quantity: e.target.value }))}
@@ -1454,25 +1492,25 @@ function EinkäufeTab({ externalKey, onChanged }: { externalKey: number; onChang
                 )}
               </div>
               <div>
-                <label className="text-sm text-muted-foreground">Bestellt am</label>
+                <label className="text-sm text-muted-foreground">{t('purchases.fields.orderedAt')}</label>
                 <input type="date" value={form.order_date} onChange={e => setForm(f => ({ ...f, order_date: e.target.value }))}
                   className={inputCls} />
               </div>
               <div>
-                <label className="text-sm text-muted-foreground">Geliefert am</label>
+                <label className="text-sm text-muted-foreground">{t('purchases.fields.deliveredAt')}</label>
                 <input type="date" value={form.delivery_date} onChange={e => setForm(f => ({ ...f, delivery_date: e.target.value }))}
                   className={inputCls} />
               </div>
               <div className="col-span-2 sm:col-span-3">
-                <label className="text-sm text-muted-foreground">Notiz</label>
+                <label className="text-sm text-muted-foreground">{t('purchases.fields.notes')}</label>
                 <input value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
-                  placeholder="z. B. für Reifen vorne" className={inputCls} />
+                  placeholder={t('purchases.fields.notesPlaceholder')} className={inputCls} />
               </div>
             </div>
 
             {manageLocationsOpen && (
               <div className="rounded-lg border border-border bg-muted/20 p-3 space-y-2">
-                <p className="text-sm font-medium">Lagerplätze verwalten</p>
+                <p className="text-sm font-medium">{t('purchases.locations.manageTitle')}</p>
                 {locationError && <p className="text-sm text-red-500">{locationError}</p>}
                 <div className="space-y-1.5">
                   {locations.map(l => (
@@ -1499,24 +1537,24 @@ function EinkäufeTab({ externalKey, onChanged }: { externalKey: number; onChang
                           </button>
                           <button onClick={() => handleDeleteLocation(l.id)}
                             className="text-sm px-2 py-1 rounded border border-red-300 text-red-500 hover:bg-red-50 dark:hover:bg-red-950">
-                            Löschen
+                            {t('common:actions.delete')}
                           </button>
                         </>
                       )}
                     </div>
                   ))}
                   {locations.length === 0 && (
-                    <p className="text-sm text-muted-foreground">Noch keine Lagerplätze angelegt.</p>
+                    <p className="text-sm text-muted-foreground">{t('purchases.locations.empty')}</p>
                   )}
                 </div>
                 <div className="flex items-center gap-2 pt-1">
                   <input value={newLocationName} onChange={e => setNewLocationName(e.target.value)}
                     onKeyDown={e => e.key === 'Enter' && handleAddLocation()}
-                    placeholder="Neuer Lagerplatz" className={inputCls} />
+                    placeholder={t('purchases.locations.newPlaceholder')} className={inputCls} />
                   <button onClick={handleAddLocation} disabled={!newLocationName.trim()}
                     className="text-sm px-3 py-1.5 rounded font-medium disabled:opacity-40"
                     style={{ background: 'var(--primary)', color: 'var(--primary-foreground)' }}>
-                    + Hinzufügen
+                    {t('purchases.locations.addButton')}
                   </button>
                 </div>
               </div>
@@ -1526,11 +1564,11 @@ function EinkäufeTab({ externalKey, onChanged }: { externalKey: number; onChang
               <button onClick={handleSave} disabled={busy || !form.name.trim()}
                 className="text-sm px-3 py-1 rounded font-medium disabled:opacity-40"
                 style={{ background: 'var(--primary)', color: 'var(--primary-foreground)' }}>
-                Speichern
+                {t('common:actions.save')}
               </button>
               <button onClick={() => setAddOpen(false)}
                 className="text-sm text-muted-foreground hover:underline">
-                Abbrechen
+                {t('common:actions.cancel')}
               </button>
             </div>
           </CardContent>
@@ -1540,22 +1578,22 @@ function EinkäufeTab({ externalKey, onChanged }: { externalKey: number; onChang
       {/* Tabelle */}
       {displayed.length === 0 ? (
         <p className="text-sm text-muted-foreground">
-          {onlyStock ? 'Kein Artikel auf Lager.' : 'Noch keine Einkäufe erfasst.'}
+          {onlyStock ? t('purchases.emptyOnlyStock') : t('purchases.emptyNone')}
         </p>
       ) : (
         <div className="overflow-x-auto rounded-xl border border-border">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-muted/40">
-                <th className="text-left px-3 py-2 font-semibold text-muted-foreground">Artikel</th>
-                <th className="text-left px-3 py-2 font-semibold text-muted-foreground">Typ</th>
-                <th className="text-left px-3 py-2 font-semibold text-muted-foreground">Lagerplatz</th>
-                <th className="text-left px-3 py-2 font-semibold text-muted-foreground">Shop</th>
-                <th className="text-right px-3 py-2 font-semibold text-muted-foreground">Preis</th>
-                <th className="text-right px-3 py-2 font-semibold text-muted-foreground">Menge</th>
-                <th className="text-left px-3 py-2 font-semibold text-muted-foreground">Bestellt</th>
-                <th className="text-left px-3 py-2 font-semibold text-muted-foreground">Geliefert</th>
-                <th className="text-left px-3 py-2 font-semibold text-muted-foreground">Status</th>
+                <th className="text-left px-3 py-2 font-semibold text-muted-foreground">{t('purchases.table.article')}</th>
+                <th className="text-left px-3 py-2 font-semibold text-muted-foreground">{t('purchases.table.type')}</th>
+                <th className="text-left px-3 py-2 font-semibold text-muted-foreground">{t('purchases.table.storageLocation')}</th>
+                <th className="text-left px-3 py-2 font-semibold text-muted-foreground">{t('purchases.table.shop')}</th>
+                <th className="text-right px-3 py-2 font-semibold text-muted-foreground">{t('purchases.table.price')}</th>
+                <th className="text-right px-3 py-2 font-semibold text-muted-foreground">{t('purchases.table.quantity')}</th>
+                <th className="text-left px-3 py-2 font-semibold text-muted-foreground">{t('purchases.table.ordered')}</th>
+                <th className="text-left px-3 py-2 font-semibold text-muted-foreground">{t('purchases.table.delivered')}</th>
+                <th className="text-left px-3 py-2 font-semibold text-muted-foreground">{t('purchases.table.status')}</th>
                 <th className="px-3 py-2" />
               </tr>
             </thead>
@@ -1570,7 +1608,7 @@ function EinkäufeTab({ externalKey, onChanged }: { externalKey: number; onChang
                       {p.notes && <div className="text-sm text-muted-foreground">{p.notes}</div>}
                       {p.url && (
                         <a href={p.url} target="_blank" rel="noopener noreferrer"
-                          className="text-sm text-primary hover:underline">↗ Link</a>
+                          className="text-sm text-primary hover:underline">{t('purchases.orderLinkText')}</a>
                       )}
                       {p.returns.length > 0 && (
                         <div className="mt-0.5 space-y-0.5">
@@ -1584,7 +1622,7 @@ function EinkäufeTab({ externalKey, onChanged }: { externalKey: number; onChang
                         </div>
                       )}
                     </td>
-                    <td className="px-3 py-2 text-muted-foreground">{p.component_type ?? '—'}</td>
+                    <td className="px-3 py-2 text-muted-foreground">{p.component_type ? componentLabel(p.component_type, t) : '—'}</td>
                     <td className="px-3 py-2 text-muted-foreground">{p.storage_location_name ?? '—'}</td>
                     <td className="px-3 py-2 text-muted-foreground">{p.shop ?? '—'}</td>
                     <td className="px-3 py-2 text-right tabular-nums">
@@ -1594,15 +1632,15 @@ function EinkäufeTab({ externalKey, onChanged }: { externalKey: number; onChang
                       <div className="flex items-center justify-end gap-1">
                         <button onClick={() => handleAdjust(p.id, -1)} disabled={busy || p.quantity <= p.installed_count}
                           title={p.quantity <= p.installed_count
-                            ? `${p.installed_count}x aktuell verbaut – Menge kann nicht weiter verringert werden`
-                            : 'Menge verringern (z.B. verschenkt/verloren)'}
+                            ? t('purchases.decreaseTitleDisabled', { count: p.installed_count })
+                            : t('purchases.decreaseTitle')}
                           className="w-7 h-7 rounded border border-amber-400 text-amber-500 text-base font-bold text-center leading-none hover:bg-amber-50 dark:hover:bg-amber-950 disabled:opacity-30">−</button>
                         <span className={`font-semibold tabular-nums text-sm ${depleted ? 'text-destructive' : 'text-green-600'}`}>
                           {inStock}
                         </span>
                         <span className="text-muted-foreground text-sm">/ {p.quantity}</span>
                         <button onClick={() => handleAdjust(p.id, 1)} disabled={busy}
-                          title="Menge erhöhen (neues Exemplar dazugekommen)"
+                          title={t('purchases.increaseTitle')}
                           className="w-7 h-7 rounded border border-blue-400 text-blue-500 text-base font-bold text-center leading-none hover:bg-blue-50 dark:hover:bg-blue-950 disabled:opacity-30">+</button>
                       </div>
                     </td>
@@ -1610,23 +1648,23 @@ function EinkäufeTab({ externalKey, onChanged }: { externalKey: number; onChang
                     <td className="px-3 py-2">
                       {p.delivery_date
                         ? <span className="text-muted-foreground">{fmtDate(p.delivery_date)}</span>
-                        : <span className="text-amber-500 font-medium">ausstehend</span>
+                        : <span className="text-amber-500 font-medium">{t('purchases.deliveryPending')}</span>
                       }
                     </td>
                     <td className="px-3 py-2">
                       <span className={`text-sm font-semibold ${depleted ? 'text-destructive' : 'text-green-600'}`}>
-                        {depleted ? 'aufgebraucht' : `${inStock}x auf Lager`}
+                        {depleted ? t('purchases.statusDepleted') : t('purchases.statusInStock', { count: inStock })}
                       </span>
                     </td>
                     <td className="px-3 py-2 whitespace-nowrap">
                       <div className="flex items-center gap-1.5">
                         <button onClick={() => openEdit(p)} disabled={busy}
                           className="text-sm px-3 py-1.5 rounded-md border font-medium transition-colors disabled:opacity-40 border-blue-400 text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950">
-                          ✎ Bearbeiten
+                          ✎ {t('common:actions.edit')}
                         </button>
                         <button onClick={() => handleDelete(p.id)} disabled={busy}
                           className="text-sm px-3 py-1.5 rounded-md border font-medium transition-colors disabled:opacity-40 border-red-300 text-red-500 hover:bg-red-50 dark:hover:bg-red-950">
-                          Löschen
+                          {t('common:actions.delete')}
                         </button>
                       </div>
                     </td>
@@ -1644,6 +1682,7 @@ function EinkäufeTab({ externalKey, onChanged }: { externalKey: number; onChang
 // ─── Gelöscht-Tab ─────────────────────────────────────────────────────────────
 
 function GeloeschtTab() {
+  const { t } = useTranslation(['bikes', 'common']);
   const [items, setItems] = useState<DeletedComponent[]>([]);
   const [bikeNames, setBikeNames] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
@@ -1658,33 +1697,33 @@ function GeloeschtTab() {
     return new Date(iso + 'T00:00:00').toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
   }
 
-  if (loading) return <p className="text-sm text-muted-foreground">Lädt…</p>;
-  if (items.length === 0) return <p className="text-sm text-muted-foreground">Noch keine Komponenten gelöscht.</p>;
+  if (loading) return <p className="text-sm text-muted-foreground">{t('deleted.loading')}</p>;
+  if (items.length === 0) return <p className="text-sm text-muted-foreground">{t('deleted.empty')}</p>;
 
   return (
     <div className="overflow-x-auto rounded-xl border border-border">
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-border bg-muted/40">
-            <th className="text-left px-3 py-2 font-semibold text-muted-foreground">Typ</th>
-            <th className="text-left px-3 py-2 font-semibold text-muted-foreground">Bike</th>
-            <th className="text-left px-3 py-2 font-semibold text-muted-foreground">Einkauf</th>
-            <th className="text-right px-3 py-2 font-semibold text-muted-foreground">Gefahren</th>
-            <th className="text-left px-3 py-2 font-semibold text-muted-foreground">Eingebaut</th>
-            <th className="text-left px-3 py-2 font-semibold text-muted-foreground">Gelöscht</th>
+            <th className="text-left px-3 py-2 font-semibold text-muted-foreground">{t('deleted.table.type')}</th>
+            <th className="text-left px-3 py-2 font-semibold text-muted-foreground">{t('deleted.table.bike')}</th>
+            <th className="text-left px-3 py-2 font-semibold text-muted-foreground">{t('deleted.table.purchase')}</th>
+            <th className="text-right px-3 py-2 font-semibold text-muted-foreground">{t('deleted.table.ridden')}</th>
+            <th className="text-left px-3 py-2 font-semibold text-muted-foreground">{t('deleted.table.installed')}</th>
+            <th className="text-left px-3 py-2 font-semibold text-muted-foreground">{t('deleted.table.deletedAt')}</th>
           </tr>
         </thead>
         <tbody>
           {items.map(c => (
             <tr key={c.id} className="border-b border-border last:border-0 hover:bg-muted/20 transition-colors">
-              <td className="px-3 py-2 font-medium">{c.type}</td>
+              <td className="px-3 py-2 font-medium">{componentLabel(c.type, t)}</td>
               <td className="px-3 py-2 text-muted-foreground">{bikeNames[c.bike_id] ?? c.bike_id}</td>
               <td className="px-3 py-2 text-muted-foreground">
                 {c.purchase_name ?? '—'}
                 {c.url && (
                   <>
                     {' · '}
-                    <a href={c.url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">↗ Link</a>
+                    <a href={c.url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{t('deleted.orderLinkText')}</a>
                   </>
                 )}
               </td>
@@ -1702,6 +1741,7 @@ function GeloeschtTab() {
 // ─── Haupt-Seite ──────────────────────────────────────────────────────────────
 
 export default function BikesPage() {
+  const { t } = useTranslation('bikes');
   const [searchParams, setSearchParams] = useSearchParams();
   const tab = searchParams.get('tab') ?? 'übersicht';
 
@@ -1715,9 +1755,9 @@ export default function BikesPage() {
 
       <Tabs value={tab} onValueChange={handleTabChange}>
         <TabsList>
-          <TabsTrigger value="übersicht">Übersicht</TabsTrigger>
-          <TabsTrigger value="gelöscht">Gelöscht</TabsTrigger>
-          <TabsTrigger value="vergleich">Vergleich</TabsTrigger>
+          <TabsTrigger value="übersicht">{t('tabs.overview')}</TabsTrigger>
+          <TabsTrigger value="gelöscht">{t('tabs.deleted')}</TabsTrigger>
+          <TabsTrigger value="vergleich">{t('tabs.compare')}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="übersicht" className="mt-6">

@@ -1,4 +1,5 @@
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Query
+from backend.api.errors import api_error
 from backend.database import db_connection
 from backend.utils import haversine_m
 
@@ -28,7 +29,7 @@ def get_track(
     requested = [f.strip() for f in fields.split(",")]
     invalid = set(requested) - allowed
     if invalid:
-        raise HTTPException(status_code=400, detail=f"Unbekannte Felder: {invalid}")
+        raise api_error(400, "invalid_fields", f"Unbekannte Felder: {invalid}")
 
     # Wenn distance_m angefordert: lat+lon für Fallback-Berechnung immer mitladen
     compute_distance = "distance_m" in requested
@@ -53,7 +54,7 @@ def get_track(
             "SELECT has_track FROM activities WHERE id = ?", (activity_id,)
         ).fetchone()
         if row_check is None:
-            raise HTTPException(status_code=404, detail="Activity not found")
+            raise api_error(404, "activity_not_found", "Activity not found")
         if row_check["has_track"] == 0:
             return {"activity_id": activity_id, "points": []}
 

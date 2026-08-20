@@ -3,6 +3,7 @@ import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { AppSidebar } from '@/components/layout/AppSidebar';
 import { ConfigProvider } from '@/lib/config-context';
+import { useSyncLanguage } from '@/lib/i18n';
 
 import DashboardPage from '@/pages/DashboardPage';
 import ActivitiesPage from '@/pages/ActivitiesPage';
@@ -26,9 +27,9 @@ import WorkoutDetailPage from '@/pages/WorkoutDetailPage';
 import WeekendPage from '@/pages/WeekendPage';
 import FitnessPage from '@/pages/FitnessPage';
 
-export default function App() {
+function AppRoutes() {
+  useSyncLanguage();
   return (
-    <ConfigProvider>
     <BrowserRouter>
       <TooltipProvider>
         <SidebarProvider>
@@ -70,6 +71,13 @@ export default function App() {
         </SidebarProvider>
       </TooltipProvider>
     </BrowserRouter>
+  );
+}
+
+export default function App() {
+  return (
+    <ConfigProvider>
+      <AppRoutes />
     </ConfigProvider>
   );
 }

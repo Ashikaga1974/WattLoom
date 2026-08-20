@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
   BarChart,
   Bar,
@@ -12,6 +13,7 @@ import {
 
 import { api, type ActivityStats, type Bike, type BikeComponent, type Activity, type WeeklyStats, type MonthlyStats, type WeeklyVolume, type PmcDay, type PrEvent } from '@/lib/api';
 import { fmtKm, fmtTime, fmtDate, fmtNum, fmtSpeed, fmtWeekday } from '@/lib/format';
+import { rideTitle } from '@/lib/activity-display';
 import { useConfig } from '@/lib/config-context';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -101,6 +103,7 @@ function HeroStat({ value, label, primary = false }: { value: string; label: str
 
 // Hero-Banner: letzter Ride, immer ungefiltert
 function HeroBanner({ activity, loading }: { activity: Activity | null; loading: boolean }) {
+  const { t } = useTranslation(['dashboard', 'common']);
   if (loading) {
     return <Skeleton className="h-44 w-full rounded-2xl" />;
   }
@@ -137,7 +140,7 @@ function HeroBanner({ activity, loading }: { activity: Activity | null; loading:
                 style={{ background: 'var(--primary)' }}
               />
               <span className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
-                Letzter Ride
+                {t('hero.lastRide')}
               </span>
             </div>
             <span className="text-xs text-muted-foreground">
@@ -148,13 +151,13 @@ function HeroBanner({ activity, loading }: { activity: Activity | null; loading:
           {/* Titel + Link */}
           <div className="flex items-start justify-between gap-4 mb-5">
             <h2 className="text-xl md:text-2xl font-bold text-foreground leading-snug group-hover:text-primary transition-colors duration-200 truncate">
-              {activity.name}
+              {rideTitle(activity, t)}
             </h2>
             <span
               className="text-sm font-semibold shrink-0 mt-0.5 group-hover:translate-x-0.5 transition-transform duration-200"
               style={{ color: 'var(--primary)' }}
             >
-              Details →
+              {t('hero.details')}
             </span>
           </div>
 
@@ -162,7 +165,7 @@ function HeroBanner({ activity, loading }: { activity: Activity | null; loading:
           <div className="flex items-end flex-wrap gap-y-3">
             <HeroStat value={km} label="km" primary />
             <div className="w-px h-9 bg-border/60 mx-5 shrink-0" />
-            <HeroStat value={fmtTime(activity.moving_time_s)} label="Fahrzeit" />
+            <HeroStat value={fmtTime(activity.moving_time_s)} label={t('hero.movingTime')} />
             {speed && (
               <>
                 <div className="w-px h-9 bg-border/60 mx-5 shrink-0" />
@@ -182,15 +185,16 @@ function HeroBanner({ activity, loading }: { activity: Activity | null; loading:
   );
 }
 
-function tsbInfo(tsb: number): { label: string; text: string; color: string; bg: string } {
-  if (tsb >= 10)  return { label: 'Frisch',     text: 'Intensives Training möglich',      color: '#22c55e', bg: 'rgba(34,197,94,0.07)'  };
-  if (tsb >= 0)   return { label: 'Erholt',     text: 'Normales Training, gute Form',     color: '#3b82f6', bg: 'rgba(59,130,246,0.07)' };
-  if (tsb >= -10) return { label: 'Müde',       text: 'Locker bleiben, Tempo reduzieren', color: '#f59e0b', bg: 'rgba(245,158,11,0.07)' };
-  return              { label: 'Erschöpft', text: 'Ruhetag oder lockere Regeneration', color: '#ef4444', bg: 'rgba(239,68,68,0.07)'  };
+function tsbInfo(tsb: number, t: (key: string) => string): { label: string; text: string; color: string; bg: string } {
+  if (tsb >= 10)  return { label: t('tsb.status.fresh.label'),     text: t('tsb.status.fresh.text'),     color: '#22c55e', bg: 'rgba(34,197,94,0.07)'  };
+  if (tsb >= 0)   return { label: t('tsb.status.recovered.label'), text: t('tsb.status.recovered.text'), color: '#3b82f6', bg: 'rgba(59,130,246,0.07)' };
+  if (tsb >= -10) return { label: t('tsb.status.tired.label'),     text: t('tsb.status.tired.text'),     color: '#f59e0b', bg: 'rgba(245,158,11,0.07)' };
+  return              { label: t('tsb.status.exhausted.label'), text: t('tsb.status.exhausted.text'), color: '#ef4444', bg: 'rgba(239,68,68,0.07)'  };
 }
 
 function TsbWidget({ current }: { current: PmcDay }) {
-  const info = tsbInfo(current.tsb);
+  const { t } = useTranslation('dashboard');
+  const info = tsbInfo(current.tsb, t);
   const tsbStr = current.tsb > 0 ? `+${current.tsb}` : String(current.tsb);
   return (
     <div
@@ -199,7 +203,7 @@ function TsbWidget({ current }: { current: PmcDay }) {
     >
       <div>
         <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground mb-0.5">
-          Trainingsform heute
+          {t('tsb.title')}
         </p>
         <p className="text-sm font-semibold" style={{ color: info.color }}>{info.label}</p>
         <p className="text-xs text-muted-foreground mt-0.5">{info.text}</p>
@@ -232,13 +236,14 @@ function wearWarnings(bikes: Bike[], wearWarningPct: number): { bike: Bike; comp
 }
 
 function WearWarnings({ bikes }: { bikes: Bike[] }) {
+  const { t } = useTranslation('dashboard');
   const { wear_warning_pct } = useConfig();
   const warnings = wearWarnings(bikes, wear_warning_pct);
   if (warnings.length === 0) return null;
   return (
     <div className="rounded-2xl border px-5 py-4" style={{ borderColor: '#ef444450', background: 'rgba(239,68,68,0.07)' }}>
       <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground mb-2.5">
-        Verschleiß-Warnung
+        {t('wear.title')}
       </p>
       <div className="space-y-2">
         {warnings.map(({ bike, comp }) => (
@@ -293,6 +298,7 @@ function GoalRow({
   unit: string;
   paceHint?: { diffPct: number };
 }) {
+  const { t } = useTranslation('dashboard');
   const pct = Math.min(100, Math.round((current / target) * 100));
   const paceColor = paceHint == null ? GOAL_COLOR : paceHint.diffPct >= 0 ? '#22c55e' : '#f59e0b';
   return (
@@ -315,7 +321,7 @@ function GoalRow({
         </div>
         {paceHint && (
           <p className="text-[11px] mt-1" style={{ color: paceColor }}>
-            {paceHint.diffPct >= 0 ? 'Im Plan' : `${Math.abs(paceHint.diffPct)} % hinter Plan`}
+            {paceHint.diffPct >= 0 ? t('goals.onPlan') : t('goals.behindPlan', { pct: Math.abs(paceHint.diffPct) })}
           </p>
         )}
       </div>
@@ -334,6 +340,7 @@ function GoalWidget({
   yearKm: number | null;
   weekHours: number | null;
 }) {
+  const { t } = useTranslation('dashboard');
   if (yearlyKmGoal == null && weeklyHoursGoal == null) return null;
   const showYear = yearlyKmGoal != null && yearKm != null;
   const showWeek = weeklyHoursGoal != null && weekHours != null;
@@ -343,12 +350,12 @@ function GoalWidget({
   return (
     <div className="rounded-2xl border px-5 py-4 space-y-4" style={{ borderColor: `${GOAL_COLOR}50`, background: `${GOAL_COLOR}0d` }}>
       <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
-        Trainingsziele
+        {t('goals.title')}
       </p>
       {showYear && (
         <GoalRow
           icon="🎯"
-          label={`Jahresziel ${new Date().getFullYear()}`}
+          label={t('goals.yearlyLabel', { year: new Date().getFullYear() })}
           current={yearKm!}
           target={yearlyKmGoal!}
           unit="km"
@@ -356,32 +363,33 @@ function GoalWidget({
         />
       )}
       {showWeek && (
-        <GoalRow icon="📅" label="Wochenziel" current={weekHours!} target={weeklyHoursGoal!} unit="h" />
+        <GoalRow icon="📅" label={t('goals.weeklyLabel')} current={weekHours!} target={weeklyHoursGoal!} unit="h" />
       )}
     </div>
   );
 }
 
 function PrWidget({ events, onDismiss }: { events: PrEvent[]; onDismiss: (id: number) => void }) {
+  const { t } = useTranslation('dashboard');
   if (events.length === 0) return null;
   return (
     <div className="rounded-2xl border px-5 py-4" style={{ borderColor: '#f59e0b50', background: 'rgba(245,158,11,0.07)' }}>
       <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground mb-2.5">
-        Neue Bestzeit 🏆
+        {t('pr.title')}
       </p>
       <div className="space-y-2">
         {events.map(e => (
           <div key={e.id} className="flex items-center justify-between gap-3 text-sm">
             <Link to={`/activities/${e.activity_id}`} className="min-w-0 hover:opacity-80 transition-opacity">
               <span className="font-semibold">{e.distance_km} km</span>
-              <span className="text-muted-foreground"> in </span>
+              <span className="text-muted-foreground"> {t('pr.in')} </span>
               <span className="font-bold tabular-nums" style={{ color: '#f59e0b' }}>{fmtPrTime(e.best_time_s)}</span>
               <span className="text-muted-foreground"> · {e.activity_name}</span>
             </Link>
             <button
               onClick={() => onDismiss(e.id)}
               className="shrink-0 text-muted-foreground hover:text-foreground transition-colors text-xs"
-              title="Verwerfen"
+              title={t('pr.dismiss')}
             >
               ✕
             </button>
@@ -393,6 +401,7 @@ function PrWidget({ events, onDismiss }: { events: PrEvent[]; onDismiss: (id: nu
 }
 
 function DistanzSparkTooltip({ active, payload, label }: { active?: boolean; payload?: any[]; label?: string }) {
+  const { t } = useTranslation('dashboard');
   if (!active || !payload?.length) return null;
   const d = payload[0]?.payload;
   return (
@@ -400,15 +409,16 @@ function DistanzSparkTooltip({ active, payload, label }: { active?: boolean; pay
       active={active}
       label={label}
       rows={[
-        { label: 'Distanz', value: `${d?.km ?? 0} km` },
-        { label: 'Rides', value: `${d?.count ?? 0}` },
-        ...(d?.hm > 0 ? [{ label: 'Höhenmeter', value: `${fmtNum(d.hm)} m` }] : []),
+        { label: t('sparkTooltip.distance'), value: `${d?.km ?? 0} km` },
+        { label: t('sparkTooltip.rides'), value: `${d?.count ?? 0}` },
+        ...(d?.hm > 0 ? [{ label: t('sparkTooltip.elevation'), value: `${fmtNum(d.hm)} m` }] : []),
       ]}
     />
   );
 }
 
 export default function DashboardPage() {
+  const { t } = useTranslation(['dashboard', 'common']);
   const config = useConfig();
   const [stats, setStats] = useState<ActivityStats | null>(null);
   const [bikes, setBikes] = useState<Bike[]>([]);
@@ -453,11 +463,11 @@ export default function DashboardPage() {
         setSparkLabels(MONTHS);
       } else {
         setSparkLabels(
-          (sp as WeeklyStats[]).map(w => (w.weeks_ago === 0 ? 'Akt.' : `-${w.weeks_ago}W`))
+          (sp as WeeklyStats[]).map(w => (w.weeks_ago === 0 ? t('charts.current') : t('charts.weeksAgo', { weeks: w.weeks_ago })))
         );
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Unbekannter Fehler');
+      setError(e instanceof Error ? e.message : t('error.unknown'));
     } finally {
       setLoading(false);
     }
@@ -512,7 +522,7 @@ export default function DashboardPage() {
   }
 
   function volLabel(w: WeeklyVolume) {
-    return w.weeks_ago === 0 ? 'Akt.' : `-${w.weeks_ago}W`;
+    return w.weeks_ago === 0 ? t('charts.current') : t('charts.weeksAgo', { weeks: w.weeks_ago });
   }
 
   const currentWeek = weeklyVol.find(w => w.weeks_ago === 0);
@@ -527,7 +537,7 @@ export default function DashboardPage() {
     <div className="space-y-6">
       {error && (
         <p className="text-destructive text-sm rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3">
-          Backend nicht erreichbar: {error}
+          {t('error.backendUnreachable', { message: error })}
         </p>
       )}
 
@@ -556,7 +566,7 @@ export default function DashboardPage() {
         {/* Jahr-Selector */}
         {availableYears.length > 0 && (
           <div className="flex items-center gap-1.5 px-5 pt-4 pb-0 flex-wrap">
-            <span className="text-[11px] text-muted-foreground mr-1 uppercase tracking-wider">Zeitraum:</span>
+            <span className="text-[11px] text-muted-foreground mr-1 uppercase tracking-wider">{t('period.label')}</span>
             {[null, ...availableYears].map(y => {
               const active = y === selectedYear;
               return (
@@ -570,7 +580,7 @@ export default function DashboardPage() {
                       : { background: 'var(--muted)', color: 'var(--muted-foreground)' }
                   }
                 >
-                  {y ?? 'Gesamt'}
+                  {y ?? t('period.all')}
                 </button>
               );
             })}
@@ -581,39 +591,39 @@ export default function DashboardPage() {
         {hasData ? (
           <>
             <div className="grid grid-cols-2 md:grid-cols-4 divide-x divide-y md:divide-y-0 divide-border mt-3">
-              <KpiTile label="Aktivitäten" target={stats.total_rides} unit="Rides" loading={loading} />
-              <KpiTile label="Gesamtstrecke" target={Math.round(stats.total_km)} unit="km" loading={loading} />
-              <KpiTile label="Fahrzeit" target={Math.round(stats.total_moving_s / 3600)} unit="Stunden" loading={loading} />
-              <KpiTile label="Aufstieg" target={Math.round(stats.total_elevation_m)} unit="Hm" loading={loading} />
+              <KpiTile label={t('kpi.activities')} target={stats.total_rides} unit="Rides" loading={loading} />
+              <KpiTile label={t('kpi.totalDistance')} target={Math.round(stats.total_km)} unit="km" loading={loading} />
+              <KpiTile label={t('kpi.movingTime')} target={Math.round(stats.total_moving_s / 3600)} unit={t('kpi.hours')} loading={loading} />
+              <KpiTile label={t('kpi.elevation')} target={Math.round(stats.total_elevation_m)} unit="Hm" loading={loading} />
             </div>
 
             {/* Durchschnitts-Strip */}
             <div className="grid grid-cols-3 divide-x divide-border border-t border-border">
               <div className="flex flex-col items-center py-3 px-4">
                 <p className="text-base font-bold text-foreground tabular-nums">{stats.avg_km.toFixed(1)} km</p>
-                <p className="text-[11px] text-muted-foreground mt-0.5">⌀ Ride</p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">{t('kpi.avgRide')}</p>
               </div>
               <div className="flex flex-col items-center py-3 px-4">
                 <p className="text-base font-bold text-foreground tabular-nums">{stats.avg_speed_kmh.toFixed(1)} km/h</p>
-                <p className="text-[11px] text-muted-foreground mt-0.5">⌀ Tempo</p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">{t('kpi.avgSpeed')}</p>
               </div>
               <div className="flex flex-col items-center py-3 px-4">
                 {stats.avg_hr ? (
                   <>
                     <p className="text-base font-bold text-foreground tabular-nums">{Math.round(stats.avg_hr)} bpm</p>
-                    <p className="text-[11px] text-muted-foreground mt-0.5">⌀ HR</p>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">{t('kpi.avgHr')}</p>
                   </>
                 ) : stats.avg_power_w ? (
                   <>
                     <p className="text-base font-bold text-foreground tabular-nums">{Math.round(stats.avg_power_w)} W</p>
-                    <p className="text-[11px] text-muted-foreground mt-0.5">⌀ Leistung</p>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">{t('kpi.avgPower')}</p>
                   </>
                 ) : (
                   <>
                     <p className="text-base font-bold text-foreground tabular-nums">
                       {fmtTime(Math.round(stats.total_moving_s / stats.total_rides))}
                     </p>
-                    <p className="text-[11px] text-muted-foreground mt-0.5">⌀ Dauer</p>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">{t('kpi.avgDuration')}</p>
                   </>
                 )}
               </div>
@@ -630,9 +640,9 @@ export default function DashboardPage() {
           </div>
         ) : (
           <CardContent className="py-12 text-center">
-            <p className="text-muted-foreground mb-3">Keine Daten vorhanden.</p>
+            <p className="text-muted-foreground mb-3">{t('kpi.noData')}</p>
             <Link to="/settings" className="text-sm text-primary hover:underline">
-              Einstellungen öffnen und Import starten →
+              {t('kpi.openSettings')}
             </Link>
           </CardContent>
         )}
@@ -644,8 +654,8 @@ export default function DashboardPage() {
           <CardHeader className="pb-2">
             <CardTitle className="text-sm text-muted-foreground font-medium">
               {selectedYear
-                ? `Distanz ${selectedYear} – nach Monat`
-                : `Distanz – letzte ${config.sparkline_weeks} Wochen`}
+                ? t('charts.distanceYear', { year: selectedYear })
+                : t('charts.distanceWeeks', { weeks: config.sparkline_weeks })}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -683,20 +693,20 @@ export default function DashboardPage() {
           <CardHeader>
             <div className="flex items-center justify-between flex-wrap gap-2">
               <CardTitle className="text-sm text-muted-foreground font-medium">
-                Trainingsvolumen – letzte {VOL_WEEKS} Wochen
+                {t('charts.volumeTitle', { weeks: VOL_WEEKS })}
               </CardTitle>
               <div className="flex items-center gap-3 text-xs text-muted-foreground">
                 <span className="flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-full inline-block" style={{ background: '#3b82f6' }} />
-                  Radfahren
+                  {t('charts.legendRide')}
                 </span>
                 <span className="flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-full inline-block" style={{ background: '#a78bfa' }} />
-                  Workout
+                  {t('charts.legendWorkout')}
                 </span>
                 <span className="flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-full inline-block" style={{ background: '#f59e0b' }} />
-                  Kraft
+                  {t('charts.legendStrength')}
                 </span>
               </div>
             </div>
@@ -713,7 +723,7 @@ export default function DashboardPage() {
                     <div
                       className="w-full flex flex-col-reverse rounded-sm overflow-hidden"
                       style={{ height: `${barPx(total)}px` }}
-                      title={`${volLabel(w)}: ${Math.round(total)} min gesamt`}
+                      title={t('charts.totalMinutesTooltip', { label: volLabel(w), minutes: Math.round(total) })}
                     >
                       {w.weight_training_minutes > 0 && (
                         <div style={{ height: `${weightPx}px`, background: '#f59e0b', flexShrink: 0 }} />
@@ -741,7 +751,7 @@ export default function DashboardPage() {
         {/* Letzte Aktivitäten */}
         <section>
           <h2 className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground mb-3 px-1">
-            Letzte Aktivitäten
+            {t('recent.title')}
           </h2>
           {loading ? (
             <div className="space-y-2">
@@ -764,7 +774,7 @@ export default function DashboardPage() {
                   />
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold text-sm leading-snug truncate group-hover:text-primary transition-colors">
-                      {act.name}
+                      {rideTitle(act, t)}
                     </p>
                     <p className="text-xs text-muted-foreground">
                       {fmtWeekday(act.start_date)}, {fmtDate(act.start_date)}
@@ -781,10 +791,10 @@ export default function DashboardPage() {
                 </Link>
               ))}
               {recentActivities.length === 0 && (
-                <p className="text-sm text-muted-foreground px-1">Keine Aktivitäten gefunden.</p>
+                <p className="text-sm text-muted-foreground px-1">{t('recent.empty')}</p>
               )}
               <Link to="/activities" className="block pt-1 px-1 text-xs text-primary hover:underline">
-                Alle Aktivitäten →
+                {t('recent.viewAll')}
               </Link>
             </div>
           )}
@@ -793,7 +803,7 @@ export default function DashboardPage() {
         {/* Bikes */}
         <section>
           <h2 className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground mb-3 px-1">
-            Bikes
+            {t('bikes.title')}
           </h2>
           {loading ? (
             <div className="space-y-2">
@@ -801,7 +811,7 @@ export default function DashboardPage() {
               <Skeleton className="h-16 w-full rounded-xl" />
             </div>
           ) : bikes.length === 0 ? (
-            <p className="text-sm text-muted-foreground px-1">Keine Bikes gefunden.</p>
+            <p className="text-sm text-muted-foreground px-1">{t('bikes.empty')}</p>
           ) : (
             <div className="space-y-1.5">
               {bikes.map(bike => {
@@ -831,7 +841,7 @@ export default function DashboardPage() {
                 );
               })}
               <Link to="/bikes" className="block pt-1 px-1 text-xs text-primary hover:underline">
-                Bike-Details →
+                {t('bikes.viewAll')}
               </Link>
             </div>
           )}

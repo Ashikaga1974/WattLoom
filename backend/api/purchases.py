@@ -1,8 +1,9 @@
 from datetime import date as Date
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 from pydantic import BaseModel, Field
 
+from backend.api.errors import api_error
 from backend.database import db_connection
 
 router = APIRouter(prefix="/purchases", tags=["purchases"])
@@ -131,7 +132,7 @@ def update_purchase(purchase_id: int, data: PurchaseUpdate):
              data.storage_location_id, purchase_id),
         ).rowcount
         if not affected:
-            raise HTTPException(status_code=404, detail="Purchase not found")
+            raise api_error(404, "purchase_not_found", "Purchase not found")
         conn.commit()
         return _purchase_by_id(conn, purchase_id)
 
@@ -144,7 +145,7 @@ def adjust_quantity(purchase_id: int, body: AdjustIn):
     with db_connection() as conn:
         exists = conn.execute("SELECT id FROM purchases WHERE id = ?", (purchase_id,)).fetchone()
         if exists is None:
-            raise HTTPException(status_code=404, detail="Purchase not found")
+            raise api_error(404, "purchase_not_found", "Purchase not found")
 
         if body.delta > 0:
             conn.executemany(
@@ -161,7 +162,7 @@ def adjust_quantity(purchase_id: int, body: AdjustIn):
                 (purchase_id, n),
             ).fetchall()
             if len(available) < n:
-                raise HTTPException(status_code=409, detail="Nicht genug Lagerbestand zum Entfernen vorhanden")
+                raise api_error(409, "insufficient_stock", "Nicht genug Lagerbestand zum Entfernen vorhanden")
             today = Date.today().isoformat()
             conn.executemany(
                 "UPDATE purchase_items SET disposed_at = ? WHERE id = ?",
@@ -181,7 +182,7 @@ def delete_purchase(purchase_id: int):
     with db_connection() as conn:
         row = conn.execute("SELECT id FROM purchases WHERE id = ?", (purchase_id,)).fetchone()
         if row is None:
-            raise HTTPException(status_code=404, detail="Purchase not found")
+            raise api_error(404, "purchase_not_found", "Purchase not found")
         installed = conn.execute(
             """SELECT COUNT(*) AS c FROM purchase_items pi
                JOIN bike_components bc ON bc.purchase_item_id = pi.id
@@ -189,7 +190,7 @@ def delete_purchase(purchase_id: int):
             (purchase_id,),
         ).fetchone()["c"]
         if installed:
-            raise HTTPException(status_code=409, detail="Einkauf enthält noch verbaute Komponenten")
+            raise api_error(409, "purchase_has_installed_components", "Einkauf enthält noch verbaute Komponenten")
         open_returns = conn.execute(
             """SELECT COUNT(*) AS c FROM purchase_returns pr
                JOIN purchase_items pi ON pi.id = pr.purchase_item_id
@@ -197,7 +198,7 @@ def delete_purchase(purchase_id: int):
             (purchase_id,),
         ).fetchone()["c"]
         if open_returns:
-            raise HTTPException(status_code=409, detail="Einkauf hat noch offene Rückgabe-Historie")
+            raise api_error(409, "purchase_has_open_returns", "Einkauf hat noch offene Rückgabe-Historie")
         # deleted_components.purchase_item_id verweist bei unwiderruflich gelöschten Komponenten
         # weiterhin auf das Item (siehe DELETE .../components/{id}) - anders als bike_components/
         # purchase_returns oben ist das aber reine, abgeschlossene Historie (nicht reaktivierbar),

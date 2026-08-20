@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any
 
 from backend.database import db_connection, init_db
+from backend.importer.sport_codes import to_sport_code
 
 logger = logging.getLogger(__name__)
 
@@ -210,6 +211,7 @@ def import_activities_csv(
                     ).fetchone()
                     smart_device = existing["smart_device"] if existing else "Unbekannt"
 
+                sport_code = to_sport_code(r.get("Activity Type"))
                 conn.execute("""
                     INSERT OR REPLACE INTO activities (
                         id, name, activity_type, sport_type, start_date, start_date_local,
@@ -223,8 +225,8 @@ def import_activities_csv(
                 """, (
                     activity_id,
                     r.get("Activity Name"),
-                    r.get("Activity Type"),
-                    r.get("Activity Type"),
+                    sport_code,
+                    sport_code,
                     _parse_date(r.get("Activity Date")),
                     _parse_date(r.get("Activity Date")),
                     r.get("Timezone") or r.get("UTC Offset"),
@@ -283,7 +285,7 @@ def import_other_activities_csv(zf: zipfile.ZipFile) -> None:
                 """, (
                     activity_id,
                     r.get("Activity Name"),
-                    r.get("Activity Type"),
+                    to_sport_code(r.get("Activity Type")),
                     _parse_date(r.get("Activity Date")),
                     _to_int(r.get("Moving Time")),
                     _to_int(r.get("Elapsed Time")),

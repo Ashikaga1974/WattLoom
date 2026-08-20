@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { api } from '@/lib/api';
 import { PageHeader } from '@/components/ui/page-header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -28,8 +29,8 @@ interface CaloriesData {
   }[];
 }
 
-function fmtKcal(v: number): string {
-  if (v >= 1000000) return `${(v / 1000000).toFixed(1)} Mio.`;
+function fmtKcal(v: number, millionLabel: string): string {
+  if (v >= 1000000) return `${(v / 1000000).toFixed(1)} ${millionLabel}`;
   if (v >= 1000)    return `${(v / 1000).toFixed(1)}k`;
   return String(Math.round(v));
 }
@@ -39,6 +40,7 @@ const COLOR_RIDES    = 'var(--primary)';
 const COLOR_WORKOUTS = 'var(--chart-2)';
 
 function MonthTooltip({ active, payload, label }: { active?: boolean; payload?: any[]; label?: string }) {
+  const { t } = useTranslation('calories');
   if (!active || !payload?.length) return null;
   const d = payload[0]?.payload;
   const total = (d?.kcal ?? 0) + (d?.kcal_workouts ?? 0);
@@ -47,16 +49,17 @@ function MonthTooltip({ active, payload, label }: { active?: boolean; payload?: 
       active={active}
       label={label}
       rows={[
-        ...(d?.kcal > 0 ? [{ label: `Radtouren · ${d.rides} Rides`, value: `${d.kcal.toLocaleString()} kcal`, color: COLOR_RIDES }] : []),
-        ...(d?.kcal_workouts > 0 ? [{ label: `Workouts · ${d.workouts}×`, value: `${d.kcal_workouts.toLocaleString()} kcal`, color: COLOR_WORKOUTS }] : []),
-        ...(d?.kcal > 0 && d?.kcal_workouts > 0 ? [{ label: 'Gesamt', value: `${total.toLocaleString()} kcal`, separator: true }] : []),
-        ...(d?.rolling_avg > 0 ? [{ label: '3M-Ø', value: `${d.rolling_avg.toLocaleString()} kcal` }] : []),
+        ...(d?.kcal > 0 ? [{ label: t('tooltip.rides', { count: d.rides }), value: `${d.kcal.toLocaleString()} ${t('units.kcal')}`, color: COLOR_RIDES }] : []),
+        ...(d?.kcal_workouts > 0 ? [{ label: t('tooltip.workouts', { count: d.workouts }), value: `${d.kcal_workouts.toLocaleString()} ${t('units.kcal')}`, color: COLOR_WORKOUTS }] : []),
+        ...(d?.kcal > 0 && d?.kcal_workouts > 0 ? [{ label: t('tooltip.total'), value: `${total.toLocaleString()} ${t('units.kcal')}`, separator: true }] : []),
+        ...(d?.rolling_avg > 0 ? [{ label: t('tooltip.rollingAvg'), value: `${d.rolling_avg.toLocaleString()} ${t('units.kcal')}` }] : []),
       ]}
     />
   );
 }
 
 function YearTooltip({ active, payload, label }: { active?: boolean; payload?: any[]; label?: string }) {
+  const { t } = useTranslation('calories');
   if (!active || !payload?.length) return null;
   const d = payload[0]?.payload;
   const total = (d?.kcal ?? 0) + (d?.kcal_workouts ?? 0);
@@ -65,15 +68,16 @@ function YearTooltip({ active, payload, label }: { active?: boolean; payload?: a
       active={active}
       label={label}
       rows={[
-        ...(d?.kcal > 0 ? [{ label: `Radtouren · ${d.rides} Rides`, value: `${d.kcal.toLocaleString()} kcal`, color: COLOR_RIDES }] : []),
-        ...(d?.kcal_workouts > 0 ? [{ label: `Workouts · ${d.workouts}×`, value: `${d.kcal_workouts.toLocaleString()} kcal`, color: COLOR_WORKOUTS }] : []),
-        ...(d?.kcal > 0 && d?.kcal_workouts > 0 ? [{ label: 'Gesamt', value: `${total.toLocaleString()} kcal`, separator: true }] : []),
+        ...(d?.kcal > 0 ? [{ label: t('tooltip.rides', { count: d.rides }), value: `${d.kcal.toLocaleString()} ${t('units.kcal')}`, color: COLOR_RIDES }] : []),
+        ...(d?.kcal_workouts > 0 ? [{ label: t('tooltip.workouts', { count: d.workouts }), value: `${d.kcal_workouts.toLocaleString()} ${t('units.kcal')}`, color: COLOR_WORKOUTS }] : []),
+        ...(d?.kcal > 0 && d?.kcal_workouts > 0 ? [{ label: t('tooltip.total'), value: `${total.toLocaleString()} ${t('units.kcal')}`, separator: true }] : []),
       ]}
     />
   );
 }
 
 export default function CaloriesPage() {
+  const { t } = useTranslation('calories');
   const config = useConfig();
   const [data, setData]             = useState<CaloriesData | null>(null);
   const [loading, setLoading]       = useState(true);
@@ -87,7 +91,7 @@ export default function CaloriesPage() {
     const year = selectedYear && selectedYear !== 'all' ? Number(selectedYear) : null;
     api.calories(year)
       .then(setData)
-      .catch(e => setError(e instanceof Error ? e.message : 'Fehler'))
+      .catch(e => setError(e instanceof Error ? e.message : t('errorFallback')))
       .finally(() => setLoading(false));
   }, [selectedYear]);
 
@@ -96,7 +100,7 @@ export default function CaloriesPage() {
     return data.yearly.map(y => y.year).filter(y => y >= '2022');
   }, [data]);
 
-  const MONTHS = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
+  const MONTHS = t('months', { returnObjects: true }) as string[];
   const monthlyFormatted = useMemo(() => {
     if (!data) return [];
     const base = data.monthly.map(m => {
@@ -127,8 +131,8 @@ export default function CaloriesPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Kalorien"
-        subtitle="Energieverbrauch aus Rides & Workouts"
+        title={t('title')}
+        subtitle={t('subtitle')}
         years={availableYears}
         selectedYear={selectedYear ?? 'all'}
         onYearChange={v => setSelectedYear(v === 'all' ? null : v)}
@@ -155,12 +159,12 @@ export default function CaloriesPage() {
             <Card>
               <CardContent className="pt-4 pb-4">
                 <p className="text-xs text-muted-foreground">
-                  {selectedYear && selectedYear !== 'all' ? `Radtouren ${selectedYear}` : 'Radtouren gesamt'}
+                  {selectedYear && selectedYear !== 'all' ? t('kpi.ridesYear', { year: selectedYear }) : t('kpi.ridesTotal')}
                 </p>
                 <p className="text-2xl font-bold mt-1" style={{ color: COLOR_RIDES }}>
-                  {fmtKcal(data.total_kcal)}
+                  {fmtKcal(data.total_kcal, t('units.million'))}
                 </p>
-                <p className="text-xs text-muted-foreground mt-0.5">kcal · {data.rides} Rides</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{t('kpi.kcalRides', { count: data.rides })}</p>
               </CardContent>
             </Card>
 
@@ -168,13 +172,13 @@ export default function CaloriesPage() {
             <Card>
               <CardContent className="pt-4 pb-4">
                 <p className="text-xs text-muted-foreground">
-                  {selectedYear && selectedYear !== 'all' ? `Workouts ${selectedYear}` : 'Workouts gesamt'}
+                  {selectedYear && selectedYear !== 'all' ? t('kpi.workoutsYear', { year: selectedYear }) : t('kpi.workoutsTotal')}
                 </p>
                 <p className="text-2xl font-bold mt-1" style={{ color: hasWorkouts ? COLOR_WORKOUTS : undefined }}>
-                  {hasWorkouts ? fmtKcal(data.total_kcal_workouts) : '–'}
+                  {hasWorkouts ? fmtKcal(data.total_kcal_workouts, t('units.million')) : '–'}
                 </p>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  {hasWorkouts ? `kcal · ${data.workouts} Workouts` : 'keine Daten'}
+                  {hasWorkouts ? t('kpi.kcalWorkouts', { count: data.workouts }) : t('kpi.noData')}
                 </p>
               </CardContent>
             </Card>
@@ -182,40 +186,40 @@ export default function CaloriesPage() {
             {/* Fettäquivalent (kombiniert) */}
             <Card>
               <CardContent className="pt-4 pb-4">
-                <p className="text-xs text-muted-foreground">≈ Fettäquivalent</p>
+                <p className="text-xs text-muted-foreground">{t('kpi.fatEquivalent')}</p>
                 <p className="text-2xl font-bold mt-1">{fatKg}</p>
-                <p className="text-xs text-muted-foreground mt-0.5">kg (à 7 700 kcal)</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{t('units.fatUnit')}</p>
               </CardContent>
             </Card>
 
             {/* Ø pro Ride */}
             <Card>
               <CardContent className="pt-4 pb-4">
-                <p className="text-xs text-muted-foreground">Ø pro Ride</p>
+                <p className="text-xs text-muted-foreground">{t('kpi.avgPerRide')}</p>
                 <p className="text-2xl font-bold mt-1">{data.avg_kcal.toLocaleString()}</p>
-                <p className="text-xs text-muted-foreground mt-0.5">kcal</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{t('units.kcal')}</p>
               </CardContent>
             </Card>
 
             {/* Ø pro Workout */}
             <Card>
               <CardContent className="pt-4 pb-4">
-                <p className="text-xs text-muted-foreground">Ø pro Workout</p>
+                <p className="text-xs text-muted-foreground">{t('kpi.avgPerWorkout')}</p>
                 <p className="text-2xl font-bold mt-1">
                   {data.avg_kcal_workouts ? data.avg_kcal_workouts.toLocaleString() : '–'}
                 </p>
-                <p className="text-xs text-muted-foreground mt-0.5">kcal</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{t('units.kcal')}</p>
               </CardContent>
             </Card>
 
             {/* kcal/h */}
             <Card>
               <CardContent className="pt-4 pb-4">
-                <p className="text-xs text-muted-foreground">Ø pro Stunde (Rides)</p>
+                <p className="text-xs text-muted-foreground">{t('kpi.avgPerHour')}</p>
                 <p className="text-2xl font-bold mt-1">
                   {data.kcal_per_hour ? data.kcal_per_hour.toLocaleString() : '–'}
                 </p>
-                <p className="text-xs text-muted-foreground mt-0.5">kcal/h</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{t('units.kcalPerHour')}</p>
               </CardContent>
             </Card>
           </div>
@@ -225,7 +229,7 @@ export default function CaloriesPage() {
             <Card>
               <CardHeader>
                 <CardTitle className="text-sm font-medium">
-                  Monatsverlauf{selectedYear && selectedYear !== 'all' ? ` ${selectedYear}` : ''}
+                  {selectedYear && selectedYear !== 'all' ? t('chart.monthlyTitleYear', { year: selectedYear }) : t('chart.monthlyTitle')}
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -240,13 +244,13 @@ export default function CaloriesPage() {
                     <YAxis
                       tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
                       axisLine={false} tickLine={false}
-                      tickFormatter={v => fmtKcal(v)}
+                      tickFormatter={v => fmtKcal(v, t('units.million'))}
                       width={40}
                     />
                     <Tooltip content={<MonthTooltip />} />
                     {hasWorkouts && (
                       <Legend
-                        formatter={v => v === 'kcal' ? 'Radtouren' : v === 'kcal_workouts' ? 'Workouts' : '3M-Ø'}
+                        formatter={v => v === 'kcal' ? t('chart.legendRides') : v === 'kcal_workouts' ? t('chart.legendWorkouts') : t('chart.legendRollingAvg')}
                         wrapperStyle={{ fontSize: 11 }}
                       />
                     )}
@@ -283,7 +287,7 @@ export default function CaloriesPage() {
           {data.yearly.length > 1 && (
             <Card>
               <CardHeader>
-                <CardTitle className="text-sm font-medium">Jahresvergleich</CardTitle>
+                <CardTitle className="text-sm font-medium">{t('chart.yearlyTitle')}</CardTitle>
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={config.chart_height}>
@@ -297,7 +301,7 @@ export default function CaloriesPage() {
                     <YAxis
                       tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
                       axisLine={false} tickLine={false}
-                      tickFormatter={v => fmtKcal(v)}
+                      tickFormatter={v => fmtKcal(v, t('units.million'))}
                       width={44}
                     />
                     <Tooltip content={<YearTooltip />} />
@@ -317,17 +321,17 @@ export default function CaloriesPage() {
                   </BarChart>
                 </ResponsiveContainer>
                 <p className="text-xs text-muted-foreground mt-2">
-                  Bestes Jahr:{' '}
+                  {t('bestYear.label')}{' '}
                   <span className="font-medium text-foreground">{bestYear?.year}</span>{' '}
-                  mit {((bestYear?.kcal ?? 0) + (bestYear?.kcal_workouts ?? 0)).toLocaleString()} kcal
-                  ({bestYear?.rides} Rides{(bestYear?.workouts ?? 0) > 0 ? ` + ${bestYear?.workouts} Workouts` : ''})
+                  {t('bestYear.with', { kcal: ((bestYear?.kcal ?? 0) + (bestYear?.kcal_workouts ?? 0)).toLocaleString() })}
+                  {' '}({t('bestYear.rides', { count: bestYear?.rides })}{(bestYear?.workouts ?? 0) > 0 ? ` + ${t('bestYear.workouts', { count: bestYear?.workouts })}` : ''})
                 </p>
               </CardContent>
             </Card>
           )}
         </>
       ) : (
-        <p className="text-muted-foreground text-sm">Keine Kalorien-Daten vorhanden.</p>
+        <p className="text-muted-foreground text-sm">{t('emptyState')}</p>
       )}
     </div>
   );

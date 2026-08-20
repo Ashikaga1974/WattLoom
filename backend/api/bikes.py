@@ -2,10 +2,11 @@ import uuid
 from datetime import date as Date, timedelta
 from pathlib import Path
 
-from fastapi import APIRouter, File, HTTPException, UploadFile
+from fastapi import APIRouter, File, UploadFile
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
+from backend.api.errors import api_error
 from backend.database import db_connection
 
 router = APIRouter(prefix="/bikes", tags=["bikes"])
@@ -238,10 +239,10 @@ def get_bike_image(bike_id: str):
     with db_connection() as conn:
         row = conn.execute("SELECT image_filename FROM bikes WHERE id = ?", (bike_id,)).fetchone()
         if not row or not row["image_filename"]:
-            raise HTTPException(status_code=404, detail="No image")
+            raise api_error(404, "no_image", "No image")
     path = BIKE_IMAGES_DIR / row["image_filename"]
     if not path.exists():
-        raise HTTPException(status_code=404, detail="Image file missing")
+        raise api_error(404, "image_file_missing", "Image file missing")
     return FileResponse(str(path))
 
 
@@ -250,7 +251,7 @@ async def upload_bike_image(bike_id: str, file: UploadFile = File(...)):
     with db_connection() as conn:
         bike = conn.execute("SELECT id, image_filename FROM bikes WHERE id = ?", (bike_id,)).fetchone()
         if bike is None:
-            raise HTTPException(status_code=404, detail="Bike not found")
+            raise api_error(404, "bike_not_found", "Bike not found")
 
     suffix = Path(file.filename or "").suffix.lower() or ".jpg"
     filename = f"{uuid.uuid4()}{suffix}"
@@ -274,7 +275,7 @@ def toggle_retired(bike_id: str):
     with db_connection() as conn:
         row = conn.execute("SELECT retired FROM bikes WHERE id = ?", (bike_id,)).fetchone()
         if row is None:
-            raise HTTPException(status_code=404, detail="Bike not found")
+            raise api_error(404, "bike_not_found", "Bike not found")
         new_val = 0 if row["retired"] else 1
         conn.execute("UPDATE bikes SET retired = ? WHERE id = ?", (new_val, bike_id))
         conn.commit()
@@ -286,7 +287,7 @@ def get_bike(bike_id: str):
     with db_connection() as conn:
         bike = conn.execute("SELECT * FROM bikes WHERE id = ?", (bike_id,)).fetchone()
         if bike is None:
-            raise HTTPException(status_code=404, detail="Bike not found")
+            raise api_error(404, "bike_not_found", "Bike not found")
         result = dict(bike)
         current_km = _current_bike_km(conn, bike_id)
         result["current_km"] = current_km
@@ -312,7 +313,7 @@ def add_component(bike_id: str, body: ComponentCreate):
     with db_connection() as conn:
         bike = conn.execute("SELECT id FROM bikes WHERE id = ?", (bike_id,)).fetchone()
         if bike is None:
-            raise HTTPException(status_code=404, detail="Bike not found")
+            raise api_error(404, "bike_not_found", "Bike not found")
         added_at = body.installed_at or Date.today().isoformat()
         # Km-Stand des Bikes AN DEM Einbaudatum berechnen (nicht aktuell),
         # damit km_since_service die seit dem Einbau gefahrenen km korrekt widerspiegelt.
@@ -339,13 +340,13 @@ def add_component(bike_id: str, body: ComponentCreate):
                     (body.return_id,),
                 ).fetchone()
                 if ret is None:
-                    raise HTTPException(status_code=404, detail="Return record not found")
+                    raise api_error(404, "return_record_not_found", "Return record not found")
                 item = conn.execute(
                     "SELECT id, purchase_id FROM purchase_items WHERE id = ?",
                     (ret["purchase_item_id"],),
                 ).fetchone()
                 if item is None or item["purchase_id"] != body.purchase_id:
-                    raise HTTPException(status_code=409, detail="Return record does not match purchase")
+                    raise api_error(409, "return_record_mismatch", "Return record does not match purchase")
                 purchase_item_id = item["id"]
                 km_at_service = round(km_at_service - (ret["km_ridden"] or 0.0), 1)
                 conn.execute("DELETE FROM purchase_returns WHERE id = ?", (body.return_id,))
@@ -362,7 +363,7 @@ def add_component(bike_id: str, body: ComponentCreate):
                     (body.purchase_id,),
                 ).fetchone()
                 if item is None:
-                    raise HTTPException(status_code=409, detail="Kein Lagerbestand für diesen Einkauf verfügbar")
+                    raise api_error(409, "insufficient_stock", "Kein Lagerbestand für diesen Einkauf verfügbar")
                 purchase_item_id = item["id"]
 
         conn.execute(
@@ -386,7 +387,7 @@ def reset_component(bike_id: str, comp_id: int):
             (current_km, comp_id, bike_id),
         ).rowcount
         if rows == 0:
-            raise HTTPException(status_code=404, detail="Component not found")
+            raise api_error(404, "component_not_found", "Component not found")
         conn.commit()
         return {"ok": True, "km_at_service": current_km}
 
@@ -402,7 +403,7 @@ def update_bike(bike_id: str, body: BikeUpdate):
             "UPDATE bikes SET name = ? WHERE id = ?", (body.name.strip(), bike_id)
         ).rowcount
         if rows == 0:
-            raise HTTPException(status_code=404, detail="Bike not found")
+            raise api_error(404, "bike_not_found", "Bike not found")
         conn.commit()
         return {"ok": True}
 
@@ -415,7 +416,7 @@ def update_component(bike_id: str, comp_id: int, body: ComponentCreate):
             "SELECT * FROM bike_components WHERE id = ? AND bike_id = ?", (comp_id, bike_id)
         ).fetchone()
         if existing is None:
-            raise HTTPException(status_code=404, detail="Component not found")
+            raise api_error(404, "component_not_found", "Component not found")
         added_at = body.installed_at or existing["added_at"] or Date.today().isoformat()
         row = conn.execute(
             "SELECT COALESCE(SUM(distance_m), 0) / 1000.0 AS km FROM activities WHERE bike_id = ? AND DATE(start_date) < ?",
@@ -449,9 +450,9 @@ def uninstall_component(bike_id: str, comp_id: int, body: UninstallBody):
             (comp_id, bike_id),
         ).fetchone()
         if comp is None:
-            raise HTTPException(status_code=404, detail="Component not found")
+            raise api_error(404, "component_not_found", "Component not found")
         if comp["uninstalled_km"] is not None:
-            raise HTTPException(status_code=409, detail="Component already returned to stock")
+            raise api_error(409, "component_already_returned", "Component already returned to stock")
         # retired_at beibehalten wenn bereits gesetzt (Inaktiv-Button), sonst heute setzen
         retired_at = comp["retired_at"] or Date.today().isoformat()
         km_ridden = round(body.km_ridden, 1)
@@ -497,11 +498,11 @@ def link_component_purchase(bike_id: str, comp_id: int, body: LinkPurchaseBody):
             (comp_id, bike_id),
         ).fetchone()
         if comp is None:
-            raise HTTPException(status_code=404, detail="Component not found")
+            raise api_error(404, "component_not_found", "Component not found")
         if comp["purchase_item_id"] is not None:
-            raise HTTPException(status_code=409, detail="Component already linked to a purchase")
+            raise api_error(409, "component_already_linked", "Component already linked to a purchase")
         if comp["uninstalled_km"] is not None:
-            raise HTTPException(status_code=409, detail="Component already uninstalled – use return-to-stock instead")
+            raise api_error(409, "component_already_uninstalled", "Component already uninstalled – use return-to-stock instead")
         item_id = conn.execute(
             "INSERT INTO purchase_items (purchase_id) VALUES (?)", (body.purchase_id,)
         ).lastrowid
@@ -527,11 +528,11 @@ def return_component_to_stock(bike_id: str, comp_id: int, body: ReturnToStockBod
             (comp_id, bike_id),
         ).fetchone()
         if comp is None:
-            raise HTTPException(status_code=404, detail="Component not found")
+            raise api_error(404, "component_not_found", "Component not found")
         if comp["retired_at"] is None:
-            raise HTTPException(status_code=409, detail="Component is still active")
+            raise api_error(409, "component_still_active", "Component is still active")
         if comp["purchase_item_id"] is not None:
-            raise HTTPException(status_code=409, detail="Component already linked to a purchase")
+            raise api_error(409, "component_already_linked", "Component already linked to a purchase")
         item_id = conn.execute(
             "INSERT INTO purchase_items (purchase_id) VALUES (?)", (body.purchase_id,)
         ).lastrowid
@@ -555,7 +556,7 @@ def delete_component(bike_id: str, comp_id: int):
             "SELECT * FROM bike_components WHERE id = ? AND bike_id = ?", (comp_id, bike_id)
         ).fetchone()
         if comp is None:
-            raise HTTPException(status_code=404, detail="Component not found")
+            raise api_error(404, "component_not_found", "Component not found")
         current_km = _current_bike_km(conn, bike_id)
         km_since_service = round(max(0.0, current_km - float(comp["km_at_service"] or 0)), 1)
         deleted_at = Date.today().isoformat()

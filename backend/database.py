@@ -177,6 +177,17 @@ def init_db() -> None:
                 key   TEXT PRIMARY KEY,
                 value TEXT
             );
+
+            -- UI-Übersetzungen (ersetzt die vormals ins Frontend gebündelten
+            -- locales/{lang}/<ns>.json) – key ist ein dot-path wie i18next ihn nutzt
+            -- (z.B. "zones.zoneLabel.recovery"), value der übersetzte String.
+            CREATE TABLE IF NOT EXISTS translations (
+                lang  TEXT NOT NULL,
+                ns    TEXT NOT NULL,
+                key   TEXT NOT NULL,
+                value TEXT NOT NULL,
+                PRIMARY KEY (lang, ns, key)
+            );
         """)
         # Default-Bike sicherstellen – wird nach jedem Reset neu angelegt
         conn.execute(
@@ -388,6 +399,77 @@ def init_db() -> None:
                 created_at        TEXT NOT NULL DEFAULT (datetime('now'))
             )
         """)
+
+        # Migration: deutsche Klartext-Sport-/Komponenten-Werte → stabile, sprachneutrale Codes
+        # (Grundlage für die Mehrsprachigkeit, DE/EN). Vorher schrieben die Importer German
+        # Labels direkt in activities.activity_type/sport_type und other_activities.sport_type;
+        # bike_components.type/purchases.component_type kamen als deutsche Freitext-Werte aus
+        # einer nur im Frontend hartcodierten Liste. Einmaliger, über eine config-Markierung
+        # abgesicherter Lauf – analog zum bereits genutzten Backup-Muster in POST /import/reset.
+        if conn.execute(
+            "SELECT 1 FROM config WHERE key = 'migrated_i18n_sport_codes'"
+        ).fetchone() is None:
+            import shutil
+            from datetime import datetime as _dt
+
+            from backend.importer.sport_codes import to_sport_code
+
+            if DB_PATH.exists():
+                backup_dir = DB_PATH.parent / "backups"
+                backup_dir.mkdir(exist_ok=True)
+                shutil.copy2(
+                    DB_PATH, backup_dir / f"mybiking_pre-i18n-migration_{_dt.now():%Y%m%d_%H%M%S}.db"
+                )
+
+            for old_val in [r[0] for r in conn.execute(
+                "SELECT DISTINCT activity_type FROM activities WHERE activity_type IS NOT NULL"
+            ).fetchall()]:
+                new_val = to_sport_code(old_val)
+                if new_val != old_val:
+                    conn.execute(
+                        "UPDATE activities SET activity_type = ?, sport_type = ? WHERE activity_type = ?",
+                        (new_val, new_val, old_val),
+                    )
+
+            for old_val in [r[0] for r in conn.execute(
+                "SELECT DISTINCT sport_type FROM other_activities WHERE sport_type IS NOT NULL"
+            ).fetchall()]:
+                new_val = to_sport_code(old_val)
+                if new_val != old_val:
+                    conn.execute(
+                        "UPDATE other_activities SET sport_type = ? WHERE sport_type = ?",
+                        (new_val, old_val),
+                    )
+
+            # bike_components.type ist eine andere (gesidete) Vokabular-Form als
+            # purchases.component_type (Basistyp ohne vorne/hinten) – zwei Maps.
+            _COMPONENT_TYPE_MAP = {
+                "Kette": "chain", "Kassette": "cassette", "Kabel": "cable",
+                "Schaltwerk": "derailleur", "Bremsbeläge": "brake_pads", "Sonstiges": "other",
+                "Mantel vorne": "tire_front", "Mantel hinten": "tire_rear",
+                "Schlauch vorne": "tube_front", "Schlauch hinten": "tube_rear",
+            }
+            _PURCHASE_COMPONENT_TYPE_MAP = {
+                **_COMPONENT_TYPE_MAP, "Mantel": "tire", "Schlauch": "tube",
+            }
+            for old_val, new_val in _COMPONENT_TYPE_MAP.items():
+                conn.execute(
+                    "UPDATE bike_components SET type = ? WHERE type = ?", (new_val, old_val)
+                )
+                conn.execute(
+                    "UPDATE deleted_components SET type = ? WHERE type = ?", (new_val, old_val)
+                )
+            for old_val, new_val in _PURCHASE_COMPONENT_TYPE_MAP.items():
+                conn.execute(
+                    "UPDATE purchases SET component_type = ? WHERE component_type = ?",
+                    (new_val, old_val),
+                )
+            # Nicht erkannte Alt-Werte bleiben absichtlich unverändert (roh sichtbar statt
+            # destruktiv geraten) – siehe CLAUDE.md.
+
+            conn.execute(
+                "INSERT INTO config(key, value) VALUES('migrated_i18n_sport_codes', '1')"
+            )
 
         # db_connection() committet beim Schließen nicht automatisch – ohne diesen commit() würde
         # eine hier noch offene, von INSERT/UPDATE implizit gestartete Transaktion (z.B. die

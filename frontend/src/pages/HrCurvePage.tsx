@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { PageHeader } from '@/components/ui/page-header';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -15,8 +16,6 @@ import {
 } from 'recharts';
 
 // ─── Shared helpers ──────────────────────────────────────────────────────────
-
-const MONTHS_SHORT = ['Jan','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'];
 
 function linReg(values: number[]): { slope: number; intercept: number } {
   const n = values.length;
@@ -49,6 +48,7 @@ interface CurveData {
 // ─── Custom Tooltips ─────────────────────────────────────────────────────────
 
 function HrVerlaufTooltip({ active, payload, label }: { active?: boolean; payload?: any[]; label?: string }) {
+  const { t } = useTranslation('hrcurve');
   if (!active || !payload?.length) return null;
   const d = payload[0]?.payload as TrendPoint;
   return (
@@ -56,8 +56,8 @@ function HrVerlaufTooltip({ active, payload, label }: { active?: boolean; payloa
       active={active}
       label={label}
       rows={[
-        { label: 'Ø HR', value: `${d.avg_hr} bpm`, color: '#94a3b8' },
-        { label: '3M-Ø', value: `${d.rolling_avg} bpm`, color: '#f87171' },
+        { label: t('curve.trend.tooltip.avgHr'), value: `${d.avg_hr} bpm`, color: '#94a3b8' },
+        { label: t('curve.trend.tooltip.rollingAvg'), value: `${d.rolling_avg} bpm`, color: '#f87171' },
       ]}
     />
   );
@@ -65,28 +65,7 @@ function HrVerlaufTooltip({ active, payload, label }: { active?: boolean; payloa
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-const CONTEXT = [
-  {
-    short: 'Maximalsprint',
-    long: 'Kürzestes Fenster — erfasst anaerobe Spitzen (Berg-Sprint, Attacke). Kaum trainierbar, stark genetisch.',
-  },
-  {
-    short: 'Hartes Intervall',
-    long: 'VO₂max-Bereich. Mit hochintensiven Intervallen (4×5 min) gezielt trainierbar.',
-  },
-  {
-    short: 'Intensiv',
-    long: 'Langes Intervall oder kurze Tempofahrt. Grenzbereich zwischen anaerob und aerob.',
-  },
-  {
-    short: '≈ Schwellen-HR',
-    long: 'Der wichtigste Wert: entspricht ungefähr der Laktatschwellen-HF. Liegt typischerweise bei ~85–92 % HRmax.',
-  },
-  {
-    short: 'Dauerleistung',
-    long: 'Aerober Bereich. Wie gut hältst du hohe HF über eine Stunde? Zeigt die aerobe Basis.',
-  },
-];
+const CONTEXT_COUNT = 5;
 
 function buildAreaPath(pts: { x: number; y: number }[], baseY: number): string {
   if (!pts.length) return '';
@@ -101,7 +80,13 @@ function buildAreaPath(pts: { x: number; y: number }[], baseY: number): string {
 }
 
 function HrKurveTab() {
+  const { t } = useTranslation('hrcurve');
   const { chart_height } = useConfig();
+  const MONTHS_SHORT = t('months', { returnObjects: true }) as string[];
+  const CONTEXT = Array.from({ length: CONTEXT_COUNT }, (_, i) => ({
+    short: t(`curve.context.${i}.short`),
+    long: t(`curve.context.${i}.long`),
+  }));
   const [data, setData] = useState<CurveData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -161,7 +146,7 @@ function HrKurveTab() {
       const res = await api.hrCurve(year ? Number(year) : undefined);
       setData({ durations_s: res.durations_s, labels: res.labels, best_hr: res.best_hr });
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Fehler beim Laden');
+      setError(e instanceof Error ? e.message : t('errors.loadFailed'));
     } finally {
       setLoading(false);
     }
@@ -216,10 +201,10 @@ function HrKurveTab() {
         <div className="flex justify-end">
           <Select value={filterYear ?? 'all'} onValueChange={handleYearChange}>
             <SelectTrigger className="w-36">
-              <SelectValue>{filterYear ?? 'Alle Jahre'}</SelectValue>
+              <SelectValue>{filterYear ?? t('yearFilter.allYears')}</SelectValue>
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Alle Jahre</SelectItem>
+              <SelectItem value="all">{t('yearFilter.allYears')}</SelectItem>
               {availableYears.map(y => (
                 <SelectItem key={y} value={y}>{y}</SelectItem>
               ))}
@@ -230,12 +215,9 @@ function HrKurveTab() {
 
       {/* Erklär-Box */}
       <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 px-4 py-3 text-sm space-y-1">
-        <p className="font-medium text-blue-400">Was zeigt diese Kurve?</p>
+        <p className="font-medium text-blue-400">{t('curve.explainer.title')}</p>
         <p className="text-muted-foreground">
-          Für jedes Zeitfenster (1 min bis 60 min) sucht der Algorithmus in allen deinen Rides den höchsten
-          Durchschnittswert der Herzfrequenz über genau so viele aufeinanderfolgende Sekunden.
-          Das Ergebnis zeigt, wie hoch deine HF bei verschiedenen Belastungsdauern maximal war —
-          ähnlich einer Power-Kurve, aber ohne Leistungsmesser.
+          {t('curve.explainer.body')}
         </p>
       </div>
 
@@ -323,7 +305,7 @@ function HrKurveTab() {
                     stroke="#f97316" strokeWidth={1} strokeDasharray="4,4" opacity={0.5}
                   />
                   <text x={PAD.left + 6} y={yOf(thresholdHR) - 4} fontSize={10} fill="#f97316" opacity={0.8}>
-                    Schwellen-HR
+                    {t('curve.chart.thresholdLabel')}
                   </text>
                 </>
               )}
@@ -391,14 +373,13 @@ function HrKurveTab() {
           <div className="grid sm:grid-cols-2 gap-4">
             {thresholdHR !== null && (
               <div className="rounded-xl border border-orange-500/30 bg-orange-500/5 px-4 py-3 space-y-1">
-                <p className="text-xs text-orange-400 font-medium uppercase tracking-wide">Geschätzte Schwellen-HR</p>
+                <p className="text-xs text-orange-400 font-medium uppercase tracking-wide">{t('curve.interpretation.thresholdTitle')}</p>
                 <p className="text-3xl font-bold text-orange-400">
                   {Math.round(thresholdHR)}{' '}
                   <span className="text-base font-normal text-orange-300">bpm</span>
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  Entspricht deinem 20-min-Bestwert. Die Laktatschwelle liegt typischerweise
-                  bei 85–92 % HRmax und markiert den Übergang von aerobem zu anaerobem Stoffwechsel.
+                  {t('curve.interpretation.thresholdBody')}
                 </p>
               </div>
             )}
@@ -406,7 +387,7 @@ function HrKurveTab() {
             {dropPct !== null && (
               <div className="rounded-xl border bg-card shadow-sm px-4 py-3 space-y-1">
                 <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
-                  Kurvensteilheit (1 min → 60 min)
+                  {t('curve.interpretation.steepnessTitle')}
                 </p>
                 <p className={`text-3xl font-bold ${dropPct <= 5 ? 'text-emerald-400' : dropPct <= 10 ? 'text-yellow-400' : 'text-red-400'}`}>
                   −{dropPct}{' '}
@@ -414,18 +395,17 @@ function HrKurveTab() {
                 </p>
                 <p className="text-xs text-muted-foreground">
                   {dropPct <= 5
-                    ? 'Sehr flach — starke aerobe Basis, du hältst hohe HF auch über lange Dauer.'
+                    ? t('curve.interpretation.steepnessFlat')
                     : dropPct <= 10
-                    ? 'Moderat — gute Balance zwischen Ausdauer und Intensität.'
-                    : 'Steil — große Spitze über kurz, aber HF fällt über längere Dauer stark ab. Mehr Grundlagentraining hilft.'}
+                    ? t('curve.interpretation.steepnessModerate')
+                    : t('curve.interpretation.steepnessSteep')}
                 </p>
               </div>
             )}
           </div>
 
           <p className="text-xs text-muted-foreground/50">
-            Berechnung: gleitendes Maximum der Sekunden-HR über alle FIT-Tracks. Nur Aktivitäten mit HR-Daten fließen ein.
-            Kurze Fenster können durch kurze Sprints verzerrt sein — der 20-min-Wert ist am aussagekräftigsten.
+            {t('curve.footerNote')}
           </p>
 
           {/* HR-Verlauf über Zeit */}
@@ -434,8 +414,8 @@ function HrKurveTab() {
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-sm font-medium">
-                    Ø Herzfrequenz pro Monat
-                    <span className="ml-2 text-xs font-normal text-muted-foreground">— gesamter Zeitraum</span>
+                    {t('curve.trend.cardTitle')}
+                    <span className="ml-2 text-xs font-normal text-muted-foreground">— {t('curve.trend.cardSubtitle')}</span>
                   </CardTitle>
                   {trendBpm !== null && (
                     <span className={`shrink-0 text-xs font-semibold px-2.5 py-1 rounded-full border ${
@@ -444,7 +424,7 @@ function HrKurveTab() {
                                       'border-border bg-muted text-muted-foreground'
                     }`}>
                       {trendBpm > 0 ? '↑' : trendBpm < 0 ? '↓' : '→'}{' '}
-                      {trendBpm > 0 ? '+' : ''}{trendBpm} bpm/Jahr
+                      {trendBpm > 0 ? '+' : ''}{trendBpm} {t('curve.trend.perYearSuffix')}
                     </span>
                   )}
                 </div>
@@ -473,7 +453,7 @@ function HrKurveTab() {
                         stroke="#f97316"
                         strokeDasharray="4 4"
                         strokeOpacity={0.5}
-                        label={{ value: 'Schwelle', position: 'insideTopRight', fontSize: 10, fill: '#f97316' }}
+                        label={{ value: t('curve.trend.referenceLabel'), position: 'insideTopRight', fontSize: 10, fill: '#f97316' }}
                       />
                     )}
                     <Line
@@ -505,12 +485,12 @@ function HrKurveTab() {
                   </ComposedChart>
                 </ResponsiveContainer>
                 <p className="text-xs text-muted-foreground/60 mt-2">
-                  <span style={{ color: '#94a3b8' }}>— monatlicher Ø</span>
+                  <span style={{ color: '#94a3b8' }}>— {t('curve.trend.legend.monthlyAvg')}</span>
                   {' · '}
-                  <span style={{ color: '#f87171' }}>— 3M-Schnitt</span>
+                  <span style={{ color: '#f87171' }}>— {t('curve.trend.legend.threeMonthAvg')}</span>
                   {' · '}
-                  <span style={{ color: '#facc15' }}>- - Trend</span>
-                  {' · Nur Rides mit HR-Daten'}
+                  <span style={{ color: '#facc15' }}>- - {t('curve.trend.legend.trend')}</span>
+                  {' · '}{t('curve.trend.legend.onlyHrRides')}
                 </p>
               </CardContent>
             </Card>
@@ -571,6 +551,8 @@ function effAreaPath(pts: { x: number; y: number }[], baseY: number): string {
 }
 
 function EffizienzTab() {
+  const { t, i18n } = useTranslation('hrcurve');
+  const dateLocale = i18n.language?.startsWith('en') ? 'en-US' : 'de-DE';
   const EFF_W = 900, EFF_H = 200;
   const EFF_PAD = { top: 20, right: 20, bottom: 40, left: 44 };
   const EFF_CW = EFF_W - EFF_PAD.left - EFF_PAD.right;
@@ -585,7 +567,7 @@ function EffizienzTab() {
   useEffect(() => {
     api.speedHr()
       .then(res => setAllPoints(res.points.filter(p => p.year >= 2020)))
-      .catch(e => setError(e instanceof Error ? e.message : 'Fehler'))
+      .catch(e => setError(e instanceof Error ? e.message : t('errors.generic')))
       .finally(() => setLoading(false));
   }, []);
 
@@ -604,7 +586,7 @@ function EffizienzTab() {
         const avgSpeed = pts.reduce((s, p) => s + p.speed_kmh, 0) / pts.length;
         const avgHr = pts.reduce((s, p) => s + p.hr, 0) / pts.length;
         const [y, m] = month.split('-');
-        const label = new Date(Number(y), Number(m) - 1, 1).toLocaleDateString('de-DE', {
+        const label = new Date(Number(y), Number(m) - 1, 1).toLocaleDateString(dateLocale, {
           month: 'short', year: '2-digit',
         });
         return { month, label, avgSpeed, avgHr, eff: avgSpeed / avgHr * 100, count: pts.length, year: Number(y) };
@@ -626,11 +608,19 @@ function EffizienzTab() {
     const dS = cur.avgSpeed - prev.avgSpeed;
     const dH = cur.avgHr - prev.avgHr;
     const dE = cur.eff - prev.eff;
-    const sDir = dS >= 0.2 ? `${dS.toFixed(1)} km/h schneller` : dS <= -0.2 ? `${Math.abs(dS).toFixed(1)} km/h langsamer` : 'gleich schnell';
-    const hDir = dH <= -1 ? `bei ${Math.abs(dH).toFixed(0)} bpm niedrigerem Puls` : dH >= 1 ? `bei ${dH.toFixed(0)} bpm höherem Puls` : 'bei ähnlichem Puls';
-    if (dE >= 0.5) return `${cur.year} fährst du im Schnitt ${sDir} ${hDir} als ${prev.year} – deine aerobe Effizienz steigt.`;
-    if (dE <= -0.5) return `${cur.year} bist du ${sDir} ${hDir} als ${prev.year} – die Effizienz ist leicht gesunken.`;
-    return `${cur.year} und ${prev.year} liegen dicht beieinander – stabile Effizienz auf gutem Niveau.`;
+    const sDir = dS >= 0.2
+      ? t('efficiency.insight.faster', { diff: dS.toFixed(1) })
+      : dS <= -0.2
+      ? t('efficiency.insight.slower', { diff: Math.abs(dS).toFixed(1) })
+      : t('efficiency.insight.sameSpeed');
+    const hDir = dH <= -1
+      ? t('efficiency.insight.lowerPulse', { diff: Math.abs(dH).toFixed(0) })
+      : dH >= 1
+      ? t('efficiency.insight.higherPulse', { diff: dH.toFixed(0) })
+      : t('efficiency.insight.similarPulse');
+    if (dE >= 0.5) return t('efficiency.insight.improving', { curYear: cur.year, speedDir: sDir, hrDir: hDir, prevYear: prev.year });
+    if (dE <= -0.5) return t('efficiency.insight.declining', { curYear: cur.year, speedDir: sDir, hrDir: hDir, prevYear: prev.year });
+    return t('efficiency.insight.stable', { curYear: cur.year, prevYear: prev.year });
   })();
 
   const effValues = monthly.map(m => m.eff);
@@ -678,8 +668,8 @@ function EffizienzTab() {
 
           <div className="rounded-xl border bg-card shadow-sm p-5">
             <div className="flex items-center justify-between mb-1">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Effizienz pro Monat</p>
-              <p className="text-xs text-muted-foreground/50">= Ø km/h ÷ Ø bpm × 100 · mindestens 2 Rides</p>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t('efficiency.chart.title')}</p>
+              <p className="text-xs text-muted-foreground/50">{t('efficiency.chart.subtitle')}</p>
             </div>
 
             <div
@@ -784,7 +774,7 @@ function EffizienzTab() {
                   textAnchor="middle"
                   transform={`rotate(-90, 12, ${EFF_PAD.top + EFF_CH / 2})`}
                 >
-                  Effizienz
+                  {t('efficiency.labels.efficiency')}
                 </text>
               </svg>
             </div>
@@ -807,11 +797,11 @@ function EffizienzTab() {
                 >
                   <div className="flex items-center justify-between mb-3">
                     <span className="text-sm font-bold" style={{ color: col }}>{s.year}</span>
-                    <span className="text-xs text-muted-foreground">{s.count} Rides</span>
+                    <span className="text-xs text-muted-foreground">{s.count} {t('efficiency.rides')}</span>
                   </div>
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between items-baseline">
-                      <span className="text-muted-foreground text-xs">Ø Speed</span>
+                      <span className="text-muted-foreground text-xs">{t('efficiency.labels.avgSpeed')}</span>
                       <span className="font-semibold text-foreground">
                         {s.avgSpeed.toFixed(1)}{' '}
                         <span className="text-xs font-normal text-muted-foreground">km/h</span>{' '}
@@ -823,7 +813,7 @@ function EffizienzTab() {
                       </span>
                     </div>
                     <div className="flex justify-between items-baseline">
-                      <span className="text-muted-foreground text-xs">Ø HR</span>
+                      <span className="text-muted-foreground text-xs">{t('efficiency.labels.avgHr')}</span>
                       <span className="font-semibold text-foreground">
                         {s.avgHr.toFixed(0)}{' '}
                         <span className="text-xs font-normal text-muted-foreground">bpm</span>{' '}
@@ -835,7 +825,7 @@ function EffizienzTab() {
                       </span>
                     </div>
                     <div className="border-t border-border/50 pt-2 flex justify-between items-baseline">
-                      <span className="text-muted-foreground text-xs">Effizienz</span>
+                      <span className="text-muted-foreground text-xs">{t('efficiency.labels.efficiency')}</span>
                       <span className="font-bold" style={{ color: col }}>
                         {s.eff.toFixed(1)}{' '}
                         {dE !== null && (
@@ -853,22 +843,20 @@ function EffizienzTab() {
 
           {/* Erklärung */}
           <div className="rounded-xl border bg-card shadow-sm px-5 py-4 text-sm text-muted-foreground space-y-1">
-            <p className="text-foreground font-medium">Was ist die Effizienz-Zahl?</p>
+            <p className="text-foreground font-medium">{t('efficiency.explainer.title')}</p>
             <p>
               <span className="font-mono text-xs bg-muted px-1.5 py-0.5 rounded text-orange-400">
-                Effizienz = Ø km/h ÷ Ø bpm × 100
+                {t('efficiency.explainer.formula')}
               </span>{' '}
-              – je höher, desto mehr Geschwindigkeit bekommst du pro Herzschlag.
+              – {t('efficiency.explainer.formulaSuffix')}
             </p>
             <p>
-              Ein Anstieg bedeutet: dein Herz-Kreislauf-System wird ökonomischer.
-              Die Kurve kann trotz weniger Training steigen (bessere Erholung, leichtere Strecken) –
-              deshalb immer zusammen mit den Volumen-Daten betrachten.
+              {t('efficiency.explainer.body')}
             </p>
           </div>
         </>
       ) : (
-        <p className="text-muted-foreground text-sm">Keine Daten mit HR + Geschwindigkeit gefunden.</p>
+        <p className="text-muted-foreground text-sm">{t('efficiency.emptyState')}</p>
       )}
 
       {hoverIdx !== null && monthly[hoverIdx] && (() => {
@@ -878,18 +866,18 @@ function EffizienzTab() {
             className="fixed z-50 pointer-events-none rounded-lg bg-card/95 border border-border px-3 py-2.5 text-xs shadow-xl"
             style={{ left: tooltipPos.x + 14, top: tooltipPos.y - 80, minWidth: 160 }}
           >
-            <p className="font-semibold text-foreground mb-2">{d.label} · {d.count} Rides</p>
+            <p className="font-semibold text-foreground mb-2">{d.label} · {d.count} {t('efficiency.rides')}</p>
             <div className="space-y-1">
               <div className="flex justify-between gap-4">
-                <span className="text-muted-foreground">Ø Speed</span>
+                <span className="text-muted-foreground">{t('efficiency.labels.avgSpeed')}</span>
                 <span className="text-foreground font-mono">{d.avgSpeed.toFixed(1)} km/h</span>
               </div>
               <div className="flex justify-between gap-4">
-                <span className="text-muted-foreground">Ø HR</span>
+                <span className="text-muted-foreground">{t('efficiency.labels.avgHr')}</span>
                 <span className="text-foreground font-mono">{d.avgHr.toFixed(0)} bpm</span>
               </div>
               <div className="flex justify-between gap-4 pt-1.5 border-t border-border/50">
-                <span className="text-orange-400">Effizienz</span>
+                <span className="text-orange-400">{t('efficiency.labels.efficiency')}</span>
                 <span className="text-orange-300 font-mono font-bold">{d.eff.toFixed(2)}</span>
               </div>
             </div>
@@ -903,20 +891,21 @@ function EffizienzTab() {
 // ─── Container ────────────────────────────────────────────────────────────────
 
 export default function HrCurvePage() {
+  const { t } = useTranslation('hrcurve');
   const [searchParams, setSearchParams] = useSearchParams();
   const tab = searchParams.get('tab') ?? 'kurve';
 
   return (
     <div className="space-y-6">
       <PageHeader
-        title="HR-Analyse"
-        subtitle="Herzfrequenz-Kurve und aerobe Effizienz"
+        title={t('page.title')}
+        subtitle={t('page.subtitle')}
       />
 
-      <Tabs value={tab} onValueChange={t => setSearchParams({ tab: t }, { replace: true })}>
+      <Tabs value={tab} onValueChange={val => setSearchParams({ tab: val }, { replace: true })}>
         <TabsList>
-          <TabsTrigger value="kurve">HR-Kurve</TabsTrigger>
-          <TabsTrigger value="effizienz">Aerobe Effizienz</TabsTrigger>
+          <TabsTrigger value="kurve">{t('page.tabs.curve')}</TabsTrigger>
+          <TabsTrigger value="effizienz">{t('page.tabs.efficiency')}</TabsTrigger>
         </TabsList>
         <TabsContent value="kurve" className="mt-6">
           <HrKurveTab />
