@@ -1,4 +1,4 @@
-# MyBiking
+# RideForge
 
 Lokale Web-App zur Analyse von Strava-Exportdaten. Kein Strava-API-Zugriff nötig – alles läuft lokal auf Basis eines heruntergeladenen ZIP-Exports.
 
@@ -150,7 +150,7 @@ Service-Dateien liegen in `~/.config/systemd/user/`. Beim Debuggen mit VS Code v
 ## Projektstruktur
 
 ```
-MyBiking/
+RideForge/
 ├── backend/
 │   ├── main.py              # FastAPI-App, CORS für localhost:5173
 │   ├── database.py          # SQLite-Schema, init_db()

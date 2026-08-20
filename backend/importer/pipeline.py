@@ -183,6 +183,11 @@ def import_activities_csv(
 
     imported = 0
     with db_connection() as conn:
+        default_bike_row = conn.execute(
+            "SELECT value FROM config WHERE key = 'default_bike_id'"
+        ).fetchone()
+        default_bike_id = default_bike_row["value"] if default_bike_row else DEFAULT_BIKE_ID
+
         with conn:
             for r in rides:
                 activity_id = _to_int(r.get("Activity ID"))
@@ -192,7 +197,7 @@ def import_activities_csv(
                 gear_name = r.get("Activity Gear") or ""
                 bike_id = bike_map.get(gear_name) or (gear_name.lower().replace(" ", "_") if gear_name else None)
                 if not bike_id:
-                    bike_id = DEFAULT_BIKE_ID
+                    bike_id = default_bike_id
 
                 filename = r.get("Filename") or None
                 if filename:

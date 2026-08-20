@@ -6,6 +6,7 @@ export interface AppConfig {
   sparkline_weeks: number;
   speed_color_buckets: number;
   track_simplify_m: number;
+  wear_warning_pct: number;
 }
 
 export const CONFIG_DEFAULTS: AppConfig = {
@@ -13,6 +14,7 @@ export const CONFIG_DEFAULTS: AppConfig = {
   sparkline_weeks: 8,
   speed_color_buckets: 20,
   track_simplify_m: 5,
+  wear_warning_pct: 90,
 };
 
 interface ConfigContextValue {
@@ -36,6 +38,7 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
         sparkline_weeks:     s.sparkline_weeks     ?? CONFIG_DEFAULTS.sparkline_weeks,
         speed_color_buckets: s.speed_color_buckets ?? CONFIG_DEFAULTS.speed_color_buckets,
         track_simplify_m:    s.track_simplify_m    ?? CONFIG_DEFAULTS.track_simplify_m,
+        wear_warning_pct:    s.wear_warning_pct    ?? CONFIG_DEFAULTS.wear_warning_pct,
       });
     } catch { /* Backend nicht erreichbar, Defaults behalten */ }
   }, []);

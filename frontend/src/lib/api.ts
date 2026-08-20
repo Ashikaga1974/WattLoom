@@ -467,6 +467,16 @@ export interface Settings {
   track_simplify_m: number;
   yearly_km_goal: number | null;
   weekly_hours_goal: number | null;
+  default_bike_id: string;
+  crr: number;
+  cda: number;
+  bike_kg: number;
+  threshold_hr_pct: number;
+  ctl_days: number;
+  atl_days: number;
+  max_plausible_speed_ms: number;
+  wear_warning_pct: number;
+  path_match_radius_km: number;
 }
 
 export interface FitnessComponent {

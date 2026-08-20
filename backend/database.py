@@ -1,5 +1,5 @@
 """
-SQLite-Schema für MyBiking.
+SQLite-Schema für RideForge.
 Alle Tabellen werden hier angelegt; keine Migrations-Library – simples CREATE IF NOT EXISTS.
 """
 

@@ -355,6 +355,11 @@ def get_similar_activities(
 
     if result:
         with db_connection() as conn:
+            radius_row = conn.execute(
+                "SELECT value FROM config WHERE key = 'path_match_radius_km'"
+            ).fetchone()
+            path_match_radius_km = float(radius_row["value"]) if radius_row else 0.5
+
             all_ids = [activity_id] + [r["id"] for r in result]
             id_ph = ','.join('?' * len(all_ids))
             tp_rows = conn.execute(f"""
@@ -378,7 +383,7 @@ def get_similar_activities(
         for r in result:
             cand_index = indices.get(r["id"])
             frac = (
-                path_match_fraction(ref_index, cand_index)
+                path_match_fraction(ref_index, cand_index, mark_radius_km=path_match_radius_km)
                 if ref_index and cand_index else None
             )
             r["path_match_pct"] = round(frac * 100) if frac is not None else None

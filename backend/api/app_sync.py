@@ -2,9 +2,9 @@
 Stößt den MyBikingApp-Sync (SQLite -> Neon) manuell per Button an.
 
 MyBikingApp ist ein eigenständiges Repo mit eigenem venv (psycopg/dotenv sind
-dort installiert, nicht in MyBikings venv) - dieser Endpoint ruft dessen
+dort installiert, nicht in RideForges venv) - dieser Endpoint ruft dessen
 sync/push_to_cloud.py deshalb als Subprocess mit dem MyBikingApp-eigenen
-Python-Interpreter auf, statt Code zu teilen. MyBiking selbst bleibt davon
+Python-Interpreter auf, statt Code zu teilen. RideForge selbst bleibt davon
 unberührt (kein Import, keine Abhängigkeit im Code) - nur dieser eine
 Endpoint kennt den Pfad zum Nachbar-Repo.
 """

@@ -16,6 +16,16 @@ _FIELDS: dict[str, tuple[type, object]] = {
     "track_simplify_m":    (int,   5),
     "yearly_km_goal":      (float, None),
     "weekly_hours_goal":   (float, None),
+    "default_bike_id":     (str,   "stevens"),
+    "crr":                 (float, 0.004),
+    "cda":                 (float, 0.32),
+    "bike_kg":             (float, 8.0),
+    "threshold_hr_pct":    (float, 0.85),
+    "ctl_days":            (int,   42),
+    "atl_days":            (int,   7),
+    "max_plausible_speed_ms": (float, 25.0),
+    "wear_warning_pct":    (float, 90.0),
+    "path_match_radius_km": (float, 0.5),
 }
 
 

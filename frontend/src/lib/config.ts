@@ -25,9 +25,6 @@ export const CHART_HEIGHT_COMPACT = 140; // kleine Trend-Charts (z.B. Dashboard,
 export const CHART_HEIGHT = 200;         // Standard-Analyse-Chart
 export const CHART_HEIGHT_DENSE = 220;   // dichte Mehrserien-Charts (Cap nach oben)
 
-/** Ab diesem Verschleiß-% wird eine Komponente auf dem Dashboard als Warnung angezeigt. */
-export const WEAR_WARNING_PCT = 90;
-
 /** Farben für den Streckenvergleich (bis zu 5 Aktivitäten). */
 export const COMPARISON_COLORS = [
   '#fc4c02',

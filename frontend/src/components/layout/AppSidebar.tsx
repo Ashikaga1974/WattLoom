@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
   Sidebar,
@@ -7,6 +8,7 @@ import {
   SidebarGroupContent,
   SidebarHeader,
   SidebarMenu,
+  SidebarMenuAction,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarMenuSub,
@@ -30,6 +32,7 @@ import {
   Cookie,
   SunMoon,
   Fingerprint,
+  ChevronDown,
 } from 'lucide-react';
 
 interface NavSubItem {
@@ -104,6 +107,15 @@ export function AppSidebar() {
   const location = useLocation();
   const p = location.pathname;
 
+  // Untermenüs standardmäßig aufgeklappt, einzeln zuklappbar
+  const [expanded, setExpanded] = useState<Record<string, boolean>>(() =>
+    Object.fromEntries(navGroups.filter(g => g.children).map(g => [g.href, true]))
+  );
+
+  function toggleExpanded(href: string) {
+    setExpanded(prev => ({ ...prev, [href]: !prev[href] }));
+  }
+
   function isGroupActive(prefixes: string[]) {
     if (prefixes.length === 1 && prefixes[0] === '/') return p === '/';
     return prefixes.some(prefix => p.startsWith(prefix));
@@ -122,7 +134,7 @@ export function AppSidebar() {
           <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary">
             <Bike size={15} className="text-primary-foreground" />
           </div>
-          <span className="font-semibold text-base tracking-tight">MyBiking</span>
+          <span className="font-semibold text-base tracking-tight">RideForge</span>
         </Link>
       </SidebarHeader>
 
@@ -142,7 +154,23 @@ export function AppSidebar() {
                       <span>{group.label}</span>
                     </SidebarMenuButton>
 
-                    {group.children && active && (
+                    {group.children && (
+                      <SidebarMenuAction
+                        onClick={(e: React.MouseEvent) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          toggleExpanded(group.href);
+                        }}
+                        aria-label={expanded[group.href] ? 'Untermenü zuklappen' : 'Untermenü aufklappen'}
+                      >
+                        <ChevronDown
+                          size={14}
+                          className={`transition-transform ${expanded[group.href] ? '' : '-rotate-90'}`}
+                        />
+                      </SidebarMenuAction>
+                    )}
+
+                    {group.children && expanded[group.href] && (
                       <SidebarMenuSub>
                         {group.children.map(sub => (
                           <SidebarMenuSubItem key={sub.href}>

@@ -245,10 +245,21 @@ def _get_weight_kg(conn: sqlite3.Connection) -> float | None:
         return None
 
 
+def _get_float_setting(conn: sqlite3.Connection, key: str, default: float) -> float:
+    """Lädt einen Float-Wert aus der config-Tabelle; Default wenn nicht gesetzt/ungültig."""
+    row = conn.execute("SELECT value FROM config WHERE key = ?", (key,)).fetchone()
+    if not row:
+        return default
+    try:
+        return float(row["value"])
+    except (TypeError, ValueError):
+        return default
+
+
 def estimate_and_store(conn: sqlite3.Connection, activity_id: int) -> bool:
     """
     Kompletter Ablauf für eine Aktivität:
-    1. weight_kg aus config lesen
+    1. weight_kg + crr/cda/bike_kg aus config lesen
     2. estimate_power() aufrufen
     3. est_avg_power_w / est_norm_power_w in activities schreiben
 
@@ -260,7 +271,11 @@ def estimate_and_store(conn: sqlite3.Connection, activity_id: int) -> bool:
                      activity_id)
         return False
 
-    avg_w, norm_w = estimate_power(conn, activity_id, weight_kg)
+    bike_kg = _get_float_setting(conn, "bike_kg", DEFAULT_BIKE_KG)
+    crr = _get_float_setting(conn, "crr", DEFAULT_CRR)
+    cda = _get_float_setting(conn, "cda", DEFAULT_CDA)
+
+    avg_w, norm_w = estimate_power(conn, activity_id, weight_kg, bike_kg=bike_kg, crr=crr, cda=cda)
     if avg_w is None:
         return False
 

@@ -1,4 +1,4 @@
-# MyBiking
+# RideForge
 
 Local web app for analyzing Strava export data. No Strava API access needed – everything runs locally based on a downloaded ZIP export.
 
@@ -151,7 +151,7 @@ Service files live in `~/.config/systemd/user/`. Stop them before debugging with
 ## Project structure
 
 ```
-MyBiking/
+RideForge/
 ├── backend/
 │   ├── main.py              # FastAPI app, CORS for localhost:5173
 │   ├── database.py          # SQLite schema, init_db()

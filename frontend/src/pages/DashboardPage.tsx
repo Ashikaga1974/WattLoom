@@ -13,7 +13,7 @@ import {
 import { api, type ActivityStats, type Bike, type BikeComponent, type Activity, type WeeklyStats, type MonthlyStats, type WeeklyVolume, type PmcDay, type PrEvent } from '@/lib/api';
 import { fmtKm, fmtTime, fmtDate, fmtNum, fmtSpeed, fmtWeekday } from '@/lib/format';
 import { useConfig } from '@/lib/config-context';
-import { CHART_HEIGHT_COMPACT, WEAR_WARNING_PCT } from '@/lib/config';
+import { CHART_HEIGHT_COMPACT } from '@/lib/config';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ChartTooltip } from '@/components/ui/chart-tooltip';
@@ -224,16 +224,17 @@ function TsbWidget({ current }: { current: PmcDay }) {
 }
 
 // Aktive Komponenten nahe/über dem Verschleiß-Schwellwert, absteigend nach pct_used
-function wearWarnings(bikes: Bike[]): { bike: Bike; comp: BikeComponent }[] {
+function wearWarnings(bikes: Bike[], wearWarningPct: number): { bike: Bike; comp: BikeComponent }[] {
   return bikes
     .flatMap(bike => bike.components
-      .filter(c => c.retired_at == null && (c.pct_used ?? 0) >= WEAR_WARNING_PCT)
+      .filter(c => c.retired_at == null && (c.pct_used ?? 0) >= wearWarningPct)
       .map(comp => ({ bike, comp })))
     .sort((a, b) => (b.comp.pct_used ?? 0) - (a.comp.pct_used ?? 0));
 }
 
 function WearWarnings({ bikes }: { bikes: Bike[] }) {
-  const warnings = wearWarnings(bikes);
+  const { wear_warning_pct } = useConfig();
+  const warnings = wearWarnings(bikes, wear_warning_pct);
   if (warnings.length === 0) return null;
   return (
     <div className="rounded-2xl border px-5 py-4" style={{ borderColor: '#ef444450', background: 'rgba(239,68,68,0.07)' }}>

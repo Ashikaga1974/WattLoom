@@ -17,6 +17,21 @@ def _hr_max_fallback(conn) -> float:
     return float(row["value"]) if row else 185.0
 
 
+def _threshold_hr_pct(conn) -> float:
+    """Liest threshold_hr_pct aus der Config; Standard 0.85 (≈85 % HRmax) wenn nicht gesetzt."""
+    row = conn.execute("SELECT value FROM config WHERE key = 'threshold_hr_pct'").fetchone()
+    return float(row["value"]) if row else 0.85
+
+
+def _ctl_atl_k(conn) -> tuple[float, float]:
+    """EMA-Faktoren k = 2 / (N + 1) für CTL/ATL aus ctl_days/atl_days (Standard 42/7 Tage)."""
+    ctl_row = conn.execute("SELECT value FROM config WHERE key = 'ctl_days'").fetchone()
+    atl_row = conn.execute("SELECT value FROM config WHERE key = 'atl_days'").fetchone()
+    ctl_days = float(ctl_row["value"]) if ctl_row else 42.0
+    atl_days = float(atl_row["value"]) if atl_row else 7.0
+    return 2.0 / (ctl_days + 1.0), 2.0 / (atl_days + 1.0)
+
+
 @router.get("/time-heatmap")
 def time_heatmap(year: int = Query(None), tz_offset: int = Query(None, ge=-14, le=14)):
     """
@@ -207,7 +222,8 @@ def performance_management_chart():
             "SELECT MAX(max_hr) AS v FROM activities WHERE max_hr > 0"
         ).fetchone()
         global_max_hr = float(max_hr_row["v"]) if max_hr_row and max_hr_row["v"] else _hr_max_fallback(conn)
-        threshold_hr = 0.85 * global_max_hr
+        threshold_hr = _threshold_hr_pct(conn) * global_max_hr
+        K_CTL, K_ATL = _ctl_atl_k(conn)
 
         rows = conn.execute("""
             SELECT
@@ -269,10 +285,6 @@ def performance_management_chart():
 
     start = Date.fromisoformat(sorted(daily_tss.keys())[0])
     today = Date.today()
-
-    # EMA-Faktoren: k = 2 / (N + 1)
-    K_CTL = 2.0 / 43.0
-    K_ATL = 2.0 / 8.0
 
     ctl = atl = 0.0
     peak_ctl = 0.0
@@ -659,9 +671,9 @@ def get_wrapped(year: int = None, tz_offset: int = Query(None, ge=-14, le=14)):
 MAX_PLAUSIBLE_SPEED_MS = 25.0  # 90 km/h – GPS-/Device-Sprünge (Tunnel, Satellitenverlust) oberhalb dessen kappen
 
 
-def _clean_cumulative_distance(dist: list, elapsed: list) -> list:
+def _clean_cumulative_distance(dist: list, elapsed: list, max_speed_ms: float = MAX_PLAUSIBLE_SPEED_MS) -> list:
     """
-    Kappt pro Schritt den Distanzzuwachs auf MAX_PLAUSIBLE_SPEED_MS, damit einzelne
+    Kappt pro Schritt den Distanzzuwachs auf max_speed_ms, damit einzelne
     GPS-Sprünge (z.B. mehrere km in 1s nach Signalverlust) keine unrealistischen
     Best-Effort-Segmente erzeugen. Negative/zeitlose Schritte zählen als 0 Zuwachs.
     """
@@ -672,7 +684,7 @@ def _clean_cumulative_distance(dist: list, elapsed: list) -> list:
         if dt <= 0 or delta < 0:
             delta = 0.0
         else:
-            delta = min(delta, MAX_PLAUSIBLE_SPEED_MS * dt)
+            delta = min(delta, max_speed_ms * dt)
         cleaned.append(cleaned[-1] + delta)
     return cleaned
 
@@ -710,6 +722,11 @@ def _best_by_distance_map(conn) -> dict:
     Als eigene Funktion extrahiert, damit backend/pr_detection.py denselben Snapshot
     vor und nach einem Import berechnen und auf neue persönliche Bestzeiten vergleichen kann.
     """
+    max_speed_row = conn.execute(
+        "SELECT value FROM config WHERE key = 'max_plausible_speed_ms'"
+    ).fetchone()
+    max_speed_ms = float(max_speed_row["value"]) if max_speed_row else MAX_PLAUSIBLE_SPEED_MS
+
     ph = ','.join('?' * len(RIDE_TYPES))
     activities = conn.execute(f"""
         SELECT id, name, start_date_local AS date, distance_m
@@ -737,7 +754,7 @@ def _best_by_distance_map(conn) -> dict:
             elapsed = [datetime.fromisoformat(p['timestamp']).timestamp() for p in points]
         except ValueError:
             continue
-        dist = _clean_cumulative_distance([p['distance_m'] for p in points], elapsed)
+        dist = _clean_cumulative_distance([p['distance_m'] for p in points], elapsed, max_speed_ms)
 
         for target_m in targets_m:
             d_km = target_m / 1000
@@ -1390,7 +1407,8 @@ def fitness_fingerprint():
         global_max_hr = (
             float(max_hr_row["v"]) if max_hr_row and max_hr_row["v"] else _hr_max_fallback(conn)
         )
-        threshold_hr = 0.85 * global_max_hr
+        threshold_hr = _threshold_hr_pct(conn) * global_max_hr
+        K_CTL, K_ATL = _ctl_atl_k(conn)
 
         act_rows = conn.execute("""
             SELECT strftime('%Y-%m-%d', start_date_local) AS date,
@@ -1497,7 +1515,6 @@ def fitness_fingerprint():
         return round(active * 20.0 / 8.0, 1), active
 
     # --- PMC-Simulation (EMA über alle Tage) ---
-    K_CTL, K_ATL = 2.0 / 43.0, 2.0 / 8.0
     start_d = Date.fromisoformat(sorted(daily_tss.keys())[0]) if daily_tss else Date.today()
     today = Date.today()
 

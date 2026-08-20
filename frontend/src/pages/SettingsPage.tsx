@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { api, type Bike, type Settings, type WeatherStatus } from '@/lib/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { CONFIG_DEFAULTS, useConfigReload } from '@/lib/config-context';
 import { fmtClock, fmtDate } from '@/lib/format';
 
@@ -57,6 +58,11 @@ export default function SettingsPage() {
   const gpxInputRef                       = useRef<HTMLInputElement>(null);
 
   const navigate                          = useNavigate();
+  const [searchParams, setSearchParams]   = useSearchParams();
+  const tab                               = searchParams.get('tab') ?? 'allgemein';
+  function handleTabChange(value: string) {
+    setSearchParams({ tab: value }, { replace: true });
+  }
 
   // App-Konfiguration
   const reloadConfig = useConfigReload();
@@ -64,9 +70,24 @@ export default function SettingsPage() {
   const [sparklineInput, setSparklineInput]     = useState(String(CONFIG_DEFAULTS.sparkline_weeks));
   const [bucketInput, setBucketInput]           = useState(String(CONFIG_DEFAULTS.speed_color_buckets));
   const [simplifyInput, setSimplifyInput]       = useState(String(CONFIG_DEFAULTS.track_simplify_m));
+  const [wearPctInput, setWearPctInput]         = useState(String(CONFIG_DEFAULTS.wear_warning_pct));
   const [configSaving, setConfigSaving]         = useState(false);
   const [configSuccess, setConfigSuccess]       = useState(false);
   const [configError, setConfigError]           = useState<string | null>(null);
+
+  // Erweiterte Einstellungen (Leistungsschätzung, PMC, Streckenvergleich)
+  const [defaultBikeIdInput, setDefaultBikeIdInput]     = useState('');
+  const [crrInput, setCrrInput]                         = useState('0.004');
+  const [cdaInput, setCdaInput]                         = useState('0.32');
+  const [bikeKgInput, setBikeKgInput]                   = useState('8');
+  const [thresholdHrPctInput, setThresholdHrPctInput]   = useState('85');
+  const [ctlDaysInput, setCtlDaysInput]                 = useState('42');
+  const [atlDaysInput, setAtlDaysInput]                 = useState('7');
+  const [maxSpeedKmhInput, setMaxSpeedKmhInput]         = useState('90');
+  const [matchRadiusMInput, setMatchRadiusMInput]       = useState('500');
+  const [advancedSaving, setAdvancedSaving]             = useState(false);
+  const [advancedSuccess, setAdvancedSuccess]           = useState(false);
+  const [advancedError, setAdvancedError]               = useState<string | null>(null);
 
   // Wetterdaten
   const [weatherStatus, setWeatherStatus]   = useState<WeatherStatus | null>(null);
@@ -193,6 +214,16 @@ export default function SettingsPage() {
         setSparklineInput(String(res.sparkline_weeks  ?? CONFIG_DEFAULTS.sparkline_weeks));
         setBucketInput(String(res.speed_color_buckets ?? CONFIG_DEFAULTS.speed_color_buckets));
         setSimplifyInput(String(res.track_simplify_m  ?? CONFIG_DEFAULTS.track_simplify_m));
+        setWearPctInput(String(res.wear_warning_pct   ?? CONFIG_DEFAULTS.wear_warning_pct));
+        setDefaultBikeIdInput(res.default_bike_id ?? '');
+        setCrrInput(String(res.crr ?? 0.004));
+        setCdaInput(String(res.cda ?? 0.32));
+        setBikeKgInput(String(res.bike_kg ?? 8));
+        setThresholdHrPctInput(String(Math.round((res.threshold_hr_pct ?? 0.85) * 100)));
+        setCtlDaysInput(String(res.ctl_days ?? 42));
+        setAtlDaysInput(String(res.atl_days ?? 7));
+        setMaxSpeedKmhInput(String(Math.round((res.max_plausible_speed_ms ?? 25) * 3.6)));
+        setMatchRadiusMInput(String(Math.round((res.path_match_radius_km ?? 0.5) * 1000)));
       } catch { /* ignorieren */ }
       setLoadingSettings(false);
 
@@ -203,7 +234,10 @@ export default function SettingsPage() {
       try {
         const b = await api.bikes();
         setBikes(b);
-        if (b.length > 0) { setFitBikeId(b[0].id); setTcxBikeId(b[0].id); setGpxBikeId(b[0].id); }
+        if (b.length > 0) {
+          setFitBikeId(b[0].id); setTcxBikeId(b[0].id); setGpxBikeId(b[0].id);
+          setDefaultBikeIdInput(prev => prev || b[0].id);
+        }
       } catch { /* ignorieren */ }
     }
     init();
@@ -285,6 +319,7 @@ export default function SettingsPage() {
     const sparkline = parseInt(sparklineInput);
     const buckets = parseInt(bucketInput);
     const simplify = parseInt(simplifyInput);
+    const wearPct = parseFloat(wearPctInput.replace(',', '.'));
     if (isNaN(bezier) || bezier < 0 || bezier > 0.5) {
       setConfigError('Kurvenglättung: 0.0 – 0.5');
       return;
@@ -301,6 +336,10 @@ export default function SettingsPage() {
       setConfigError('Track-Toleranz: 1 – 20 m');
       return;
     }
+    if (isNaN(wearPct) || wearPct < 50 || wearPct > 100) {
+      setConfigError('Verschleiß-Warnschwelle: 50 – 100 %');
+      return;
+    }
     setConfigSaving(true);
     setConfigError(null);
     try {
@@ -309,6 +348,7 @@ export default function SettingsPage() {
         sparkline_weeks:     sparkline,
         speed_color_buckets: buckets,
         track_simplify_m:    simplify,
+        wear_warning_pct:    wearPct,
       });
       await reloadConfig();
       setConfigSuccess(true);
@@ -317,6 +357,72 @@ export default function SettingsPage() {
       setConfigError(e instanceof Error ? e.message : 'Speichern fehlgeschlagen');
     } finally {
       setConfigSaving(false);
+    }
+  }
+
+  async function saveAdvanced() {
+    const crr = parseFloat(crrInput.replace(',', '.'));
+    const cda = parseFloat(cdaInput.replace(',', '.'));
+    const bikeKg = parseFloat(bikeKgInput.replace(',', '.'));
+    const thresholdPct = parseFloat(thresholdHrPctInput.replace(',', '.'));
+    const ctlDays = parseInt(ctlDaysInput);
+    const atlDays = parseInt(atlDaysInput);
+    const maxSpeedKmh = parseFloat(maxSpeedKmhInput.replace(',', '.'));
+    const matchRadiusM = parseFloat(matchRadiusMInput.replace(',', '.'));
+
+    if (isNaN(crr) || crr <= 0 || crr > 0.02) {
+      setAdvancedError('Rollwiderstand (Crr): 0.001 – 0.02');
+      return;
+    }
+    if (isNaN(cda) || cda <= 0 || cda > 0.6) {
+      setAdvancedError('Luftwiderstand (CdA): 0.1 – 0.6 m²');
+      return;
+    }
+    if (isNaN(bikeKg) || bikeKg <= 0 || bikeKg > 30) {
+      setAdvancedError('Bike-Gewicht: 1 – 30 kg');
+      return;
+    }
+    if (isNaN(thresholdPct) || thresholdPct < 50 || thresholdPct > 100) {
+      setAdvancedError('Schwellen-HR: 50 – 100 % HRmax');
+      return;
+    }
+    if (isNaN(ctlDays) || ctlDays < 7 || ctlDays > 90) {
+      setAdvancedError('CTL-Zeitkonstante: 7 – 90 Tage');
+      return;
+    }
+    if (isNaN(atlDays) || atlDays < 3 || atlDays > 21) {
+      setAdvancedError('ATL-Zeitkonstante: 3 – 21 Tage');
+      return;
+    }
+    if (isNaN(maxSpeedKmh) || maxSpeedKmh < 40 || maxSpeedKmh > 200) {
+      setAdvancedError('GPS-Sprung-Filter: 40 – 200 km/h');
+      return;
+    }
+    if (isNaN(matchRadiusM) || matchRadiusM < 100 || matchRadiusM > 2000) {
+      setAdvancedError('Streckenvergleich-Toleranz: 100 – 2000 m');
+      return;
+    }
+    setAdvancedSaving(true);
+    setAdvancedError(null);
+    try {
+      const res = await api.saveSettings({
+        default_bike_id:        defaultBikeIdInput || undefined,
+        crr,
+        cda,
+        bike_kg:                bikeKg,
+        threshold_hr_pct:       thresholdPct / 100,
+        ctl_days:               ctlDays,
+        atl_days:               atlDays,
+        max_plausible_speed_ms: maxSpeedKmh / 3.6,
+        path_match_radius_km:   matchRadiusM / 1000,
+      });
+      setSaved(res);
+      setAdvancedSuccess(true);
+      setTimeout(() => setAdvancedSuccess(false), 2500);
+    } catch (e) {
+      setAdvancedError(e instanceof Error ? e.message : 'Speichern fehlgeschlagen');
+    } finally {
+      setAdvancedSaving(false);
     }
   }
 
@@ -425,11 +531,19 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="space-y-8 max-w-2xl">
+    <div className="space-y-8">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Einstellungen</h1>
         <p className="text-sm text-muted-foreground mt-0.5">Persönliche Daten · Import · Datenbank</p>
       </div>
+
+      <Tabs value={tab} onValueChange={handleTabChange}>
+        <TabsList>
+          <TabsTrigger value="allgemein">Allgemein</TabsTrigger>
+          <TabsTrigger value="importe">Importe</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="allgemein" className="mt-6 space-y-8">
 
       {/* ── Persönliche Daten ── */}
       <Card>
@@ -689,6 +803,25 @@ export default function SettingsPage() {
               </div>
               <p className="text-xs text-muted-foreground/50 mt-1.5">RDP-Vereinfachung beim Track-Laden (1–20 m)</p>
             </div>
+
+            <div>
+              <label className="block text-xs text-muted-foreground uppercase tracking-wider mb-2">
+                Verschleiß-Warnschwelle
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  step="1"
+                  min="50"
+                  max="100"
+                  value={wearPctInput}
+                  onChange={e => setWearPctInput(e.target.value)}
+                  className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-colors"
+                />
+                <span className="text-xs text-muted-foreground whitespace-nowrap">%</span>
+              </div>
+              <p className="text-xs text-muted-foreground/50 mt-1.5">Ab diesem Verschleiß-% erscheint die Dashboard-Warnung (50–100)</p>
+            </div>
           </div>
 
           <div className="flex items-center gap-4 pt-1">
@@ -704,6 +837,287 @@ export default function SettingsPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* ── Erweiterte Einstellungen ── */}
+      <Card>
+        <CardHeader className="border-b border-border pb-3">
+          <CardTitle className="text-sm font-semibold">Erweiterte Einstellungen</CardTitle>
+          <p className="text-xs text-muted-foreground">
+            Physikalische und algorithmische Parameter für Leistungsschätzung, PMC und Streckenvergleich –
+            Standardwerte passen meist, nur bei Bedarf anpassen.
+          </p>
+        </CardHeader>
+        <CardContent className="pt-5 space-y-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+            <div>
+              <label className="block text-xs text-muted-foreground uppercase tracking-wider mb-2">
+                Standard-Bike
+              </label>
+              <select
+                value={defaultBikeIdInput}
+                onChange={e => setDefaultBikeIdInput(e.target.value)}
+                className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-colors"
+              >
+                {bikes.map(b => (
+                  <option key={b.id} value={b.id}>{b.name}</option>
+                ))}
+              </select>
+              <p className="text-xs text-muted-foreground/50 mt-1.5">Fallback für Aktivitäten ohne Strava-Gear-Zuordnung</p>
+            </div>
+
+            <div>
+              <label className="block text-xs text-muted-foreground uppercase tracking-wider mb-2">
+                Bike-Gewicht (Leistungsschätzung)
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  step="0.5"
+                  min="1"
+                  max="30"
+                  value={bikeKgInput}
+                  onChange={e => setBikeKgInput(e.target.value)}
+                  className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-colors"
+                />
+                <span className="text-xs text-muted-foreground whitespace-nowrap">kg</span>
+              </div>
+              <p className="text-xs text-muted-foreground/50 mt-1.5">Inkl. Anbauteile (Standard 8 kg)</p>
+            </div>
+
+            <div>
+              <label className="block text-xs text-muted-foreground uppercase tracking-wider mb-2">
+                Rollwiderstand (Crr)
+              </label>
+              <input
+                type="number"
+                step="0.001"
+                min="0.001"
+                max="0.02"
+                value={crrInput}
+                onChange={e => setCrrInput(e.target.value)}
+                className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-colors"
+              />
+              <p className="text-xs text-muted-foreground/50 mt-1.5">Rennreifen 0.004 · Gravel/MTB höher</p>
+            </div>
+
+            <div>
+              <label className="block text-xs text-muted-foreground uppercase tracking-wider mb-2">
+                Luftwiderstand (CdA)
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0.1"
+                  max="0.6"
+                  value={cdaInput}
+                  onChange={e => setCdaInput(e.target.value)}
+                  className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-colors"
+                />
+                <span className="text-xs text-muted-foreground whitespace-nowrap">m²</span>
+              </div>
+              <p className="text-xs text-muted-foreground/50 mt-1.5">Rennposition 0.32 · Hoods ~0.36</p>
+            </div>
+
+            <div>
+              <label className="block text-xs text-muted-foreground uppercase tracking-wider mb-2">
+                Schwellen-HR
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  step="1"
+                  min="50"
+                  max="100"
+                  value={thresholdHrPctInput}
+                  onChange={e => setThresholdHrPctInput(e.target.value)}
+                  className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-colors"
+                />
+                <span className="text-xs text-muted-foreground whitespace-nowrap">% HRmax</span>
+              </div>
+              <p className="text-xs text-muted-foreground/50 mt-1.5">Für hrTSS/PMC (Standard 85 %)</p>
+            </div>
+
+            <div>
+              <label className="block text-xs text-muted-foreground uppercase tracking-wider mb-2">
+                GPS-Sprung-Filter
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  step="5"
+                  min="40"
+                  max="200"
+                  value={maxSpeedKmhInput}
+                  onChange={e => setMaxSpeedKmhInput(e.target.value)}
+                  className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-colors"
+                />
+                <span className="text-xs text-muted-foreground whitespace-nowrap">km/h</span>
+              </div>
+              <p className="text-xs text-muted-foreground/50 mt-1.5">Kappt Best-Effort-Segmente oberhalb (Standard 90, E-Bike ggf. höher)</p>
+            </div>
+
+            <div>
+              <label className="block text-xs text-muted-foreground uppercase tracking-wider mb-2">
+                CTL-Zeitkonstante
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  step="1"
+                  min="7"
+                  max="90"
+                  value={ctlDaysInput}
+                  onChange={e => setCtlDaysInput(e.target.value)}
+                  className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-colors"
+                />
+                <span className="text-xs text-muted-foreground whitespace-nowrap">Tage</span>
+              </div>
+              <p className="text-xs text-muted-foreground/50 mt-1.5">Trainingslast-Glättung (Standard 42)</p>
+            </div>
+
+            <div>
+              <label className="block text-xs text-muted-foreground uppercase tracking-wider mb-2">
+                ATL-Zeitkonstante
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  step="1"
+                  min="3"
+                  max="21"
+                  value={atlDaysInput}
+                  onChange={e => setAtlDaysInput(e.target.value)}
+                  className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-colors"
+                />
+                <span className="text-xs text-muted-foreground whitespace-nowrap">Tage</span>
+              </div>
+              <p className="text-xs text-muted-foreground/50 mt-1.5">Ermüdungs-Glättung (Standard 7)</p>
+            </div>
+
+            <div>
+              <label className="block text-xs text-muted-foreground uppercase tracking-wider mb-2">
+                Streckenvergleich-Toleranz
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  step="50"
+                  min="100"
+                  max="2000"
+                  value={matchRadiusMInput}
+                  onChange={e => setMatchRadiusMInput(e.target.value)}
+                  className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-colors"
+                />
+                <span className="text-xs text-muted-foreground whitespace-nowrap">m</span>
+              </div>
+              <p className="text-xs text-muted-foreground/50 mt-1.5">GPS-Toleranz je Distanz-Marke (Standard 500 m)</p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-4 pt-1">
+            <button
+              onClick={saveAdvanced}
+              disabled={advancedSaving}
+              className="rounded-md px-5 py-2 text-sm font-medium bg-orange-500 hover:bg-orange-600 disabled:opacity-50 transition-colors text-white cursor-pointer"
+            >
+              {advancedSaving ? 'Speichern…' : 'Speichern'}
+            </button>
+            {advancedSuccess && <span className="text-sm text-green-600">Gespeichert</span>}
+            {advancedError && <span className="text-sm text-red-500">{advancedError}</span>}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* ── MyBikingApp-Sync ── */}
+      <Card>
+        <CardHeader className="border-b border-border pb-3">
+          <CardTitle className="text-sm font-semibold">MyBikingApp-Sync</CardTitle>
+          <p className="text-xs text-muted-foreground">
+            Spiegelt die Daten in die Cloud-DB der mobilen App (Neon Postgres). Manuell anstoßen,
+            z.B. nach jedem Strava-Import.
+          </p>
+        </CardHeader>
+        <CardContent className="pt-5 space-y-4">
+          {appSyncStatus?.last_synced_at && (
+            <p className="text-sm text-muted-foreground">
+              Letzter Sync: {fmtDate(appSyncStatus.last_synced_at)} {fmtClock(appSyncStatus.last_synced_at)}
+              {appSyncStatus.last_status === 'error' && (
+                <span className="text-red-500"> – fehlgeschlagen: {appSyncStatus.last_message}</span>
+              )}
+              {appSyncStatus.last_status === 'ok' && (
+                <span className="text-green-600"> – {appSyncStatus.last_message}</span>
+              )}
+            </p>
+          )}
+          {!appSyncStatus?.last_synced_at && (
+            <p className="text-sm text-muted-foreground">Noch nicht synchronisiert.</p>
+          )}
+          {appSyncError && <p className="text-sm text-red-500">{appSyncError}</p>}
+          <button
+            onClick={startAppSync}
+            disabled={appSyncBusy}
+            className="rounded-md px-5 py-2 text-sm font-medium bg-orange-500 hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-white cursor-pointer"
+          >
+            {appSyncBusy ? 'Synchronisiert…' : 'Jetzt synchronisieren'}
+          </button>
+        </CardContent>
+      </Card>
+
+      {/* ── Datenbank zurücksetzen ── */}
+      <Card>
+        <CardHeader className="border-b border-border pb-3">
+          <CardTitle className="text-sm font-semibold">Datenbank zurücksetzen</CardTitle>
+          <p className="text-xs text-muted-foreground">
+            Löscht alle Aktivitäten, Tracks, Laps und Bikes – persönliche Einstellungen bleiben erhalten.
+          </p>
+        </CardHeader>
+        <CardContent className="pt-5">
+          {resetDone && (
+            <p className="text-sm text-green-600 mb-3">
+              Datenbank wurde geleert.
+              {resetBackupName && <> Backup vorher gesichert: <code className="text-xs">{resetBackupName}</code></>}
+            </p>
+          )}
+          {resetError && <p className="text-sm text-red-500 mb-3">{resetError}</p>}
+
+          {!resetConfirm ? (
+            <button
+              onClick={() => { setResetConfirm(true); setResetDone(false); setResetError(null); }}
+              disabled={importStatus === 'running'}
+              className="rounded-md px-5 py-2 text-sm font-medium border border-destructive/40 text-destructive hover:bg-destructive/10 hover:border-destructive/70 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+            >
+              Datenbank leeren
+            </button>
+          ) : (
+            <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-4 space-y-3">
+              <p className="text-sm text-destructive">
+                Alle importierten Daten werden unwiderruflich gelöscht. Wirklich fortfahren?
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={confirmReset}
+                  disabled={resetBusy}
+                  className="rounded-md px-4 py-2 text-sm font-medium bg-red-600 hover:bg-red-700 disabled:opacity-50 transition-colors text-white cursor-pointer"
+                >
+                  {resetBusy ? 'Lösche…' : 'Ja, jetzt leeren'}
+                </button>
+                <button
+                  onClick={() => setResetConfirm(false)}
+                  disabled={resetBusy}
+                  className="rounded-md px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                >
+                  Abbrechen
+                </button>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+        </TabsContent>
+
+        <TabsContent value="importe" className="mt-6 space-y-8">
 
       {/* ── Import ── */}
       <Card>
@@ -1096,91 +1510,8 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
 
-      {/* ── MyBikingApp-Sync ── */}
-      <Card>
-        <CardHeader className="border-b border-border pb-3">
-          <CardTitle className="text-sm font-semibold">MyBikingApp-Sync</CardTitle>
-          <p className="text-xs text-muted-foreground">
-            Spiegelt die Daten in die Cloud-DB der mobilen App (Neon Postgres). Manuell anstoßen,
-            z.B. nach jedem Strava-Import.
-          </p>
-        </CardHeader>
-        <CardContent className="pt-5 space-y-4">
-          {appSyncStatus?.last_synced_at && (
-            <p className="text-sm text-muted-foreground">
-              Letzter Sync: {fmtDate(appSyncStatus.last_synced_at)} {fmtClock(appSyncStatus.last_synced_at)}
-              {appSyncStatus.last_status === 'error' && (
-                <span className="text-red-500"> – fehlgeschlagen: {appSyncStatus.last_message}</span>
-              )}
-              {appSyncStatus.last_status === 'ok' && (
-                <span className="text-green-600"> – {appSyncStatus.last_message}</span>
-              )}
-            </p>
-          )}
-          {!appSyncStatus?.last_synced_at && (
-            <p className="text-sm text-muted-foreground">Noch nicht synchronisiert.</p>
-          )}
-          {appSyncError && <p className="text-sm text-red-500">{appSyncError}</p>}
-          <button
-            onClick={startAppSync}
-            disabled={appSyncBusy}
-            className="rounded-md px-5 py-2 text-sm font-medium bg-orange-500 hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-white cursor-pointer"
-          >
-            {appSyncBusy ? 'Synchronisiert…' : 'Jetzt synchronisieren'}
-          </button>
-        </CardContent>
-      </Card>
-
-      {/* ── Datenbank zurücksetzen ── */}
-      <Card>
-        <CardHeader className="border-b border-border pb-3">
-          <CardTitle className="text-sm font-semibold">Datenbank zurücksetzen</CardTitle>
-          <p className="text-xs text-muted-foreground">
-            Löscht alle Aktivitäten, Tracks, Laps und Bikes – persönliche Einstellungen bleiben erhalten.
-          </p>
-        </CardHeader>
-        <CardContent className="pt-5">
-          {resetDone && (
-            <p className="text-sm text-green-600 mb-3">
-              Datenbank wurde geleert.
-              {resetBackupName && <> Backup vorher gesichert: <code className="text-xs">{resetBackupName}</code></>}
-            </p>
-          )}
-          {resetError && <p className="text-sm text-red-500 mb-3">{resetError}</p>}
-
-          {!resetConfirm ? (
-            <button
-              onClick={() => { setResetConfirm(true); setResetDone(false); setResetError(null); }}
-              disabled={importStatus === 'running'}
-              className="rounded-md px-5 py-2 text-sm font-medium border border-destructive/40 text-destructive hover:bg-destructive/10 hover:border-destructive/70 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
-            >
-              Datenbank leeren
-            </button>
-          ) : (
-            <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-4 space-y-3">
-              <p className="text-sm text-destructive">
-                Alle importierten Daten werden unwiderruflich gelöscht. Wirklich fortfahren?
-              </p>
-              <div className="flex gap-3">
-                <button
-                  onClick={confirmReset}
-                  disabled={resetBusy}
-                  className="rounded-md px-4 py-2 text-sm font-medium bg-red-600 hover:bg-red-700 disabled:opacity-50 transition-colors text-white cursor-pointer"
-                >
-                  {resetBusy ? 'Lösche…' : 'Ja, jetzt leeren'}
-                </button>
-                <button
-                  onClick={() => setResetConfirm(false)}
-                  disabled={resetBusy}
-                  className="rounded-md px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-                >
-                  Abbrechen
-                </button>
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
