@@ -726,7 +726,7 @@ def _best_by_distance_map(conn) -> dict:
 
     ph = ','.join('?' * len(RIDE_TYPES))
     activities = conn.execute(f"""
-        SELECT id, name, start_date_local AS date, distance_m
+        SELECT id, name, start_date_local AS date, distance_m, smart_device
         FROM activities
         WHERE activity_type IN ({ph}) AND distance_m > 0
     """, RIDE_TYPES).fetchall()
@@ -768,6 +768,7 @@ def _best_by_distance_map(conn) -> dict:
                 'best_time_s':        round(t),
                 'activity_id':        act['id'],
                 'activity_name':      act['name'],
+                'smart_device':       act['smart_device'],
                 'date':               act['date'],
                 'actual_distance_km': round((dist[end_idx] - dist[start_idx]) / 1000, 1),
             }
@@ -793,6 +794,7 @@ def best_by_distance():
                 'best_time_s':        None,
                 'activity_id':        None,
                 'activity_name':      None,
+                'smart_device':       None,
                 'date':               None,
                 'actual_distance_km': None,
             })

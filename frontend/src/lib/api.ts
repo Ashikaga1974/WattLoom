@@ -320,6 +320,7 @@ export interface BestByDistanceBucket {
   best_time_s: number | null;
   activity_id: number | null;
   activity_name: string | null;
+  smart_device: string | null;
   date: string | null;
   actual_distance_km: number | null;
 }

@@ -225,6 +225,7 @@ export default function StreckenPage() {
   // Speed-/Höhenprofil über die Distanz (nur wenn mind. 1 Track zusätzlich zur Referenz geladen ist)
   const speedProfileData = chartTracks.length > 1 ? buildProfileData(chartTracks, p => (p.speed_ms != null && p.speed_ms > 0 ? p.speed_ms * 3.6 : null)) : [];
   const elevationProfileData = chartTracks.length > 1 ? buildProfileData(chartTracks, p => p.altitude_m) : [];
+  const hrProfileData = chartTracks.length > 1 ? buildProfileData(chartTracks, p => p.hr) : [];
 
   // Bestwerte unter Referenz + Auswahl ermitteln (für Highlight in der Stats-Tabelle)
   const compareRows = refActivity
@@ -547,6 +548,26 @@ export default function StreckenPage() {
                       </LineChart>
                     </ResponsiveContainer>
                   </div>
+                  {hrProfileData.length > 0 && (
+                    <div>
+                      <p className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                        {t('profile.hrTitle')}
+                      </p>
+                      <ResponsiveContainer width="100%" height={config.chart_height_compact}>
+                        <LineChart data={hrProfileData} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}
+                          syncId="strecken-profil" syncMethod="value"
+                          onMouseMove={handleChartHover} onMouseLeave={handleChartLeave}>
+                          <XAxis dataKey="dist" type="number" domain={[0, 'dataMax']} tick={{ fontSize: 11 }} unit=" km" />
+                          <YAxis tick={{ fontSize: 11 }} width={40} />
+                          <Tooltip content={<ProfileTooltip tracks={chartTracks} unit="bpm" />} />
+                          {chartTracks.map(t => (
+                            <Line key={t.id} dataKey={`v_${t.id}`} stroke={t.color} strokeWidth={2}
+                              dot={false} isAnimationActive={false} connectNulls />
+                          ))}
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             )}

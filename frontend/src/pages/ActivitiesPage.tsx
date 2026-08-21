@@ -6,7 +6,7 @@ import type { TFunction } from 'i18next';
 
 import { api, type Activity, type Bike, type OtherActivity } from '@/lib/api';
 import { fmtKm, fmtTime, fmtDate, fmtClock, fmtWeekday, fmtSpeed } from '@/lib/format';
-import { rideTitle } from '@/lib/activity-display';
+import { rideTitleWithDevice } from '@/lib/activity-display';
 import { cn } from '@/lib/utils';
 import { PageHeader } from '@/components/ui/page-header';
 import { Card, CardContent } from '@/components/ui/card';
@@ -351,7 +351,7 @@ export default function ActivitiesPage() {
                           {fmtClock(act.start_date)}
                         </td>
                         <td className="px-4 py-3 max-w-xs">
-                          <span className="truncate block font-medium">{rideTitle(act, t)}</span>
+                          <span className="truncate block font-medium">{rideTitleWithDevice(act, t)}</span>
                           <span className="flex items-center gap-1.5 flex-wrap">
                             {act.bike_id && (
                               <span className="text-xs text-muted-foreground">

@@ -32,3 +32,17 @@ export function workoutTitle(w: TitleableWorkout, t: TFunction<'common'>): strin
   const label = t(`common:sport.${w.sport_type}`, { defaultValue: w.sport_type });
   return w.name || (dateStr ? `${label} – ${fmtDateShort(dateStr)}` : label);
 }
+
+/**
+ * Einzelimporte ohne Namen hängen das Gerät zusätzlich in Klammern an den Fallback-Titel an –
+ * wie bei den alten, fest komponierten Namen (z.B. "Radfahrt 16.08.2026 (Amazfit Cheetah (Square))").
+ * Bei vorhandenem `name` (ZIP-Import oder alter, fest komponierter Name) wird nichts angehängt,
+ * da das Gerät dort ggf. bereits im Namen selbst steckt.
+ */
+export function rideTitleWithDevice(
+  a: TitleableRide & { smart_device?: string | null },
+  t: TFunction<'common'>,
+): string {
+  const title = rideTitle(a, t);
+  return !a.name && a.smart_device ? `${title} (${a.smart_device})` : title;
+}

@@ -5,7 +5,7 @@ import { api, type Activity, type BestByDistanceBucket } from '@/lib/api';
 import { PageHeader } from '@/components/ui/page-header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { fmtDate } from '@/lib/format';
-import { rideTitle } from '@/lib/activity-display';
+import { rideTitleWithDevice } from '@/lib/activity-display';
 
 interface Category {
   key: string;
@@ -202,7 +202,7 @@ export default function BestPage() {
                                         {pt.b.actual_distance_km} km · {fmtTime(pt.b.best_time_s)}
                                       </text>
                                       <text x={bx + 8} y={by + 29} fontSize={9} fill="#9ca3af">
-                                        {pt.b.activity_name ?? ''}
+                                        {rideTitleWithDevice({ name: pt.b.activity_name, date: pt.b.date ?? undefined, smart_device: pt.b.smart_device }, t)}
                                       </text>
                                       <text x={bx + 8} y={by + 43} fontSize={9} fill="#6b7280">
                                         {fmtDate2(pt.b.date)}
@@ -247,8 +247,8 @@ export default function BestPage() {
                               <td className="px-4 py-2 font-mono font-semibold text-amber-500">{fmtTime(b.best_time_s)}</td>
                               <td className="px-4 py-2 text-muted-foreground">Ø {b.best_speed_kmh} km/h</td>
                               <td className="px-4 py-2">
-                                <Link to={`/activities/${b.activity_id}`} className="block max-w-[200px] truncate text-muted-foreground hover:text-primary transition-colors">
-                                  {b.activity_name}
+                                <Link to={`/activities/${b.activity_id}`} className="block max-w-[240px] truncate text-muted-foreground hover:text-primary transition-colors">
+                                  {rideTitleWithDevice({ name: b.activity_name, date: b.date ?? undefined, smart_device: b.smart_device }, t)}
                                 </Link>
                               </td>
                               <td className="px-4 py-2 text-muted-foreground">{fmtDate2(b.date)}</td>
@@ -294,7 +294,7 @@ export default function BestPage() {
                     >
                       <span className="w-7 shrink-0 text-center text-lg">{RANK_SYMBOLS[i]}</span>
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-medium">{rideTitle(act, t)}</p>
+                        <p className="truncate text-sm font-medium">{rideTitleWithDevice(act, t)}</p>
                         <p className="text-xs text-muted-foreground">{fmtDate(act.start_date)}</p>
                       </div>
                       <span className={`shrink-0 text-sm font-semibold ${RANK_COLORS[i]}`}>
