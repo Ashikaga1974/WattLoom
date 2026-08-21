@@ -156,22 +156,33 @@ WattLoom/
 │   ├── main.py              # FastAPI-App, CORS für localhost:5173
 │   ├── database.py          # SQLite-Schema, init_db()
 │   ├── api/
-│   │   ├── activities.py    # /activities/*
-│   │   ├── analytics.py     # /analytics/* (PMC, Wrapped, Kalorien, Best-of, …)
+│   │   ├── activities.py    # /activities/* (inkl. laps, power-Patch)
+│   │   ├── analytics.py     # /analytics/* (PMC, Wrapped, Kalorien, Best-of, Wind-Impact, Fitness-Fingerprint, …)
+│   │   ├── app_sync.py      # /app-sync/run, /app-sync/status (WattLoomApp-Sync-Subprocess)
 │   │   ├── bikes.py         # /bikes, /bikes/{id}, /bikes/compare, Komponenten-Einbau/Ausbau
+│   │   ├── errors.py        # api_error() – einheitliches Fehlerantwort-Format
 │   │   ├── purchases.py     # /purchases – Einkaufs-Lager (purchase_items: 1 Zeile je physischem Teil)
 │   │   ├── heatmap.py       # /tracks/heatmap
 │   │   ├── settings.py      # /settings (Gewicht, Geburtsjahr, HRmax, Timezone)
-│   │   ├── importer.py      # /import/start|status|reset|fit-file
+│   │   ├── storage_locations.py # /storage-locations
+│   │   ├── translations.py  # /translations/* (languages, export, import, {lang}/{ns})
+│   │   ├── zones.py         # /activities/{id}/zones
+│   │   ├── importer.py      # /import/start|status|reset|fit-file|tcx-file|gpx-file|recalculate-*
 │   │   ├── tracks.py        # /activities/{id}/track
 │   │   └── weather.py       # /weather/status, /weather/fetch-all (Open-Meteo)
 │   ├── utils.py             # Shared: haversine_km(), haversine_m(), MS_TO_KMH
+│   ├── pr_detection.py      # Snapshot-Diff auf Best-by-Distance vor/nach Import → pr_events
+│   ├── weather.py           # Open-Meteo Archive API: fetch_weather(lat, lon, date_utc)
 │   ├── importer/
 │   │   ├── pipeline.py      # run_import() – Haupteinstieg
 │   │   ├── fit.py           # FIT-Parser (Garmin, mit _SafeProcessor)
 │   │   ├── fit_single.py    # FIT-Einzelimport (Amazfit, Garmin ohne Strava)
 │   │   ├── tcx.py           # TCX-Parser
-│   │   └── gpx.py           # GPX-Parser (Tracks + Routen)
+│   │   ├── tcx_single.py    # TCX-Einzelimport
+│   │   ├── gpx.py           # GPX-Parser (Tracks + Routen)
+│   │   ├── gpx_single.py    # GPX-Einzelimport
+│   │   ├── power_estimator.py # Physik-Schätzung est_avg_power_w/est_norm_power_w ohne Powermeter
+│   │   └── sport_codes.py   # kanonische Sport-Codes, is_ride_sport()
 │   └── requirements.txt
 ├── frontend/
 │   └── src/
@@ -179,9 +190,12 @@ WattLoom/
 │       ├── App.tsx                     # Root-Komponente mit react-router-dom-Routen
 │       ├── index.css                   # TailwindCSS v4, CSS Custom Properties, Themes
 │       ├── lib/
+│       │   ├── activity-display.ts     # rideTitle()/workoutTitle() – Anzeigenamen für Aktivitäten/Workouts
 │       │   ├── api.ts                  # Typisierter API-Client
-│       │   ├── config.ts               # Zentrale Parameter (Glättung, Vereinfachung, …)
+│       │   ├── config-context.tsx      # Zentrale Parameter (Glättung, Vereinfachung, …), aus Backend-Settings geladen
 │       │   ├── format.ts               # fmtKm, fmtSpeed, fmtTime, fmtDate, fmtNum, fmtHm
+│       │   ├── i18n.ts                 # react-i18next-Setup, lädt Namespaces lazy
+│       │   ├── insights.ts             # Insight-Typ + Helper für dynamische Interpretations-Sätze
 │       │   └── utils.ts                # cn() Tailwind-Merge-Helper
 │       ├── components/
 │       │   ├── layout/
@@ -228,14 +242,13 @@ GET  /activities/stats              ?year
 GET  /activities/weekly             ?weeks=8
 GET  /activities/monthly            ?year
 GET  /activities/monthly-all
+GET  /activities/other              ?year      → andere Sportarten (Laufen, Kraft, …)
 GET    /activities/{id}
 DELETE /activities/{id}             → löscht Aktivität inkl. track_points, media, laps
+GET    /activities/{id}/laps        → Rundensplits
+PATCH  /activities/{id}/power       → {avg_power_w} setzen (nur manuell importierte Aktivitäten)
 GET  /activities/{id}/track         ?simplify, fields
 GET  /activities/{id}/media
-GET  /activities/{id}/zones
-GET  /activities/{id}/similar
-
-GET  /activities/other              ?year      → andere Sportarten (Laufen, Kraft, …)
 GET  /activities/{id}/zones         → HR-Zonen + Power-Zonen
 GET  /activities/{id}/similar       ?limit=10  → ähnliche Rides (Haversine+Distanz-Vorfilter ±3 %, dann Trackpunkt-Abgleich → path_match_pct)
 
@@ -244,6 +257,7 @@ GET  /analytics/time-heatmap        ?year, tz_offset
 GET  /analytics/speed-hr                       → per Ride: month, speed_kmh, hr, dist_km
 GET  /analytics/speed-trend         ?year      → Scatter, Rolling-Ø, Jahres-Aggregate, Monats-Heatmap
 GET  /analytics/temp-correlation
+GET  /analytics/wind-impact                    → Windstärke vs. Speed/HR je Aktivität
 GET  /analytics/hr-curve            ?year
 GET  /analytics/pmc                            → CTL/ATL/TSB + hrTSS
 GET  /analytics/wrapped             ?year, tz_offset
@@ -253,6 +267,7 @@ GET    /analytics/pr-events                    → noch nicht verworfene neue Be
 DELETE /analytics/pr-events/{id}               → PR-Hinweis verwerfen
 GET  /analytics/cadence             ?year      → Distribution, Zonen, Monatsverlauf, Effizienz-Buckets
 GET  /analytics/calories            ?year      → total_kcal, rides + workouts, monatlich/jährlich
+GET  /analytics/weekend-weekday     ?year      → Ø-Kennzahlen Werktag vs. Wochenende
 GET  /analytics/fitness-fingerprint            → Score 0–100 aus CTL, Effizienz, Form, Kontinuität + History
 
 GET  /weather/status
@@ -268,6 +283,7 @@ GET  /bikes/{id}/image
 POST /bikes/{id}/image             → Foto hochladen (multipart)
 POST /bikes/{id}/components        → Komponente aus Lager einbauen (purchase_id, optional return_id für Vorbelastungs-Übernahme)
 PUT  /bikes/{id}/components/{cid}  → Komponente editieren (type, km_threshold, installed_at)
+PUT  /bikes/{id}/components/{cid}/reset         → als gewartet markieren (km_at_service auf aktuellen km-Stand setzen)
 PUT  /bikes/{id}/components/{cid}/uninstall     → {km_ridden, purchase_id?} → bei Lagerbezug: Rückgabe vermerken + Komponente löschen
 PUT  /bikes/{id}/components/{cid}/return-to-stock → {purchase_id} → bereits ausgebaute Komponente nachträglich ins Lager zurücklegen
 PUT  /bikes/{id}/components/{cid}/link-purchase   → {purchase_id} → noch verbaute Komponente nachträglich einem Einkauf zuordnen (bleibt verbaut)
@@ -277,6 +293,12 @@ POST /purchases                    → neuer Einkauf (quantity legt entsprechend
 PUT  /purchases/{id}               → Bestellung bearbeiten (Menge nicht editierbar – nur über /adjust)
 PUT  /purchases/{id}/adjust        → {delta} → legt |delta| neue Items an (delta>0) bzw. entsorgt |delta| unverbaute Items (delta<0)
 DELETE /purchases/{id}             → 409 falls noch Items verbaut sind oder offene Rückgaben existieren
+
+GET    /storage-locations           → Lagerplätze
+POST   /storage-locations           → { name } neuer Lagerplatz
+PUT    /storage-locations/{id}      → { name } umbenennen
+DELETE /storage-locations/{id}      → löschen (referenzierende purchases werden auf NULL gesetzt)
+
 GET  /tracks/heatmap                ?simplify, year
 GET  /settings
 POST /settings
@@ -285,7 +307,11 @@ GET  /import/status
 POST /import/reset                  → sichert vorher eine Backup-Kopie nach data/backups/
 POST /import/fit-file               → multipart: file (.fit) + bike_id
 POST /import/tcx-file               → multipart: file (.tcx) + bike_id
+POST /import/gpx-file               → multipart: file (.gpx) + bike_id
+POST /import/recalculate-track-speeds → Background-Job: speed_ms/distance_m aus lat/lon/timestamp nachberechnen
+POST /import/recalculate-power      → Background-Job: Leistungsschätzung für alle Rides neu berechnen
 GET  /media/{filename}
+GET  /health                        → Liveness-Check ({status: "ok"})
 
 GET  /app-sync/status               → letztes WattLoomApp-Sync-Ergebnis
 POST /app-sync/run                  → WattLoomApp-Sync manuell anstoßen (läuft nach jedem Import zusätzlich automatisch)
@@ -364,7 +390,6 @@ SQLite-Datei unter `data/mybiking.db`, Schema in `backend/database.py` (`init_db
 | `name` | Artikelbezeichnung (Pflichtfeld) |
 | `shop` | Händler (z.B. „Amazon", „BOC Eschweiler") – **kein** Hersteller-Feld |
 | `url`, `price`, `order_date`, `delivery_date`, `notes` | Freitext-Metadaten der Bestellung |
-| `used_at` | **unbenutzt** (Rest aus einer früheren Schema-Version vor `purchase_items`) |
 | `component_type` | Basis-Typ (z.B. „Mantel") für die Zuordnung im Einbauen-Formular, überschreibt Namens-Erkennung |
 
 `quantity`/`installed_count` werden **nicht gespeichert**, sondern aus `purchase_items` abgeleitet.
@@ -385,7 +410,7 @@ Snapshot aller `bike_components`-Felder zum Löschzeitpunkt plus `km_since_servi
 `activity_id` (FK), `filename` (UUID, Datei in `data/media/`), `taken_at`, `lat`, `lon`.
 
 ### `config` – Key-Value-Einstellungen
-`key`/`value` (beide TEXT). Bekannte Keys: `weight_kg`, `birth_year`, `tz_offset`, `hr_max`, `language`.
+`key`/`value` (beide TEXT). ~29 Keys, definiert in `backend/api/settings.py: _FIELDS` – u.a. `weight_kg`, `birth_year`, `tz_offset`, `hr_max`, `language`, `yearly_km_goal`, `weekly_hours_goal`, `default_bike_id`, `crr`, `cda`, `bike_kg`, `ctl_days`, `atl_days` sowie alle Werte aus der „Konfigurierbare Parameter"-Tabelle oben.
 
 ### `translations` – UI-Übersetzungen (DB statt Frontend-Bundle)
 `lang`, `ns` (Namespace, entspricht einer Frontend-Seite bzw. `common`), `key` (Punkt-Pfad, z.B. `nav.activities`), `value` (als JSON kodiert – auch einfache Strings, damit Arrays/Objekte wie `weekdaysShort` verlustfrei rein-/rausgehen). Primary Key `(lang, ns, key)`. Wird über `GET/POST /translations/*` verwaltet, nicht über die Einstellungsseite direkt editiert.
@@ -405,7 +430,7 @@ Snapshot aller `bike_components`-Felder zum Löschzeitpunkt plus `km_since_servi
 
 ## Berechnungen & Formeln
 
-Alle verwendeten Formeln sind auf der Seite `/berechnungen` dokumentiert und werden direkt aus `config.ts` gelesen – immer aktuell. Wichtigste Kennzahlen:
+Alle verwendeten Formeln sind auf der Seite `/berechnungen` dokumentiert und werden direkt aus `config-context.tsx` gelesen – immer aktuell. Wichtigste Kennzahlen:
 
 | Kennzahl | Formel |
 |----------|--------|
@@ -420,19 +445,23 @@ Alle verwendeten Formeln sind auf der Seite `/berechnungen` dokumentiert und wer
 
 ## Konfigurierbare Parameter
 
-In [frontend/src/lib/config.ts](frontend/src/lib/config.ts):
+In [frontend/src/lib/config-context.tsx](frontend/src/lib/config-context.tsx):
 
 | Konstante | Standard | Bedeutung |
 |-----------|----------|-----------|
-| `BEZIER_TENSION` | `0.2` | Kurvenglättung (0 = gerade, 0.5 = stark) |
-| `SPARKLINE_WEEKS` | `8` | Wochen im Dashboard-Sparkline |
-| `SPEED_COLOR_BUCKETS` | `20` | Farbstufen auf der Geschwindigkeitskarte |
-| `TRACK_SIMPLIFY_M` | `5` | Schritt beim rowid-Downsampling für Einzeltrack |
-| `COMPARISON_SIMPLIFY` | `20` | Schritt für Multi-Track (Vergleich + Heatmap) |
-| `CHART_HEIGHT_MINI` | `100` | Winzige Inline-Sparklines |
-| `CHART_HEIGHT_COMPACT` | `140` | Kleine Trend-Charts |
-| `CHART_HEIGHT` | `200` | Standard-Analyse-Chart |
-| `CHART_HEIGHT_DENSE` | `220` | Dichte Mehrserien-Charts (Cap nach oben) |
+| `bezier_tension` | `0.2` | Kurvenglättung (0 = gerade, 0.5 = stark) |
+| `sparkline_weeks` | `8` | Wochen im Dashboard-Sparkline |
+| `block_hours` | `3` | Stundenbreite der Zeitblöcke (Tageszeit-Tab, /progress) |
+| `volume_trend_weeks` | `4` | Rolling-Ø-Fenster Volumen-Trendlinie (/progress) |
+| `speed_color_buckets` | `20` | Farbstufen auf der Geschwindigkeitskarte |
+| `track_simplify_m` | `5` | RDP-Toleranz in Metern beim Track-Laden |
+| `wear_warning_pct` | `90` | Verschleiß-Warnschwelle (Dashboard-Widget) |
+| `comparison_simplify` | `20` | Vereinfachung beim Streckenvergleich |
+| `chart_height_mini` | `100` | Winzige Inline-Sparklines |
+| `chart_height_compact` | `140` | Kleine Trend-Charts |
+| `chart_height` | `200` | Standard-Analyse-Chart |
+| `chart_height_dense` | `220` | Dichte Mehrserien-Charts (Cap nach oben) |
+| `comparison_colors` | `#f97316,#3b82f6,#22c55e,#a855f7,#eab308` | Farbreihenfolge Streckenvergleich |
 
 ---
 
