@@ -51,7 +51,7 @@ Local web app for analyzing Strava export data. No Strava API access needed – 
 | **Weekday analysis** | Weekday (Mon–Fri) vs. weekend (Sat–Sun): duel card with winner indicators, rides-per-weekday bars, monthly trend |
 | **Route comparison** | Find similar rides (Haversine radius + distance match, then point-by-point track matching for true route overlap) |
 | **Cadence analysis** | Radial distribution chart (polar chart), 6 cadence zones, monthly trend, efficiency sweet spot |
-| **Fitness fingerprint** | Overall score 0–100 from CTL, aerobic efficiency, form (TSB), and consistency; arc gauge, strengths radar, 4 component cards, 13-month history, level system (beginner → elite) |
+| **Fitness fingerprint** | Overall score 0–100 from CTL, aerobic efficiency, form (TSB), and consistency; arc gauge, strengths radar, 4 component cards, score history across the entire recorded period, level system (beginner → elite) |
 | **Calendar** | Monthly calendar: rides + workouts (marked grey), ring indicator on combo days |
 | **Calculations** | Documentation of all formulas and parameters used |
 | **Settings** | Weight, birth year, timezone, training goals (yearly km, weekly hours), language (DE/EN translated so far, 7 more prepared); single FIT/TCX import (Amazfit, Garmin without Strava); weather data fetch; recalculate power for all rides; WattLoomApp sync (runs automatically after every import, also triggerable manually); export/import translations as JSON; DB reset automatically backs up a copy first |

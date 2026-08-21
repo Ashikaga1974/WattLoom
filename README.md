@@ -51,7 +51,7 @@ Lokale Web-App zur Analyse von Strava-Exportdaten. Kein Strava-API-Zugriff nöti
 | **Wochentag-Analyse** | Werktag (Mo–Fr) vs. Wochenende (Sa–So): Duell-Karte mit Gewinner-Indikatoren, Rides/Wochentag-Balken, Monatsverlauf |
 | **Streckenvergleich** | Ähnliche Rides finden (Haversine-Radius + Distanzabgleich, dann Trackpunkt-Abgleich per absoluten Distanz-Marken für echte Streckenübereinstimmung) |
 | **Kadenz-Analyse** | Radiales Verteilungsdiagramm (Polar-Chart), 6 Kadenz-Zonen, Monatstrend, Effizienz-Sweetspot |
-| **Fitness-Fingerprint** | Gesamtscore 0–100 aus CTL, Aerober Effizienz, Form (TSB) und Kontinuität; Arc-Gauge, Stärken-Radar, 4 Komponenten-Karten, 13-Monats-Verlauf, Level-System (Einsteiger → Elite) |
+| **Fitness-Fingerprint** | Gesamtscore 0–100 aus CTL, Aerober Effizienz, Form (TSB) und Kontinuität; Arc-Gauge, Stärken-Radar, 4 Komponenten-Karten, Score-Verlauf über die gesamte erfasste Zeit, Level-System (Einsteiger → Elite) |
 | **Kalender** | Monatskalender: Radtouren + Workouts (grau markiert), Ring-Indikator bei Kombi-Tagen |
 | **Berechnungen** | Dokumentation aller verwendeten Formeln und Parameter |
 | **Einstellungen** | Gewicht, Geburtsjahr, Zeitzone, Trainingsziele (Jahres-km, Wochenstunden), Sprache (DE/EN aktuell übersetzt, 7 weitere vorbereitet); FIT/TCX-Einzelimport (Amazfit, Garmin ohne Strava); Wetterdaten-Abruf; Leistung für alle Rides neu berechnen; WattLoomApp-Sync (läuft automatisch nach jedem Import, zusätzlich manuell anstoßbar); Übersetzungen als JSON exportieren/importieren; DB-Reset sichert vorher automatisch eine Backup-Kopie |

@@ -431,6 +431,7 @@ export default function FitnessPage() {
                   dataKey="month"
                   tickFormatter={(m: string) => fmtMonth(m, months)}
                   tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
+                  interval={Math.max(0, Math.floor(history.length / 10) - 1)}
                 />
                 <YAxis
                   domain={[0, 100]}

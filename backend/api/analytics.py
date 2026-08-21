@@ -1392,7 +1392,7 @@ def fitness_fingerprint():
     - Form/TSB (20 Pkt): Frische vs. Müdigkeit (CTL − ATL)
     - Kontinuität (20 Pkt): aktive Wochen in den letzten 8 Wochen
 
-    Zusätzlich: monatliche Score-History (letzte 13 Monate) und Trend (up/neutral/down).
+    Zusätzlich: monatliche Score-History (gesamte erfasste Zeit) und Trend (up/neutral/down).
     """
     from collections import defaultdict
     from datetime import date as Date, timedelta
@@ -1592,9 +1592,9 @@ def fitness_fingerprint():
     elif weeks_active <= 3:
         parts.append("consistency_improvable")
 
-    # --- Monatliche Score-History (letzte 13 Monate) ---
+    # --- Monatliche Score-History (gesamte erfasste Zeit) ---
     history: list[dict] = []
-    for m in sorted(monthly_snapshots.keys())[-13:]:
+    for m in sorted(monthly_snapshots.keys()):
         snap = monthly_snapshots[m]
         s = round(
             ctl_score_fn(snap["ctl"])
