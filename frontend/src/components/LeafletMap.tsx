@@ -75,6 +75,12 @@ export default function LeafletMap({ points = [], multiPoints, speedColorBuckets
     if (!isMulti && points.length === 0) return;
 
     const map = L.map(container);
+    // StrictMode (main.tsx) invoked diesen Effect im Dev-Modus doppelt: mount → cleanup
+    // (map.remove()) → erneuter mount. Der untenstehende requestAnimationFrame aus dem ERSTEN
+    // Durchlauf feuert aber erst nach diesem Cleanup – ohne die Flag würde er auf dem bereits
+    // entfernten `map` operieren und Leaflet intern mit "Cannot set properties of undefined
+    // (setting '_leaflet_pos')" crashen lassen (fitBounds → _resetView → setPosition).
+    let removed = false;
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '© OpenStreetMap',
@@ -121,6 +127,7 @@ export default function LeafletMap({ points = [], multiPoints, speedColorBuckets
       }
 
       requestAnimationFrame(() => {
+        if (removed) return;
         map.invalidateSize(false);
         map.fitBounds(L.polyline(allLatLngs).getBounds(), { padding: [6, 6] });
         updateWeights();
@@ -202,6 +209,7 @@ export default function LeafletMap({ points = [], multiPoints, speedColorBuckets
       // invalidateSize muss vor fitBounds kommen – Leaflet kennt sonst die Container-Größe nicht.
       // updateWeights danach explizit aufrufen, da getZoom() beim Polyline-Erstellen noch 0 war.
       requestAnimationFrame(() => {
+        if (removed) return;
         map.invalidateSize(false);
         map.fitBounds(L.polyline(latLngs).getBounds(), { padding: [6, 6] });
         updateWeights();
@@ -247,6 +255,7 @@ export default function LeafletMap({ points = [], multiPoints, speedColorBuckets
     map.on('zoomend', updateWeights);
 
     return () => {
+      removed = true;
       hoverMarkerRef.current = null;
       clickMarkerRef.current = null;
       map.remove();

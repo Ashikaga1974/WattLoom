@@ -54,7 +54,8 @@ Lokale Web-App zur Analyse von Strava-Exportdaten. Kein Strava-API-Zugriff nöti
 | **Fitness-Fingerprint** | Gesamtscore 0–100 aus CTL, Aerober Effizienz, Form (TSB) und Kontinuität; Arc-Gauge, Stärken-Radar, 4 Komponenten-Karten, 13-Monats-Verlauf, Level-System (Einsteiger → Elite) |
 | **Kalender** | Monatskalender: Radtouren + Workouts (grau markiert), Ring-Indikator bei Kombi-Tagen |
 | **Berechnungen** | Dokumentation aller verwendeten Formeln und Parameter |
-| **Einstellungen** | Gewicht, Geburtsjahr, Zeitzone, Trainingsziele (Jahres-km, Wochenstunden); FIT/TCX-Einzelimport (Amazfit, Garmin ohne Strava); Wetterdaten-Abruf; Leistung für alle Rides neu berechnen; WattLoomApp-Sync (läuft automatisch nach jedem Import, zusätzlich manuell anstoßbar); DB-Reset sichert vorher automatisch eine Backup-Kopie |
+| **Einstellungen** | Gewicht, Geburtsjahr, Zeitzone, Trainingsziele (Jahres-km, Wochenstunden), Sprache (DE/EN aktuell übersetzt, 7 weitere vorbereitet); FIT/TCX-Einzelimport (Amazfit, Garmin ohne Strava); Wetterdaten-Abruf; Leistung für alle Rides neu berechnen; WattLoomApp-Sync (läuft automatisch nach jedem Import, zusätzlich manuell anstoßbar); Übersetzungen als JSON exportieren/importieren; DB-Reset sichert vorher automatisch eine Backup-Kopie |
+| **Mehrsprachigkeit** | Komplette UI über react-i18next; Übersetzungen liegen DB-gestützt in der `translations`-Tabelle statt im Frontend-Bundle – neue Sprachen (z.B. per ChatGPT/DeepL übersetzt) lassen sich ohne Code-Änderung über Einstellungen → Export/Import einspielen |
 
 ---
 
@@ -131,16 +132,16 @@ Im Browser: **Einstellungen → Import starten** – der Importer liest die ZIP,
 Für dauerhaften Betrieb ohne manuellen Start:
 
 ```bash
-systemctl --user enable mybiking-backend.service
-systemctl --user enable mybiking-frontend.service
+systemctl --user enable wattloom-backend.service
+systemctl --user enable wattloom-frontend.service
 loginctl enable-linger $USER
 
 # Manuell steuern
-systemctl --user start|stop|restart mybiking-backend
-systemctl --user start|stop|restart mybiking-frontend
+systemctl --user start|stop|restart wattloom-backend
+systemctl --user start|stop|restart wattloom-frontend
 
 # Logs
-journalctl --user -u mybiking-backend.service -f
+journalctl --user -u wattloom-backend.service -f
 ```
 
 Service-Dateien liegen in `~/.config/systemd/user/`. Beim Debuggen mit VS Code vorher stoppen, damit Port 8000/5173 frei sind.
@@ -288,6 +289,11 @@ GET  /media/{filename}
 
 GET  /app-sync/status               → letztes WattLoomApp-Sync-Ergebnis
 POST /app-sync/run                  → WattLoomApp-Sync manuell anstoßen (läuft nach jedem Import zusätzlich automatisch)
+
+GET  /translations/languages        → feste Sprachliste + welche davon in der DB vorhanden sind
+GET  /translations/export           ?lang → alle Übersetzungen einer Sprache als JSON (Download)
+POST /translations/import           → { lang, translations } → Übersetzungen einspielen/aktualisieren
+GET  /translations/{lang}/{ns}      → ein Namespace für i18next-http-backend (Frontend lädt seitenweise nach)
 ```
 
 ---
@@ -379,7 +385,10 @@ Snapshot aller `bike_components`-Felder zum Löschzeitpunkt plus `km_since_servi
 `activity_id` (FK), `filename` (UUID, Datei in `data/media/`), `taken_at`, `lat`, `lon`.
 
 ### `config` – Key-Value-Einstellungen
-`key`/`value` (beide TEXT). Bekannte Keys: `weight_kg`, `birth_year`, `tz_offset`, `hr_max`.
+`key`/`value` (beide TEXT). Bekannte Keys: `weight_kg`, `birth_year`, `tz_offset`, `hr_max`, `language`.
+
+### `translations` – UI-Übersetzungen (DB statt Frontend-Bundle)
+`lang`, `ns` (Namespace, entspricht einer Frontend-Seite bzw. `common`), `key` (Punkt-Pfad, z.B. `nav.activities`), `value` (als JSON kodiert – auch einfache Strings, damit Arrays/Objekte wie `weekdaysShort` verlustfrei rein-/rausgehen). Primary Key `(lang, ns, key)`. Wird über `GET/POST /translations/*` verwaltet, nicht über die Einstellungsseite direkt editiert.
 
 ---
 
@@ -454,6 +463,7 @@ In [frontend/src/lib/config.ts](frontend/src/lib/config.ts):
 - **Recharts** – Chart-Bibliothek
 - **TailwindCSS v4**
 - **Leaflet.js** – interaktive Karten (dynamischer Import via `React.lazy()`)
+- **react-i18next** – Mehrsprachigkeit, Übersetzungen aus der `translations`-DB-Tabelle statt Bundle
 - **TypeScript** – vollständig typisiert
 
 ---

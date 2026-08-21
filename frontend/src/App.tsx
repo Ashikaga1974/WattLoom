@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -36,6 +37,11 @@ function AppRoutes() {
           <AppSidebar />
           <SidebarInset>
             <main className="p-6 min-h-screen">
+              {/* i18next-http-backend lädt den Namespace jeder Seite erst beim ersten Mount nach
+                  (siehe lib/i18n.ts) – ohne Suspense-Boundary würden Seiten mit synchronem
+                  t(key, {returnObjects:true}) (z.B. CalendarPage) kurz mit dem rohen Key statt
+                  einem Array rendern und crashen, bevor der Namespace geladen ist. */}
+              <Suspense fallback={null}>
               <Routes>
                 <Route path="/" element={<DashboardPage />} />
                 <Route path="/activities" element={<ActivitiesPage />} />
@@ -66,6 +72,7 @@ function AppRoutes() {
                 <Route path="/weekend" element={<WeekendPage />} />
                 <Route path="/fitness" element={<FitnessPage />} />
               </Routes>
+              </Suspense>
             </main>
           </SidebarInset>
         </SidebarProvider>

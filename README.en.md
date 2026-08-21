@@ -49,13 +49,13 @@ Local web app for analyzing Strava export data. No Strava API access needed – 
 | **Bikes** | 3 tabs: overview (photo thumbnail, single-line KPIs, wear tracker as cards with progress bars + linked stock-item name, installing from stock incl. carrying over mileage of used parts, uninstalling with km entry + automatic stock return, retroactively linking already-mounted legacy components to a purchase; purchase/stock table below, inactive bikes via dropdown at the very bottom) · Deleted (history of irreversibly deleted components incl. stock link, informational only) · Comparison (km, speed, elevation, maintenance cost incl. €/100km, yearly trend, distance histogram) |
 | **Workout detail** | Detail view per workout: sport hero, 4 KPI tiles, SVG intensity gauge (avg HR / max HR), history chart, average comparison |
 | **Weekday analysis** | Weekday (Mon–Fri) vs. weekend (Sat–Sun): duel card with winner indicators, rides-per-weekday bars, monthly trend |
-| **Top routes** | Greedy clustering of all rides (2 km start radius, ±10% distance), time chart with PR markers, trend, map |
-| **Route comparison** | Find similar rides (Haversine radius + distance match) |
+| **Route comparison** | Find similar rides (Haversine radius + distance match, then point-by-point track matching for true route overlap) |
 | **Cadence analysis** | Radial distribution chart (polar chart), 6 cadence zones, monthly trend, efficiency sweet spot |
 | **Fitness fingerprint** | Overall score 0–100 from CTL, aerobic efficiency, form (TSB), and consistency; arc gauge, strengths radar, 4 component cards, 13-month history, level system (beginner → elite) |
 | **Calendar** | Monthly calendar: rides + workouts (marked grey), ring indicator on combo days |
 | **Calculations** | Documentation of all formulas and parameters used |
-| **Settings** | Weight, birth year, timezone; single FIT/TCX import (Amazfit, Garmin without Strava); weather data fetch; recalculate power for all rides; WattLoomApp sync (manual push of current data to WattLoomApp) |
+| **Settings** | Weight, birth year, timezone, training goals (yearly km, weekly hours), language (DE/EN translated so far, 7 more prepared); single FIT/TCX import (Amazfit, Garmin without Strava); weather data fetch; recalculate power for all rides; WattLoomApp sync (runs automatically after every import, also triggerable manually); export/import translations as JSON; DB reset automatically backs up a copy first |
+| **Multi-language support** | Full UI via react-i18next; translations live DB-backed in the `translations` table instead of the frontend bundle – new languages (e.g. translated via ChatGPT/DeepL) can be imported without any code change via Settings → Export/Import |
 
 ---
 
@@ -132,16 +132,16 @@ In the browser: **Settings → Start import** – the importer reads the ZIP, pa
 For permanent operation without manual startup:
 
 ```bash
-systemctl --user enable mybiking-backend.service
-systemctl --user enable mybiking-frontend.service
+systemctl --user enable wattloom-backend.service
+systemctl --user enable wattloom-frontend.service
 loginctl enable-linger $USER
 
 # Control manually
-systemctl --user start|stop|restart mybiking-backend
-systemctl --user start|stop|restart mybiking-frontend
+systemctl --user start|stop|restart wattloom-backend
+systemctl --user start|stop|restart wattloom-frontend
 
 # Logs
-journalctl --user -u mybiking-backend.service -f
+journalctl --user -u wattloom-backend.service -f
 ```
 
 Service files live in `~/.config/systemd/user/`. Stop them before debugging with VS Code so ports 8000/5173 are free.
@@ -204,7 +204,6 @@ WattLoom/
 │           ├── HrCurvePage.tsx         # Tabs: HR curve · aerobic efficiency (/hrcurve?tab=kurve|effizienz)
 │           ├── ProgressPage.tsx        # Tabs: progress · year comparison · volume · time of day (/progress?tab=…)
 │           ├── SettingsPage.tsx
-│           ├── RoutesPage.tsx
 │           ├── StreckenPage.tsx
 │           ├── TempCorrPage.tsx
 │           ├── WrappedPage.tsx
@@ -250,7 +249,6 @@ GET  /analytics/pmc                            → CTL/ATL/TSB + hrTSS
 GET  /analytics/wrapped             ?year, tz_offset
 GET  /analytics/weekly-volume       ?weeks
 GET  /analytics/best-by-distance               → fastest segment per target distance (5–70 km) across all rides (best effort)
-GET  /analytics/route-clusters      ?min_rides → greedy clustering of all rides by start point + distance
 GET  /analytics/cadence             ?year      → distribution, zones, monthly trend, efficiency buckets
 GET  /analytics/calories            ?year      → total_kcal, rides + workouts, monthly/yearly
 GET  /analytics/fitness-fingerprint            → score 0–100 from CTL, efficiency, form, consistency + history
@@ -286,6 +284,14 @@ POST /import/reset
 POST /import/fit-file               → multipart: file (.fit) + bike_id
 POST /import/tcx-file               → multipart: file (.tcx) + bike_id
 GET  /media/{filename}
+
+GET  /app-sync/status               → last WattLoomApp sync result
+POST /app-sync/run                  → trigger WattLoomApp sync manually (also runs automatically after every import)
+
+GET  /translations/languages        → fixed language list + which ones exist in the DB
+GET  /translations/export           ?lang → all translations for one language as JSON (download)
+POST /translations/import           → { lang, translations } → import/update translations
+GET  /translations/{lang}/{ns}      → one namespace for i18next-http-backend (frontend loads per page)
 ```
 
 ---
@@ -377,7 +383,10 @@ Snapshot of all `bike_components` fields at the time of deletion, plus `km_since
 `activity_id` (FK), `filename` (UUID, file in `data/media/`), `taken_at`, `lat`, `lon`.
 
 ### `config` – key-value settings
-`key`/`value` (both TEXT). Known keys: `weight_kg`, `birth_year`, `tz_offset`, `hr_max`.
+`key`/`value` (both TEXT). Known keys: `weight_kg`, `birth_year`, `tz_offset`, `hr_max`, `language`.
+
+### `translations` – UI translations (DB instead of frontend bundle)
+`lang`, `ns` (namespace, corresponds to one frontend page or `common`), `key` (dot path, e.g. `nav.activities`), `value` (JSON-encoded – even plain strings, so arrays/objects like `weekdaysShort` round-trip losslessly). Primary key `(lang, ns, key)`. Managed via `GET/POST /translations/*`, not edited directly on the settings page.
 
 ---
 
@@ -452,6 +461,7 @@ In [frontend/src/lib/config.ts](frontend/src/lib/config.ts):
 - **Recharts** – charting library
 - **TailwindCSS v4**
 - **Leaflet.js** – interactive maps (dynamic import via `React.lazy()`)
+- **react-i18next** – multi-language support, translations from the `translations` DB table instead of a bundle
 - **TypeScript** – fully typed
 
 ---

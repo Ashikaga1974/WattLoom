@@ -76,7 +76,7 @@ def export_language(lang: str):
         ).fetchall()
     by_ns: dict[str, dict[str, str]] = {}
     for ns, key, value in rows:
-        by_ns.setdefault(ns, {})[key] = value
+        by_ns.setdefault(ns, {})[key] = json.loads(value)
     payload = {ns: _unflatten(flat) for ns, flat in by_ns.items()}
     return Response(
         content=json.dumps(payload, ensure_ascii=False, indent=2),
@@ -102,7 +102,10 @@ def import_language(body: ImportBody):
                     INSERT INTO translations(lang, ns, key, value) VALUES (?, ?, ?, ?)
                     ON CONFLICT(lang, ns, key) DO UPDATE SET value = excluded.value
                     """,
-                    (body.lang, ns, key, str(value)),
+                    # json.dumps statt str(): eine Liste (z.B. weekdaysShort) würde mit str()
+                    # als Python-Repr "['Mo', 'Di', ...]" gespeichert – kein gültiges JSON und
+                    # im Frontend bei returnObjects:true kein Array, sondern dieser rohe String.
+                    (body.lang, ns, key, json.dumps(value)),
                 )
         conn.commit()
     return {"ok": True}
@@ -114,4 +117,4 @@ def get_namespace(lang: str, ns: str):
         rows = conn.execute(
             "SELECT key, value FROM translations WHERE lang = ? AND ns = ?", (lang, ns)
         ).fetchall()
-    return _unflatten({r[0]: r[1] for r in rows})
+    return _unflatten({r[0]: json.loads(r[1]) for r in rows})

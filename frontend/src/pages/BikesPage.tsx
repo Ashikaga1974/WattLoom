@@ -12,7 +12,7 @@ import { fmtNum } from '@/lib/format';
 // Übersetzt einen Komponenten-Typ-Code (chain, tire_front, …) fürs Anzeigen. Unbekannte/
 // freihändig gepflegte Alt-Werte (nicht per Migration erkannt) fallen auf den Rohwert zurück.
 function componentLabel(code: string, t: TFunction<'common'>): string {
-  return t(`component.${code}`, { defaultValue: code });
+  return t(`common:component.${code}`, { defaultValue: code });
 }
 
 // ─── Vergleich-Hilfsfunktionen ────────────────────────────────────────────────

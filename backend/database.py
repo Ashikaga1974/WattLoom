@@ -476,6 +476,44 @@ def init_db() -> None:
                 "INSERT INTO config(key, value) VALUES('migrated_i18n_sport_codes', '1')"
             )
 
+        # Migration: translations.value als valides JSON statt Python-str() speichern.
+        # POST /translations/import (backend/api/translations.py) schrieb Listen-Werte (z.B.
+        # weekdaysShort) bisher über str(value) als Python-Repr "['Mo', 'Di', ...]" statt als
+        # JSON-Array – i18next liefert bei t(key, {returnObjects:true}) dann diesen rohen String
+        # zurück statt eines Arrays, was im Frontend crasht. Einmaliger Lauf: parst betroffene
+        # Alt-Werte per ast.literal_eval zurück in echte Python-Objekte und schreibt sie neu als
+        # json.dumps() – normale String-Werte werden dabei ebenfalls JSON-kodiert (in
+        # Anführungszeichen), damit die Leseseite immer einheitlich json.loads() nutzen kann.
+        if conn.execute(
+            "SELECT 1 FROM config WHERE key = 'migrated_translations_json_encoding'"
+        ).fetchone() is None:
+            import ast
+            import json as _json
+
+            for lang, ns, key, value in conn.execute(
+                "SELECT lang, ns, key, value FROM translations"
+            ).fetchall():
+                try:
+                    _json.loads(value)
+                    continue  # bereits valides JSON
+                except (ValueError, TypeError):
+                    pass
+                if value.startswith("[") and value.endswith("]"):
+                    try:
+                        obj = ast.literal_eval(value)
+                    except (ValueError, SyntaxError):
+                        obj = value
+                else:
+                    obj = value
+                conn.execute(
+                    "UPDATE translations SET value = ? WHERE lang = ? AND ns = ? AND key = ?",
+                    (_json.dumps(obj), lang, ns, key),
+                )
+
+            conn.execute(
+                "INSERT INTO config(key, value) VALUES('migrated_translations_json_encoding', '1')"
+            )
+
         # db_connection() committet beim Schließen nicht automatisch – ohne diesen commit() würde
         # eine hier noch offene, von INSERT/UPDATE implizit gestartete Transaktion (z.B. die
         # purchase_items-Datenübernahme oben) beim conn.close() stillschweigend zurückgerollt,
