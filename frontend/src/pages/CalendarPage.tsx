@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { api, type Activity, type OtherActivity } from '@/lib/api';
 import { rideTitle } from '@/lib/activity-display';
+import { fmtNum } from '@/lib/format';
 import { PageHeader } from '@/components/ui/page-header';
 
 // toISOString() gibt immer UTC zurück – bei UTC+2 ist lokale Mitternacht = UTC Vortag 22:00,
@@ -156,7 +157,7 @@ export default function CalendarPage() {
     <div className="space-y-6">
       <PageHeader
         title={t('title')}
-        subtitle={!loading ? t('subtitleActiveDays', { days: activeDays, km: Math.round(totalKm).toLocaleString('de-DE') }) : undefined}
+        subtitle={!loading ? t('subtitleActiveDays', { days: activeDays, km: fmtNum(Math.round(totalKm)) }) : undefined}
         years={availableYears}
         selectedYear={selectedYear}
         onYearChange={handleYearChange}

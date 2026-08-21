@@ -604,7 +604,7 @@ function AddComponentForm({
                     }`}
                     style={position === pos ? { background: 'var(--primary)' } : {}}
                   >
-                    {t(`position.${pos}`)}
+                    {t(`common:position.${pos}`)}
                   </button>
                 ))}
               </div>

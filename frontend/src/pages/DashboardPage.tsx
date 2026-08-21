@@ -384,7 +384,7 @@ function PrWidget({ events, onDismiss }: { events: PrEvent[]; onDismiss: (id: nu
               <span className="font-semibold">{e.distance_km} km</span>
               <span className="text-muted-foreground"> {t('pr.in')} </span>
               <span className="font-bold tabular-nums" style={{ color: '#f59e0b' }}>{fmtPrTime(e.best_time_s)}</span>
-              <span className="text-muted-foreground"> · {e.activity_name}</span>
+              {e.activity_name && <span className="text-muted-foreground"> · {e.activity_name}</span>}
             </Link>
             <button
               onClick={() => onDismiss(e.id)}

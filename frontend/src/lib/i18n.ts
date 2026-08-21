@@ -10,12 +10,9 @@ import { CONFIG_DEFAULTS, useConfig } from './config-context';
 // importieren, ohne den Code anzufassen. i18next-http-backend lädt jeden Namespace einzeln von
 // GET /translations/{{lng}}/{{ns}}, im selben verschachtelten JSON-Format wie die vormaligen
 // locales/{de,en}/<ns>.json-Dateien – bestehende t()-Aufrufe bleiben unverändert.
-const NAMESPACES = [
-  'common', 'activities', 'activitydetail', 'berechnungen', 'best', 'bikes',
-  'cadence', 'calendar', 'calories', 'dashboard', 'fitness', 'form', 'heatmap',
-  'hrcurve', 'progress', 'settings', 'speedtrend', 'strecken', 'tempcorr',
-  'weekend', 'workoutdetail', 'wrapped',
-];
+// Kein fester `ns`-Array hier: würde bei jedem App-Start + Sprachwechsel alle ~22 Namespaces
+// eager laden, egal welche Seite offen ist. useTranslation([ns, 'common']) auf den einzelnen
+// Seiten lädt seinen Namespace stattdessen selbst nach, sobald die Seite gemountet wird.
 
 const LOCALE_BY_LANG: Record<string, string> = {
   de: 'de-DE', en: 'en-GB', fr: 'fr-FR', es: 'es-ES', it: 'it-IT',
@@ -29,7 +26,6 @@ i18next
     lng: CONFIG_DEFAULTS.language,
     fallbackLng: 'de',
     defaultNS: 'common',
-    ns: NAMESPACES,
     backend: {
       loadPath: 'http://localhost:8000/translations/{{lng}}/{{ns}}',
     },

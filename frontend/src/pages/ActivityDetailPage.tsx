@@ -442,7 +442,7 @@ export default function ActivityDetailPage() {
       <div>
         <div className="flex items-center justify-between mb-1">
           <Link to="/activities" className="text-sm text-muted-foreground hover:text-primary transition-colors">
-            ← {t('nav.activities')}
+            ← {t('common:nav.activities')}
           </Link>
           <div className="flex items-center gap-2">
             {hasTrack && (
@@ -467,7 +467,7 @@ export default function ActivityDetailPage() {
                   onClick={() => setConfirmDelete(false)}
                   className="text-xs px-3 py-1 rounded-lg bg-muted text-muted-foreground hover:bg-muted/80 transition-colors"
                 >
-                  {t('actions.cancel')}
+                  {t('common:actions.cancel')}
                 </button>
               </span>
             ) : (
@@ -475,7 +475,7 @@ export default function ActivityDetailPage() {
                 onClick={() => setConfirmDelete(true)}
                 className="text-xs px-3 py-1 rounded-lg border border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground transition-colors"
               >
-                {t('actions.delete')}
+                {t('common:actions.delete')}
               </button>
             )}
           </div>

@@ -1,7 +1,7 @@
 import logging
 import threading
 import sys
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, File, Form, UploadFile
 
 from backend.api.errors import api_error
 
@@ -195,7 +195,7 @@ async def import_fit_file(
             baseline = snapshot(conn)
             result = import_single_fit(conn, data, bike_id or None)
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise api_error(400, "import_failed", str(e))
 
     logger.info("FIT-Import: %s (activity %s, is_ride=%s)", file.filename, result["activity_id"], result["is_ride"])
 
@@ -282,7 +282,7 @@ async def import_tcx_file(
             baseline = snapshot(conn)
             result = import_single_tcx(conn, data, bike_id or None)
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise api_error(400, "import_failed", str(e))
 
     logger.info("TCX-Import: %s (activity %s, is_ride=%s)", file.filename, result["activity_id"], result["is_ride"])
 
@@ -319,7 +319,7 @@ async def import_gpx_file(
             baseline = snapshot(conn)
             result = import_single_gpx(conn, data, bike_id or None)
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise api_error(400, "import_failed", str(e))
 
     logger.info("GPX-Import: %s (activity %s, is_ride=%s)", file.filename, result["activity_id"], result["is_ride"])
 

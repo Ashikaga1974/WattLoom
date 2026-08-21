@@ -17,7 +17,7 @@ interface TitleableRide {
 
 export function rideTitle(a: TitleableRide, t: TFunction<'common'>): string {
   const dateStr = a.start_date ?? a.start_date_local ?? a.date ?? '';
-  return a.name || `${t('sport.ride')} – ${fmtDateShort(dateStr)}`;
+  return a.name || `${t('common:sport.ride')} – ${fmtDateShort(dateStr)}`;
 }
 
 interface TitleableWorkout {
@@ -29,6 +29,6 @@ interface TitleableWorkout {
 
 export function workoutTitle(w: TitleableWorkout, t: TFunction<'common'>): string {
   const dateStr = w.start_date_local ?? w.date;
-  const label = t(`sport.${w.sport_type}`, { defaultValue: w.sport_type });
+  const label = t(`common:sport.${w.sport_type}`, { defaultValue: w.sport_type });
   return w.name || (dateStr ? `${label} – ${fmtDateShort(dateStr)}` : label);
 }

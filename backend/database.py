@@ -412,7 +412,12 @@ def init_db() -> None:
             import shutil
             from datetime import datetime as _dt
 
-            from backend.importer.sport_codes import to_sport_code
+            # lookup_sport_code() statt to_sport_code(): ein nicht erkannter Alt-Wert soll roh
+            # sichtbar stehen bleiben (siehe Kommentar zu den Component-Type-Maps unten) statt
+            # aktiv und destruktiv auf den Auffang-Code "training" umgeschrieben zu werden –
+            # sonst würde z.B. eine Radtour mit ungewöhnlichem Alt-Wert dauerhaft fälschlich als
+            # Workout einsortiert, ohne dass das je auffällt.
+            from backend.importer.sport_codes import lookup_sport_code
 
             if DB_PATH.exists():
                 backup_dir = DB_PATH.parent / "backups"
@@ -424,8 +429,8 @@ def init_db() -> None:
             for old_val in [r[0] for r in conn.execute(
                 "SELECT DISTINCT activity_type FROM activities WHERE activity_type IS NOT NULL"
             ).fetchall()]:
-                new_val = to_sport_code(old_val)
-                if new_val != old_val:
+                new_val = lookup_sport_code(old_val)
+                if new_val and new_val != old_val:
                     conn.execute(
                         "UPDATE activities SET activity_type = ?, sport_type = ? WHERE activity_type = ?",
                         (new_val, new_val, old_val),
@@ -434,8 +439,8 @@ def init_db() -> None:
             for old_val in [r[0] for r in conn.execute(
                 "SELECT DISTINCT sport_type FROM other_activities WHERE sport_type IS NOT NULL"
             ).fetchall()]:
-                new_val = to_sport_code(old_val)
-                if new_val != old_val:
+                new_val = lookup_sport_code(old_val)
+                if new_val and new_val != old_val:
                     conn.execute(
                         "UPDATE other_activities SET sport_type = ? WHERE sport_type = ?",
                         (new_val, old_val),
