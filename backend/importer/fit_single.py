@@ -11,7 +11,7 @@ from typing import Any
 import fitparse
 
 from backend.importer.fit import _SafeProcessor, _val, import_fit, read_fit_device
-from backend.importer.sport_codes import is_ride_sport, lookup_sport_code, to_sport_code
+from backend.importer.sport_codes import is_ride_sport, lookup_sport_code, sport_code_label_de, to_sport_code
 from backend.utils import haversine_m
 
 def import_single_fit(conn: sqlite3.Connection, fit_bytes: bytes, bike_id: str | None = None) -> dict:
@@ -48,6 +48,10 @@ def import_single_fit(conn: sqlite3.Connection, fit_bytes: bytes, bike_id: str |
     # Negativer Unix-Timestamp → kein Kollisionsrisiko mit positiven Strava-IDs
     activity_id = -int(start_dt.timestamp())
     start_date  = start_dt.strftime('%Y-%m-%dT%H:%M:%S')
+    local_date  = start_dt.strftime("%d.%m.%Y")
+
+    device = read_fit_device(fit_bytes, compressed=False)
+    device_hint = f" ({device})" if device and device != "Unbekannt" else ""
 
     sport_raw = sv("sport")
     sport_str = str(sport_raw).lower() if sport_raw is not None else "cycling"
@@ -58,14 +62,14 @@ def import_single_fit(conn: sqlite3.Connection, fit_bytes: bytes, bike_id: str |
     if sport_str == "generic":
         if bike_id:
             return _import_as_ride(conn, fit, fit_bytes, session_msg, sv,
-                                   activity_id, start_date, bike_id)
+                                   activity_id, start_date, local_date, device_hint, bike_id)
     elif is_ride_sport(sport_str):
         if not bike_id:
             raise ValueError("bike_id ist für Radtouren erforderlich")
         return _import_as_ride(conn, fit, fit_bytes, session_msg, sv,
-                               activity_id, start_date, bike_id)
+                               activity_id, start_date, local_date, device_hint, bike_id)
 
-    return _import_as_workout(conn, session_msg, sv, activity_id, start_date, sport_str)
+    return _import_as_workout(conn, session_msg, sv, activity_id, start_date, local_date, device_hint, sport_str)
 
 
 # ── interne Helfer ────────────────────────────────────────────────────────────
@@ -78,6 +82,8 @@ def _import_as_ride(
     sv: Any,
     activity_id: int,
     start_date: str,
+    local_date: str,
+    device_hint: str,
     bike_id: str,
 ) -> dict:
     """Speichert eine Radtour in der activities-Tabelle."""
@@ -93,10 +99,7 @@ def _import_as_ride(
         avg_speed = sv("avg_speed") or sv("enhanced_avg_speed")
     max_speed = sv("max_speed") or sv("enhanced_max_speed")
 
-    # Kein komponierter deutscher Name mehr – das Frontend baut den Titel aus
-    # sport_type + Datum via i18next (siehe lib/activity-display.ts). Ein evtl.
-    # Geräte-Hinweis ist über smart_device (unten) bereits separat gespeichert.
-    activity_name = None
+    activity_name = f"Radfahrt {local_date}{device_hint}"
 
     with conn:
         conn.execute("""
@@ -159,6 +162,8 @@ def _import_as_workout(
     sv: Any,
     activity_id: int,
     start_date: str,
+    local_date: str,
+    device_hint: str,
     sport_str: str,
 ) -> dict:
     """Speichert ein Nicht-Rad-Workout in der other_activities-Tabelle."""
@@ -174,10 +179,9 @@ def _import_as_workout(
     sub_sport_str = str(sub_sport_raw).lower().replace(" ", "_") if sub_sport_raw else ""
 
     # Kanonischer Code: Sub-Sport hat Vorrang vor Sport, wenn er einer bekannten Zuordnung
-    # entspricht – sonst Sport, sonst "training". Kein komponierter Name mehr, siehe
-    # Kommentar in _import_as_ride.
+    # entspricht – sonst Sport, sonst "training".
     sport_code = lookup_sport_code(sub_sport_str) or to_sport_code(sport_str)
-    activity_name = None
+    activity_name = f"{sport_code_label_de(sport_code)} {local_date}{device_hint}"
     moving_time  = sv("total_timer_time")
     elapsed_time = sv("total_elapsed_time")
 

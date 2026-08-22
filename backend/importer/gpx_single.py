@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 from lxml import etree
 
 from backend.importer.gpx import NS, _attr_float, _text_str, _text_float, _text_int, import_gpx, read_gpx_device
-from backend.importer.sport_codes import is_ride_sport, to_sport_code
+from backend.importer.sport_codes import is_ride_sport, sport_code_label_de, to_sport_code
 from backend.utils import haversine_m
 
 # Zeitintervalle unter diesem Schwellwert (m/s) gelten als Pause und fließen
@@ -42,12 +42,15 @@ def import_single_gpx(conn: sqlite3.Connection, gpx_bytes: bytes, bike_id: str |
 
     activity_id = -int(start_dt.timestamp())
     start_date  = start_dt.strftime('%Y-%m-%dT%H:%M:%S')
+    local_date  = start_dt.strftime("%d.%m.%Y")
 
-    # Aktivitätsname: nur ein echter, vom Gerät/Nutzer vergebener Titel wird übernommen –
-    # <trk><name> → <metadata><name>. Kein komponierter deutscher Fallback mehr, siehe
-    # fit_single.py._import_as_ride; ohne echten Titel bleibt name NULL und das Frontend
-    # baut die Anzeige aus sport_type + Datum via i18next.
+    # Aktivitätsname: ein echter, vom Gerät/Nutzer vergebener Titel hat Vorrang –
+    # <trk><name> → <metadata><name>. Ohne echten Titel wird wie bei fit/tcx_single.py
+    # ein Name aus Sport-Label + Datum + Gerät komponiert.
     trk_name = _text_str(root, "gpx:trk/gpx:name") or _text_str(root, "gpx:metadata/gpx:name")
+
+    device = read_gpx_device(gpx_bytes, compressed=False)
+    device_hint = f" ({device})" if device and device != "Unbekannt" else ""
 
     # Sport-Typ aus <trk><type>
     sport_raw = (_text_str(root, "gpx:trk/gpx:type") or "").strip()
@@ -63,13 +66,15 @@ def import_single_gpx(conn: sqlite3.Connection, gpx_bytes: bytes, bike_id: str |
     if is_ride:
         if not bike_id:
             raise ValueError("bike_id ist für Radtouren erforderlich")
+        name = trk_name or f"Radfahrt {local_date}{device_hint}"
         return _import_as_ride(
-            conn, gpx_bytes, activity_id, start_date, trk_name, bike_id, stats,
+            conn, gpx_bytes, activity_id, start_date, name, bike_id, stats,
         )
 
     sport_code = to_sport_code(sport_lower)
+    name = trk_name or f"{sport_code_label_de(sport_code)} {local_date}{device_hint}"
     return _import_as_workout(
-        conn, activity_id, start_date, trk_name, sport_code, stats,
+        conn, activity_id, start_date, name, sport_code, stats,
     )
 
 

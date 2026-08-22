@@ -101,6 +101,30 @@ def to_sport_code(raw: str | None) -> str:
     return lookup_sport_code(raw) or "training"
 
 
+_CODE_LABELS_DE: dict[str, str] = {
+    "ride": "Radfahrt",
+    "strength_training": "Krafttraining",
+    "cardio": "Cardio",
+    "flexibility": "Dehnen",
+    "warm_up": "Aufwärmen",
+    "cool_down": "Abkühlen",
+    "running": "Laufen",
+    "walking": "Gehen",
+    "hiking": "Wandern",
+    "swimming": "Schwimmen",
+    "yoga": "Yoga",
+    "rowing": "Rudern",
+    "training": "Training",
+}
+
+
+def sport_code_label_de(code: str) -> str:
+    """Deutsches Anzeige-Label für einen kanonischen Sport-Code – nur für den von den
+    Einzelimportern (fit/tcx/gpx_single.py) komponierten activity_name-Fallback, nicht für
+    die UI (die übersetzt Codes selbst über react-i18next)."""
+    return _CODE_LABELS_DE.get(code, code.replace("_", " ").title())
+
+
 def is_ride_sport(raw: str | None) -> bool:
     """True wenn der Rohwert (Vendor-String aus FIT/TCX/GPX oder Strava-CSV-Aktivitätsart)
     einer Radfahrt entspricht. Zentrale Stelle für die Ride-vs-Workout-Routing-Entscheidung
