@@ -1,0 +1,12 @@
+[Unit]
+Description=WattLoom Ordner-Watcher (Companion-App-Import)
+After=network.target
+
+[Service]
+WorkingDirectory=/home/sascha/Projekte/WattLoom
+ExecStart=/home/sascha/Projekte/WattLoom/.venv/bin/python scripts/folder_watcher.py
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

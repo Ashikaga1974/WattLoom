@@ -21,6 +21,9 @@ data/backups/*
 download/*
 !download/.gitkeep
 
+# Ordner-Watcher (Companion-App-Import)
+sync/
+
 # Node
 frontend/node_modules/
 frontend/dist/

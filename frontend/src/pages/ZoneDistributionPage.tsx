@@ -170,7 +170,13 @@ export default function ZoneDistributionPage() {
   const { t } = useTranslation('zonedist');
   const [searchParams, setSearchParams] = useSearchParams();
   const yearParam = searchParams.get('year');
-  const filterYear = yearParam ? parseInt(yearParam) : undefined;
+  // Default beim ersten Laden: aktuelles Jahr statt "Alle Jahre" – letzteres würde bei
+  // wachsender Trackpoint-Menge mehrere Sekunden laden (kein Jahresfilter in der SQL-Query).
+  // Explizite Wahl "Alle Jahre" wird als ?year=all in der URL gemerkt, damit sie beim
+  // nächsten Aufruf nicht wieder auf das aktuelle Jahr zurückfällt.
+  const filterYear = yearParam === 'all' ? undefined
+    : yearParam ? parseInt(yearParam)
+    : new Date().getFullYear();
 
   const [data, setData] = useState<ZoneDistributionData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -192,7 +198,7 @@ export default function ZoneDistributionPage() {
 
   function onYearChange(year: string | null) {
     if (year && year !== 'all') setSearchParams({ year }, { replace: true });
-    else setSearchParams({}, { replace: true });
+    else setSearchParams({ year: 'all' }, { replace: true });
   }
 
   if (loading || !data) {
