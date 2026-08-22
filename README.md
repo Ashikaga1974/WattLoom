@@ -201,6 +201,7 @@ WattLoom/
 │       │   ├── layout/
 │       │   │   └── AppSidebar.tsx      # Collapsible Sidebar mit Sub-Navigation
 │       │   ├── LeafletMap.tsx          # Leaflet-Karte (React.lazy), Speed-Halo, Hover-Sync
+│       │   ├── RouteThumbnail.tsx      # Mini-Routenform ohne Leaflet (SVG-Polyline, simplify=20)
 │       │   └── ui/                     # shadcn/ui base-nova Komponenten
 │       ├── hooks/
 │       │   └── use-mobile.ts
@@ -402,6 +403,9 @@ SQLite-Datei unter `data/mybiking.db`, Schema in `backend/database.py` (`init_db
 
 ### `deleted_components` – Historie unwiderruflich gelöschter Komponenten
 Snapshot aller `bike_components`-Felder zum Löschzeitpunkt plus `km_since_service` (berechneter Verschleißstand) und `deleted_at`. `purchase_item_id` bleibt referenziert (nicht kopiert) – Preis/Shop/Link kommen bei Bedarf weiterhin über den Einkauf. Beim Löschen wird ein verknüpftes `purchase_item` **entsorgt** (`disposed_at` gesetzt), nicht wieder freigegeben – die physische Komponente ist weg, nicht zurückgelegt. Rein informativ, kein Wiederherstellen vorgesehen.
+
+### `pr_events` – erkannte neue Bestzeiten
+`distance_km`, `best_time_s`, `best_speed_kmh`, `activity_id`, `activity_name` (Snapshot, nicht live gejoint), `previous_time_s`, `created_at`. Wird von `pr_detection.py` per Snapshot-Diff auf `best_by_distance()` vor/nach jedem Import befüllt; erscheint als Dashboard-Kachel, bis sie per `DELETE /analytics/pr-events/{id}` verworfen wird.
 
 ### `routes` / `route_points` – importierte GPX-Routen (keine Rides)
 `routes`: `name`, `description`, `distance_m`, `source_file`. `route_points`: `route_id` (FK), `seq`, `lat`, `lon`, `altitude_m`.
