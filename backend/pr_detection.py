@@ -29,12 +29,21 @@ def detect_and_record(conn, before: dict) -> list[dict]:
             continue
         if after_best['best_time_s'] >= before_best['best_time_s']:
             continue
+        # Verhindert doppelte Dashboard-Kacheln, wenn dieselbe Aktivität (z.B. nach
+        # Löschen + Reimport) für dieselbe Distanz erneut als "neuer PR" erkannt wird.
+        already_recorded = conn.execute(
+            "SELECT 1 FROM pr_events WHERE distance_km = ? AND activity_id = ?",
+            (d_km, after_best['activity_id']),
+        ).fetchone()
+        if already_recorded:
+            continue
         new_events.append({
             'distance_km': d_km,
             'best_time_s': after_best['best_time_s'],
             'best_speed_kmh': after_best['best_speed_kmh'],
             'activity_id': after_best['activity_id'],
             'activity_name': after_best['activity_name'],
+            'activity_date': after_best['date'],
             'previous_time_s': before_best['best_time_s'],
         })
 
@@ -42,11 +51,11 @@ def detect_and_record(conn, before: dict) -> list[dict]:
         with conn:
             conn.executemany(
                 """INSERT INTO pr_events
-                   (distance_km, best_time_s, best_speed_kmh, activity_id, activity_name, previous_time_s)
-                   VALUES (?, ?, ?, ?, ?, ?)""",
+                   (distance_km, best_time_s, best_speed_kmh, activity_id, activity_name, activity_date, previous_time_s)
+                   VALUES (?, ?, ?, ?, ?, ?, ?)""",
                 [
                     (e['distance_km'], e['best_time_s'], e['best_speed_kmh'],
-                     e['activity_id'], e['activity_name'], e['previous_time_s'])
+                     e['activity_id'], e['activity_name'], e['activity_date'], e['previous_time_s'])
                     for e in new_events
                 ],
             )

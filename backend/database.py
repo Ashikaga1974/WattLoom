@@ -395,10 +395,19 @@ def init_db() -> None:
                 best_speed_kmh    REAL,
                 activity_id       INTEGER NOT NULL,
                 activity_name     TEXT,
+                activity_date     TEXT,
                 previous_time_s   REAL NOT NULL,
                 created_at        TEXT NOT NULL DEFAULT (datetime('now'))
             )
         """)
+        pr_cols = [r[1] for r in conn.execute("PRAGMA table_info(pr_events)").fetchall()]
+        if "activity_date" not in pr_cols:
+            conn.execute("ALTER TABLE pr_events ADD COLUMN activity_date TEXT")
+            conn.execute("""
+                UPDATE pr_events
+                SET activity_date = (SELECT start_date_local FROM activities WHERE activities.id = pr_events.activity_id)
+                WHERE activity_date IS NULL
+            """)
 
         # Migration: deutsche Klartext-Sport-/Komponenten-Werte → stabile, sprachneutrale Codes
         # (Grundlage für die Mehrsprachigkeit, DE/EN). Vorher schrieben die Importer German

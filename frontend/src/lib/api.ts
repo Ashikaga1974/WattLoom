@@ -332,6 +332,7 @@ export interface PrEvent {
   best_speed_kmh: number | null;
   activity_id: number;
   activity_name: string | null;
+  activity_date: string | null;
   previous_time_s: number;
   created_at: string;
 }

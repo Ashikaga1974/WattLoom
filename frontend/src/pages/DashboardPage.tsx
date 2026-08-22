@@ -381,10 +381,15 @@ function PrWidget({ events, onDismiss }: { events: PrEvent[]; onDismiss: (id: nu
         {events.map(e => (
           <div key={e.id} className="flex items-center justify-between gap-3 text-sm">
             <Link to={`/activities/${e.activity_id}`} className="min-w-0 hover:opacity-80 transition-opacity">
-              <span className="font-semibold">{e.distance_km} km</span>
-              <span className="text-muted-foreground"> {t('pr.in')} </span>
-              <span className="font-bold tabular-nums" style={{ color: '#f59e0b' }}>{fmtPrTime(e.best_time_s)}</span>
-              {e.activity_name && <span className="text-muted-foreground"> · {e.activity_name}</span>}
+              <div>
+                <span className="font-semibold">{e.distance_km} km</span>
+                <span className="text-muted-foreground"> {t('pr.in')} </span>
+                <span className="font-bold tabular-nums" style={{ color: '#f59e0b' }}>{fmtPrTime(e.best_time_s)}</span>
+              </div>
+              <div className="text-xs text-muted-foreground truncate">
+                {rideTitle({ name: e.activity_name, start_date_local: e.activity_date ?? undefined }, t)}
+                {e.activity_date && <> · {fmtDate(e.activity_date)}</>}
+              </div>
             </Link>
             <button
               onClick={() => onDismiss(e.id)}
