@@ -378,6 +378,33 @@ export interface CadenceData {
   efficiency: CadenceEfficiency[];
 }
 
+export interface ZoneDistributionMonth {
+  month: string;
+  total_seconds: number;
+  zone1_seconds: number;
+  zone2_seconds: number;
+  zone3_seconds: number;
+  zone4_seconds: number;
+  zone5_seconds: number;
+}
+
+export interface ZoneDistributionZone {
+  zone: number;
+  code: string;
+  color: string;
+  seconds: number;
+  pct: number;
+}
+
+export interface ZoneDistributionData {
+  by_month: ZoneDistributionMonth[];
+  zones: ZoneDistributionZone[];
+  easy_pct: number;
+  moderate_pct: number;
+  hard_pct: number;
+  total_seconds: number;
+}
+
 export interface SpeedTrendRide {
   id: number;
   name: string | null;
@@ -499,6 +526,9 @@ export interface Settings {
   chart_height: number;
   chart_height_dense: number;
   comparison_colors: string;
+  hr_correction_enabled: number;
+  hr_correction_pct: number;
+  hr_correction_since: string | null;
 }
 
 export interface FitnessComponent {
@@ -698,6 +728,9 @@ export const api = {
 
   cadence: (year?: number): Promise<CadenceData> =>
     get(`/analytics/cadence${buildQuery({ year })}`),
+
+  zoneDistribution: (year?: number): Promise<ZoneDistributionData> =>
+    get(`/analytics/zone-distribution${buildQuery({ year })}`),
 
   updateActivityPower: (id: number, avg_power_w: number | null): Promise<{ ok: boolean; activity_id: number; avg_power_w: number | null }> =>
     fetch(`${BASE}/activities/${id}/power`, {

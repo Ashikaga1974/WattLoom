@@ -27,6 +27,7 @@ import SpeedTrendPage from '@/pages/SpeedTrendPage';
 import WorkoutDetailPage from '@/pages/WorkoutDetailPage';
 import WeekendPage from '@/pages/WeekendPage';
 import FitnessPage from '@/pages/FitnessPage';
+import ZoneDistributionPage from '@/pages/ZoneDistributionPage';
 
 function AppRoutes() {
   useSyncLanguage();
@@ -71,6 +72,7 @@ function AppRoutes() {
                 <Route path="/workouts/:id" element={<WorkoutDetailPage />} />
                 <Route path="/weekend" element={<WeekendPage />} />
                 <Route path="/fitness" element={<FitnessPage />} />
+                <Route path="/zone-distribution" element={<ZoneDistributionPage />} />
               </Routes>
               </Suspense>
             </main>

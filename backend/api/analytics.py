@@ -2,6 +2,10 @@ from datetime import datetime
 from fastapi import APIRouter, Query
 from backend.database import db_connection
 from backend.utils import MS_TO_KMH
+from backend.api.zones import (
+    HR_ZONES, _assign_hr_zone, MAX_DELTA_SECONDS,
+    get_hr_correction_settings, correction_pct_for_date, corrected_hr,
+)
 
 router = APIRouter(prefix="/analytics", tags=["analytics"])
 
@@ -13,6 +17,16 @@ def _hr_max_fallback(conn) -> float:
     """Liest hr_max aus der Config (Einstellungen); Standard 185 wenn nicht gesetzt."""
     row = conn.execute("SELECT value FROM config WHERE key = 'hr_max'").fetchone()
     return float(row["value"]) if row else 185.0
+
+
+def _effective_hr_max(conn) -> float:
+    """
+    Höchste tatsächlich aufgezeichnete max_hr über alle Aktivitäten (echter Messwert),
+    sonst Config-Fallback (_hr_max_fallback). Einheitliche Quelle für PMC,
+    Fitness-Fingerprint und Zone-Distribution – analog zu backend/api/zones.py: get_zones().
+    """
+    row = conn.execute("SELECT MAX(max_hr) AS v FROM activities WHERE max_hr > 0").fetchone()
+    return float(row["v"]) if row and row["v"] else _hr_max_fallback(conn)
 
 
 def _threshold_hr_pct(conn) -> float:
@@ -216,12 +230,10 @@ def performance_management_chart():
     from datetime import date as Date, timedelta
 
     with db_connection() as conn:
-        max_hr_row = conn.execute(
-            "SELECT MAX(max_hr) AS v FROM activities WHERE max_hr > 0"
-        ).fetchone()
-        global_max_hr = float(max_hr_row["v"]) if max_hr_row and max_hr_row["v"] else _hr_max_fallback(conn)
+        global_max_hr = _effective_hr_max(conn)
         threshold_hr = _threshold_hr_pct(conn) * global_max_hr
         K_CTL, K_ATL = _ctl_atl_k(conn)
+        hr_correction = get_hr_correction_settings(conn)
 
         rows = conn.execute("""
             SELECT
@@ -247,26 +259,28 @@ def performance_management_chart():
             ORDER BY start_date_local
         """).fetchall()
 
-    # Hilfsfunktion: hrTSS aus Duration und HR berechnen
-    def calc_tss(duration_s, elapsed_s, hr) -> float:
+    # Hilfsfunktion: hrTSS aus Duration und HR berechnen (optional mit Betablocker-Korrektur,
+    # siehe backend/api/zones.py: get_hr_correction_settings())
+    def calc_tss(duration_s, elapsed_s, hr, date) -> float:
         dur = duration_s or elapsed_s or 0
         if dur <= 0:
             return 0.0
         if hr and hr > 0:
-            if_hr = hr / threshold_hr
+            correction_pct = correction_pct_for_date(hr_correction, date)
+            if_hr = corrected_hr(hr, global_max_hr, correction_pct) / threshold_hr
             return (dur / 3600.0) * (if_hr ** 2) * 100.0
         return (dur / 3600.0) * 50.0
 
     daily_tss: dict[str, float] = defaultdict(float)
     daily_rides: dict[str, int] = defaultdict(int)
     for r in rows:
-        daily_tss[r["date"]] += calc_tss(r["moving_time_s"], r["elapsed_time_s"], r["avg_hr"])
+        daily_tss[r["date"]] += calc_tss(r["moving_time_s"], r["elapsed_time_s"], r["avg_hr"], r["date"])
         daily_rides[r["date"]] += 1
 
     # TSS aus other_activities addieren + pro Tag merken für das other-Feld
     daily_other: dict[str, list[dict]] = defaultdict(list)
     for r in other_rows:
-        daily_tss[r["date"]] += calc_tss(r["moving_time_s"], r["elapsed_time_s"], r["avg_hr"])
+        daily_tss[r["date"]] += calc_tss(r["moving_time_s"], r["elapsed_time_s"], r["avg_hr"], r["date"])
         daily_other[r["date"]].append({
             "sport_type": r["sport_type"],
             "moving_time_s": r["moving_time_s"] or 0,
@@ -279,6 +293,7 @@ def performance_management_chart():
             "current": None,
             "max_hr": global_max_hr,
             "threshold_hr": round(threshold_hr, 1),
+            "hr_correction_applied": hr_correction["enabled"],
         }
 
     start = Date.fromisoformat(sorted(daily_tss.keys())[0])
@@ -318,6 +333,7 @@ def performance_management_chart():
         "current": result[-1] if result else None,
         "max_hr": global_max_hr,
         "threshold_hr": round(threshold_hr, 1),
+        "hr_correction_applied": hr_correction["enabled"],
     }
 
 
@@ -1400,14 +1416,10 @@ def fitness_fingerprint():
     from datetime import date as Date, timedelta
 
     with db_connection() as conn:
-        max_hr_row = conn.execute(
-            "SELECT MAX(max_hr) AS v FROM activities WHERE max_hr > 0"
-        ).fetchone()
-        global_max_hr = (
-            float(max_hr_row["v"]) if max_hr_row and max_hr_row["v"] else _hr_max_fallback(conn)
-        )
+        global_max_hr = _effective_hr_max(conn)
         threshold_hr = _threshold_hr_pct(conn) * global_max_hr
         K_CTL, K_ATL = _ctl_atl_k(conn)
+        hr_correction = get_hr_correction_settings(conn)
 
         act_rows = conn.execute("""
             SELECT strftime('%Y-%m-%d', start_date_local) AS date,
@@ -1451,6 +1463,7 @@ def fitness_fingerprint():
             "components": {}, "history": [],
             "trend": "neutral",
             "insight_parts": ["no_data"],
+            "hr_correction_applied": hr_correction["enabled"],
         }
 
     ride_dates: set[str] = {r["date"] for r in ride_date_rows}
@@ -1463,20 +1476,22 @@ def fitness_fingerprint():
     }
     all_effs: list[float] = sorted(eff_by_month.values())
 
-    # TSS-Berechnung identisch zum PMC-Endpunkt
-    def calc_tss(dur_s, elapsed_s, hr) -> float:
+    # TSS-Berechnung identisch zum PMC-Endpunkt (inkl. optionaler Betablocker-Korrektur)
+    def calc_tss(dur_s, elapsed_s, hr, date) -> float:
         dur = dur_s or elapsed_s or 0
         if dur <= 0:
             return 0.0
         if hr and hr > 0:
-            return (dur / 3600.0) * ((hr / threshold_hr) ** 2) * 100.0
+            correction_pct = correction_pct_for_date(hr_correction, date)
+            if_hr = corrected_hr(hr, global_max_hr, correction_pct) / threshold_hr
+            return (dur / 3600.0) * (if_hr ** 2) * 100.0
         return (dur / 3600.0) * 50.0
 
     daily_tss: dict[str, float] = defaultdict(float)
     for r in act_rows:
-        daily_tss[r["date"]] += calc_tss(r["moving_time_s"], r["elapsed_time_s"], r["avg_hr"])
+        daily_tss[r["date"]] += calc_tss(r["moving_time_s"], r["elapsed_time_s"], r["avg_hr"], r["date"])
     for r in other_rows:
-        daily_tss[r["date"]] += calc_tss(r["moving_time_s"], r["elapsed_time_s"], r["avg_hr"])
+        daily_tss[r["date"]] += calc_tss(r["moving_time_s"], r["elapsed_time_s"], r["avg_hr"], r["date"])
 
     # --- Scoring-Funktionen ---
 
@@ -1643,4 +1658,110 @@ def fitness_fingerprint():
         "trend": trend,
         "insight_parts": parts,
         "history": history,
+        "hr_correction_applied": hr_correction["enabled"],
+    }
+
+
+@router.get("/zone-distribution")
+def zone_distribution(year: int = Query(None)):
+    """
+    Aggregiert die HF-Zonen-Zeit (Zonen-Logik wie backend/api/zones.py) monatlich über
+    alle Aktivitäten mit Track-Daten, um polarisiertes Training (viel Grundlage,
+    wenig "Grauzone") sichtbar zu machen. easy = Zone 1+2, moderate = Zone 3 (Grauzone),
+    hard = Zone 4+5.
+    """
+    year_filter = "AND strftime('%Y', a.start_date_local) >= '2000'"
+    params: list = []
+    if year:
+        year_filter += " AND strftime('%Y', a.start_date_local) = ?"
+        params.append(str(year))
+
+    with db_connection() as conn:
+        hr_max = _effective_hr_max(conn)
+        correction = get_hr_correction_settings(conn)
+
+        rows = conn.execute(f"""
+            SELECT a.id AS activity_id,
+                   strftime('%Y-%m', a.start_date_local) AS month,
+                   substr(a.start_date_local, 1, 10) AS activity_date,
+                   tp.timestamp AS timestamp,
+                   tp.hr AS hr
+            FROM activities a
+            JOIN track_points tp ON tp.activity_id = a.id
+            WHERE a.has_track = 1 AND tp.hr IS NOT NULL
+              {year_filter}
+            ORDER BY a.id, tp.id
+        """, params).fetchall()
+
+    # Zeitdeltas pro Aktivität akkumulieren (wie zones.py: GPS-Lücken >10s gecappt),
+    # dann nach Monat der jeweiligen Aktivität gruppieren.
+    monthly: dict[str, dict[int, float]] = {}
+    prev_activity_id = None
+    prev_ts = None
+    correction_pct = 0.0
+
+    for row in rows:
+        if row["activity_id"] != prev_activity_id:
+            prev_activity_id = row["activity_id"]
+            prev_ts = None
+            correction_pct = correction_pct_for_date(correction, row["activity_date"])
+
+        try:
+            ts = datetime.fromisoformat(row["timestamp"]) if row["timestamp"] else None
+        except (ValueError, TypeError):
+            ts = None
+
+        delta = 0.0
+        if ts is not None and prev_ts is not None:
+            raw_delta = (ts - prev_ts).total_seconds()
+            if 0 < raw_delta <= MAX_DELTA_SECONDS:
+                delta = raw_delta
+        prev_ts = ts
+
+        if delta <= 0 or row["hr"] is None or row["hr"] <= 0:
+            continue
+
+        zone = _assign_hr_zone(row["hr"], hr_max, correction_pct)
+        month = row["month"]
+        monthly.setdefault(month, {z["zone"]: 0.0 for z in HR_ZONES})
+        monthly[month][zone] += delta
+
+    by_month = []
+    totals: dict[int, float] = {z["zone"]: 0.0 for z in HR_ZONES}
+    for month in sorted(monthly.keys()):
+        secs = monthly[month]
+        entry = {"month": month, "total_seconds": round(sum(secs.values()))}
+        for z in HR_ZONES:
+            entry[f"zone{z['zone']}_seconds"] = round(secs.get(z["zone"], 0.0))
+            totals[z["zone"]] += secs.get(z["zone"], 0.0)
+        by_month.append(entry)
+
+    grand_total = sum(totals.values())
+
+    def pct(secs: float) -> float:
+        return round(secs / grand_total * 100, 1) if grand_total > 0 else 0.0
+
+    zones_summary = [
+        {
+            "zone":    z["zone"],
+            "code":    z["code"],
+            "color":   z["color"],
+            "seconds": round(totals[z["zone"]]),
+            "pct":     pct(totals[z["zone"]]),
+        }
+        for z in HR_ZONES
+    ]
+
+    easy_secs = totals[1] + totals[2]
+    moderate_secs = totals[3]
+    hard_secs = totals[4] + totals[5]
+
+    return {
+        "by_month":     by_month,
+        "zones":        zones_summary,
+        "easy_pct":     pct(easy_secs),
+        "moderate_pct": pct(moderate_secs),
+        "hard_pct":     pct(hard_secs),
+        "total_seconds": round(grand_total),
+        "hr_correction_applied": correction["enabled"],
     }

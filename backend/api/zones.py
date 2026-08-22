@@ -29,9 +29,46 @@ POWER_ZONES = [
 MAX_DELTA_SECONDS = 10
 
 
-def _assign_hr_zone(hr: int, hr_max: int) -> int:
-    """Weist einem HR-Wert eine Zone (1–5) zu."""
-    ratio = hr / hr_max
+def get_hr_correction_settings(conn) -> dict:
+    """
+    Liest die optionale HF-Korrektur aus der config-Tabelle: für Sportler unter
+    Betablockern (z.B. Bisoprolol), deren HF-Anstieg unter Belastung gedämpft ist und
+    deren gemessene HF die reale Anstrengung daher unterschätzt. Rein empirisch vom
+    Nutzer selbst kalibriert (kein medizinisch hergeleiteter Wert) – Default aus.
+    """
+    def _config(key):
+        row = conn.execute("SELECT value FROM config WHERE key = ?", (key,)).fetchone()
+        return row["value"] if row else None
+
+    enabled = _config("hr_correction_enabled") == "1"
+    pct_raw = _config("hr_correction_pct")
+    pct = float(pct_raw) / 100.0 if pct_raw not in (None, "") else 0.08
+    since = _config("hr_correction_since") or None
+    return {"enabled": enabled, "pct": pct, "since": since}
+
+
+def correction_pct_for_date(correction: dict, date_str: str | None) -> float:
+    """
+    Anzuwendender Korrektur-Anteil für ein Datum (YYYY-MM-DD): 0.0 wenn die Korrektur
+    deaktiviert ist oder das Datum vor dem konfigurierten "gültig ab"-Datum liegt
+    (z.B. Medikationsbeginn) – verhindert, dass die Korrektur rückwirkend auf Fahrten
+    vor Einnahmebeginn angewendet wird.
+    """
+    if not correction["enabled"]:
+        return 0.0
+    if correction["since"] and (not date_str or date_str < correction["since"]):
+        return 0.0
+    return correction["pct"]
+
+
+def corrected_hr(hr: float, hr_max: float, correction_pct: float) -> float:
+    """Verschiebt eine gemessene HF um correction_pct × HFmax nach oben."""
+    return hr + correction_pct * hr_max if correction_pct else hr
+
+
+def _assign_hr_zone(hr: int, hr_max: int, correction_pct: float = 0.0) -> int:
+    """Weist einem HR-Wert eine Zone (1–5) zu (optional mit Betablocker-Korrektur)."""
+    ratio = corrected_hr(hr, hr_max, correction_pct) / hr_max
     for z in reversed(HR_ZONES):
         if ratio >= z["min_pct"]:
             return z["zone"]
@@ -111,6 +148,14 @@ def get_zones(activity_id: int):
         ).fetchone()
         ftp = int(row["value"]) if row and row["value"] else None
 
+        # 2b. Betablocker-HF-Korrektur (falls in den Einstellungen aktiviert)
+        row = conn.execute(
+            "SELECT start_date_local FROM activities WHERE id = ?", (activity_id,)
+        ).fetchone()
+        activity_date = row["start_date_local"][:10] if row and row["start_date_local"] else None
+        correction = get_hr_correction_settings(conn)
+        correction_pct = correction_pct_for_date(correction, activity_date)
+
         # 3. Track-Punkte dieser Aktivität
         rows = conn.execute(
             """
@@ -157,7 +202,7 @@ def get_zones(activity_id: int):
 
         # HR-Zone
         if hr is not None and hr_max is not None and hr > 0:
-            zone = _assign_hr_zone(hr, hr_max)
+            zone = _assign_hr_zone(hr, hr_max, correction_pct)
             hr_seconds[zone] += delta
             has_hr = True
 
@@ -176,6 +221,7 @@ def get_zones(activity_id: int):
         "power_zones": _build_power_zone_list(pw_seconds, ftp, pw_total) if has_power else [],
         "hr_max":     hr_max,
         "ftp":        ftp,
+        "hr_correction_pct": round(correction_pct * 100, 1) if correction_pct else 0.0,
         "has_hr":     has_hr,
         "has_power":  has_power,
     }

@@ -34,6 +34,7 @@ import {
   SunMoon,
   Fingerprint,
   ChevronDown,
+  Layers,
 } from 'lucide-react';
 
 interface NavSubItem {
@@ -84,12 +85,13 @@ const navGroups: NavGroup[] = [
     href: '/progress',
     label: 'nav.analysis',
     icon: <BarChart2 size={16} />,
-    prefixes: ['/progress', '/hrcurve', '/cadence', '/form', '/tempcorr', '/stats', '/wrapped', '/calories', '/speed-trend', '/weekend', '/fitness'],
+    prefixes: ['/progress', '/hrcurve', '/cadence', '/form', '/tempcorr', '/stats', '/wrapped', '/calories', '/speed-trend', '/weekend', '/fitness', '/zone-distribution'],
     children: [
       { href: '/fitness',       label: 'nav.fitnessScore',    icon: <Fingerprint size={13} /> },
       { href: '/progress',      label: 'nav.yearOverview', icon: <TrendingUp size={13} /> },
       { href: '/hrcurve',       label: 'nav.hrAnalysis', icon: <Heart size={13} /> },
       { href: '/cadence',       label: 'nav.cadence', icon: <Activity size={13} /> },
+      { href: '/zone-distribution', label: 'nav.zoneDistribution', icon: <Layers size={13} /> },
       { href: '/form',          label: 'nav.form', icon: <TrendingUp size={13} /> },
       { href: '/tempcorr',      label: 'nav.weatherPerformance', icon: <BarChart size={13} /> },
       { href: '/calories',      label: 'nav.calories', icon: <Cookie size={13} /> },

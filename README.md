@@ -52,6 +52,7 @@ Lokale Web-App zur Analyse von Strava-Exportdaten. Kein Strava-API-Zugriff nöti
 | **Streckenvergleich** | Ähnliche Rides finden (Haversine-Radius + Distanzabgleich, dann Trackpunkt-Abgleich per absoluten Distanz-Marken für echte Streckenübereinstimmung) |
 | **Kadenz-Analyse** | Radiales Verteilungsdiagramm (Polar-Chart), 6 Kadenz-Zonen, Monatstrend, Effizienz-Sweetspot |
 | **Fitness-Fingerprint** | Gesamtscore 0–100 aus CTL, Aerober Effizienz, Form (TSB) und Kontinuität; Arc-Gauge, Stärken-Radar, 4 Komponenten-Karten, Score-Verlauf über die gesamte erfasste Zeit, Level-System (Einsteiger → Elite) |
+| **Trainingsverteilung** | HF-Zonen-Zeit monatlich aggregiert (Polarized-Training-Check): easy/moderate/hard-%-Kacheln, gestapeltes Monats-Chart, Zonen-Breakdown, automatischer 80/20-Einschätzungstext |
 | **Kalender** | Monatskalender: Radtouren + Workouts (grau markiert), Ring-Indikator bei Kombi-Tagen |
 | **Berechnungen** | Dokumentation aller verwendeten Formeln und Parameter |
 | **Einstellungen** | Gewicht, Geburtsjahr, Zeitzone, Trainingsziele (Jahres-km, Wochenstunden), Sprache (DE/EN aktuell übersetzt, 7 weitere vorbereitet); FIT/TCX-Einzelimport (Amazfit, Garmin ohne Strava); Wetterdaten-Abruf; Leistung für alle Rides neu berechnen; WattLoomApp-Sync (läuft automatisch nach jedem Import, zusätzlich manuell anstoßbar); Übersetzungen als JSON exportieren/importieren; DB-Reset sichert vorher automatisch eine Backup-Kopie |
@@ -119,7 +120,7 @@ source .venv/bin/activate
 python -m pytest tests/ -v
 ```
 
-78 Tests in `tests/` (pytest): Haversine, Physik-Engine, hrTSS/CTL/ATL, FIT- und TCX-Importer.
+102 Tests in `tests/` (pytest): Haversine, Physik-Engine, hrTSS/CTL/ATL, FIT- und TCX-Importer, Zonen-Aggregation, Betablocker-HF-Korrektur.
 
 ### 6. Daten importieren
 
@@ -205,7 +206,7 @@ WattLoom/
 │       │   └── ui/                     # shadcn/ui base-nova Komponenten
 │       ├── hooks/
 │       │   └── use-mobile.ts
-│       └── pages/                      # 21 Seiten als .tsx (Tab-Container bündeln verwandte Ansichten)
+│       └── pages/                      # 22 Seiten als .tsx (Tab-Container bündeln verwandte Ansichten)
 │           ├── DashboardPage.tsx
 │           ├── ActivitiesPage.tsx
 │           ├── ActivityDetailPage.tsx
@@ -226,7 +227,8 @@ WattLoom/
 │           ├── CadencePage.tsx
 │           ├── CaloriesPage.tsx
 │           ├── SpeedTrendPage.tsx      # Tempoentwicklung (/speed-trend)
-│           └── FitnessPage.tsx         # Fitness-Fingerprint (/fitness)
+│           ├── FitnessPage.tsx         # Fitness-Fingerprint (/fitness)
+│           └── ZoneDistributionPage.tsx # Trainingsverteilung / 80-20-Check (/zone-distribution)
 ├── data/
 │   └── mybiking.db          # SQLite-Datenbank (wird beim Import erstellt)
 ├── download/                # Strava-Export-ZIP ablegen
@@ -270,6 +272,7 @@ GET  /analytics/cadence             ?year      → Distribution, Zonen, Monatsve
 GET  /analytics/calories            ?year      → total_kcal, rides + workouts, monatlich/jährlich
 GET  /analytics/weekend-weekday     ?year      → Ø-Kennzahlen Werktag vs. Wochenende
 GET  /analytics/fitness-fingerprint            → Score 0–100 aus CTL, Effizienz, Form, Kontinuität + History
+GET  /analytics/zone-distribution   ?year        → HF-Zonen-Zeit monatlich aggregiert, easy/moderate/hard-%-Split (Polarized-Training-Check)
 
 GET  /weather/status
 POST /weather/fetch-all             → Wetterdaten für alle Aktivitäten via Open-Meteo (Background-Job)

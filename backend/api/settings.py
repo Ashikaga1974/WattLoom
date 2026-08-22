@@ -38,6 +38,12 @@ _FIELDS: dict[str, tuple[type, object]] = {
     "chart_height":        (int,   200),
     "chart_height_dense":  (int,   220),
     "comparison_colors":   (str,   "#f97316,#3b82f6,#22c55e,#a855f7,#eab308"),
+    # HF-Korrektur für Sportler unter Betablockern (z.B. Bisoprolol): dämpfen den HF-Anstieg
+    # unter Belastung, echte Anstrengung liegt daher oft über dem, was die HF zeigt. Rein
+    # empirisch vom Nutzer selbst kalibriert (kein Ableitungsformel) – siehe zones.py.
+    "hr_correction_enabled": (int,   0),
+    "hr_correction_pct":     (float, 8.0),
+    "hr_correction_since":   (str,   None),
 }
 
 

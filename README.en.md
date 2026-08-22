@@ -52,6 +52,7 @@ Local web app for analyzing Strava export data. No Strava API access needed – 
 | **Route comparison** | Find similar rides (Haversine radius + distance match, then point-by-point track matching for true route overlap) |
 | **Cadence analysis** | Radial distribution chart (polar chart), 6 cadence zones, monthly trend, efficiency sweet spot |
 | **Fitness fingerprint** | Overall score 0–100 from CTL, aerobic efficiency, form (TSB), and consistency; arc gauge, strengths radar, 4 component cards, score history across the entire recorded period, level system (beginner → elite) |
+| **Training distribution** | HR zone time aggregated monthly (polarized training check): easy/moderate/hard % tiles, stacked monthly chart, zone breakdown, automatic 80/20 insight text |
 | **Calendar** | Monthly calendar: rides + workouts (marked grey), ring indicator on combo days |
 | **Calculations** | Documentation of all formulas and parameters used |
 | **Settings** | Weight, birth year, timezone, training goals (yearly km, weekly hours), language (DE/EN translated so far, 7 more prepared); single FIT/TCX import (Amazfit, Garmin without Strava); weather data fetch; recalculate power for all rides; WattLoomApp sync (runs automatically after every import, also triggerable manually); export/import translations as JSON; DB reset automatically backs up a copy first |
@@ -119,7 +120,7 @@ source .venv/bin/activate
 python -m pytest tests/ -v
 ```
 
-78 tests in `tests/` (pytest): Haversine, physics engine, hrTSS/CTL/ATL, FIT and TCX importers.
+102 tests in `tests/` (pytest): Haversine, physics engine, hrTSS/CTL/ATL, FIT and TCX importers, zone aggregation, beta-blocker HR correction.
 
 ### 6. Import data
 
@@ -205,7 +206,7 @@ WattLoom/
 │       │   └── ui/                     # shadcn/ui base-nova components
 │       ├── hooks/
 │       │   └── use-mobile.ts
-│       └── pages/                      # 21 pages as .tsx (tab containers bundle related views)
+│       └── pages/                      # 22 pages as .tsx (tab containers bundle related views)
 │           ├── DashboardPage.tsx
 │           ├── ActivitiesPage.tsx
 │           ├── ActivityDetailPage.tsx
@@ -226,7 +227,8 @@ WattLoom/
 │           ├── CadencePage.tsx
 │           ├── CaloriesPage.tsx
 │           ├── SpeedTrendPage.tsx      # Pace trend (/speed-trend)
-│           └── FitnessPage.tsx         # Fitness fingerprint (/fitness)
+│           ├── FitnessPage.tsx         # Fitness fingerprint (/fitness)
+│           └── ZoneDistributionPage.tsx # Training distribution / 80-20 check (/zone-distribution)
 ├── data/
 │   └── mybiking.db          # SQLite database (created on import)
 ├── download/                # Place the Strava export ZIP here
@@ -270,6 +272,7 @@ GET  /analytics/cadence             ?year      → distribution, zones, monthly 
 GET  /analytics/calories            ?year      → total_kcal, rides + workouts, monthly/yearly
 GET  /analytics/weekend-weekday     ?year      → weekday vs. weekend average metrics
 GET  /analytics/fitness-fingerprint            → score 0–100 from CTL, efficiency, form, consistency + history
+GET  /analytics/zone-distribution   ?year        → HR zone time aggregated monthly, easy/moderate/hard % split (polarized training check)
 
 GET  /weather/status
 POST /weather/fetch-all             → fetch weather data for all activities via Open-Meteo (background job)
