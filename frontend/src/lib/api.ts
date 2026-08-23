@@ -1,4 +1,9 @@
-const BASE = 'http://localhost:8000';
+// Dev: Frontend (Vite, Port 5173) und Backend (Port 8000) sind unterschiedliche Origins,
+// deshalb feste absolute URL. Production (gebündelte .exe, siehe launcher.py): Backend
+// liefert das Frontend selbst aus (gleicher Origin) – relative URL, damit es unabhängig
+// vom aufgerufenen Hostnamen funktioniert (localhost vs. 127.0.0.1 vs. LAN-IP zählen für
+// den Browser als unterschiedliche Origins → CORS-Fehler bei fest codiertem Host).
+const BASE = import.meta.env.DEV ? 'http://localhost:8000' : '';
 
 export interface Activity {
   id: number;

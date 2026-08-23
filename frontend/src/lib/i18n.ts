@@ -27,7 +27,11 @@ i18next
     fallbackLng: 'de',
     defaultNS: 'common',
     backend: {
-      loadPath: 'http://localhost:8000/translations/{{lng}}/{{ns}}',
+      // Siehe Kommentar zu BASE in lib/api.ts – gleicher Grund (Dev: separate Origins,
+      // Production: relative URL, damit egal ist, welcher Hostname aufgerufen wurde).
+      loadPath: import.meta.env.DEV
+        ? 'http://localhost:8000/translations/{{lng}}/{{ns}}'
+        : '/translations/{{lng}}/{{ns}}',
     },
     interpolation: { escapeValue: false },
   });
