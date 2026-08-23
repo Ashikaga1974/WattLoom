@@ -8,6 +8,7 @@ block_cipher = None
 
 REPO_ROOT = Path(SPECPATH)
 FRONTEND_DIST = REPO_ROOT / "frontend" / "dist"
+SEED_DATA = REPO_ROOT / "backend" / "seed_data"
 
 if not FRONTEND_DIST.is_dir():
     raise SystemExit(
@@ -21,6 +22,7 @@ a = Analysis(
     binaries=[],
     datas=[
         (str(FRONTEND_DIST), "frontend/dist"),
+        (str(SEED_DATA), "backend/seed_data"),
     ],
     hiddenimports=[
         "uvicorn.logging",

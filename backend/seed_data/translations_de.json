@@ -1,0 +1,1910 @@
+{
+  "activities": {
+    "actions": {
+      "compareRoute": "Ähnliche vergleichen",
+      "delete": "Löschen",
+      "editPower": "Klicken zum Bearbeiten",
+      "no": "Nein",
+      "normalizedPower": "Normalized Power (Schätzung)",
+      "physicalEstimate": "Physikalische Schätzung",
+      "yes": "Ja"
+    },
+    "empty": {
+      "activities": "Keine Aktivitäten gefunden.",
+      "workouts": "Keine Workouts gefunden."
+    },
+    "errors": {
+      "delete": "Fehler beim Löschen",
+      "loadFilters": "Filterdaten konnten nicht geladen werden",
+      "unknown": "Unbekannter Fehler"
+    },
+    "filters": {
+      "allBikes": "Alle Bikes",
+      "allYears": "Alle Jahre",
+      "apply": "Anwenden",
+      "countRides": "{{formattedCount}} Radtouren",
+      "countWorkouts": "{{formattedCount}} Workouts",
+      "onlyWithTrack": "Nur mit Track"
+    },
+    "pagination": {
+      "next": "Weiter →",
+      "page": "Seite {{page}} / {{total}}",
+      "prev": "← Zurück"
+    },
+    "sort": {
+      "date": "Datum",
+      "distance": "Distanz",
+      "elevation": "Höhenmeter",
+      "speed": "Geschwindigkeit",
+      "time": "Zeit"
+    },
+    "table": {
+      "date": "Datum",
+      "day": "Tag",
+      "distance": "Distanz",
+      "duration": "Dauer",
+      "elevation": "Hm",
+      "hr": "HR",
+      "kcal": "kcal",
+      "name": "Name",
+      "power": "Watt",
+      "speed": "km/h",
+      "sport": "Sportart",
+      "time": "Uhrzeit"
+    },
+    "tabs": {
+      "rides": "Radtouren",
+      "workouts": "Workouts"
+    },
+    "title": "Aktivitäten"
+  },
+  "activitydetail": {
+    "charts": {
+      "elevationTitle": "Höhenprofil",
+      "heartRateTitle": "Herzfrequenz",
+      "speedTitle": "Geschwindigkeit",
+      "tooltip": {
+        "elevation": "Höhe",
+        "heartRate": "Herzrate",
+        "speed": "Geschw."
+      }
+    },
+    "errors": {
+      "deleteFailed": "Fehler beim Löschen",
+      "loadFailed": "Fehler beim Laden"
+    },
+    "header": {
+      "commuteBadge": "Weg zur Arbeit",
+      "compareSimilar": "Ähnliche vergleichen",
+      "confirmDeleteQuestion": "Wirklich löschen?",
+      "confirmDeleteYes": "Ja, löschen",
+      "deleting": "Lösche…",
+      "trainerBadge": "Trainer"
+    },
+    "media": {
+      "title": "Fotos"
+    },
+    "similar": {
+      "table": {
+        "date": "Datum",
+        "distance": "Distanz",
+        "elevation": "Hm",
+        "name": "Name",
+        "time": "Zeit"
+      },
+      "title": "Ähnliche Aktivitäten"
+    },
+    "stats": {
+      "avgCadence": "⌀ Kadenz",
+      "avgHr": "⌀ Herzfreq.",
+      "avgPower": "⌀ Leistung",
+      "avgSpeed": "⌀ Geschw.",
+      "calories": "Kalorien",
+      "distance": "Distanz",
+      "elevationGain": "Höhenmeter",
+      "elevationLoss": "Abstieg",
+      "estPower": "~ Leistung",
+      "maxSpeed": "Max. Geschw.",
+      "movingTime": "Fahrzeit"
+    },
+    "weather": {
+      "noRain": "kein Regen",
+      "rain": "{{value}} mm Regen",
+      "title": "Wetter (Open-Meteo)"
+    },
+    "zones": {
+      "heartRate": "Herzfrequenz",
+      "power": "Leistung",
+      "title": "Zeit in Zonen",
+      "zoneLabel": {
+        "anaerobic": "Anaerob",
+        "endurance": "Grundlage",
+        "neuromuscular": "Neuromuskulär",
+        "recovery": "Regeneration",
+        "tempo": "Tempo",
+        "threshold": "Schwelle",
+        "vo2max": "VO2max"
+      }
+    }
+  },
+  "berechnungen": {
+    "bezier": {
+      "controlPointsLabel": "Kontrollpunkte",
+      "endpointsLabel": "Endpunkte",
+      "endpointsValue": "Erstes und letztes Segment clamp auf sich selbst (kein Überschwingen)",
+      "gapsLabel": "Lücken",
+      "gapsValue": "Jeder kontinuierliche Abschnitt wird separat geglättet; Null-Werte erzeugen ein neues Segment",
+      "intro": "Alle Liniendiagramme verwenden kubische Bezier-Splines (Catmull-Rom-Konvertierung) statt gerader Liniensegmente.",
+      "methodLabel": "Methode",
+      "methodValue": "Catmull-Rom → kubische Bezier",
+      "sectionTitle": "Diagramm-Kurven – Glättung",
+      "tensionLabel": "Spannung (Tension)",
+      "tensionSuffix": "– 0 = gerade Linien, 0.5 = starke Rundung"
+    },
+    "general": {
+      "dateFieldLabel": "Datumsfeld",
+      "dateFieldSuffix": "(UTC) – Anzeige via Browser-Zeitzone oder fixem Offset aus Einstellungen umgerechnet",
+      "dbLabel": "Datenbank",
+      "dbMiddle": "und",
+      "dbPrefix": "SQLite, Zeitvergleiche via",
+      "distanceLabel": "Distanz",
+      "distancePrefix": "Alle API-Werte in Metern, Anzeige in km (",
+      "sectionTitle": "Allgemeines",
+      "speedLabel": "Geschwindigkeit",
+      "speedPrefix": "Alle API-Werte in m/s, Anzeige in km/h ("
+    },
+    "hrZones": {
+      "intro": "5 Zonen basierend auf % HRmax. HRmax = globales Maximum aller Aktivitäten.",
+      "sectionTitle": "Zeit in Zonen – Herzfrequenz",
+      "timeDeltaCapLabel": "Zeitdelta-Cap",
+      "timeDeltaCapSuffix": "zwischen aufeinanderfolgenden Track-Punkten (verhindert Lücken-Artefakte)",
+      "zones": {
+        "z1": "Z1 · Regeneration",
+        "z2": "Z2 · Grundlage",
+        "z3": "Z3 · Tempo",
+        "z4": "Z4 · Schwelle",
+        "z5": "Z5 · VO2max"
+      }
+    },
+    "labels": {
+      "average": "Durchschnitt:",
+      "formula": "Formel:",
+      "max": "Max.",
+      "method": "Methode:",
+      "standard": "Standard",
+      "yAxis": "Y-Achse:"
+    },
+    "mapSpeed": {
+      "bucketsLabel": "Farbstufen",
+      "bucketsSuffix": "gleichmäßige Buckets zwischen Mindest- und Höchstgeschwindigkeit",
+      "colorModelFormula": "HSL(240 − t·240, 80%, 55%) mit t = (v − v_min) / (v_max − v_min)",
+      "colorModelLabel": "Farbmodell",
+      "intro": "Die Route wird in Segmente gleicher Farbe aufgeteilt. Langsam = Blau, schnell = Rot.",
+      "minMaxLabel": "Min/Max-Basis",
+      "minMaxValue": "Alle Punkte mit Geschwindigkeit > 0 km/h (Stillstand wird ignoriert)",
+      "sectionTitle": "Aktivitätskarte – Geschwindigkeitsfärbung",
+      "segmentationLabel": "Segmentierung",
+      "segmentationValue": "Aufeinanderfolgende Punkte im gleichen Bucket werden zu einer Polyline zusammengefasst",
+      "simplifyLabel": "Track-Vereinfachung",
+      "simplifyPrefix": "Ramer-Douglas-Peucker mit Toleranz",
+      "simplifySuffix": "vor der Übertragung"
+    },
+    "pageSubtitle": "Alle Parameter werden direkt aus dem Code gelesen – diese Seite ist immer aktuell.",
+    "pageTitle": "Berechnungen & Annahmen",
+    "pmc": {
+      "atl": {
+        "methodDays": "7 Tage",
+        "methodPrefix": "Exponentieller gleitender Mittelwert über",
+        "title": "ATL – Müdigkeit (Acute Training Load)"
+      },
+      "ctl": {
+        "methodDays": "42 Tage",
+        "methodPrefix": "Exponentieller gleitender Mittelwert über",
+        "title": "CTL – Fitness (Chronic Training Load)"
+      },
+      "hrtss": {
+        "noHrLabel": "Ohne HR:",
+        "thresholdLabel": "Schwellen-HR:",
+        "thresholdSuffix": "(global max; Fallback: 185 bpm)",
+        "title": "hrTSS"
+      },
+      "intro": "Performance Management Chart auf Basis von hrTSS (Heart Rate Training Stress Score). Alle Ride- und Workout-Typen fließen ein.",
+      "sectionTitle": "Form-Kurve – CTL / ATL / TSB (PMC)",
+      "tsb": {
+        "negativeLabel": "Negativ:",
+        "negativeValue": "ermüdet",
+        "positiveLabel": "Positiv:",
+        "positiveValue": "frisch / ausgeruht –",
+        "title": "TSB – Form (Training Stress Balance)"
+      }
+    },
+    "profiles": {
+      "combined": {
+        "gapsLabel": "Lücken:",
+        "gapsValue": "Punkte ohne Wert werden auf y = 0 gesetzt (sichtbare Lücke im Profil)",
+        "normLabel": "Normalisierung:",
+        "normSuffix": "jede Datenreihe unabhängig auf 0–1 skaliert:",
+        "title": "Kombiniertes Profil"
+      },
+      "elevation": {
+        "gainLabel": "Höhengewinn:",
+        "gainSuffix": "– nur positive Differenzen",
+        "title": "Höhenprofil",
+        "yAxisValue": "tatsächliche Höhe in m ü. NN (Minimum bis Maximum)",
+        "zeroFilterLabel": "Null-Filter:",
+        "zeroFilterValue": "Punkte ohne Höhendaten werden übersprungen"
+      },
+      "hr": {
+        "avgValue": "arithmetisches Mittel aller Punkte mit HR > 0",
+        "title": "Herzfrequenzprofil",
+        "yAxisValue": "bpm, gerundet auf 5er-Schritte (Minimum / Maximum)"
+      },
+      "sectionTitle": "Aktivitätsdetail – Diagrammprofile",
+      "speed": {
+        "avgValue": "arithmetisches Mittel aller Punkte mit Geschwindigkeit > 0",
+        "title": "Geschwindigkeitsprofil",
+        "yAxisValue": "km/h, gerundet auf 5er-Schritte (Minimum / Maximum)"
+      }
+    },
+    "routeCompare": {
+      "corridorLabel": "Track-Marken-Korridor",
+      "corridorMiddle": "ab Start, Korridor",
+      "corridorPrefix": "Alle",
+      "distanceToleranceLabel": "Distanztoleranz",
+      "distanceToleranceSuffix": "der Referenz-Distanz",
+      "intro": "Findet Aktivitäten mit ähnlichem Startpunkt und ähnlicher Distanz als Vorfilter, bewertet die Kandidaten dann per Trackpunkt-Abgleich (absolute Distanz-Marken alle 2 km ab Start, 500 m-Korridor).",
+      "minMatchLabel": "Mindest-Übereinstimmung",
+      "minMatchSuffix": "der gemeinsamen Marken, sonst verworfen",
+      "resultLimitLabel": "Ergebnis-Limit",
+      "resultLimitValue": "Max. 10 ähnliche Aktivitäten, sortiert nach Streckenübereinstimmung",
+      "sectionTitle": "Streckenvergleich – Ähnlichkeit",
+      "seriesRuleLabel": "Serien-Regel",
+      "seriesRuleValue": "Mehr als 1 Fehltreffer in Folge disqualifiziert komplett – auch bei hoher Gesamtquote",
+      "simplifyLabel": "Track-Vereinfachung",
+      "simplifyPrefix": "RDP-Toleranz",
+      "simplifySuffix": "(höher als Detailansicht – Performance)",
+      "startRadiusLabel": "Startpunkt-Radius",
+      "startRadiusSuffix": "(Haversine-Distanz)"
+    },
+    "sparklines": {
+      "intro": "Jede Stat-Kachel zeigt ein Balkendiagramm der letzten Aktivitätsperiode.",
+      "missingLabel": "Fehlende Wochen/Monate",
+      "missingValue": "Werden mit 0 aufgefüllt – Lücken im Aktivitätsverlauf sind sichtbar",
+      "noYearFilterLabel": "Ohne Jahresfilter",
+      "noYearFilterPrefix": "Letzte",
+      "noYearFilterSuffix": "Wochen, gruppiert per Kalenderwochen-Abstand zu heute",
+      "sectionTitle": "Dashboard – Sparklines",
+      "weekCalcLabel": "Wochenberechnung",
+      "yearFilterLabel": "Mit Jahresfilter",
+      "yearFilterValue": "12 Monate des gewählten Jahres (Jan–Dez)"
+    },
+    "yearProgress": {
+      "cumulative": {
+        "title": "Kumulierter Jahresfortschritt",
+        "todayLabel": "Jahrestag (heute):",
+        "xAxisLabel": "X-Achse:",
+        "xAxisValue": "Jahrestag 1–365 (1. Jan bis 31. Dez)",
+        "yValueLabel": "Y-Wert:",
+        "yValueValue": "kumulierte Kilometer bis zu diesem Tag"
+      },
+      "forecast": {
+        "assumptionEmphasis": "nicht",
+        "assumptionLabel": "Annahme:",
+        "assumptionPrefix": "gleichmäßige Verteilung – saisonale Schwankungen werden",
+        "assumptionSuffix": "berücksichtigt",
+        "methodValue": "lineare Extrapolation auf Basis der bisherigen Saison",
+        "title": "Jahresprognose"
+      },
+      "sectionTitle": "Jahresfortschritt & Prognose"
+    }
+  },
+  "best": {
+    "categories": {
+      "avgPower": "Höchste Leistung",
+      "avgSpeed": "Schnellste Rides",
+      "calories": "Meiste Kalorien",
+      "distance": "Längste Rides",
+      "elevation": "Meiste Höhenmeter",
+      "movingTime": "Längste Fahrzeit"
+    },
+    "distanceChart": {
+      "noData": "Zu wenig Daten für den Chart.",
+      "subtitle": "Schnellstes zusammenhängendes Segment dieser Länge, über alle Fahrten hinweg",
+      "table": {
+        "activity": "Aktivität",
+        "avgSpeed": "Ø km/h",
+        "bestTime": "Bestzeit",
+        "date": "Datum",
+        "distance": "Distanz",
+        "noSegment": "Kein Segment dieser Länge gefahren"
+      },
+      "title": "Beste Ø-Geschwindigkeit nach Distanz",
+      "yAxisLabel": "Ø km/h"
+    },
+    "error": "Fehler",
+    "noData": "Keine Daten.",
+    "title": "Best of – Persönliche Rekorde"
+  },
+  "bikes": {
+    "addForm": {
+      "carryOverLabel": "Vorbelastung übernehmen (welches Exemplar wird eingebaut?)",
+      "carryOverReturnedSuffix": " (zurückgelegt {{date}})",
+      "closedButton": "+ Komponente einbauen",
+      "install": "Einbauen",
+      "noCarryOverOption": "– neu, keine Vorbelastung –",
+      "noStockTitle": "Kein Lagerbestand vorhanden",
+      "panelTitle": "Komponente einbauen"
+    },
+    "bikeCard": {
+      "allActivitiesLink": "Alle Aktivitäten →",
+      "changeImage": "Ändern",
+      "editNameTitle": "Klicken zum Bearbeiten",
+      "noComponents": "Keine Komponenten erfasst.",
+      "statRides": "Rides",
+      "statTotalKm": "Gesamt km",
+      "toggleTitle": "Klicken um Status zu wechseln",
+      "uploadImage": "Hochladen",
+      "wearTitle": "Verschleiß"
+    },
+    "common": {
+      "genericError": "Fehler"
+    },
+    "compare": {
+      "avgSpeedHeading": "Ø Geschwindigkeit über Jahre",
+      "distanceAxisLabel": "Distanz (km)",
+      "distanceDistHeading": "Distanzverteilung",
+      "kennzahlenHeading": "Kennzahlen",
+      "noData": "Keine Bike-Daten vorhanden. Erst importieren.",
+      "ridesPerYearHeading": "Aktivitäten pro Jahr",
+      "rows": {
+        "avgDistance": "Ø Distanz",
+        "avgElevationPerRide": "Ø Höhenmeter/Ride",
+        "avgSpeed": "Ø Geschwindigkeit",
+        "costPer100km": "Kosten/100 km",
+        "rides": "Rides",
+        "totalCost": "Unterhaltskosten",
+        "totalElevation": "Gesamt Höhenmeter",
+        "totalHours": "Gesamt Stunden",
+        "totalKm": "Gesamt km"
+      }
+    },
+    "componentRow": {
+      "confirm": "Bestätigen",
+      "confirmAndStock": "Bestätigen + ins Lager",
+      "deleteButtonTitle": "Komponente entfernen",
+      "editTitle": "Komponente bearbeiten",
+      "estimatedDate": "ca. {{date}}",
+      "kmRiddenLabel": "Gelaufene km",
+      "linkButton": "Verknüpfen",
+      "linkButtonTitle": "Noch verbaute Komponente nachträglich einem Einkauf zuordnen (bleibt verbaut)",
+      "linkDescReturned": "Ordnet die ausgebaute Komponente einem Einkauf zu und legt sie ins Lager zurück.",
+      "linkDescStillInstalled": "Ordnet diese aktuell verbaute Komponente nachträglich einem Einkauf zu – sie bleibt verbaut.",
+      "linkedPurchaseTitle": "Verknüpfter Lagerartikel",
+      "maintenanceDue": "Wartung fällig!",
+      "noStockRefOption": "– kein Lagerbezug –",
+      "orderLinkText": "↗ Link",
+      "orderLinkTitle": "Bestelllink öffnen",
+      "since": "seit {{date}}",
+      "stockRefLabel": "Lagerbezug (optional)",
+      "stockRefTitle": "Für Altbestand ohne Lagerbezug: nachträglich einem Einkauf zuordnen und zurücklegen",
+      "toStockButton": "Ins Lager",
+      "toStockButtonTitle": "Nachträglich einem Lagerartikel zuordnen und zurücklegen",
+      "uninstallButton": "Ausbauen",
+      "uninstallButtonTitle": "Komponente ausbauen und ggf. ins Lager zurücklegen",
+      "uninstalledAfter": "ausgebaut nach {{km}} km"
+    },
+    "deleted": {
+      "empty": "Noch keine Komponenten gelöscht.",
+      "loading": "Lädt…",
+      "orderLinkText": "↗ Link",
+      "table": {
+        "bike": "Bike",
+        "deletedAt": "Gelöscht",
+        "installed": "Eingebaut",
+        "purchase": "Einkauf",
+        "ridden": "Gefahren",
+        "type": "Typ"
+      }
+    },
+    "fields": {
+      "createNewStockOption": "Als Lagerartikel anlegen",
+      "installDate": "Einbaudatum",
+      "maintenanceInterval": "Wartungsintervall (km)",
+      "newItemName": "Name des Lagerartikels",
+      "newItemNamePlaceholder": "z.B. Continental GP5000",
+      "noStockItemOption": "– Lagerartikel wählen –",
+      "stockItem": "Lagerartikel",
+      "type": "Typ"
+    },
+    "overview": {
+      "inactiveBikesHeading": "Inaktive Räder",
+      "noBikes": "Keine Bikes gefunden.",
+      "purchasesHeading": "Einkäufe / Lager",
+      "selectBikePlaceholder": "– Rad wählen –"
+    },
+    "purchases": {
+      "addButton": "+ Einkauf erfassen",
+      "decreaseTitle": "Menge verringern (z.B. verschenkt/verloren)",
+      "decreaseTitleDisabled": "{{count}}x aktuell verbaut – Menge kann nicht weiter verringert werden",
+      "deleteFailed": "Löschen fehlgeschlagen",
+      "deliveryPending": "ausstehend",
+      "editTitle": "Einkauf bearbeiten",
+      "emptyNone": "Noch keine Einkäufe erfasst.",
+      "emptyOnlyStock": "Kein Artikel auf Lager.",
+      "fields": {
+        "article": "Artikel *",
+        "articlePlaceholder": "z. B. Schlauch 28\" Conti",
+        "autoDetectOption": "– automatisch erkennen –",
+        "componentType": "Komponenten-Typ",
+        "componentTypeTitle": "Legt fest, welchem Komponenten-Typ dieser Artikel beim Einbauen zugeordnet wird",
+        "deliveredAt": "Geliefert am",
+        "link": "Link",
+        "manageLocationsButton": "Lagerplätze verwalten",
+        "noStorageLocationOption": "– kein Lagerplatz –",
+        "notes": "Notiz",
+        "notesPlaceholder": "z. B. für Reifen vorne",
+        "orderedAt": "Bestellt am",
+        "price": "Preis (€)",
+        "quantity": "Menge",
+        "quantityLockedNote": "wird über +/− in der Liste angepasst",
+        "quantityLockedTitle": "Änderung der Stückzahl nur über +/− in der Liste",
+        "shop": "Shop",
+        "shopPlaceholder": "Amazon",
+        "storageLocation": "Lagerplatz"
+      },
+      "increaseTitle": "Menge erhöhen (neues Exemplar dazugekommen)",
+      "locations": {
+        "addButton": "+ Hinzufügen",
+        "addFailed": "Anlegen fehlgeschlagen",
+        "deleteFailed": "Löschen fehlgeschlagen",
+        "empty": "Noch keine Lagerplätze angelegt.",
+        "manageTitle": "Lagerplätze verwalten",
+        "newPlaceholder": "Neuer Lagerplatz",
+        "renameFailed": "Umbenennen fehlgeschlagen"
+      },
+      "newTitle": "Neuer Einkauf",
+      "onlyStock": "Nur Lagerbestand",
+      "orderLinkText": "↗ Link",
+      "statusDepleted": "aufgebraucht",
+      "statusInStock": "{{count}}x auf Lager",
+      "stockCount": "{{count}} Artikel auf Lager",
+      "table": {
+        "article": "Artikel",
+        "delivered": "Geliefert",
+        "ordered": "Bestellt",
+        "price": "Preis",
+        "quantity": "Menge",
+        "shop": "Shop",
+        "status": "Status",
+        "storageLocation": "Lagerplatz",
+        "type": "Typ"
+      }
+    },
+    "status": {
+      "active": "● Aktiv",
+      "inactive": "Inaktiv"
+    },
+    "tabs": {
+      "compare": "Vergleich",
+      "deleted": "Gelöscht",
+      "overview": "Übersicht"
+    }
+  },
+  "cadence": {
+    "distribution": {
+      "heading": "Kadenz-Verteilung"
+    },
+    "efficiency": {
+      "heading": "Kadenz-Effizienz",
+      "points_one": "{{formatted}} Punkt",
+      "points_other": "{{formatted}} Punkte",
+      "ratio": "Ratio {{value}}",
+      "subtitle": "Speed-zu-HR-Ratio je Kadenz-Bucket — höherer Wert = besser (mehr Speed, weniger Herzschlag)",
+      "sweetspot": "★ Sweetspot"
+    },
+    "footer": "Nur Aktivitäten mit Kadenz-Sensor fließen ein ({{count}} von insgesamt aufgezeichneten Rides). Nullwerte (keine Pedalumdrehung) sind aus der Verteilung ausgeblendet.",
+    "loadError": "Fehler beim Laden",
+    "monthly": {
+      "heading": "Monatlicher Kadenz-Verlauf",
+      "tooltipRides_one": "{{count}} Ride",
+      "tooltipRides_other": "{{count}} Rides"
+    },
+    "stats": {
+      "avgCadence": "Ø Kadenz",
+      "dataPoints": "Datenpunkte",
+      "dataPointsUnit": "Sekunden mit Kadenzdaten",
+      "favoriteZone": "Lieblingszone",
+      "maxCadence": "Max Kadenz",
+      "thousand": "{{count}} Tsd."
+    },
+    "subtitle": "Pedalfrequenz-Analyse aus {{count}} Rides mit Kadenz-Daten",
+    "title": "Kadenz-Analyse",
+    "zones": {
+      "descriptions": {
+        "Hoch": "Spinning, effizient",
+        "Moderat": "Solide Grundlage",
+        "Niedrig": "Kraftbetont, ermüdend",
+        "Optimal": "Pedalrhythmus-Sweetspot",
+        "Schleppen": "Zu langsam, schweres Gear",
+        "Sprint": "Max-Sprint"
+      },
+      "heading": "Kadenz-Zonen",
+      "names": {
+        "Hoch": "Hoch",
+        "Moderat": "Moderat",
+        "Niedrig": "Niedrig",
+        "Optimal": "Optimal",
+        "Schleppen": "Schleppen",
+        "Sprint": "Sprint"
+      }
+    }
+  },
+  "calendar": {
+    "dayAriaLabel": "{{date}}: {{km}} km",
+    "error": "Fehler",
+    "legendLess": "Weniger",
+    "legendMore": "Mehr",
+    "legendRange": "(<15 / 15–30 / 30–50 / 50+ km)",
+    "legendRideWorkout": "Ride + Workout",
+    "legendWorkout": "Workout",
+    "monthOverview": "Monatsübersicht",
+    "monthsFull": [
+      "Januar",
+      "Februar",
+      "März",
+      "April",
+      "Mai",
+      "Juni",
+      "Juli",
+      "August",
+      "September",
+      "Oktober",
+      "November",
+      "Dezember"
+    ],
+    "monthsShort": [
+      "Jan",
+      "Feb",
+      "Mär",
+      "Apr",
+      "Mai",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Okt",
+      "Nov",
+      "Dez"
+    ],
+    "moreCount": "+ {{count}} weitere",
+    "noTraining": "Kein Training",
+    "rideCount_one": "{{count}} Ride",
+    "rideCount_other": "{{count}} Rides",
+    "subtitleActiveDays": "{{days}} aktive Tage · {{km}} km",
+    "title": "Aktivitätskalender",
+    "weekdaysShort": [
+      "Mo",
+      "Di",
+      "Mi",
+      "Do",
+      "Fr",
+      "Sa",
+      "So"
+    ]
+  },
+  "calories": {
+    "bestYear": {
+      "label": "Bestes Jahr:",
+      "rides": "{{count}} Rides",
+      "with": "mit {{kcal}} kcal",
+      "workouts": "{{count}} Workouts"
+    },
+    "chart": {
+      "legendRides": "Radtouren",
+      "legendRollingAvg": "3M-Ø",
+      "legendWorkouts": "Workouts",
+      "monthlyTitle": "Monatsverlauf",
+      "monthlyTitleYear": "Monatsverlauf {{year}}",
+      "yearlyTitle": "Jahresvergleich"
+    },
+    "emptyState": "Keine Kalorien-Daten vorhanden.",
+    "errorFallback": "Fehler",
+    "kpi": {
+      "avgPerHour": "Ø pro Stunde (Rides)",
+      "avgPerRide": "Ø pro Ride",
+      "avgPerWorkout": "Ø pro Workout",
+      "fatEquivalent": "≈ Fettäquivalent",
+      "kcalRides": "kcal · {{count}} Rides",
+      "kcalWorkouts": "kcal · {{count}} Workouts",
+      "noData": "keine Daten",
+      "ridesTotal": "Radtouren gesamt",
+      "ridesYear": "Radtouren {{year}}",
+      "workoutsTotal": "Workouts gesamt",
+      "workoutsYear": "Workouts {{year}}"
+    },
+    "months": [
+      "Jan",
+      "Feb",
+      "Mär",
+      "Apr",
+      "Mai",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Okt",
+      "Nov",
+      "Dez"
+    ],
+    "subtitle": "Energieverbrauch aus Rides & Workouts",
+    "title": "Kalorien",
+    "tooltip": {
+      "rides": "Radtouren · {{count}} Rides",
+      "rollingAvg": "3M-Ø",
+      "total": "Gesamt",
+      "workouts": "Workouts · {{count}}×"
+    },
+    "units": {
+      "fatUnit": "kg (à 7 700 kcal)",
+      "kcal": "kcal",
+      "kcalPerHour": "kcal/h",
+      "million": "Mio."
+    }
+  },
+  "common": {
+    "actions": {
+      "add": "Hinzufügen",
+      "back": "Zurück",
+      "cancel": "Abbrechen",
+      "close": "Schließen",
+      "delete": "Löschen",
+      "edit": "Bearbeiten",
+      "save": "Speichern"
+    },
+    "allYears": "Alle Jahre",
+    "component": {
+      "brake_pads": "Bremsbeläge",
+      "cable": "Kabel",
+      "cassette": "Kassette",
+      "chain": "Kette",
+      "derailleur": "Schaltwerk",
+      "other": "Sonstiges",
+      "tire": "Mantel",
+      "tire_front": "Mantel vorne",
+      "tire_rear": "Mantel hinten",
+      "tube": "Schlauch",
+      "tube_front": "Schlauch vorne",
+      "tube_rear": "Schlauch hinten"
+    },
+    "errors": {
+      "activity_not_found": "Aktivität nicht gefunden",
+      "activity_not_found_or_no_track": "Aktivität nicht gefunden oder ohne Track",
+      "bike_not_found": "Bike nicht gefunden",
+      "component_already_linked": "Komponente ist bereits mit einem Einkauf verknüpft",
+      "component_already_returned": "Komponente wurde bereits ins Lager zurückgelegt",
+      "component_already_uninstalled": "Komponente ist bereits ausgebaut – „Ins Lager“ verwenden",
+      "component_not_found": "Komponente nicht gefunden",
+      "component_still_active": "Komponente ist noch aktiv verbaut",
+      "image_file_missing": "Bilddatei fehlt",
+      "insufficient_stock": "Nicht genug Lagerbestand verfügbar",
+      "invalid_fields": "Unbekannte Felder",
+      "invalid_file_type_fit": "Nur .fit-Dateien werden unterstützt",
+      "invalid_file_type_gpx": "Nur .gpx-Dateien werden unterstützt",
+      "invalid_file_type_tcx": "Nur .tcx-Dateien werden unterstützt",
+      "invalid_language": "Sprache muss \"de\" oder \"en\" sein",
+      "manual_only": "Nur bei manuell importierten Aktivitäten erlaubt",
+      "name_required": "Name darf nicht leer sein",
+      "no_image": "Kein Bild vorhanden",
+      "no_track_points": "Keine Track-Punkte für diese Aktivität",
+      "purchase_has_installed_components": "Einkauf enthält noch verbaute Komponenten",
+      "purchase_has_open_returns": "Einkauf hat noch offene Rückgabe-Historie",
+      "purchase_not_found": "Einkauf nicht gefunden",
+      "reference_activity_no_track_points": "Referenz-Aktivität hat keine GPS-Trackpunkte",
+      "return_record_mismatch": "Rückgabe-Eintrag passt nicht zum Einkauf",
+      "return_record_not_found": "Rückgabe-Eintrag nicht gefunden",
+      "storage_location_exists": "Lagerplatz existiert bereits",
+      "storage_location_not_found": "Lagerplatz nicht gefunden",
+      "workout_not_found": "Workout nicht gefunden"
+    },
+    "license": {
+      "enterKey": "Lizenz eingeben",
+      "trialBanner": "Testversion – noch {{days}} Tage (bis {{date}})"
+    },
+    "nav": {
+      "activities": "Aktivitäten",
+      "activitiesList": "Liste",
+      "analysis": "Analyse",
+      "best": "Best of",
+      "bikes": "Bikes",
+      "cadence": "Kadenz",
+      "calculations": "Berechnungen",
+      "calendar": "Kalender",
+      "calories": "Kalorien",
+      "collapseSubmenu": "Untermenü zuklappen",
+      "dashboard": "Dashboard",
+      "expandSubmenu": "Untermenü aufklappen",
+      "fitnessScore": "Fitness-Score",
+      "form": "Form (PMC)",
+      "heatmap": "Heatmap",
+      "hrAnalysis": "HR-Analyse",
+      "map": "Karte",
+      "routeComparison": "Streckenvergleich",
+      "settings": "Einstellungen",
+      "speedTrend": "Tempoentwicklung",
+      "weatherPerformance": "Wetter & Leistung",
+      "weekdayAnalysis": "Wochentag-Analyse",
+      "yearOverview": "Jahresübersicht",
+      "yearWrapped": "Jahresrückblick",
+      "zoneDistribution": "Trainingsverteilung"
+    },
+    "position": {
+      "front": "Vorne",
+      "rear": "Hinten"
+    },
+    "sport": {
+      "cardio": "Cardio",
+      "cool_down": "Abkühlen",
+      "flexibility": "Dehnen",
+      "hiking": "Wandern",
+      "ride": "Radfahrt",
+      "rowing": "Rudern",
+      "running": "Laufen",
+      "strength_training": "Krafttraining",
+      "swimming": "Schwimmen",
+      "training": "Training",
+      "walking": "Gehen",
+      "warm_up": "Aufwärmen",
+      "yoga": "Yoga"
+    }
+  },
+  "dashboard": {
+    "bikes": {
+      "empty": "Keine Bikes gefunden.",
+      "title": "Bikes",
+      "viewAll": "Bike-Details →"
+    },
+    "charts": {
+      "current": "Akt.",
+      "distanceWeeks": "Distanz – letzte {{weeks}} Wochen",
+      "distanceYear": "Distanz {{year}} – nach Monat",
+      "legendRide": "Radfahren",
+      "legendStrength": "Kraft",
+      "legendWorkout": "Workout",
+      "totalMinutesTooltip": "{{label}}: {{minutes}} min gesamt",
+      "volumeTitle": "Trainingsvolumen – letzte {{weeks}} Wochen",
+      "weeksAgo": "-{{weeks}}W"
+    },
+    "error": {
+      "backendUnreachable": "Backend nicht erreichbar: {{message}}",
+      "unknown": "Unbekannter Fehler"
+    },
+    "goals": {
+      "behindPlan": "{{pct}} % hinter Plan",
+      "onPlan": "Im Plan",
+      "title": "Trainingsziele",
+      "weeklyLabel": "Wochenziel",
+      "yearlyLabel": "Jahresziel {{year}}"
+    },
+    "hero": {
+      "details": "Details →",
+      "lastRide": "Letzter Ride",
+      "movingTime": "Fahrzeit"
+    },
+    "kpi": {
+      "activities": "Aktivitäten",
+      "avgDuration": "⌀ Dauer",
+      "avgHr": "⌀ HR",
+      "avgPower": "⌀ Leistung",
+      "avgRide": "⌀ Ride",
+      "avgSpeed": "⌀ Tempo",
+      "elevation": "Aufstieg",
+      "hours": "Stunden",
+      "movingTime": "Fahrzeit",
+      "noData": "Keine Daten vorhanden.",
+      "openSettings": "Einstellungen öffnen und Import starten →",
+      "totalDistance": "Gesamtstrecke"
+    },
+    "period": {
+      "all": "Gesamt",
+      "label": "Zeitraum:"
+    },
+    "pr": {
+      "dismiss": "Verwerfen",
+      "in": "in",
+      "title": "Neue Bestzeit 🏆"
+    },
+    "recent": {
+      "empty": "Keine Aktivitäten gefunden.",
+      "title": "Letzte Aktivitäten",
+      "viewAll": "Alle Aktivitäten →"
+    },
+    "sparkTooltip": {
+      "distance": "Distanz",
+      "elevation": "Höhenmeter",
+      "rides": "Rides"
+    },
+    "tsb": {
+      "status": {
+        "exhausted": {
+          "label": "Erschöpft",
+          "text": "Ruhetag oder lockere Regeneration"
+        },
+        "fresh": {
+          "label": "Frisch",
+          "text": "Intensives Training möglich"
+        },
+        "recovered": {
+          "label": "Erholt",
+          "text": "Normales Training, gute Form"
+        },
+        "tired": {
+          "label": "Müde",
+          "text": "Locker bleiben, Tempo reduzieren"
+        }
+      },
+      "title": "Trainingsform heute"
+    },
+    "wear": {
+      "title": "Verschleiß-Warnung"
+    }
+  },
+  "fitness": {
+    "componentCard": {
+      "points": "{{score}}/{{max}} Pkt."
+    },
+    "components": {
+      "consistency": {
+        "description": "Aktive Wochen (letzte 8)",
+        "label": "Kontinuität",
+        "unit": "{{count}}/8 Wo."
+      },
+      "ctl": {
+        "description": "42-Tage-Ø aus hrTSS",
+        "label": "Trainingslast (CTL)"
+      },
+      "efficiency": {
+        "description": "Speed/HR-Verhältnis, 3M-Mittel",
+        "label": "Aerobe Effizienz"
+      },
+      "form": {
+        "description": "CTL − ATL (Frische)",
+        "label": "Form (TSB)"
+      }
+    },
+    "gauge": {
+      "outOf100": "von 100 Punkten"
+    },
+    "history": {
+      "title": "Score-Verlauf (letzte 13 Monate)",
+      "tooltipLevel": "Level",
+      "tooltipScore": "Score"
+    },
+    "insights": {
+      "consistency_improvable": "Kontinuität noch verbesserungsfähig.",
+      "consistency_very_regular": "Sehr regelmäßig in den letzten 8 Wochen.",
+      "ctl_developing": "CTL noch ausbaufähig.",
+      "ctl_solid": "Solide Trainingsbasis.",
+      "ctl_very_high": "Sehr hohe Trainingslast – starke CTL.",
+      "efficiency_above_avg": "Aerobe Effizienz überdurchschnittlich stark.",
+      "efficiency_below_avg": "Effizienz noch unter dem persönlichen Schnitt.",
+      "efficiency_normal": "Aerobe Effizienz im Normbereich.",
+      "form_good_freshness": "Gute Frische – ideal für intensive Einheiten oder Wettkampf.",
+      "form_low": "TSB niedrig – Erholung einplanen.",
+      "form_normal_fatigue": "Normale Ermüdung – Trainingsblock läuft.",
+      "no_data": "Noch keine Aktivitätsdaten vorhanden."
+    },
+    "legend": {
+      "consistencyPoints": "bis 20 Punkte",
+      "ctlPoints": "bis 35 Punkte",
+      "efficiencyPoints": "bis 25 Punkte",
+      "explanation": "CTL = 42-Tage-EMA aus hrTSS. Effizienz = Ø Speed (km/h) / Ø HR × 100, letzter 3-Monats-Schnitt, bewertet als Perzentile deiner persönlichen Geschichte. Form = CTL − ATL (7-Tage EMA). Kontinuität = Wochen mit mind. 1 Ride in den letzten 8 Wochen.",
+      "formPoints": "bis 20 Punkte",
+      "title": "Score-Berechnung"
+    },
+    "levels": {
+      "active": "Aktiv",
+      "advanced": "Fortgeschritten",
+      "amateur": "Leistungssportler",
+      "beginner": "Einsteiger",
+      "elite": "Elite",
+      "enthusiast": "Enthusiast"
+    },
+    "months": [
+      "Jan",
+      "Feb",
+      "Mär",
+      "Apr",
+      "Mai",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Okt",
+      "Nov",
+      "Dez"
+    ],
+    "page": {
+      "noData": "Keine Daten.",
+      "subtitle": "Gesamtscore aus Trainingslast, Effizienz, Form und Kontinuität",
+      "subtitleLoading": "Dein aktueller Fitnesszustand auf einen Blick",
+      "title": "Fitness-Fingerprint"
+    },
+    "radar": {
+      "axisConsistency": "Kontinuität",
+      "axisEfficiency": "Effizienz",
+      "axisForm": "Form",
+      "title": "Stärken-Profil"
+    },
+    "trend": {
+      "down": "Abwärtstrend",
+      "neutral": "Stabil",
+      "up": "Aufwärtstrend"
+    }
+  },
+  "form": {
+    "chartLegend": {
+      "atl": "Müdigkeit (ATL)",
+      "ctl": "Fitness (CTL)",
+      "ctlMa": "CTL Ø28d",
+      "pause": "Pause ≥5 Tage",
+      "peakCtl": "Peak CTL",
+      "peakValue": "Peak {{value}}",
+      "ride": "Ride",
+      "strength": "Krafttraining",
+      "tsb": "Form (TSB)",
+      "workout": "Workout"
+    },
+    "currentAssessment": "Aktuelle Einschätzung",
+    "errors": {
+      "generic": "Fehler"
+    },
+    "formSummary": {
+      "nearPeak": "Du bist nahe an deiner Bestform ({{ctl}} / {{peak}} CTL).",
+      "normal": "Normaler Trainingszustand – leicht ermüdet, aber voll belastbar.",
+      "overreached": "Deutlich überbelastet – Ruhe bringt jetzt mehr als weiteres hartes Training.",
+      "potential": "Fitness liegt bei {{pct}} % deines Bestwerts ({{peak}} CTL) – noch viel Potenzial.",
+      "raceForm": "Gute Form: ausgeruht genug für intensive Einheiten oder einen Wettkampf.",
+      "rampFalling": "Fitness fällt spürbar ({{ramp}}/Woche) – mehr regelmäßige Einheiten würden helfen.",
+      "rampRising": "Fitness steigt gerade (+{{ramp}} CTL/Woche) – guter Aufbau.",
+      "rampSlightlyFalling": "Fitness geht leicht zurück ({{ramp}}/Woche).",
+      "rampVeryFast": "Fitness steigt sehr schnell (+{{ramp}} CTL/Woche) – bald Erholungswoche einplanen.",
+      "trainingBlock": "Du steckst im Trainingsblock und bist müde. In 1–2 Wochen eine Erholungswoche einplanen.",
+      "veryFresh": "Du bist sehr frisch – wenig Müdigkeit, idealer Zeitpunkt für einen harten oder langen Ride."
+    },
+    "header": {
+      "subtitle": "PMC · hrTSS = Dauer × (avg_HR / Schwellen-HR)² × 100",
+      "subtitleExtra": " · HRmax {{hrMax}} bpm · Schwelle {{threshold}} bpm",
+      "title": "Form & Fitness"
+    },
+    "noData": "Keine Daten. Erst importieren.",
+    "peakFitness": {
+      "label": "Peak Fitness:",
+      "on": "am {{date}}"
+    },
+    "periodToggle": {
+      "all": "Alles",
+      "d90": "90 Tage",
+      "months6": "6 Monate"
+    },
+    "rampZones": {
+      "buildup": "Aufbauphase",
+      "moderate": "moderat",
+      "tooFast": "⚠ zu schnell"
+    },
+    "readingGuide": {
+      "abbreviations": {
+        "atl": "Acute Training Load – 7-Tage-Durchschnitt, reagiert schnell auf Belastung und Ruhe",
+        "ctl": "Chronic Training Load – 42-Tage-Durchschnitt des täglichen Trainingsstresses",
+        "hrtss": "HR-basiertes TSS: Dauer × (Ø-Herzfrequenz / Schwellen-HR)² × 100",
+        "summary": "Abkürzungen erklärt",
+        "tsb": "Training Stress Balance – CTL minus ATL, zeigt ob du frisch oder müde bist"
+      },
+      "atl": {
+        "intro": "ATL zeigt, wie viel du in den letzten 7 Tagen gefordert hast. Dein Stand:",
+        "normal": "Das liegt im normalen Bereich.",
+        "overloaded": "Du hast zuletzt mehr trainiert als dein Langzeitschnitt – der Körper ist gefordert.",
+        "rested": "Du bist gerade deutlich ausgeruht.",
+        "title": "Müdigkeit (ATL) = kurzfristige Schulden"
+      },
+      "ctl": {
+        "intro": "Stell dir CTL wie ein Sparguthaben vor: Regelmäßiges Training zahlt ein, Pausen heben ab. Dein aktueller Stand:",
+        "peakPrefix": "– dein Höchststand war",
+        "peakSuffix": "({{date}}).",
+        "title": "Fitness (CTL) = Konditionskonto"
+      },
+      "title": "Was sagen mir diese Zahlen?",
+      "tsb": {
+        "body": "TSB = Fitness minus Müdigkeit. Positiv heißt frisch, negativ heißt müde. Heute:",
+        "title": "Form (TSB) = verfügbares Guthaben"
+      }
+    },
+    "statCards": {
+      "fatigueLabel": "Müdigkeit (ATL)",
+      "fatigueSub": "7-Tage-EMA · hrTSS",
+      "fitnessLabel": "Fitness (CTL)",
+      "fitnessSub": "42-Tage-EMA · hrTSS",
+      "formLabel": "Form (TSB)",
+      "rampLabel": "Aufbau / Woche"
+    },
+    "tsbZones": {
+      "normal": "Normal",
+      "overreached": "Überbelastet",
+      "raceForm": "Wettkampfform",
+      "trainingBlock": "Trainingsblock",
+      "veryFresh": "Sehr frisch"
+    },
+    "volume": {
+      "cycling": "Radfahren",
+      "noData": "Keine Daten.",
+      "strength": "Krafttraining",
+      "title": "Wöchentliche Trainings-Zusammensetzung",
+      "weeks12": "12 Wo.",
+      "weeks26": "26 Wo.",
+      "weeks52": "52 Wo.",
+      "workout": "Workout"
+    },
+    "zoneSubs": {
+      "normal": "Ruhige Trainingsphase",
+      "overreached": "Verletzungsrisiko",
+      "raceForm": "Optimal für Rennen/Tour",
+      "trainingBlock": "Belastung akkumuliert",
+      "veryFresh": "Evtl. zu wenig Training"
+    }
+  },
+  "heatmap": {
+    "errorFallback": "Fehler",
+    "errorLoadingFallback": "Fehler beim Laden",
+    "gpsPoints": "{{value}} GPS-Punkte",
+    "loadingTrackData": "Lade Track-Daten…",
+    "title": "Heatmap"
+  },
+  "hrcurve": {
+    "curve": {
+      "chart": {
+        "thresholdLabel": "Schwellen-HR"
+      },
+      "context": [
+        {
+          "short": "Maximalsprint",
+          "long": "Kürzestes Fenster — erfasst anaerobe Spitzen (Berg-Sprint, Attacke). Kaum trainierbar, stark genetisch."
+        },
+        {
+          "short": "Hartes Intervall",
+          "long": "VO₂max-Bereich. Mit hochintensiven Intervallen (4×5 min) gezielt trainierbar."
+        },
+        {
+          "short": "Intensiv",
+          "long": "Langes Intervall oder kurze Tempofahrt. Grenzbereich zwischen anaerob und aerob."
+        },
+        {
+          "short": "≈ Schwellen-HR",
+          "long": "Der wichtigste Wert: entspricht ungefähr der Laktatschwellen-HF. Liegt typischerweise bei ~85–92 % HRmax."
+        },
+        {
+          "short": "Dauerleistung",
+          "long": "Aerober Bereich. Wie gut hältst du hohe HF über eine Stunde? Zeigt die aerobe Basis."
+        }
+      ],
+      "explainer": {
+        "body": "Für jedes Zeitfenster (1 min bis 60 min) sucht der Algorithmus in allen deinen Rides den höchsten Durchschnittswert der Herzfrequenz über genau so viele aufeinanderfolgende Sekunden. Das Ergebnis zeigt, wie hoch deine HF bei verschiedenen Belastungsdauern maximal war — ähnlich einer Power-Kurve, aber ohne Leistungsmesser.",
+        "title": "Was zeigt diese Kurve?"
+      },
+      "footerNote": "Berechnung: gleitendes Maximum der Sekunden-HR über alle FIT-Tracks. Nur Aktivitäten mit HR-Daten fließen ein. Kurze Fenster können durch kurze Sprints verzerrt sein — der 20-min-Wert ist am aussagekräftigsten.",
+      "interpretation": {
+        "steepnessFlat": "Sehr flach — starke aerobe Basis, du hältst hohe HF auch über lange Dauer.",
+        "steepnessModerate": "Moderat — gute Balance zwischen Ausdauer und Intensität.",
+        "steepnessSteep": "Steil — große Spitze über kurz, aber HF fällt über längere Dauer stark ab. Mehr Grundlagentraining hilft.",
+        "steepnessTitle": "Kurvensteilheit (1 min → 60 min)",
+        "thresholdBody": "Entspricht deinem 20-min-Bestwert. Die Laktatschwelle liegt typischerweise bei 85–92 % HRmax und markiert den Übergang von aerobem zu anaerobem Stoffwechsel.",
+        "thresholdTitle": "Geschätzte Schwellen-HR"
+      },
+      "trend": {
+        "cardSubtitle": "gesamter Zeitraum",
+        "cardTitle": "Ø Herzfrequenz pro Monat",
+        "legend": {
+          "monthlyAvg": "monatlicher Ø",
+          "onlyHrRides": "Nur Rides mit HR-Daten",
+          "threeMonthAvg": "3M-Schnitt",
+          "trend": "Trend"
+        },
+        "perYearSuffix": "bpm/Jahr",
+        "referenceLabel": "Schwelle",
+        "tooltip": {
+          "avgHr": "Ø HR",
+          "rollingAvg": "3M-Ø"
+        }
+      }
+    },
+    "efficiency": {
+      "chart": {
+        "subtitle": "= Ø km/h ÷ Ø bpm × 100 · mindestens 2 Rides",
+        "title": "Effizienz pro Monat"
+      },
+      "emptyState": "Keine Daten mit HR + Geschwindigkeit gefunden.",
+      "explainer": {
+        "body": "Ein Anstieg bedeutet: dein Herz-Kreislauf-System wird ökonomischer. Die Kurve kann trotz weniger Training steigen (bessere Erholung, leichtere Strecken) – deshalb immer zusammen mit den Volumen-Daten betrachten.",
+        "formula": "Effizienz = Ø km/h ÷ Ø bpm × 100",
+        "formulaSuffix": "je höher, desto mehr Geschwindigkeit bekommst du pro Herzschlag.",
+        "title": "Was ist die Effizienz-Zahl?"
+      },
+      "insight": {
+        "declining": "{{curYear}} bist du {{speedDir}} {{hrDir}} als {{prevYear}} – die Effizienz ist leicht gesunken.",
+        "faster": "{{diff}} km/h schneller",
+        "higherPulse": "bei {{diff}} bpm höherem Puls",
+        "improving": "{{curYear}} fährst du im Schnitt {{speedDir}} {{hrDir}} als {{prevYear}} – deine aerobe Effizienz steigt.",
+        "lowerPulse": "bei {{diff}} bpm niedrigerem Puls",
+        "sameSpeed": "gleich schnell",
+        "similarPulse": "bei ähnlichem Puls",
+        "slower": "{{diff}} km/h langsamer",
+        "stable": "{{curYear}} und {{prevYear}} liegen dicht beieinander – stabile Effizienz auf gutem Niveau."
+      },
+      "labels": {
+        "avgHr": "Ø HR",
+        "avgSpeed": "Ø Speed",
+        "efficiency": "Effizienz"
+      },
+      "rides": "Rides"
+    },
+    "errors": {
+      "generic": "Fehler",
+      "loadFailed": "Fehler beim Laden"
+    },
+    "months": [
+      "Jan",
+      "Feb",
+      "Mär",
+      "Apr",
+      "Mai",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Okt",
+      "Nov",
+      "Dez"
+    ],
+    "page": {
+      "subtitle": "Herzfrequenz-Kurve und aerobe Effizienz",
+      "tabs": {
+        "curve": "HR-Kurve",
+        "efficiency": "Aerobe Effizienz"
+      },
+      "title": "HR-Analyse"
+    },
+    "yearFilter": {
+      "allYears": "Alle Jahre"
+    }
+  },
+  "progress": {
+    "common": {
+      "genericError": "Fehler"
+    },
+    "header": {
+      "subtitle": "Fortschritt · Jahresvergleich · Wochenvolumen · Tageszeit",
+      "title": "Jahresübersicht"
+    },
+    "progressTab": {
+      "cumulativeKmTitle": "Kumulierte km je Jahr",
+      "daysRemaining": "Noch {{days}} Tage",
+      "difference": "Differenz",
+      "forecastBasis": "auf Basis ⌀ {{rate}} km/Tag",
+      "forecastYearEnd": "Prognose Jahresende",
+      "insights": {
+        "fitnessDown": "Fitness-Score zeigt zuletzt eher abwärts: aktuell {{score}} Punkte ({{level}}).",
+        "fitnessFlat": "Fitness-Score stabil bei {{score}} Punkten ({{level}}).",
+        "fitnessUp": "Fitness-Score bestätigt den Aufwärtstrend: aktuell {{score}} Punkte ({{level}}).",
+        "longTermDown": "Langfristig rückläufig: {{first}} noch {{firstKm}} km, {{last}} nur noch {{lastKm}} km ({{pct}}%).",
+        "longTermFlat": "Langfristig auf ähnlichem Niveau: {{first}} {{firstKm}} km, {{last}} {{lastKm}} km.",
+        "longTermUp": "Langfristig klar gesteigert: {{first}} {{firstKm}} km, {{last}} bereits {{lastKm}} km (+{{pct}}%).",
+        "shortTermDown": "Kurzfristig (letzte 12 Wochen) eher rückläufig: Ø {{avgLast}}/Woche, weniger als die 12 Wochen davor ({{avgPrev}}).",
+        "shortTermFlat": "Kurzfristig (letzte 12 Wochen) stabil bei Ø {{avgLast}}/Woche.",
+        "shortTermUp": "Kurzfristig (letzte 12 Wochen) im Aufwärtstrend: Ø {{avgLast}}/Woche, mehr als die 12 Wochen davor ({{avgPrev}})."
+      },
+      "insightsSubtitle": "Langfristig vs. kurzfristig – automatisch aus deinen Daten abgeleitet",
+      "insightsTitle": "Trainingsentwicklung",
+      "kmOpen": "{{km}} km offen",
+      "kmPerYearTitle": "km pro Jahr",
+      "monthlyOverviewTitle": "Monatlicher Gesamtverlauf",
+      "sinceStartOfYear": "{{year}} bis heute",
+      "today": "heute",
+      "tooltip": {
+        "actual": "Ist",
+        "distance": "Distanz",
+        "forecast": "Prognose"
+      },
+      "vsYear": "vs. {{year}} ({{km}} km)",
+      "yearForecastTitle": "Jahresprognose {{year}}"
+    },
+    "tabs": {
+      "progress": "Fortschritt",
+      "timeOfDay": "Tageszeit",
+      "volume": "Volumen",
+      "yearComparison": "Jahresvergleich"
+    },
+    "timeOfDayTab": {
+      "allYears": "Alle Jahre",
+      "blocks": [
+        "Nacht",
+        "Früh",
+        "Morgen",
+        "Vormittag",
+        "Mittag",
+        "Nachmittag",
+        "Abend",
+        "Spätabend"
+      ],
+      "daysFull": [
+        "Montag",
+        "Dienstag",
+        "Mittwoch",
+        "Donnerstag",
+        "Freitag",
+        "Samstag",
+        "Sonntag"
+      ],
+      "daysShort": [
+        "Mo",
+        "Di",
+        "Mi",
+        "Do",
+        "Fr",
+        "Sa",
+        "So"
+      ],
+      "insights": {
+        "peakSlot": "Am liebsten trainierst du {{day}}s {{block}} ({{time}} insgesamt in diesem Slot).",
+        "sameFocus": "Werktags wie am Wochenende trainierst du meist {{block}}.",
+        "weekdayFocus": "Unter der Woche liegt dein Schwerpunkt {{weekdayBlock}}, am Wochenende eher {{weekendBlock}}.",
+        "workoutShare": "Workouts machen {{pct}}% deiner erfassten Trainingszeit aus, Radtouren {{ridePct}}%."
+      },
+      "lessTrainingTime": "Weniger Trainingszeit",
+      "loadError": "Fehler beim Laden",
+      "moreTrainingTime": "Mehr",
+      "noActivity": "Keine Aktivität",
+      "noData": "Keine Daten vorhanden.",
+      "rideCount_one": "{{count}} Ride · {{time}}",
+      "rideCount_other": "{{count}} Rides · {{time}}",
+      "stats": {
+        "activities": "Aktivitäten",
+        "mostActiveTime": "Aktivste Zeit",
+        "rideWorkoutSplit": "Rad / Workout",
+        "totalTrainingTime": "Trainingszeit gesamt"
+      },
+      "workoutCount_one": "{{count}} Workout · {{time}}",
+      "workoutCount_other": "{{count}} Workouts · {{time}}"
+    },
+    "volumeTab": {
+      "currentLabel": "Aktuell",
+      "insights": {
+        "avgPerActiveWeek": "Ø {{avg}} Training pro aktiver Woche ({{activeWeeks}} von {{total}} Wochen aktiv).",
+        "downTrend": "Rückgang: {{avgLast}} Ø/Woche in den letzten {{weeks}} Wochen, weniger als davor ({{avgPrev}}).",
+        "otherShare": "Workouts & Krafttraining machen {{pct}}% deiner erfassten Trainingszeit aus.",
+        "peakWeek": "Stärkste Einzelwoche: {{label}} mit {{value}}.",
+        "stableTrend": "Trainingsumfang der letzten {{weeks}} Wochen ist stabil (Ø {{avgLast}}/Woche).",
+        "upTrend": "Aufwärtstrend: {{avgLast}} Ø/Woche in den letzten {{weeks}} Wochen, mehr als die {{weeks}} Wochen davor ({{avgPrev}})."
+      },
+      "tiles": {
+        "activeWeeks": "Aktive Wochen",
+        "avgWeekActive": "Ø Woche (aktiv)",
+        "bestWeek": "Beste Woche",
+        "rideTotal": "Rad gesamt",
+        "strengthTotal": "Kraft gesamt",
+        "workoutTotal": "Workout gesamt"
+      },
+      "toggleAllYears": "Alle Jahre",
+      "toggleLast52": "Letzte 52 Wochen",
+      "tooltip": {
+        "cycling": "Radfahren",
+        "fixedWeekAvgLabel": "4-Wochen-Ø",
+        "strength": "Kraft",
+        "weekAvg": "{{weeks}}-Wochen-Ø",
+        "weekLabel": "Woche {{date}}",
+        "workout": "Workout"
+      }
+    },
+    "yearComparisonTab": {
+      "activeMonthsStat": "{{count}} aktive Monate · ⌀ {{avg}} km/M"
+    }
+  },
+  "settings": {
+    "advanced": {
+      "atlDaysHint": "Ermüdungs-Glättung (Standard 7)",
+      "atlDaysLabel": "ATL-Zeitkonstante",
+      "bikeKgHint": "Inkl. Anbauteile (Standard 8 kg)",
+      "bikeKgLabel": "Bike-Gewicht (Leistungsschätzung)",
+      "cdaHint": "Rennposition 0.32 · Hoods ~0.36",
+      "cdaLabel": "Luftwiderstand (CdA)",
+      "crrHint": "Rennreifen 0.004 · Gravel/MTB höher",
+      "crrLabel": "Rollwiderstand (Crr)",
+      "ctlDaysHint": "Trainingslast-Glättung (Standard 42)",
+      "ctlDaysLabel": "CTL-Zeitkonstante",
+      "defaultBikeHint": "Fallback für Aktivitäten ohne Strava-Gear-Zuordnung",
+      "defaultBikeLabel": "Standard-Bike",
+      "errors": {
+        "atlDaysRange": "ATL-Zeitkonstante: 3 – 21 Tage",
+        "bikeKgRange": "Bike-Gewicht: 1 – 30 kg",
+        "cdaRange": "Luftwiderstand (CdA): 0.1 – 0.6 m²",
+        "crrRange": "Rollwiderstand (Crr): 0.001 – 0.02",
+        "ctlDaysRange": "CTL-Zeitkonstante: 7 – 90 Tage",
+        "gpsFilterRange": "GPS-Sprung-Filter: 40 – 200 km/h",
+        "matchRadiusRange": "Streckenvergleich-Toleranz: 100 – 2000 m",
+        "thresholdHrRange": "Schwellen-HR: 50 – 100 % HRmax"
+      },
+      "gpsFilterHint": "Kappt Best-Effort-Segmente oberhalb (Standard 90, E-Bike ggf. höher)",
+      "gpsFilterLabel": "GPS-Sprung-Filter",
+      "matchRadiusHint": "GPS-Toleranz je Distanz-Marke (Standard 500 m)",
+      "matchRadiusLabel": "Streckenvergleich-Toleranz",
+      "subtitle": "Physikalische und algorithmische Parameter für Leistungsschätzung, PMC und Streckenvergleich – Standardwerte passen meist, nur bei Bedarf anpassen.",
+      "thresholdHrHint": "Für hrTSS/PMC (Standard 85 %)",
+      "thresholdHrLabel": "Schwellen-HR",
+      "title": "Erweiterte Einstellungen"
+    },
+    "appConfig": {
+      "bezierHint": "0 = gerade · 0.5 = stark gerundet",
+      "bezierLabel": "Kurvenglättung",
+      "bucketsHint": "Farbstufen auf der Aktivitätskarte (5–40)",
+      "bucketsLabel": "Geschwindigkeits-Farbstufen",
+      "errors": {
+        "bezierRange": "Kurvenglättung: 0.0 – 0.5",
+        "bucketsRange": "Farbstufen: 5 – 40",
+        "simplifyRange": "Track-Toleranz: 1 – 20 m",
+        "sparklineRange": "Sparkline-Wochen: 4 – 16",
+        "wearPctRange": "Verschleiß-Warnschwelle: 50 – 100 %"
+      },
+      "simplifyHint": "RDP-Vereinfachung beim Track-Laden (1–20 m)",
+      "simplifyLabel": "Track-Toleranz",
+      "sparklineHint": "Wochen im Dashboard-Verlauf (4–16)",
+      "sparklineLabel": "Sparkline-Wochen",
+      "subtitle": "Anzeigeoptionen und Performance-Parameter",
+      "title": "App-Konfiguration",
+      "wearPctHint": "Ab diesem Verschleiß-% erscheint die Dashboard-Warnung (50–100)",
+      "wearPctLabel": "Verschleiß-Warnschwelle"
+    },
+    "appSync": {
+      "failedPrefix": "– fehlgeschlagen:",
+      "lastSync": "Letzter Sync: {{date}} {{time}}",
+      "notSyncedYet": "Noch nicht synchronisiert.",
+      "subtitle": "Spiegelt die Daten in die Cloud-DB der mobilen App (Neon Postgres). Manuell anstoßen, z.B. nach jedem Strava-Import.",
+      "syncNow": "Jetzt synchronisieren",
+      "syncing": "Synchronisiert…",
+      "title": "WattLoomApp-Sync"
+    },
+    "common": {
+      "saveFailed": "Speichern fehlgeschlagen",
+      "saved": "Gespeichert",
+      "saving": "Speichern…",
+      "unknownError": "Unbekannter Fehler"
+    },
+    "display": {
+      "blockHoursHint": "Blockbreite Tageszeit-Auswertung, muss 24 teilen (Standard 3)",
+      "blockHoursLabel": "Zeitblock-Stunden",
+      "chartHeightCompactHint": "Kleine Trend-Charts, z.B. Dashboard (Standard 140)",
+      "chartHeightCompactLabel": "Chart-Höhe Kompakt",
+      "chartHeightDenseHint": "Dichte Mehrserien-Charts (Standard 220)",
+      "chartHeightDenseLabel": "Chart-Höhe Dicht",
+      "chartHeightHint": "Standard-Analyse-Chart (Standard 200)",
+      "chartHeightLabel": "Chart-Höhe Standard",
+      "chartHeightMiniHint": "Winzige Inline-Sparklines (Standard 100)",
+      "chartHeightMiniLabel": "Chart-Höhe Mini",
+      "colorsHint": "Reihenfolge: Referenz-Track zuerst, dann bis zu 4 Vergleichsfahrten",
+      "colorsLabel": "Streckenvergleich-Farben",
+      "comparisonSimplifyHint": "RDP-Toleranz auf der Streckenvergleich-Seite (Standard 20)",
+      "comparisonSimplifyLabel": "Track-Vereinfachung Vergleich",
+      "errors": {
+        "blockHoursRange": "Zeitblock-Stunden: 1 – 12, muss 24 teilen (z.B. 1, 2, 3, 4, 6, 8, 12)",
+        "chartHeightCompactRange": "Chart-Höhe Kompakt: 80 – 260 px",
+        "chartHeightDenseRange": "Chart-Höhe Dicht: 140 – 360 px",
+        "chartHeightMiniRange": "Chart-Höhe Mini: 60 – 200 px",
+        "chartHeightRange": "Chart-Höhe Standard: 120 – 320 px",
+        "comparisonSimplifyRange": "Track-Vereinfachung Vergleich: 5 – 50 m",
+        "volumeTrendWeeksRange": "Volumen-Trend-Fenster: 2 – 12 Wochen"
+      },
+      "subtitle": "Chart-Höhen, Zeitraster und Streckenvergleich-Farben – Standardwerte passen meist.",
+      "title": "Diagramm & Darstellung",
+      "volumeTrendWeeksHint": "Rolling-Ø-Fenster Volumen-Trendlinie (Standard 4)",
+      "volumeTrendWeeksLabel": "Volumen-Trend-Fenster"
+    },
+    "fitImport": {
+      "fileLabel": "FIT-Datei",
+      "subtitle": "Einzelne .fit-Datei von Garmin, Zepp/Amazfit oder anderen Geräten direkt importieren.",
+      "title": "FIT-Datei importieren"
+    },
+    "goals": {
+      "errors": {
+        "weeklyPositive": "Wochenstunden-Ziel muss größer als 0 sein",
+        "yearlyPositive": "Jahres-km-Ziel muss größer als 0 sein"
+      },
+      "subtitle": "Fortschrittsanzeige im Dashboard – leer lassen zum Deaktivieren",
+      "title": "Trainingsziele",
+      "weeklyHint": "Rad + Workout + Kraft zusammen",
+      "weeklyLabel": "Wochenziel",
+      "yearlyLabel": "Jahresziel"
+    },
+    "gpxImport": {
+      "fileLabel": "GPX-Datei",
+      "subtitle": "Einzelne .gpx-Datei von Garmin, Komoot, Strava oder anderen Quellen direkt importieren.",
+      "title": "GPX-Datei importieren"
+    },
+    "hrCorrection": {
+      "disclaimer": "Betablocker dämpfen den Herzfrequenz-Anstieg unter Belastung – die reale Anstrengung kann höher sein, als die gemessene HF zeigt. Dieser Wert ist eine grobe, von dir selbst kalibrierte Näherung, keine medizinisch hergeleitete Korrektur. Betrifft HF-Zonen, Trainingsverteilung, Form (PMC) und Fitness-Fingerprint – die aerobe Effizienz (Speed/HF) bleibt bewusst unverändert, da sie eine gemessene Kennzahl abbildet.",
+      "enableLabel": "Korrektur aktivieren",
+      "errors": {
+        "pctRange": "Korrektur muss zwischen 0 und 30 % liegen"
+      },
+      "pctHint": "Prozentpunkte, die auf deine %HFmax-Berechnung aufgeschlagen werden",
+      "pctLabel": "Korrektur",
+      "sinceHint": "Nur Fahrten ab diesem Datum werden korrigiert, z.B. Beginn der Medikation",
+      "sinceLabel": "Gültig ab (optional)",
+      "subtitle": "Für Sportler unter Betablockern (z.B. Bisoprolol) – die HF-Antwort auf Belastung ist gedämpft",
+      "title": "Herzfrequenz-Korrektur"
+    },
+    "import": {
+      "confirmTextAfterStrong": ", dann importieren.",
+      "confirmTextBeforeStrong": "Zuerst",
+      "confirmTextIntro": "Ein erneuter Import dupliziert Track-Punkte, Laps und Streckenvergleiche.",
+      "confirmTextStrong": "Datenbank zurücksetzen",
+      "confirmTitle": "⚠ Datenbank enthält bereits Aktivitäten",
+      "done": "Abgeschlossen",
+      "error": "Fehler beim Import",
+      "importAnyway": "Trotzdem importieren",
+      "running": "Import läuft…",
+      "startButton": "Import starten",
+      "startError": "Fehler beim Starten",
+      "subtitlePrefix": "Neuen Strava-Export in den",
+      "subtitleSuffix": "Ordner legen, dann Import starten – die neueste ZIP wird automatisch erkannt.",
+      "title": "Daten importieren"
+    },
+    "importCommon": {
+      "bikeLabel": "Bike",
+      "bikeOptionalHint": "(optional, nur für Radtouren)",
+      "importButton": "Importieren",
+      "importing": "Importiere…",
+      "noBikeOption": "– kein Rad / Workout –",
+      "openActivity": "Aktivität öffnen →",
+      "openWorkouts": "Workouts öffnen →"
+    },
+    "language": {
+      "alreadyTranslated": "bereits übersetzt, wird überschrieben",
+      "exportButton": "Übersetzung exportieren",
+      "exportHint": "lädt die aktuell ausgewählte Sprache als JSON herunter",
+      "importBusy": "Importiere…",
+      "importError": "Import fehlgeschlagen",
+      "importLangPlaceholder": "Sprache für Import wählen…",
+      "importSuccess": "Import erfolgreich.",
+      "title": "Sprache / Language",
+      "translateHint": "Fehlt deine Sprache? Deutsche Übersetzung exportieren, extern übersetzen (z. B. per ChatGPT/DeepL) und als neue Sprache wieder einspielen."
+    },
+    "license": {
+      "activateButton": "Aktivieren",
+      "activateSuccess": "Lizenz aktiviert.",
+      "activating": "Prüfe…",
+      "keyPlaceholder": "WLM1....",
+      "licensedFor": "Lizenziert für {{customer}}",
+      "subtitle": "Status deines Testzeitraums bzw. deiner Lizenz.",
+      "title": "Lizenz",
+      "trialActive": "Testzeitraum: noch {{days}} Tage",
+      "trialExpired": "Testzeitraum abgelaufen"
+    },
+    "pageSubtitle": "Persönliche Daten · Import · Datenbank",
+    "pageTitle": "Einstellungen",
+    "personalData": {
+      "birthYearInfo": "{{year}} · {{age}} Jahre",
+      "birthYearLabel": "Geburtsjahr",
+      "errors": {
+        "birthYearRange": "Geburtsjahr muss zwischen 1920 und 2010 liegen",
+        "hrMaxRange": "HRmax muss zwischen 100 und 240 bpm liegen",
+        "weightRange": "Gewicht muss zwischen 30 und 200 kg liegen"
+      },
+      "hrMaxHint": "Für hrTSS- und PMC-Berechnungen (Standard 185)",
+      "hrMaxLabel": "HRmax",
+      "subtitle": "Für w/kg-Berechnungen",
+      "timezoneAuto": "Auto (Systemzeit)",
+      "timezoneCest": "+2h (CEST – Sommer)",
+      "timezoneCet": "+1h (CET – Winter)",
+      "timezoneHint": "Aktivitätszeiten sind in UTC. Auto nutzt die Browser-Zeitzone.",
+      "timezoneLabel": "Zeitzone",
+      "title": "Persönliche Daten",
+      "weightLabel": "Körpergewicht",
+      "weightSaved": "{{value}} kg gespeichert"
+    },
+    "power": {
+      "backgroundSuffix": "– läuft im Hintergrund.",
+      "estimateButton": "Leistung für alle Fahrten schätzen",
+      "starting": "Startet…",
+      "subtitle": "Berechnet Durchschnittsleistung und Normalized Power aus GPS + Höhenprofil für alle Radtouren mit Track-Daten. Physikalisches Modell: Rollwiderstand (Crr 0.004), Luftwiderstand (CdA 0.32 m²), Steigungsarbeit. Genauigkeit ca. ±15 % – Wind wird nicht berücksichtigt. Setzt voraus, dass Körpergewicht gesetzt ist.",
+      "title": "Leistung schätzen"
+    },
+    "reset": {
+      "backupSavedPrefix": "Backup vorher gesichert:",
+      "clearButton": "Datenbank leeren",
+      "confirmText": "Alle importierten Daten werden unwiderruflich gelöscht. Wirklich fortfahren?",
+      "confirmYes": "Ja, jetzt leeren",
+      "deleting": "Lösche…",
+      "done": "Datenbank wurde geleert.",
+      "genericError": "Fehler beim Zurücksetzen",
+      "genericFailure": "Fehler",
+      "subtitle": "Löscht alle Aktivitäten, Tracks, Laps und Bikes – persönliche Einstellungen bleiben erhalten.",
+      "title": "Datenbank zurücksetzen"
+    },
+    "tabs": {
+      "general": "Allgemein",
+      "imports": "Importe"
+    },
+    "tcxImport": {
+      "fileLabel": "TCX-Datei",
+      "subtitle": "Einzelne .tcx-Datei von Amazfit/Mi Fitness, Garmin oder anderen Geräten direkt importieren.",
+      "title": "TCX-Datei importieren"
+    },
+    "units": {
+      "bpm": "bpm",
+      "days": "Tage",
+      "hours": "h",
+      "hoursPerWeek": "h / Woche",
+      "kg": "kg",
+      "kmPerYear": "km / Jahr",
+      "kmh": "km/h",
+      "m": "m",
+      "m2": "m²",
+      "percent": "%",
+      "percentHrMax": "% HRmax",
+      "px": "px",
+      "weeks": "Wochen"
+    },
+    "weather": {
+      "allDone": "Alle Aktivitäten haben Wetterdaten.",
+      "errorsCount_one": "{{count}} Fehler",
+      "errorsCount_other": "{{count}} Fehler",
+      "fetchButton": "Wetterdaten abrufen",
+      "fetchingProgress": "Abrufen… {{done}} / {{total}}",
+      "missing": "({{count}} fehlen noch)",
+      "running": "Läuft…",
+      "statusJoiner": "von",
+      "statusSuffix": "Aktivitäten haben Wetterdaten",
+      "subtitle": "Temperatur, Wind und Niederschlag für jede Aktivität von Open-Meteo (kostenlos, kein API-Key).",
+      "title": "Wetterdaten abrufen"
+    }
+  },
+  "speedtrend": {
+    "errors": {
+      "loadFailed": "Fehler beim Laden",
+      "noData": "Keine Daten verfügbar."
+    },
+    "heatmap": {
+      "cellTitle_one": "{{month}} {{year}}: {{speed}} km/h · {{count}} Ride",
+      "cellTitle_other": "{{month}} {{year}}: {{speed}} km/h · {{count}} Rides",
+      "legendFast": "schnell",
+      "legendSlow": "langsam",
+      "monthsShort": [
+        "Jan",
+        "Feb",
+        "Mär",
+        "Apr",
+        "Mai",
+        "Jun",
+        "Jul",
+        "Aug",
+        "Sep",
+        "Okt",
+        "Nov",
+        "Dez"
+      ],
+      "subtitle": "Ø-Geschwindigkeit je Monat und Jahr · Blau = langsam → Orange = schnell · Leer = keine Ausfahrten",
+      "title": "Saison-Heatmap"
+    },
+    "insights": {
+      "bestYearCurrent": "{{year}} ist bisher dein schnellstes Jahr (Ø {{avg}} km/h, {{rides}} Rides).",
+      "bestYearPast": "Schnellstes Jahr: {{year}} mit Ø {{avg}} km/h. Schaffst du das nochmal?",
+      "longTermDown": "Langzeittrend seit {{year}}: −{{value}} km/h Ø – etwas langsamer als damals.",
+      "longTermFlat": "Langzeittrend seit {{year}}: Ø-Geschwindigkeit nahezu konstant geblieben.",
+      "longTermUp": "Langzeittrend seit {{year}}: +{{value}} km/h Ø – klare Entwicklung nach oben.",
+      "seasonalEffect": "Saisonaler Effekt: Im Sommer bist du {{diff}} km/h schneller als im Winter (Ø {{summer}} vs. {{winter}} km/h).",
+      "seasonalUnusual": "Ungewöhnlich: Im Winter fährst du im Schnitt schneller als im Sommer.",
+      "yearTrendDown": "{{year}}: −{{value}} km/h gegenüber {{prevYear}} – leichter Rückgang.",
+      "yearTrendFlat": "{{year}}: Ø-Geschwindigkeit auf gleichem Niveau wie {{prevYear}}.",
+      "yearTrendUp": "{{year}}: +{{value}} km/h gegenüber {{prevYear}} – du wirst schneller."
+    },
+    "kpi": {
+      "bestRide": "Schnellste Fahrt",
+      "bestRideFallback": "km/h Maximalwert",
+      "currentYear": "Aktuelles Jahr",
+      "period": "Zeitraum",
+      "periodSub": "{{years}} Jahre · {{rides}} Rides",
+      "totalAvg": "Gesamt-Ø",
+      "totalAvgSub": "km/h · {{count}} Rides",
+      "vsPreviousYear": "{{value}} km/h vs. Vorjahr"
+    },
+    "pageHeader": {
+      "subtitle": "Entwicklung der Durchschnittsgeschwindigkeit über alle Radtouren",
+      "subtitleShort": "Entwicklung der Durchschnittsgeschwindigkeit",
+      "title": "Tempoentwicklung"
+    },
+    "tooltip": {
+      "distance": "Distanz",
+      "elevation": "Höhenmeter",
+      "rides": "Rides",
+      "rollingAvg": "Gleitender Ø (20)",
+      "speed": "Geschwindigkeit",
+      "yearAvgSpeed": "Ø Geschwindigkeit"
+    },
+    "trendChart": {
+      "avgReferenceLine": "Ø {{value}} km/h",
+      "legendOverallAvg": "Gesamt-Ø",
+      "legendRolling": "Gleitender Ø (20)",
+      "legendSingleRide": "Einzelfahrt",
+      "subtitle": "Jeder Punkt = eine Ausfahrt · Linie = Gleitender Ø (20 Rides) · Gestrichelt = Gesamt-Ø",
+      "title": "Geschwindigkeitsverlauf"
+    },
+    "yearChart": {
+      "subtitle": "Ø-Geschwindigkeit je Jahr · Pfeile zeigen Veränderung zum Vorjahr",
+      "title": "Jahresvergleich"
+    }
+  },
+  "strecken": {
+    "emptyState": {
+      "hintButton": "Ähnliche vergleichen",
+      "hintPrefix": "Auf einer Aktivitäts-Detailseite auf",
+      "hintSuffix": "klicken, um sie hier als Referenz zu setzen.",
+      "noActivitySelected": "Keine Aktivität ausgewählt.",
+      "toActivities": "Zu den Aktivitäten →"
+    },
+    "errors": {
+      "loadFailed": "Fehler beim Laden"
+    },
+    "header": {
+      "title": "Streckenvergleich"
+    },
+    "list": {
+      "noneFound": "Keine ähnlichen Aktivitäten gefunden.",
+      "pathMatchTooltip": "Streckenübereinstimmung (Trackpunkt-Abgleich)",
+      "referenceLabel": "Referenz",
+      "selectedSuffix": "· {{count}} ausgewählt",
+      "similarLabel": "Ähnliche ({{count}})"
+    },
+    "loading": "Lade…",
+    "profile": {
+      "elevationTitle": "Höhenprofil",
+      "hrTitle": "Herzfrequenz über Distanz",
+      "speedTitle": "Geschwindigkeit über Distanz"
+    },
+    "reference": {
+      "prefix": "Referenz:"
+    },
+    "table": {
+      "activity": "Aktivität",
+      "avgHr": "Ø HR",
+      "avgSpeed": "Ø Speed",
+      "bestEfficiencyTooltip": "Beste aerobe Effizienz (Speed/HF)",
+      "bestSpeedTooltip": "Schnellste Ø-Geschwindigkeit",
+      "date": "Datum",
+      "deltaSpeed": "Δ Speed",
+      "deltaTime": "Δ Zeit",
+      "distance": "Distanz",
+      "elevation": "Hm",
+      "referenceNoDeltaTooltip": "Referenz – keine Differenz",
+      "temp": "Temp",
+      "time": "Zeit",
+      "wind": "Wind"
+    }
+  },
+  "tempcorr": {
+    "chart": {
+      "efficiencyCaption": "Höher = mehr km/h pro Herzschlag = du fährst effizienter. ★ markiert den Sweet Spot.",
+      "efficiencyFormula": "(Geschwindigkeit ÷ Herzfrequenz × 100)",
+      "efficiencyTitle": "Effizienz-Index",
+      "legendHeartRate": "Herzfrequenz",
+      "legendSpeed": "Geschwindigkeit",
+      "legendSweetSpot": "= Sweet Spot",
+      "mainTitle": "Ø Geschwindigkeit & Herzfrequenz je Temperaturbereich"
+    },
+    "disclaimer": "Korrelation, keine Kausalität – Temperatur, Jahreszeit und Trainingsform sind eng verknüpft. Die Werte spiegeln Muster in deinen Daten wider, erlauben aber keine direkten Rückschlüsse auf den Einfluss der Temperatur allein.",
+    "emptyState": "Keine Wetterdaten vorhanden – bitte zuerst in den Einstellungen „Wetterdaten abrufen\" starten.",
+    "errorFallback": "Fehler",
+    "kpi": {
+      "calmestDetail": "Ø {{hr}} bpm · {{count}} Rides",
+      "calmestRange": "Entspanntester Bereich",
+      "fastestDetail": "Ø {{speed}} km/h · {{count}} Rides",
+      "fastestRange": "Schnellster Bereich",
+      "sweetSpot": "Sweet Spot ★",
+      "sweetSpotDetail": "Effizienz {{efficiency}} · {{count}} Rides"
+    },
+    "subtitle": "Temperatur und Wind aus Open-Meteo · {{count}} Rides mit Wetterdaten",
+    "table": {
+      "avgHr": "Ø HR",
+      "avgSpeed": "Ø Speed",
+      "efficiency": "Effizienz",
+      "rides": "Rides",
+      "temperature": "Temperatur",
+      "title": "Übersicht nach Temperaturbereich"
+    },
+    "title": "Wetter & Leistung",
+    "tooltip": {
+      "avgHr": "Ø Herzfrequenz: {{value}} bpm",
+      "avgSpeed": "Ø Geschwindigkeit: {{value}} km/h",
+      "efficiency": "Effizienz: {{value}}",
+      "rides": "{{count}} Rides"
+    },
+    "wind": {
+      "fastestSegmentPrefix": "Schnellstes Segment:",
+      "fastestSegmentSuffix": "mit Ø {{speed}} km/h ({{count}} Rides)",
+      "subtitle": "Ø Geschwindigkeit & Herzfrequenz je Windstärke",
+      "title": "Wind-Impact"
+    }
+  },
+  "weekend": {
+    "charts": {
+      "avgDistancePerWeekday": "Ø Distanz pro Wochentag",
+      "km": "km",
+      "monthlyProgression": "Monatsverlauf · km Werktag vs. Wochenende",
+      "ridesPerWeekday": "Rides pro Wochentag"
+    },
+    "duel": {
+      "rides": "Rides",
+      "weekdayLabel": "Werktag",
+      "weekendLabel": "Wochenende"
+    },
+    "legend": {
+      "weekday": "Werktag",
+      "weekend": "Wochenende"
+    },
+    "metrics": {
+      "avgCalories": "Ø Kalorien",
+      "avgDistance": "Ø Distanz",
+      "avgDuration": "Ø Dauer",
+      "avgElevation": "Ø Höhenmeter",
+      "avgHeartRate": "Ø Herzfrequenz",
+      "avgSpeed": "Ø Geschw.",
+      "rides": "Rides",
+      "totalKm": "Gesamt-km"
+    },
+    "subtitle": "Wie unterscheiden sich Samstag/Sonntag von Montag–Freitag?",
+    "title": "Wochenend- vs. Werktagsvergleich",
+    "tooltip": {
+      "avgDistance": "Ø Distanz",
+      "avgSpeed": "Ø Speed",
+      "rides": "Rides",
+      "weekday": "Werktag",
+      "weekend": "Wochenende"
+    },
+    "weekday": {
+      "fri": "Fr",
+      "mon": "Mo",
+      "sat": "Sa",
+      "sun": "So",
+      "thu": "Do",
+      "tue": "Di",
+      "wed": "Mi"
+    }
+  },
+  "workoutdetail": {
+    "back": "Zurück",
+    "backButton": "Zurück zur Liste",
+    "comparison": {
+      "avgHr": "Ø HR",
+      "calories": "Kalorien",
+      "duration": "Dauer",
+      "minutesShort": "min",
+      "title": "Diese Einheit vs. Ø aller {{sport}}-Einheiten",
+      "vsAvg": "vs. Ø"
+    },
+    "dateTime": {
+      "timeSuffix": " Uhr"
+    },
+    "error": "Fehler",
+    "gauge": {
+      "label": "Intensität",
+      "stats": "Ø {{avgHr}} bpm · Max {{maxHr}} bpm",
+      "title": "Intensität",
+      "zones": {
+        "aerobic": "Aerob · Zone 3",
+        "easy": "Locker · Zone 2–3",
+        "max": "Maximal · Zone 5",
+        "threshold": "Schwellenbereich · Zone 4",
+        "veryEasy": "Sehr locker · Zone 1–2"
+      }
+    },
+    "history": {
+      "calories": "Kalorien",
+      "duration": "Dauer",
+      "title": "Verlauf · {{count}} Einheiten"
+    },
+    "kpi": {
+      "avgHr": "Ø Herzfrequenz",
+      "calories": "Kalorien",
+      "caloriesPerHour": "≈ {{value}} kcal/h",
+      "duration": "Dauer",
+      "durationSub": "{{minutes}} Minuten",
+      "maxHr": "Max Herzfrequenz"
+    },
+    "notFound": "Workout nicht gefunden",
+    "totalTime": "({{time}} gesamt)"
+  },
+  "wrapped": {
+    "charts": {
+      "monthlyProgression": "Monatsverlauf {{year}}",
+      "ridesByHour": "Fahrten nach Tageszeit",
+      "ridesByWeekday": "Fahrten nach Wochentag"
+    },
+    "errorLoading": "Fehler beim Laden der Daten.",
+    "highlights": {
+      "bestMonth": "Bester Monat",
+      "bestWeek": "Beste Woche",
+      "fastestRide": "Schnellste Fahrt",
+      "favoriteBike": "Lieblingsbike",
+      "longestRide": "Längste Fahrt",
+      "longestStreak": "Längste Streak",
+      "mostElevation": "Meiste Höhenmeter"
+    },
+    "monthNames": [
+      "Jan",
+      "Feb",
+      "Mär",
+      "Apr",
+      "Mai",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Okt",
+      "Nov",
+      "Dez"
+    ],
+    "noData": "Keine Daten für dieses Jahr.",
+    "stats": {
+      "elevation": "Höhenmeter",
+      "hours": "Stunden",
+      "km": "Kilometer",
+      "rides": "Fahrten"
+    },
+    "subline": {
+      "days": "Tage",
+      "rides": "Fahrten",
+      "since": "ab"
+    },
+    "title": "Jahresrückblick",
+    "titleWithYear": "Jahresrückblick {{year}}",
+    "tooltip": {
+      "distance": "Distanz"
+    },
+    "weekdayNames": [
+      "Mo",
+      "Di",
+      "Mi",
+      "Do",
+      "Fr",
+      "Sa",
+      "So"
+    ]
+  },
+  "zonedist": {
+    "charts": {
+      "breakdown": "Zonen-Aufschlüsselung (gesamter Zeitraum)",
+      "monthly": "Zonen-Zeit pro Monat"
+    },
+    "empty": "Keine Herzfrequenz-Daten im gewählten Zeitraum gefunden.",
+    "insightSubtitle": "Automatisch aus deiner Zonen-Zeit abgeleitet",
+    "insightTitle": "Einschätzung",
+    "insights": {
+      "lowEasyShare": "Nur {{pct}}% deiner Zeit liegt im lockeren Bereich (Zone 1–2). Mehr Grundlagenkilometer würden die aerobe Basis stärken und die Erholung zwischen harten Einheiten verbessern.",
+      "neutral": "Deine Zonen-Verteilung zeigt aktuell kein eindeutiges Muster – für eine verlässliche Einschätzung sind mehr Fahrten mit Herzfrequenz-Daten nötig.",
+      "tooMuchGreyZone": "{{pct}}% deiner Zeit liegt in Zone 3 – der klassischen „Grauzone“, die weder Grundlage aufbaut noch echte Intensitätsreize setzt. Öfter bewusst ganz locker oder ganz hart fahren.",
+      "wellPolarized": "Gute Polarisierung: {{pct}}% deiner Trainingszeit liegt im lockeren Bereich (Zone 1–2) – ein bewährtes Muster für nachhaltigen Formaufbau."
+    },
+    "subtitle": "Wie viel Grundlage, Tempo und harte Intensität steckt in deinem Training?",
+    "summary": {
+      "easyHint": "Zone 1–2 · locker & regenerativ",
+      "easyLabel": "Grundlage",
+      "hardHint": "Zone 4–5 · Schwelle & VO2max",
+      "hardLabel": "Hart",
+      "moderateHint": "Zone 3 · weder locker noch hart",
+      "moderateLabel": "Grauzone"
+    },
+    "title": "Trainingsverteilung",
+    "zoneLabel": {
+      "endurance": "Grundlage",
+      "recovery": "Regeneration",
+      "tempo": "Tempo",
+      "threshold": "Schwelle",
+      "vo2max": "VO2max"
+    }
+  }
+}

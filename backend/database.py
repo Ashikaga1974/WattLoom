@@ -3,13 +3,16 @@ SQLite-Schema für WattLoom.
 Alle Tabellen werden hier angelegt; keine Migrations-Library – simples CREATE IF NOT EXISTS.
 """
 
+import json
 import sqlite3
 from contextlib import contextmanager
 from typing import Generator
 
-from backend.paths import DB_PATH, ensure_data_dirs
+from backend.paths import DB_PATH, RESOURCE_DIR, ensure_data_dirs
 
 ensure_data_dirs()
+
+SEED_DATA_DIR = RESOURCE_DIR / "backend" / "seed_data"
 
 
 @contextmanager
@@ -529,6 +532,43 @@ def init_db() -> None:
         # purchase_items-Datenübernahme oben) beim conn.close() stillschweigend zurückgerollt,
         # obwohl die dazwischenliegenden ALTER TABLE-Statements erfolgreich gelaufen sind.
         conn.commit()
+
+        _seed_translations_if_empty(conn)
+
+
+def _flatten_translations(obj: dict, prefix: str = "") -> dict[str, str]:
+    flat: dict[str, str] = {}
+    for k, v in obj.items():
+        dotted_key = f"{prefix}.{k}" if prefix else k
+        if isinstance(v, dict):
+            flat.update(_flatten_translations(v, dotted_key))
+        else:
+            flat[dotted_key] = v
+    return flat
+
+
+def _seed_translations_if_empty(conn) -> None:
+    """Befüllt eine frische Installation (neue Kunden-DB, kein seed_translations.py mehr seit
+    Session 2026-08-20) mit den DE/EN-Übersetzungen aus backend/seed_data/ – sonst bliebe die
+    komplette UI ohne jeden Text, da translations die einzige Quelle für i18next ist (siehe
+    backend/api/translations.py). Läuft nur, wenn die Tabelle wirklich leer ist, überschreibt
+    also nie eigene Anpassungen/importierte Sprachen."""
+    count = conn.execute("SELECT COUNT(*) FROM translations").fetchone()[0]
+    if count > 0:
+        return
+
+    for lang in ("de", "en"):
+        seed_file = SEED_DATA_DIR / f"translations_{lang}.json"
+        if not seed_file.is_file():
+            continue
+        payload = json.loads(seed_file.read_text(encoding="utf-8"))
+        for ns, nested in payload.items():
+            for key, value in _flatten_translations(nested).items():
+                conn.execute(
+                    "INSERT INTO translations(lang, ns, key, value) VALUES (?, ?, ?, ?)",
+                    (lang, ns, key, json.dumps(value)),
+                )
+    conn.commit()
 
     print(f"DB initialisiert: {DB_PATH}")
 
