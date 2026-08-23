@@ -16,7 +16,7 @@ import {
   LabelList,
   ResponsiveContainer,
 } from 'recharts';
-import { api, type SpeedTrendData } from '@/lib/api';
+import { api, type SpeedTrendData, type SpeedTrendMonth } from '@/lib/api';
 import { useConfig } from '@/lib/config-context';
 import { PageHeader } from '@/components/ui/page-header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -177,7 +177,7 @@ export default function SpeedTrendPage() {
   // Heatmap-Daten aufbereiten
   const { heatmapMap, heatmapYears, heatmapMin, heatmapMax } = useMemo(() => {
     if (!data?.monthly_heatmap.length) {
-      return { heatmapMap: new Map<string, typeof data.monthly_heatmap[0]>(), heatmapYears: [] as number[], heatmapMin: 0, heatmapMax: 40 };
+      return { heatmapMap: new Map<string, SpeedTrendMonth>(), heatmapYears: [] as number[], heatmapMin: 0, heatmapMax: 40 };
     }
     const map = new Map(data.monthly_heatmap.map(m => [m.month, m]));
     const years = Array.from(new Set(data.monthly_heatmap.map(m => parseInt(m.month.slice(0, 4))))).sort() as number[];

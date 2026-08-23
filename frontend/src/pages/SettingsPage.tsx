@@ -1962,7 +1962,7 @@ export default function SettingsPage() {
           >
             {weatherFetching || weatherStatus?.running ? ts('weather.running') : ts('weather.fetchButton')}
           </button>
-          {weatherStatus?.with_weather === weatherStatus?.total_activities && weatherStatus?.total_activities > 0 && !weatherStatus?.running && (
+          {weatherStatus?.with_weather === weatherStatus?.total_activities && (weatherStatus?.total_activities ?? 0) > 0 && !weatherStatus?.running && (
             <p className="text-xs text-green-600">{ts('weather.allDone')}</p>
           )}
         </CardContent>

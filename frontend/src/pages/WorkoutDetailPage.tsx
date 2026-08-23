@@ -203,7 +203,7 @@ function Delta({ label, current, avg, unit, isTime = false, t }: {
 
 type ChartMetric = 'dauer' | 'kalorien';
 
-function VerlaufTooltip({ active, payload, metric, t }: { active?: boolean; payload?: any[]; metric: ChartMetric; t: TFunction<'workoutdetail'> }) {
+function VerlaufTooltip({ active, payload, metric, t }: { active?: boolean; payload?: readonly any[]; metric: ChartMetric; t: TFunction<'workoutdetail'> }) {
   if (!active || !payload?.length) return null;
   const d = payload[0]?.payload;
   const value = metric === 'dauer'

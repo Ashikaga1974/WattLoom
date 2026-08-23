@@ -154,9 +154,10 @@ function useChartHover(
   points: TrackPoint[],
   onHover?: HoverFn
 ) {
-  function handleMouseMove(e: { activeTooltipIndex?: number }) {
+  function handleMouseMove(e: { activeTooltipIndex?: number | string | null }) {
     if (!onHover || e.activeTooltipIndex == null) return;
-    const pt = points[data[e.activeTooltipIndex]?.origIdx];
+    const idx = Number(e.activeTooltipIndex);
+    const pt = points[data[idx]?.origIdx];
     if (pt?.lat != null && pt?.lon != null) onHover({ lat: pt.lat, lon: pt.lon });
   }
   function handleMouseLeave() { onHover?.(null); }
@@ -339,7 +340,12 @@ export default function ActivityDetailPage() {
   const [activeDistKm, setActiveDistKm] = useState<number | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [weightKg, setWeightKg] = useState<number | null>(null);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    api.getSettings().then(s => setWeightKg(s.weight_kg)).catch(() => {});
+  }, []);
 
   // setHoverFn wird von LeafletMap via onReady gesetzt und von den Charts direkt aufgerufen
   const setHoverFnRef = useRef<SetHoverFn | null>(null);
@@ -594,8 +600,8 @@ export default function ActivityDetailPage() {
             const parts: string[] = [];
             if (activity.est_norm_power_w)
               parts.push(`NP ~${Math.round(activity.est_norm_power_w)} W`);
-            if (config.weight_kg && config.weight_kg > 0)
-              parts.push(`${(activity.est_avg_power_w / config.weight_kg).toFixed(2)} W/kg`);
+            if (weightKg && weightKg > 0)
+              parts.push(`${(activity.est_avg_power_w / weightKg).toFixed(2)} W/kg`);
             return (
               <StatTileSecondary
                 label={t('stats.estPower')}
