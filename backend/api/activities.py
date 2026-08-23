@@ -1,15 +1,12 @@
-from pathlib import Path
-
 from fastapi import APIRouter, Query
 from backend.api.errors import api_error
 from backend.database import db_connection
+from backend.paths import MEDIA_DIR
 from backend.utils import (
     haversine_km as _haversine_km,
     track_distance_index,
     path_match_fraction,
 )
-
-MEDIA_DIR = Path(__file__).parent.parent.parent / "data" / "media"
 
 router = APIRouter(prefix="/activities", tags=["activities"])
 

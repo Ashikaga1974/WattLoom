@@ -8,10 +8,9 @@ from pydantic import BaseModel
 
 from backend.api.errors import api_error
 from backend.database import db_connection
+from backend.paths import BIKE_IMAGES_DIR
 
 router = APIRouter(prefix="/bikes", tags=["bikes"])
-
-BIKE_IMAGES_DIR = Path(__file__).parent.parent.parent / "data" / "bike_images"
 
 
 def _current_bike_km(conn, bike_id: str) -> float:

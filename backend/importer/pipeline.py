@@ -13,10 +13,9 @@ from typing import Any
 
 from backend.database import db_connection, init_db
 from backend.importer.sport_codes import is_ride_sport, to_sport_code
+from backend.paths import DOWNLOAD_DIR, MEDIA_DIR
 
 logger = logging.getLogger(__name__)
-
-DOWNLOAD_DIR = Path(__file__).parent.parent.parent / "download"
 
 # Aktivitäten ohne Bike-Zuordnung in Strava bekommen dieses Bike als Fallback.
 DEFAULT_BIKE_ID = "stevens"
@@ -387,8 +386,6 @@ def import_routes(zf: zipfile.ZipFile) -> None:
 # ---------------------------------------------------------------------------
 # Media-Metadaten
 # ---------------------------------------------------------------------------
-
-MEDIA_DIR = Path(__file__).parent.parent.parent / "data" / "media"
 
 
 def import_media(zf: zipfile.ZipFile, media_map: dict[str, int]) -> None:

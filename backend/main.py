@@ -1,14 +1,15 @@
 import logging
-from pathlib import Path
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 
 from backend.api import activities, tracks, bikes, heatmap, analytics, settings, importer, zones, weather, purchases, storage_locations, app_sync, translations, license as license_api
 from backend.database import db_connection, init_db
 from backend.licensing.state import ensure_trial_started, has_access
+from backend.paths import FRONTEND_DIST_DIR, LOG_FILE, MEDIA_DIR
 
-_LOG_FILE = Path(__file__).parent.parent / "data" / "mybiking.log"
+_LOG_FILE = LOG_FILE
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s %(levelname)-8s %(name)s  %(message)s",
@@ -31,14 +32,20 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Endpunkte, die auch ohne aktive Lizenz/Trial erreichbar bleiben müssen –
-# sonst könnte die UI nicht mal den Lizenzstatus/die Aktivierung anzeigen.
-_LICENSE_EXEMPT_PATHS = {"/health", "/license/status", "/license/activate"}
+# Allowlist statt Denylist: nur echte Daten-API-Pfade werden gesperrt. Alles andere
+# (Frontend-Static-Files, /health, /license/*) muss immer erreichbar bleiben – sonst
+# könnte die UI nicht mal den Sperr-Bildschirm selbst laden (Henne-Ei-Problem beim
+# gebündelten Frontend, siehe StaticFiles-Mount unten).
+_PROTECTED_PREFIXES = (
+    "/activities", "/tracks", "/bikes", "/analytics", "/settings",
+    "/import", "/weather", "/purchases", "/storage-locations",
+    "/app-sync", "/translations", "/media",
+)
 
 
 @app.middleware("http")
 async def license_gate(request: Request, call_next):
-    if request.method == "OPTIONS" or request.url.path in _LICENSE_EXEMPT_PATHS:
+    if request.method == "OPTIONS" or not request.url.path.startswith(_PROTECTED_PREFIXES):
         return await call_next(request)
     with db_connection() as conn:
         allowed = has_access(conn)
@@ -66,9 +73,6 @@ app.include_router(app_sync.router)
 app.include_router(translations.router)
 
 
-MEDIA_DIR = Path(__file__).parent.parent / "data" / "media"
-
-
 @app.get("/media/{filename}")
 def serve_media(filename: str):
     path = MEDIA_DIR / filename
@@ -80,3 +84,18 @@ def serve_media(filename: str):
 @app.get("/health")
 def health():
     return {"status": "ok"}
+
+
+# Gebautes Frontend (frontend/dist) ausliefern – nur wenn vorhanden. Im Dev-Betrieb läuft
+# das Frontend über den separaten Vite-Server (Port 5173), dieses Mount greift dann nie.
+# In der gebündelten .exe (siehe launcher.py) ist das der einzige Weg, wie der Kunde die
+# UI überhaupt zu sehen bekommt – ein Prozess, kein separater Node-Server nötig.
+if FRONTEND_DIST_DIR.is_dir():
+    app.mount("/assets", StaticFiles(directory=FRONTEND_DIST_DIR / "assets"), name="frontend-assets")
+
+    @app.get("/{full_path:path}")
+    def serve_frontend(full_path: str):
+        candidate = FRONTEND_DIST_DIR / full_path
+        if full_path and candidate.is_file():
+            return FileResponse(candidate)
+        return FileResponse(FRONTEND_DIST_DIR / "index.html")

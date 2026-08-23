@@ -5,10 +5,11 @@ Alle Tabellen werden hier angelegt; keine Migrations-Library – simples CREATE 
 
 import sqlite3
 from contextlib import contextmanager
-from pathlib import Path
 from typing import Generator
 
-DB_PATH = Path(__file__).parent.parent / "data" / "mybiking.db"
+from backend.paths import DB_PATH, ensure_data_dirs
+
+ensure_data_dirs()
 
 
 @contextmanager

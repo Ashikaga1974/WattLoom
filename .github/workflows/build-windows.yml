@@ -1,0 +1,42 @@
+name: Build Windows executable
+
+# Manuell auslösbar (Actions-Tab → "Run workflow") sowie bei Tags wie "v1.0.0" –
+# so entsteht ein Windows-Build, ohne dass Sascha selbst eine Windows-Maschine braucht.
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Frontend bauen
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+
+      - name: Backend-Abhängigkeiten installieren
+        run: |
+          pip install -r backend/requirements.txt
+          pip install pyinstaller
+
+      - name: PyInstaller-Build
+        run: pyinstaller wattloom.spec --noconfirm
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: WattLoom-windows
+          path: dist/WattLoom/

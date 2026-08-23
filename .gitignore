@@ -44,6 +44,10 @@ mybiking-mobile/
 .DS_Store
 Thumbs.db
 
+# PyInstaller-Build (Desktop-Packaging, siehe wattloom.spec)
+/dist/
+/build/
+
 # Lizenzierung: private Schlüssel/Secrets dürfen NIE ins Repo
 backend/licensing/_secret.py
 backend/licensing/Keys/
