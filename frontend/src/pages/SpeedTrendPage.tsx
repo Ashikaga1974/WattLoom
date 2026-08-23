@@ -239,7 +239,7 @@ export default function SpeedTrendPage() {
         <Card className="shadow-sm border">
           <CardContent className="px-4 py-3 space-y-1">
             <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{t('kpi.totalAvg')}</p>
-            <p className="text-2xl font-bold text-foreground">{stats.overall_avg_kmh.toFixed(1)}</p>
+            <p className="text-2xl font-bold text-foreground">{stats.overall_avg_kmh != null ? stats.overall_avg_kmh.toFixed(1) : '–'}</p>
             <p className="text-[10px] text-muted-foreground">{t('kpi.totalAvgSub', { count: stats.total_rides })}</p>
           </CardContent>
         </Card>
@@ -330,18 +330,20 @@ export default function SpeedTrendPage() {
               <Tooltip content={<TrendTooltip />} />
 
               {/* Gesamt-Ø Referenzlinie */}
-              <ReferenceLine
-                y={stats.overall_avg_kmh}
-                stroke="var(--muted-foreground)"
-                strokeDasharray="6 3"
-                strokeOpacity={0.55}
-                label={{
-                  value: t('trendChart.avgReferenceLine', { value: stats.overall_avg_kmh }),
-                  fontSize: 9,
-                  fill: 'var(--muted-foreground)',
-                  position: 'insideBottomRight',
-                }}
-              />
+              {stats.overall_avg_kmh != null && (
+                <ReferenceLine
+                  y={stats.overall_avg_kmh}
+                  stroke="var(--muted-foreground)"
+                  strokeDasharray="6 3"
+                  strokeOpacity={0.55}
+                  label={{
+                    value: t('trendChart.avgReferenceLine', { value: stats.overall_avg_kmh }),
+                    fontSize: 9,
+                    fill: 'var(--muted-foreground)',
+                    position: 'insideBottomRight',
+                  }}
+                />
+              )}
 
               {/* Einzelne Rides (scatter-artige Darstellung via Line ohne Strich) */}
               <Line

@@ -211,7 +211,7 @@ export default function CadencePage() {
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div className="rounded-xl border bg-card shadow-sm px-4 py-4">
               <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{t('stats.avgCadence')}</p>
-              <p className="text-3xl font-bold text-amber-400 mt-1">{data.stats.avg_cadence.toFixed(1)}</p>
+              <p className="text-3xl font-bold text-amber-400 mt-1">{data.stats.avg_cadence != null ? data.stats.avg_cadence.toFixed(1) : '–'}</p>
               <p className="text-xs text-muted-foreground mt-0.5">rpm</p>
             </div>
             <div className="rounded-xl border bg-card shadow-sm px-4 py-4">
@@ -310,7 +310,7 @@ export default function CadencePage() {
                 ) : (
                   <>
                     <text x={CX} y={CY - 6} fontSize={20} fontWeight={700} fill="#fbbf24" textAnchor="middle">
-                      Ø {data.stats.avg_cadence.toFixed(1)}
+                      Ø {data.stats.avg_cadence != null ? data.stats.avg_cadence.toFixed(1) : '–'}
                     </text>
                     <text x={CX} y={CY + 14} fontSize={12} fill="hsl(var(--muted-foreground))" textAnchor="middle">
                       rpm

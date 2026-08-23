@@ -452,8 +452,8 @@ export interface SpeedTrendData {
   monthly_heatmap: SpeedTrendMonth[];
   stats: {
     total_rides: number;
-    overall_avg_kmh: number;
-    best_kmh: number;
+    overall_avg_kmh: number | null;
+    best_kmh: number | null;
     best_ride_id: number | null;
     best_ride_name: string | null;
     best_ride_date: string | null;
