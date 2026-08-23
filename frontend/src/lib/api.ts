@@ -325,6 +325,14 @@ export interface BestByDistanceBucket {
   actual_distance_km: number | null;
 }
 
+export interface LicenseStatus {
+  licensed: boolean;
+  customer: string | null;
+  trial_days_left: number;
+  trial_end_date: string | null;
+  access: boolean;
+}
+
 export interface PrEvent {
   id: number;
   distance_km: number;
@@ -649,6 +657,12 @@ export const api = {
 
   yearProgress: () =>
     get<{ years: Record<string, [number, number][]> }>('/analytics/year-progress'),
+
+  licenseStatus: () =>
+    get<LicenseStatus>('/license/status'),
+
+  activateLicense: (license_key: string) =>
+    post<{ licensed: boolean; customer: string | null }>('/license/activate', { license_key }),
 
   getSettings: () =>
     get<Settings>('/settings'),

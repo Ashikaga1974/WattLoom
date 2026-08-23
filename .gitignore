@@ -43,3 +43,10 @@ mybiking-mobile/
 # OS
 .DS_Store
 Thumbs.db
+
+# Lizenzierung: private Schlüssel/Secrets dürfen NIE ins Repo
+backend/licensing/_secret.py
+backend/licensing/Keys/
+*.pem
+vendor_*key*
+license_*key*

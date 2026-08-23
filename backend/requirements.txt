@@ -3,3 +3,4 @@ uvicorn[standard]>=0.29
 python-multipart>=0.0.9
 fitparse>=1.2
 lxml>=5.2
+cryptography>=42

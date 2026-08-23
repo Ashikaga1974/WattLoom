@@ -26,6 +26,7 @@ Local web app for analyzing Strava export data. No Strava API access needed – 
 - [Configurable parameters](#configurable-parameters)
 - [Known quirks](#known-quirks)
 - [Tech stack](#tech-stack)
+- [Licensing (trial & keys)](#licensing-trial--keys)
 - [License](#license)
 
 ---
@@ -162,6 +163,7 @@ WattLoom/
 │   │   ├── app_sync.py      # /app-sync/run, /app-sync/status (WattLoomApp sync subprocess)
 │   │   ├── bikes.py         # /bikes, /bikes/{id}, /bikes/compare, component install/uninstall
 │   │   ├── errors.py        # api_error() – unified error response format
+│   │   ├── license.py       # /license/status, /license/activate (trial + license key activation)
 │   │   ├── purchases.py     # /purchases – purchase/stock management (purchase_items: 1 row per physical item)
 │   │   ├── heatmap.py       # /tracks/heatmap
 │   │   ├── settings.py      # /settings (weight, birth year, HRmax, timezone)
@@ -174,6 +176,7 @@ WattLoom/
 │   ├── utils.py             # Shared: haversine_km(), haversine_m(), MS_TO_KMH
 │   ├── pr_detection.py      # Snapshot diff on best-by-distance before/after import → pr_events
 │   ├── weather.py           # Open-Meteo archive API: fetch_weather(lat, lon, date_utc)
+│   ├── licensing/           # Licensing: trial + license keys (see "Licensing" section)
 │   ├── importer/
 │   │   ├── pipeline.py      # run_import() – main entry point
 │   │   ├── fit.py           # FIT parser (Garmin, with _SafeProcessor)
@@ -203,6 +206,8 @@ WattLoom/
 │       │   │   └── AppSidebar.tsx      # Collapsible sidebar with sub-navigation
 │       │   ├── LeafletMap.tsx          # Leaflet map (React.lazy), speed halo, hover sync
 │       │   ├── RouteThumbnail.tsx      # Mini route shape without Leaflet (SVG polyline, simplify=20)
+│       │   ├── LicenseGate.tsx         # Blocks the app when trial expired without a license; exposes status via context
+│       │   ├── TrialBanner.tsx         # Banner in the content area during an active trial (days left, expiry date)
 │       │   └── ui/                     # shadcn/ui base-nova components
 │       ├── hooks/
 │       │   └── use-mobile.ts
@@ -232,6 +237,8 @@ WattLoom/
 ├── data/
 │   └── mybiking.db          # SQLite database (created on import)
 ├── download/                # Place the Strava export ZIP here
+├── scripts/
+│   └── licensing_keygen.py  # Offline tool (vendor): generate keypair, issue license keys for customers
 └── README.md
 ```
 
@@ -316,6 +323,9 @@ POST /import/recalculate-track-speeds → background job: recompute speed_ms/dis
 POST /import/recalculate-power      → background job: recompute power estimation for all rides
 GET  /media/{filename}
 GET  /health                        → liveness check ({status: "ok"})
+
+GET  /license/status                → {licensed, customer, trial_days_left, trial_end_date, access}
+POST /license/activate               → {license_key} → verifies signature, stores on success in config
 
 GET  /app-sync/status               → last WattLoomApp sync result
 POST /app-sync/run                  → trigger WattLoomApp sync manually (also runs automatically after every import)
@@ -417,7 +427,7 @@ Snapshot of all `bike_components` fields at the time of deletion, plus `km_since
 `activity_id` (FK), `filename` (UUID, file in `data/media/`), `taken_at`, `lat`, `lon`.
 
 ### `config` – key-value settings
-`key`/`value` (both TEXT). ~29 keys, defined in `backend/api/settings.py: _FIELDS` – incl. `weight_kg`, `birth_year`, `tz_offset`, `hr_max`, `language`, `yearly_km_goal`, `weekly_hours_goal`, `default_bike_id`, `crr`, `cda`, `bike_kg`, `ctl_days`, `atl_days`, plus every value from the "Configurable parameters" table above.
+`key`/`value` (both TEXT). ~29 keys, defined in `backend/api/settings.py: _FIELDS` – incl. `weight_kg`, `birth_year`, `tz_offset`, `hr_max`, `language`, `yearly_km_goal`, `weekly_hours_goal`, `default_bike_id`, `crr`, `cda`, `bike_kg`, `ctl_days`, `atl_days`, plus every value from the "Configurable parameters" table above. Additionally (outside `_FIELDS`): internal trial/license state, see "Licensing" section below.
 
 ### `translations` – UI translations (DB instead of frontend bundle)
 `lang`, `ns` (namespace, corresponds to one frontend page or `common`), `key` (dot path, e.g. `nav.activities`), `value` (JSON-encoded – even plain strings, so arrays/objects like `weekdaysShort` round-trip losslessly). Primary key `(lang, ns, key)`. Managed via `GET/POST /translations/*`, not edited directly on the settings page.
@@ -504,6 +514,10 @@ In [frontend/src/lib/config-context.tsx](frontend/src/lib/config-context.tsx):
 
 ---
 
+## Licensing (trial & keys)
+
+For commercial distribution: 14 days free trial from first launch, then locked until a license key is activated.
+
 ## License
 
-[MIT License](LICENSE) – Copyright (c) 2026 Ashikaga1974
+Proprietary – no open-source right to redistribute or modify, see [LICENSE](LICENSE). Copyright (c) 2026 Ashikaga1974.

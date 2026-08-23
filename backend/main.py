@@ -1,11 +1,12 @@
 import logging
 from pathlib import Path
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 
-from backend.api import activities, tracks, bikes, heatmap, analytics, settings, importer, zones, weather, purchases, storage_locations, app_sync, translations
-from backend.database import init_db
+from backend.api import activities, tracks, bikes, heatmap, analytics, settings, importer, zones, weather, purchases, storage_locations, app_sync, translations, license as license_api
+from backend.database import db_connection, init_db
+from backend.licensing.state import ensure_trial_started, has_access
 
 _LOG_FILE = Path(__file__).parent.parent / "data" / "mybiking.log"
 logging.basicConfig(
@@ -20,6 +21,8 @@ logging.basicConfig(
 
 app = FastAPI(title="WattLoom API", version="0.1.0")
 init_db()
+with db_connection() as _conn:
+    ensure_trial_started(_conn)
 
 app.add_middleware(
     CORSMiddleware,
@@ -28,6 +31,26 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Endpunkte, die auch ohne aktive Lizenz/Trial erreichbar bleiben müssen –
+# sonst könnte die UI nicht mal den Lizenzstatus/die Aktivierung anzeigen.
+_LICENSE_EXEMPT_PATHS = {"/health", "/license/status", "/license/activate"}
+
+
+@app.middleware("http")
+async def license_gate(request: Request, call_next):
+    if request.method == "OPTIONS" or request.url.path in _LICENSE_EXEMPT_PATHS:
+        return await call_next(request)
+    with db_connection() as conn:
+        allowed = has_access(conn)
+    if not allowed:
+        return JSONResponse(
+            status_code=402,
+            content={"code": "trial_expired", "message": "Testzeitraum abgelaufen – bitte Lizenzschlüssel eingeben"},
+        )
+    return await call_next(request)
+
+
+app.include_router(license_api.router)
 app.include_router(activities.router)
 app.include_router(tracks.router)
 app.include_router(bikes.router)
