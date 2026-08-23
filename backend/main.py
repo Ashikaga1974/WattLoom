@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from backend.api import activities, tracks, bikes, heatmap, analytics, settings, importer, zones, weather, purchases, storage_locations, app_sync, translations, license as license_api
+from backend.api import activities, tracks, bikes, heatmap, analytics, settings, importer, zones, weather, purchases, storage_locations, app_sync, translations, system, license as license_api
 from backend.database import db_connection, init_db
 from backend.licensing.state import ensure_trial_started, has_access
 from backend.paths import FRONTEND_DIST_DIR, LOG_FILE, MEDIA_DIR
@@ -39,7 +39,7 @@ app.add_middleware(
 _PROTECTED_PREFIXES = (
     "/activities", "/tracks", "/bikes", "/analytics", "/settings",
     "/import", "/weather", "/purchases", "/storage-locations",
-    "/app-sync", "/translations", "/media",
+    "/app-sync", "/translations", "/media", "/system",
 )
 
 
@@ -71,6 +71,7 @@ app.include_router(purchases.router)
 app.include_router(storage_locations.router)
 app.include_router(app_sync.router)
 app.include_router(translations.router)
+app.include_router(system.router)
 
 
 @app.get("/media/{filename}")

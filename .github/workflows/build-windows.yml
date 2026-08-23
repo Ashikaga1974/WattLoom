@@ -33,6 +33,11 @@ jobs:
           pip install -r backend/requirements.txt
           pip install pyinstaller
 
+      - name: Trial-Secret schreiben
+        env:
+          WATTLOOM_TRIAL_SECRET: ${{ secrets.WATTLOOM_TRIAL_SECRET }}
+        run: python scripts/write_trial_secret.py
+
       - name: PyInstaller-Build
         run: pyinstaller wattloom.spec --noconfirm
 

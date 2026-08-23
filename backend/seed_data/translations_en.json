@@ -1485,6 +1485,13 @@
       "trialActive": "Trial: {{days}} days left",
       "trialExpired": "Trial expired"
     },
+    "log": {
+      "empty": "No log entries yet.",
+      "fetchButton": "Fetch log",
+      "loading": "Loading…",
+      "subtitle": "Shows the server's recent log lines – e.g. for troubleshooting.",
+      "title": "App log"
+    },
     "pageSubtitle": "Personal Data · Import · Database",
     "pageTitle": "Settings",
     "personalData": {
@@ -1528,7 +1535,8 @@
     },
     "tabs": {
       "general": "General",
-      "imports": "Imports"
+      "imports": "Imports",
+      "log": "Log"
     },
     "tcxImport": {
       "fileLabel": "TCX file",

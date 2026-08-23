@@ -1485,6 +1485,13 @@
       "trialActive": "Testzeitraum: noch {{days}} Tage",
       "trialExpired": "Testzeitraum abgelaufen"
     },
+    "log": {
+      "empty": "Noch keine Log-Einträge vorhanden.",
+      "fetchButton": "Protokoll abrufen",
+      "loading": "Lädt…",
+      "subtitle": "Zeigt die letzten Log-Zeilen des Servers – z.B. zur Fehlersuche.",
+      "title": "App-Protokoll"
+    },
     "pageSubtitle": "Persönliche Daten · Import · Datenbank",
     "pageTitle": "Einstellungen",
     "personalData": {
@@ -1528,7 +1535,8 @@
     },
     "tabs": {
       "general": "Allgemein",
-      "imports": "Importe"
+      "imports": "Importe",
+      "log": "Protokoll"
     },
     "tcxImport": {
       "fileLabel": "TCX-Datei",
