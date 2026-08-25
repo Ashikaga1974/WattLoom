@@ -88,6 +88,14 @@ def _sync_app_after_import() -> None:
         logger.error("WattLoomApp-Sync nach Import fehlgeschlagen: %s", exc)
 
 
+def _invalidate_analytics_cache() -> None:
+    """Verwirft den best_by_distance-/heatmap-Cache (siehe backend/cache.py) – neue oder
+    gelöschte Aktivitäten/Tracks würden sonst bis zum nächsten Backend-Neustart mit dem
+    alten Datenstand angezeigt."""
+    from backend.cache import invalidate
+    invalidate()
+
+
 def _check_new_prs(baseline: dict) -> None:
     """Vergleicht den Best-by-Distance-Snapshot von vor dem Import mit dem aktuellen
     Stand und meldet neue persönliche Bestzeiten (siehe backend/pr_detection.py)."""
@@ -122,6 +130,7 @@ def _run_import() -> None:
             baseline = snapshot(conn)
 
         run_import(zip_path)
+        _invalidate_analytics_cache()
 
         print("→ Wetter abrufen …")
         _fetch_all_job()
@@ -203,6 +212,7 @@ async def import_fit_file(
     if result.get("is_ride"):
         _fetch_weather_for_activity(result["activity_id"])
         _estimate_power_for_activity(result["activity_id"])
+        _invalidate_analytics_cache()
         _check_new_prs(baseline)
         _sync_app_after_import()
 
@@ -289,6 +299,7 @@ async def import_tcx_file(
     if result.get("is_ride"):
         _fetch_weather_for_activity(result["activity_id"])
         _estimate_power_for_activity(result["activity_id"])
+        _invalidate_analytics_cache()
         _check_new_prs(baseline)
         _sync_app_after_import()
 
@@ -326,6 +337,7 @@ async def import_gpx_file(
     if result.get("is_ride"):
         _fetch_weather_for_activity(result["activity_id"])
         _estimate_power_for_activity(result["activity_id"])
+        _invalidate_analytics_cache()
         _check_new_prs(baseline)
         _sync_app_after_import()
 
@@ -413,6 +425,10 @@ def _run_recalculate_track_speeds() -> None:
         except Exception as exc:
             logger.error("Track-Speed-Backfill activity %s: %s", activity_id, exc)
 
+    if done:
+        # distance_m in track_points ändert sich – fließt direkt in best_by_distance ein
+        _invalidate_analytics_cache()
+
     print(f"  Track-Speed-Backfill: {done}/{len(ids)} Aktivitäten aktualisiert")
     logger.info("Track-Speed-Backfill abgeschlossen: %d/%d", done, len(ids))
 
@@ -483,4 +499,5 @@ def reset_db():
             DELETE FROM other_activities;
         """)
     init_db()
+    _invalidate_analytics_cache()
     return {"ok": True, "backup": backup_name}

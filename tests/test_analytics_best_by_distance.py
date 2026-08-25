@@ -190,3 +190,50 @@ class TestBestByDistanceEndpoint:
         result = best_by_distance()
         five_km = next(b for b in result["buckets"] if b["distance_km"] == 5)
         assert five_km["best_time_s"] is None
+
+
+# ── Caching (backend/cache.py) ──────────────────────────────────────────────
+# best_by_distance() cacht sein Ergebnis unter dem Key "best_by_distance" (siehe
+# CLAUDE.md "Live-Full-Table-Scans über track_points"). Die conftest.py-Fixture
+# _clear_analytics_cache leert den Cache vor/nach jedem Test automatisch.
+
+class TestBestByDistanceCaching:
+    def test_second_call_returns_cached_result_without_recomputing(self, db, monkeypatch):
+        _patch_db(monkeypatch, db)
+        _insert_ride(db, 1, distance_m=6000.0, name="Erster Ritt")
+        _insert_points(db, 1, [
+            ("2026-05-01T08:00:00", 0.0),
+            ("2026-05-01T08:10:00", 6000.0),
+        ])
+        first = best_by_distance()
+
+        # Neue, schnellere Fahrt einfügen – OHNE den Cache zu invalidieren
+        _insert_ride(db, 2, distance_m=6000.0, name="Schneller Ritt")
+        _insert_points(db, 2, [
+            ("2026-05-01T09:00:00", 0.0),
+            ("2026-05-01T09:05:00", 6000.0),
+        ])
+        second = best_by_distance()
+
+        assert second == first  # aus dem Cache, spiegelt die neue Fahrt noch nicht wider
+
+    def test_invalidate_forces_recomputation(self, db, monkeypatch):
+        import backend.cache as cache
+        _patch_db(monkeypatch, db)
+        _insert_ride(db, 1, distance_m=6000.0, name="Erster Ritt")
+        _insert_points(db, 1, [
+            ("2026-05-01T08:00:00", 0.0),
+            ("2026-05-01T08:10:00", 6000.0),
+        ])
+        best_by_distance()
+
+        _insert_ride(db, 2, distance_m=6000.0, name="Schneller Ritt")
+        _insert_points(db, 2, [
+            ("2026-05-01T09:00:00", 0.0),
+            ("2026-05-01T09:05:00", 6000.0),
+        ])
+        cache.invalidate()
+        result = best_by_distance()
+
+        five_km = next(b for b in result["buckets"] if b["distance_km"] == 5)
+        assert five_km["activity_name"] == "Schneller Ritt"

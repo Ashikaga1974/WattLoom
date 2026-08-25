@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Query
+from backend.cache import get_or_set
 from backend.database import db_connection
 
 router = APIRouter(prefix="/tracks", tags=["heatmap"])
@@ -20,27 +21,35 @@ def get_heatmap(
     """
     Gibt vereinfachte [lat, lon]-Paare aller Aktivitäten zurück – für Leaflet.heat.
     Mit simplify=20 ca. 80k Punkte; für groben Überblick reicht simplify=50.
+
+    Ergebnis wird pro (simplify, year)-Kombination gecacht (siehe backend/cache.py) –
+    der volle Scan über track_points dauert bei wachsender Datenmenge spürbar lange;
+    Invalidierung passiert explizit nach jedem Import/Reset (backend/api/importer.py).
     """
-    year_join = ""
-    year_where = ""
-    params: list = [simplify]
 
-    if year:
-        year_join = "JOIN activities a ON tp.activity_id = a.id"
-        year_where = "AND strftime('%Y', a.start_date) = ?"
-        params.append(str(year))
+    def _compute() -> dict:
+        year_join = ""
+        year_where = ""
+        params: list = [simplify]
 
-    with db_connection() as conn:
-        rows = conn.execute(
-            f"""
-            SELECT tp.lat, tp.lon
-            FROM track_points tp
-            {year_join}
-            WHERE (tp.rowid % ?) = 0
-              AND tp.lat IS NOT NULL
-              AND tp.lon IS NOT NULL
-              {year_where}
-            """,
-            params,
-        ).fetchall()
-        return {"count": len(rows), "points": [[r["lat"], r["lon"]] for r in rows]}
+        if year:
+            year_join = "JOIN activities a ON tp.activity_id = a.id"
+            year_where = "AND strftime('%Y', a.start_date) = ?"
+            params.append(str(year))
+
+        with db_connection() as conn:
+            rows = conn.execute(
+                f"""
+                SELECT tp.lat, tp.lon
+                FROM track_points tp
+                {year_join}
+                WHERE (tp.rowid % ?) = 0
+                  AND tp.lat IS NOT NULL
+                  AND tp.lon IS NOT NULL
+                  {year_where}
+                """,
+                params,
+            ).fetchall()
+            return {"count": len(rows), "points": [[r["lat"], r["lon"]] for r in rows]}
+
+    return get_or_set(f"heatmap:{simplify}:{year}", _compute)

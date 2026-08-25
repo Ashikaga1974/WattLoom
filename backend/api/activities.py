@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Query
 from backend.api.errors import api_error
+from backend.cache import invalidate as invalidate_analytics_cache
 from backend.database import db_connection
 from backend.paths import MEDIA_DIR
 from backend.utils import (
@@ -439,6 +440,10 @@ def delete_activity(activity_id: int):
         conn.execute("DELETE FROM laps WHERE activity_id = ?", (activity_id,))
         conn.execute("DELETE FROM activities WHERE id = ?", (activity_id,))
         conn.commit()
+
+    # best_by_distance-/heatmap-Cache verwerfen – eine gelöschte Aktivität kann
+    # Bestzeiten-Segmente oder Heatmap-Punkte enthalten haben (siehe backend/cache.py)
+    invalidate_analytics_cache()
 
     # Erst nach erfolgreichem Commit Dateien vom Filesystem entfernen
     for path in media_files:

@@ -5,6 +5,18 @@ Stellt eine In-Memory-SQLite-DB mit dem vollständigen Schema bereit.
 import sqlite3
 import pytest
 
+import backend.cache
+
+
+@pytest.fixture(autouse=True)
+def _clear_analytics_cache():
+    """Der best_by_distance-/heatmap-Cache (backend/cache.py) ist ein Modul-globaler
+    In-Prozess-Store – ohne Reset würde ein Test den gecachten Wert eines vorherigen
+    Tests sehen, obwohl er gegen eine eigene, frische DB-Fixture läuft."""
+    backend.cache.invalidate()
+    yield
+    backend.cache.invalidate()
+
 
 # Schema spiegelt database.py wider (inkl. Migrations-Spalten)
 _SCHEMA = """
@@ -89,6 +101,12 @@ CREATE TABLE other_activities (
     max_hr           INTEGER,
     calories         REAL,
     imported_at      TEXT
+);
+
+CREATE TABLE media (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    activity_id INTEGER,
+    filename    TEXT
 );
 
 CREATE TABLE bikes (

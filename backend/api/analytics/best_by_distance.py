@@ -1,5 +1,6 @@
 from datetime import datetime
 from fastapi import APIRouter
+from backend.cache import get_or_set
 from backend.database import db_connection
 from backend.utils import MS_TO_KMH
 from ._shared import RIDE_TYPES
@@ -123,24 +124,32 @@ def best_by_distance():
     über alle Fahrten mit Track-Daten hinweg – nicht die schnellste Gesamtfahrt
     in der Nähe der Zieldistanz, sondern der schnellste Abschnitt exakt dieser
     Länge innerhalb einer beliebigen Fahrt (analog Strava "Best Efforts").
+
+    Ergebnis wird gecacht (siehe backend/cache.py) – die Sliding-Window-Suche über
+    alle Tracks dauert bei wachsender Datenmenge spürbar lange; Invalidierung
+    passiert explizit nach jedem Import/Reset (backend/api/importer.py).
     """
-    with db_connection() as conn:
-        best = _best_by_distance_map(conn)
 
-        results = []
-        for d_km in BEST_BY_DISTANCE_BUCKETS_KM:
-            results.append(best[d_km] or {
-                'distance_km':        d_km,
-                'best_speed_kmh':     None,
-                'best_time_s':        None,
-                'activity_id':        None,
-                'activity_name':      None,
-                'smart_device':       None,
-                'date':               None,
-                'actual_distance_km': None,
-            })
+    def _compute() -> dict:
+        with db_connection() as conn:
+            return _best_by_distance_map(conn)
 
-        return {'buckets': results}
+    best = get_or_set("best_by_distance", _compute)
+
+    results = []
+    for d_km in BEST_BY_DISTANCE_BUCKETS_KM:
+        results.append(best[d_km] or {
+            'distance_km':        d_km,
+            'best_speed_kmh':     None,
+            'best_time_s':        None,
+            'activity_id':        None,
+            'activity_name':      None,
+            'smart_device':       None,
+            'date':               None,
+            'actual_distance_km': None,
+        })
+
+    return {'buckets': results}
 
 
 @router.get("/pr-events")
