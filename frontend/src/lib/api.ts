@@ -142,6 +142,10 @@ export interface BikeComponent {
   purchase_item_id: number | null;
   uninstalled_km: number | null;
   estimated_service_date: string | null;
+  last_maintained_at: string | null;
+  last_maintained_km: number | null;
+  km_since_maintenance: number | null;
+  maintenance_pct_used: number | null;
 }
 
 export interface DeletedComponent {
@@ -543,6 +547,7 @@ export interface Settings {
   hr_correction_enabled: number;
   hr_correction_pct: number;
   hr_correction_since: string | null;
+  chain_maintenance_km: number;
 }
 
 export interface FitnessComponent {
@@ -868,6 +873,10 @@ export const api = {
 
   resetBikeComponent: (bikeId: string, compId: number): Promise<{ ok: boolean }> =>
     fetch(`${BASE}/bikes/${bikeId}/components/${compId}/reset`, { method: 'PUT' })
+      .then(r => { if (!r.ok) throw new Error(`Fehler ${r.status}`); return r.json(); }),
+
+  maintainBikeComponent: (bikeId: string, compId: number, maintainedAt?: string): Promise<{ ok: boolean; last_maintained_at: string; last_maintained_km: number }> =>
+    fetch(`${BASE}/bikes/${bikeId}/components/${compId}/maintain`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ maintained_at: maintainedAt }) })
       .then(r => { if (!r.ok) throw new Error(`Fehler ${r.status}`); return r.json(); }),
 
   deleteBikeComponent: (bikeId: string, compId: number): Promise<{ ok: boolean }> =>

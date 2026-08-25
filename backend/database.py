@@ -251,6 +251,13 @@ def init_db() -> None:
         if "uninstalled_km" not in comp_cols:
             conn.execute("ALTER TABLE bike_components ADD COLUMN uninstalled_km REAL")
 
+        # Migration: Ketten-Pflegeintervall (Reinigen/Ölen) – eigener Referenzpunkt, unabhängig
+        # von km_at_service/km_threshold (die tracken den Verschleiß bis zum Austausch)
+        if "last_maintained_at" not in comp_cols:
+            conn.execute("ALTER TABLE bike_components ADD COLUMN last_maintained_at TEXT")
+        if "last_maintained_km" not in comp_cols:
+            conn.execute("ALTER TABLE bike_components ADD COLUMN last_maintained_km REAL")
+
         # Migration: Bike-Bild
         bike_cols = [r[1] for r in conn.execute("PRAGMA table_info(bikes)").fetchall()]
         if "image_filename" not in bike_cols:

@@ -8,6 +8,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { fmtNum } from '@/lib/format';
+import { useConfig } from '@/lib/config-context';
 
 // Übersetzt einen Komponenten-Typ-Code (chain, tire_front, …) fürs Anzeigen. Unbekannte/
 // freihändig gepflegte Alt-Werte (nicht per Migration erkannt) fallen auf den Rohwert zurück.
@@ -100,6 +101,7 @@ function ComponentRow({
   onChanged: () => void;
 }) {
   const { t } = useTranslation(['bikes', 'common']);
+  const { chain_maintenance_km } = useConfig();
   const pct = comp.pct_used ?? 0;
   const color = wearColor(pct);
   const [busy, setBusy] = useState(false);
@@ -110,6 +112,8 @@ function ComponentRow({
   const [linking, setLinking] = useState(false);
   const [linkPurchaseId, setLinkPurchaseId] = useState('');
   const [newStockName, setNewStockName] = useState('');
+  const [maintaining, setMaintaining] = useState(false);
+  const [maintainDate, setMaintainDate] = useState(new Date().toISOString().slice(0, 10));
 
   // Nur relevant für Altbestand ohne bestehenden Lagerbezug (Übergang zum Einkaufs-Lager)
   const availableStock = stockItems.filter(p => p.quantity - p.installed_count > 0);
@@ -190,6 +194,14 @@ function ComponentRow({
     setBusy(true);
     try { await api.deleteBikeComponent(bikeId, comp.id); onChanged(); }
     finally { setBusy(false); }
+  }
+  async function handleMaintain() {
+    setBusy(true);
+    try {
+      await api.maintainBikeComponent(bikeId, comp.id, maintainDate);
+      setMaintaining(false);
+      onChanged();
+    } finally { setBusy(false); }
   }
 
   const installedLabel = comp.added_at
@@ -282,6 +294,57 @@ function ComponentRow({
               : null}
         </div>
       </div>
+
+      {/* Ketten-Pflege (Reinigen/Ölen) – eigener Zähler, unabhängig vom Verschleiß oben */}
+      {!isRetired && comp.type === 'chain' && comp.maintenance_pct_used != null && (
+        <div className="space-y-1 pt-1">
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-muted-foreground">{t('componentRow.maintenanceLabel')}</span>
+            <span className="font-bold tabular-nums" style={{ color: wearColor(comp.maintenance_pct_used) }}>
+              {Math.round(comp.maintenance_pct_used)}%
+            </span>
+          </div>
+          <div className="h-2 rounded-full bg-muted overflow-hidden">
+            <div className="h-full rounded-full transition-all duration-500"
+              style={{ width: `${Math.min(comp.maintenance_pct_used, 100)}%`, background: wearColor(comp.maintenance_pct_used) }} />
+          </div>
+          <div className="flex items-center justify-between text-sm text-muted-foreground">
+            <span className="tabular-nums">{fmtNum(Math.round(comp.km_since_maintenance ?? 0))} / {fmtNum(chain_maintenance_km)} km</span>
+            {comp.maintenance_pct_used >= 100
+              ? <span className="font-semibold" style={{ color: wearColor(comp.maintenance_pct_used) }}>{t('componentRow.chainMaintenanceDue')}</span>
+              : (
+                <span className="tabular-nums">
+                  {comp.last_maintained_at
+                    ? t('componentRow.lastMaintained', { date: new Date(comp.last_maintained_at + 'T00:00:00').toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' }) })
+                    : t('componentRow.neverMaintained')}
+                </span>
+              )}
+          </div>
+          {maintaining ? (
+            <div className="flex flex-wrap items-end gap-2 rounded-lg border border-emerald-300 dark:border-emerald-800 bg-emerald-50/60 dark:bg-emerald-950/30 p-2.5">
+              <label className={labelCls}>
+                <span className="block">{t('componentRow.maintenanceDateLabel')}</span>
+                <input type="date" value={maintainDate} onChange={e => setMaintainDate(e.target.value)}
+                  max={new Date().toISOString().slice(0, 10)} className={fieldCls} />
+              </label>
+              <button onClick={handleMaintain} disabled={busy}
+                className={`${actionBtn} border-emerald-400 text-emerald-600 dark:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-950`}>
+                {t('common:actions.save')}
+              </button>
+              <button onClick={() => setMaintaining(false)} disabled={busy}
+                className={`${actionBtn} border-border text-muted-foreground hover:bg-muted`}>
+                {t('common:actions.cancel')}
+              </button>
+            </div>
+          ) : (
+            <button onClick={() => { setMaintainDate(new Date().toISOString().slice(0, 10)); setMaintaining(true); }} disabled={busy}
+              className={`${actionBtn} border-emerald-400 text-emerald-600 dark:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-950`}
+              title={t('componentRow.maintenanceButtonTitle')}>
+              🧴 {t('componentRow.maintenanceButton')}
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Aktionen */}
       <div className="flex flex-wrap items-center justify-end gap-1.5">

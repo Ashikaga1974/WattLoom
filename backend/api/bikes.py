@@ -22,8 +22,16 @@ def _current_bike_km(conn, bike_id: str) -> float:
     return round(float(row["km"]) if row else 0.0, 1)
 
 
-def _enrich_component(comp: dict, current_km: float, avg_km_per_day: float | None) -> dict:
-    """Berechnet km_since_service, pct_used und geschätztes Wartungsdatum."""
+def _chain_maintenance_km(conn) -> float:
+    row = conn.execute("SELECT value FROM config WHERE key = 'chain_maintenance_km'").fetchone()
+    return float(row["value"]) if row else 300.0
+
+
+def _enrich_component(comp: dict, current_km: float, avg_km_per_day: float | None,
+                       maintenance_threshold: float | None = None) -> dict:
+    """Berechnet km_since_service, pct_used und geschätztes Wartungsdatum (Verschleiß/Austausch)
+    sowie – nur für Ketten – km_since_maintenance/maintenance_pct_used (Reinigen/Ölen), ein
+    zweiter, unabhängiger Referenzpunkt (last_maintained_km statt km_at_service)."""
     km_at = float(comp.get("km_at_service") or 0)
     threshold = comp.get("km_threshold")
     km_since = round(max(0.0, current_km - km_at), 1)
@@ -33,7 +41,23 @@ def _enrich_component(comp: dict, current_km: float, avg_km_per_day: float | Non
         remaining_km = max(0.0, threshold - km_since)
         days = remaining_km / avg_km_per_day
         estimated_date = (Date.today() + timedelta(days=days)).isoformat()
-    return {**comp, "km_since_service": km_since, "pct_used": pct, "estimated_service_date": estimated_date}
+
+    km_since_maintenance = None
+    maintenance_pct_used = None
+    if comp.get("type") == "chain" and maintenance_threshold and maintenance_threshold > 0:
+        last_km = comp.get("last_maintained_km")
+        ref_km = float(last_km) if last_km is not None else km_at
+        km_since_maintenance = round(max(0.0, current_km - ref_km), 1)
+        maintenance_pct_used = round(min(km_since_maintenance / maintenance_threshold * 100, 200), 1)
+
+    return {
+        **comp,
+        "km_since_service": km_since,
+        "pct_used": pct,
+        "estimated_service_date": estimated_date,
+        "km_since_maintenance": km_since_maintenance,
+        "maintenance_pct_used": maintenance_pct_used,
+    }
 
 
 class ComponentCreate(BaseModel):
@@ -92,6 +116,7 @@ def list_bikes():
         for c in comp_rows:
             comp_by_bike.setdefault(c["bike_id"], []).append(dict(c))
 
+        maintenance_threshold = _chain_maintenance_km(conn)
         result = []
         for bike in bikes:
             b = dict(bike)
@@ -100,7 +125,7 @@ def list_bikes():
             b["ride_count"] = ride_count
             avg = bike_avg.get(bike["id"])
             b["components"] = [
-                _enrich_component(c, current_km, avg)
+                _enrich_component(c, current_km, avg, maintenance_threshold)
                 for c in comp_by_bike.get(bike["id"], [])
             ]
             result.append(b)
@@ -300,7 +325,10 @@ def get_bike(bike_id: str):
             (bike_id,),
         ).fetchall()
         avg = _avg_km_per_day(conn, bike_id)
-        result["components"] = [_enrich_component(dict(c), current_km, avg) for c in components]
+        maintenance_threshold = _chain_maintenance_km(conn)
+        result["components"] = [
+            _enrich_component(dict(c), current_km, avg, maintenance_threshold) for c in components
+        ]
         result["ride_count"] = conn.execute(
             "SELECT COUNT(*) FROM activities WHERE bike_id = ?", (bike_id,)
         ).fetchone()[0]
@@ -389,6 +417,36 @@ def reset_component(bike_id: str, comp_id: int):
             raise api_error(404, "component_not_found", "Component not found")
         conn.commit()
         return {"ok": True, "km_at_service": current_km}
+
+
+class MaintainBody(BaseModel):
+    maintained_at: str | None = None  # ISO-Datum YYYY-MM-DD; fehlt → heute
+
+
+@router.put("/{bike_id}/components/{comp_id}/maintain")
+def maintain_component(bike_id: str, comp_id: int, body: MaintainBody = MaintainBody()):
+    """Vermerkt eine durchgeführte Kettenpflege (Reinigen/Ölen) – setzt last_maintained_at/
+    last_maintained_km, unabhängig vom Verschleiß-Tracking (km_at_service bleibt unberührt).
+    Bei einem nachgetragenen (rückwirkenden) Datum wird der Bike-km-Stand AN DEM Datum
+    verwendet (analog zu installed_at bei add_component), nicht der aktuelle."""
+    with db_connection() as conn:
+        maintained_at = body.maintained_at or Date.today().isoformat()
+        if body.maintained_at:
+            row = conn.execute(
+                "SELECT COALESCE(SUM(distance_m), 0) / 1000.0 AS km FROM activities WHERE bike_id = ? AND DATE(start_date) < ?",
+                (bike_id, maintained_at),
+            ).fetchone()
+            km_at = round(float(row["km"]) if row else 0.0, 1)
+        else:
+            km_at = _current_bike_km(conn, bike_id)
+        rows = conn.execute(
+            "UPDATE bike_components SET last_maintained_at = ?, last_maintained_km = ? WHERE id = ? AND bike_id = ?",
+            (maintained_at, km_at, comp_id, bike_id),
+        ).rowcount
+        if rows == 0:
+            raise api_error(404, "component_not_found", "Component not found")
+        conn.commit()
+        return {"ok": True, "last_maintained_at": maintained_at, "last_maintained_km": km_at}
 
 
 class BikeUpdate(BaseModel):

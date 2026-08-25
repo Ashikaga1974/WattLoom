@@ -8,6 +8,7 @@ export interface AppConfig {
   speed_color_buckets: number;
   track_simplify_m: number;
   wear_warning_pct: number;
+  chain_maintenance_km: number;
   comparison_simplify: number;
   block_hours: number;
   volume_trend_weeks: number;
@@ -25,6 +26,7 @@ export const CONFIG_DEFAULTS: AppConfig = {
   speed_color_buckets: 20,
   track_simplify_m: 5,
   wear_warning_pct: 90,
+  chain_maintenance_km: 300,
   comparison_simplify: 20,
   block_hours: 3,
   volume_trend_weeks: 4,
@@ -59,6 +61,7 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
         speed_color_buckets: s.speed_color_buckets ?? CONFIG_DEFAULTS.speed_color_buckets,
         track_simplify_m:    s.track_simplify_m    ?? CONFIG_DEFAULTS.track_simplify_m,
         wear_warning_pct:    s.wear_warning_pct    ?? CONFIG_DEFAULTS.wear_warning_pct,
+        chain_maintenance_km: s.chain_maintenance_km ?? CONFIG_DEFAULTS.chain_maintenance_km,
         comparison_simplify: s.comparison_simplify ?? CONFIG_DEFAULTS.comparison_simplify,
         block_hours:         s.block_hours         ?? CONFIG_DEFAULTS.block_hours,
         volume_trend_weeks:  s.volume_trend_weeks  ?? CONFIG_DEFAULTS.volume_trend_weeks,

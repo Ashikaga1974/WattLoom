@@ -44,6 +44,9 @@ _FIELDS: dict[str, tuple[type, object]] = {
     "hr_correction_enabled": (int,   0),
     "hr_correction_pct":     (float, 8.0),
     "hr_correction_since":   (str,   None),
+    # Ketten-Pflegeintervall (Reinigen/Ölen) – unabhängig vom Verschleiß-/Austausch-Intervall
+    # (km_threshold der Komponente selbst)
+    "chain_maintenance_km":  (float, 300.0),
 }
 
 

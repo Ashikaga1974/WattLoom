@@ -226,13 +226,21 @@ function TsbWidget({ current }: { current: PmcDay }) {
   );
 }
 
-// Aktive Komponenten nahe/über dem Verschleiß-Schwellwert, absteigend nach pct_used
-function wearWarnings(bikes: Bike[], wearWarningPct: number): { bike: Bike; comp: BikeComponent }[] {
-  return bikes
-    .flatMap(bike => bike.components
-      .filter(c => c.retired_at == null && (c.pct_used ?? 0) >= wearWarningPct)
-      .map(comp => ({ bike, comp })))
-    .sort((a, b) => (b.comp.pct_used ?? 0) - (a.comp.pct_used ?? 0));
+// Aktive Komponenten nahe/über dem Verschleiß-Schwellwert bzw. mit fälliger Kettenpflege
+// (20 % Vorlauf vor den 300 km, fest lt. Anforderung – unabhängig von wear_warning_pct),
+// zusammen absteigend nach ihrem jeweiligen %-Wert sortiert.
+const MAINTENANCE_WARNING_PCT = 80;
+
+interface Warning { bike: Bike; comp: BikeComponent; kind: 'wear' | 'maintenance'; pct: number }
+
+function wearWarnings(bikes: Bike[], wearWarningPct: number): Warning[] {
+  const wear: Warning[] = bikes.flatMap(bike => bike.components
+    .filter(c => c.retired_at == null && (c.pct_used ?? 0) >= wearWarningPct)
+    .map(comp => ({ bike, comp, kind: 'wear' as const, pct: comp.pct_used ?? 0 })));
+  const maintenance: Warning[] = bikes.flatMap(bike => bike.components
+    .filter(c => c.retired_at == null && (c.maintenance_pct_used ?? 0) >= MAINTENANCE_WARNING_PCT)
+    .map(comp => ({ bike, comp, kind: 'maintenance' as const, pct: comp.maintenance_pct_used ?? 0 })));
+  return [...wear, ...maintenance].sort((a, b) => b.pct - a.pct);
 }
 
 function WearWarnings({ bikes }: { bikes: Bike[] }) {
@@ -246,18 +254,24 @@ function WearWarnings({ bikes }: { bikes: Bike[] }) {
         {t('wear.title')}
       </p>
       <div className="space-y-2">
-        {warnings.map(({ bike, comp }) => (
+        {warnings.map(({ bike, comp, kind, pct }) => (
           <Link
-            key={comp.id}
-            to={`/bikes/${bike.id}`}
+            key={`${kind}-${comp.id}`}
+            to="/bikes"
             className="flex items-center justify-between gap-3 text-sm hover:opacity-80 transition-opacity"
           >
             <span className="text-foreground">
-              <span className="font-semibold">{comp.type}</span>
+              <span className="font-semibold">{t(`common:component.${comp.type}`, { defaultValue: comp.type })}</span>
               <span className="text-muted-foreground"> · {bike.name}</span>
+              {kind === 'maintenance' && (
+                <span className="text-muted-foreground"> · {t('wear.maintenanceDue')}</span>
+              )}
             </span>
             <span className="font-bold tabular-nums shrink-0" style={{ color: '#ef4444' }}>
-              {Math.round(comp.pct_used ?? 0)} %
+              {kind === 'maintenance' && comp.km_since_maintenance != null
+                ? `${fmtNum(Math.round(comp.km_since_maintenance))} km · `
+                : null}
+              {Math.round(pct)} %
             </span>
           </Link>
         ))}
@@ -823,13 +837,12 @@ export default function DashboardPage() {
                 const maxRides = Math.max(...bikes.map(b => b.ride_count));
                 const pct = maxRides > 0 ? (bike.ride_count / maxRides) * 100 : 0;
                 return (
-                  <Link
+                  <div
                     key={bike.id}
-                    to={`/bikes/${bike.id}`}
-                    className="block rounded-xl border border-border bg-card px-4 py-3 hover:bg-muted transition-all duration-200 hover:border-primary/40 group"
+                    className="rounded-xl border border-border bg-card px-4 py-3"
                   >
                     <div className="flex items-center justify-between mb-2.5">
-                      <p className="font-semibold text-sm group-hover:text-primary transition-colors">
+                      <p className="font-semibold text-sm">
                         {bike.name}
                       </p>
                       <span className="text-xs text-muted-foreground tabular-nums">
@@ -842,7 +855,7 @@ export default function DashboardPage() {
                         style={{ width: `${pct}%`, background: 'var(--primary)' }}
                       />
                     </div>
-                  </Link>
+                  </div>
                 );
               })}
               <Link to="/bikes" className="block pt-1 px-1 text-xs text-primary hover:underline">
