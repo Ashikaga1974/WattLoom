@@ -42,7 +42,7 @@ class TestSportRouting:
             "SELECT sport_type FROM other_activities WHERE id = ?", (result["activity_id"],)
         ).fetchone()
         assert row is not None
-        assert row["sport_type"] == "Laufen"
+        assert row["sport_type"] == "running"
 
     def test_biking_to_activities(self, db):
         result = import_single_tcx(db, _make_tcx("Biking"), bike_id="test_bike")
@@ -66,14 +66,14 @@ class TestSportRouting:
         row = db.execute(
             "SELECT sport_type FROM other_activities WHERE id = ?", (result["activity_id"],)
         ).fetchone()
-        assert row["sport_type"] == "Training"
+        assert row["sport_type"] == "training"
 
     def test_fitness_to_fitness(self, db):
         result = import_single_tcx(db, _make_tcx("Fitness"))
         row = db.execute(
             "SELECT sport_type FROM other_activities WHERE id = ?", (result["activity_id"],)
         ).fetchone()
-        assert row["sport_type"] == "Fitness"
+        assert row["sport_type"] == "strength_training"
 
 
 # ── Gespeicherte Felder ───────────────────────────────────────────────────────

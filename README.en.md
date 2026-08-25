@@ -159,7 +159,7 @@ WattLoom/
 │   ├── database.py          # SQLite schema, init_db()
 │   ├── api/
 │   │   ├── activities.py    # /activities/* (incl. laps, power patch)
-│   │   ├── analytics.py     # /analytics/* (PMC, Wrapped, calories, best-of, wind impact, fitness fingerprint, …)
+│   │   ├── analytics/       # /analytics/* (PMC, Wrapped, calories, best-of, wind impact, fitness fingerprint, …) – package, see CLAUDE.md
 │   │   ├── app_sync.py      # /app-sync/run, /app-sync/status (WattLoomApp sync subprocess)
 │   │   ├── bikes.py         # /bikes, /bikes/{id}, /bikes/compare, component install/uninstall
 │   │   ├── errors.py        # api_error() – unified error response format

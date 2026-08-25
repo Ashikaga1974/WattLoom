@@ -1,12 +1,12 @@
 """
-Tests für backend/api/analytics.py: zone_distribution().
+Tests für backend/api/analytics/zone_distribution.py: zone_distribution().
 
 Nutzt die db-Fixture aus conftest.py (In-Memory-SQLite) und patcht
 analytics.db_connection, damit der Endpoint direkt gegen die Test-DB läuft.
 """
 from contextlib import contextmanager
 
-import backend.api.analytics as analytics
+import backend.api.analytics.zone_distribution as analytics
 
 
 def _patch_db(monkeypatch, conn):
