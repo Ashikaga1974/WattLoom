@@ -49,6 +49,13 @@ def detect_and_record(conn, before: dict) -> list[dict]:
 
     if new_events:
         with conn:
+            # Alte, noch nicht verworfene Events derselben Distanz sind durch den
+            # neuen Rekord überholt - sonst zeigt das Dashboard mehrere "Bestzeiten"
+            # für dieselbe Distanz gleichzeitig an.
+            conn.executemany(
+                "DELETE FROM pr_events WHERE distance_km = ?",
+                [(e['distance_km'],) for e in new_events],
+            )
             conn.executemany(
                 """INSERT INTO pr_events
                    (distance_km, best_time_s, best_speed_kmh, activity_id, activity_name, activity_date, previous_time_s)

@@ -156,7 +156,7 @@ def best_by_distance():
 def pr_events():
     """Noch nicht verworfene, erkannte neue persönliche Bestzeiten (siehe pr_detection.py)."""
     with db_connection() as conn:
-        rows = conn.execute("SELECT * FROM pr_events ORDER BY created_at DESC, id DESC").fetchall()
+        rows = conn.execute("SELECT * FROM pr_events ORDER BY distance_km ASC").fetchall()
         return [dict(r) for r in rows]
 
 
