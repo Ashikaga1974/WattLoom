@@ -173,6 +173,11 @@ def init_db() -> None:
                 elapsed_time_s  INTEGER,
                 avg_hr          REAL,
                 max_hr          INTEGER,
+                min_hr          INTEGER,
+                avg_cadence     INTEGER,
+                max_cadence     INTEGER,
+                training_effect REAL,
+                anaerobic_training_effect REAL,
                 calories        REAL,
                 imported_at     TEXT
             );
@@ -533,6 +538,48 @@ def init_db() -> None:
             conn.execute(
                 "INSERT INTO config(key, value) VALUES('migrated_translations_json_encoding', '1')"
             )
+
+        # Zusätzliche Session-Kennzahlen aus FIT/TCX/GPX-Einzelimport von Nicht-Rad-Workouts
+        # (min_hr, avg_/max_cadence, Garmin/Amazfit-eigener Training Effect) – vorher stillschweigend
+        # verworfen. Nicht jedes Format/Gerät liefert alle Werte, daher bleiben sie NULL statt Pflicht.
+        other_act_cols = [r[1] for r in conn.execute("PRAGMA table_info(other_activities)").fetchall()]
+        for col, typ in [
+            ("min_hr", "INTEGER"),
+            ("avg_cadence", "INTEGER"),
+            ("max_cadence", "INTEGER"),
+            ("training_effect", "REAL"),
+            ("anaerobic_training_effect", "REAL"),
+        ]:
+            if col not in other_act_cols:
+                conn.execute(f"ALTER TABLE other_activities ADD COLUMN {col} {typ}")
+
+        # Neue workoutdetail.kpi.*-Übersetzungsschlüssel für die zusätzlichen Session-Kennzahlen
+        # (siehe other_activities-Migration oben) nachträglich ergänzen – _seed_translations_if_empty()
+        # läuft nur bei komplett leerer Tabelle, würde eine bestehende Installation also nie erreichen.
+        _WORKOUTDETAIL_KPI_KEYS = {
+            "de": {
+                "kpi.minHr": "Min Herzfrequenz",
+                "kpi.avgCadence": "Ø Kadenz",
+                "kpi.maxCadence": "Max Kadenz",
+                "kpi.trainingEffect": "Trainingseffekt",
+                "kpi.anaerobicTrainingEffect": "Anaerober Effekt",
+                "gauge.statsHrMax": "Ø {{avgHr}} bpm · HFmax {{hrMax}} bpm",
+            },
+            "en": {
+                "kpi.minHr": "Min Heart Rate",
+                "kpi.avgCadence": "Avg Cadence",
+                "kpi.maxCadence": "Max Cadence",
+                "kpi.trainingEffect": "Training Effect",
+                "kpi.anaerobicTrainingEffect": "Anaerobic Effect",
+                "gauge.statsHrMax": "Avg {{avgHr}} bpm · Max HR {{hrMax}} bpm",
+            },
+        }
+        for lang, keys in _WORKOUTDETAIL_KPI_KEYS.items():
+            for key, value in keys.items():
+                conn.execute(
+                    "INSERT OR IGNORE INTO translations(lang, ns, key, value) VALUES (?, 'workoutdetail', ?, ?)",
+                    (lang, key, json.dumps(value)),
+                )
 
         # db_connection() committet beim Schließen nicht automatisch – ohne diesen commit() würde
         # eine hier noch offene, von INSERT/UPDATE implizit gestartete Transaktion (z.B. die

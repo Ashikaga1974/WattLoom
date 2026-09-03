@@ -15,11 +15,16 @@ export function GpxImportCard({ bikes }: { bikes: Bike[] }) {
   const [gpxResult, setGpxResult] = useState<SingleImportResult | null>(null);
   const [gpxError, setGpxError] = useState<string | null>(null);
   const gpxInputRef = useRef<HTMLInputElement>(null);
+  const gpxBikePreselected = useRef(false);
 
   // Vorauswahl auf das erste Bike, sobald die Liste vom Elternteil geladen ist.
+  // Nur einmalig – sonst überschreibt es eine bewusste "kein Rad"-Auswahl (gpxBikeId === '') sofort wieder.
   useEffect(() => {
-    if (bikes.length > 0 && gpxBikeId === '') setGpxBikeId(bikes[0].id);
-  }, [bikes, gpxBikeId]);
+    if (bikes.length > 0 && !gpxBikePreselected.current) {
+      gpxBikePreselected.current = true;
+      setGpxBikeId(bikes[0].id);
+    }
+  }, [bikes]);
 
   async function doGpxUpload(e: React.FormEvent) {
     e.preventDefault();

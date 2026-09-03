@@ -17,10 +17,10 @@ from backend.utils import haversine_m
 def import_single_fit(conn: sqlite3.Connection, fit_bytes: bytes, bike_id: str | None = None) -> dict:
     """
     Importiert eine einzelne .fit-Datei direkt in die DB (ohne Strava-ZIP).
-    - Radtouren (sport: cycling/generic) → activities; bike_id ist dann Pflicht.
-    - Alles andere                       → other_activities; bike_id wird ignoriert.
+    - Radtouren (sport: cycling/generic) mit bike_id → activities.
+    - Alles andere (inkl. Rad-Sport ohne bike_id)     → other_activities.
     Gibt {"activity_id": int, "name": str, "is_ride": bool} zurück.
-    Wirft ValueError bei Duplikat, fehlendem Pflichtfeld oder fehlendem bike_id für Radtouren.
+    Wirft ValueError bei Duplikat oder fehlendem Pflichtfeld.
     """
     fit = fitparse.FitFile(io.BytesIO(fit_bytes), data_processor=_SafeProcessor())
 
@@ -56,16 +56,10 @@ def import_single_fit(conn: sqlite3.Connection, fit_bytes: bytes, bike_id: str |
     sport_raw = sv("sport")
     sport_str = str(sport_raw).lower() if sport_raw is not None else "cycling"
 
-    # "generic" ohne bike_id → als Workout importieren (z.B. Morgentraining von Amazfit).
-    # Jeder andere als Radfahrt erkannte Rohwert (siehe sport_codes.is_ride_sport) ohne
-    # bike_id → Fehler (expliziter Rad-Sport braucht Bike-Zuweisung).
-    if sport_str == "generic":
-        if bike_id:
-            return _import_as_ride(conn, fit, fit_bytes, session_msg, sv,
-                                   activity_id, start_date, local_date, device_hint, bike_id)
-    elif is_ride_sport(sport_str):
-        if not bike_id:
-            raise ValueError("bike_id ist für Radtouren erforderlich")
+    # Rad-Sport (cycling/generic) + bike_id → Radtour. Ohne bike_id (Nutzerwahl
+    # "kein Rad" im Import-Dialog) fällt es durch auf den Workout-Import unten,
+    # unabhängig vom erkannten Sport-Typ.
+    if bike_id and (sport_str == "generic" or is_ride_sport(sport_str)):
         return _import_as_ride(conn, fit, fit_bytes, session_msg, sv,
                                activity_id, start_date, local_date, device_hint, bike_id)
 
@@ -189,8 +183,10 @@ def _import_as_workout(
         conn.execute("""
             INSERT INTO other_activities
                 (id, name, sport_type, start_date_local,
-                 moving_time_s, elapsed_time_s, avg_hr, max_hr, calories, imported_at)
-            VALUES (?,?,?,?,?,?,?,?,?,?)
+                 moving_time_s, elapsed_time_s, avg_hr, max_hr, min_hr,
+                 avg_cadence, max_cadence, training_effect, anaerobic_training_effect,
+                 calories, imported_at)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         """, (
             activity_id,
             activity_name,
@@ -200,6 +196,11 @@ def _import_as_workout(
             int(float(elapsed_time)) if elapsed_time is not None else None,
             sv("avg_heart_rate"),
             sv("max_heart_rate"),
+            sv("min_heart_rate"),
+            sv("avg_cadence"),
+            sv("max_cadence"),
+            sv("total_training_effect"),
+            sv("total_anaerobic_training_effect"),
             sv("total_calories"),
             datetime.now(timezone.utc).isoformat(),
         ))

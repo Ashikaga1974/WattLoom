@@ -57,9 +57,14 @@ class TestSportRouting:
         result = import_single_tcx(db, _make_tcx("Cycling"), bike_id="test_bike")
         assert result["is_ride"] is True
 
-    def test_biking_without_bike_id_raises(self, db):
-        with pytest.raises(ValueError, match="bike_id"):
-            import_single_tcx(db, _make_tcx("Biking"))
+    def test_biking_without_bike_id_becomes_workout(self, db):
+        result = import_single_tcx(db, _make_tcx("Biking"))
+        assert result["is_ride"] is False
+        row = db.execute(
+            "SELECT sport_type FROM other_activities WHERE id = ?", (result["activity_id"],)
+        ).fetchone()
+        assert row is not None
+        assert row["sport_type"] == "ride"
 
     def test_other_sport_becomes_training(self, db):
         result = import_single_tcx(db, _make_tcx("Other"))

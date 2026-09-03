@@ -1,5 +1,7 @@
 from fastapi import APIRouter, Query
+from backend.api.analytics._shared import _effective_hr_max
 from backend.api.errors import api_error
+from backend.api.zones import correction_pct_for_date, corrected_hr, get_hr_correction_settings
 from backend.cache import invalidate as invalidate_analytics_cache
 from backend.database import db_connection
 from backend.paths import MEDIA_DIR
@@ -220,6 +222,14 @@ def get_other_activity(workout_id: int):
             AND strftime('%Y', start_date_local) >= '2000'
             ORDER BY start_date_local ASC
         """, (row["sport_type"],)).fetchall()
+
+        # Physiologische HFmax (nicht der Session-eigene Spitzenwert!) fürs Intensitäts-Gauge –
+        # sonst wirkt eine gleichmäßige, lockere Einheit (Ø-HF nah am eigenen Peak) fälschlich
+        # wie "Zone 5 maximal", siehe backend/api/zones.py: get_zones() für dieselbe Logik bei Rides.
+        hr_max = _effective_hr_max(conn)
+        correction = get_hr_correction_settings(conn)
+        correction_pct = correction_pct_for_date(correction, row["start_date_local"][:10] if row["start_date_local"] else None)
+
     avg_time = None
     avg_kcal = None
     if history:
@@ -233,6 +243,9 @@ def get_other_activity(workout_id: int):
         "avg_moving_time_s": avg_time,
         "avg_calories": avg_kcal,
         "history_count": len(history),
+        "hr_max": hr_max,
+        "hr_correction_applied": correction_pct > 0,
+        "avg_hr_corrected": corrected_hr(row["avg_hr"], hr_max, correction_pct) if row["avg_hr"] is not None else None,
     }
 
 

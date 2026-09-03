@@ -15,11 +15,16 @@ export function TcxImportCard({ bikes }: { bikes: Bike[] }) {
   const [tcxResult, setTcxResult] = useState<SingleImportResult | null>(null);
   const [tcxError, setTcxError] = useState<string | null>(null);
   const tcxInputRef = useRef<HTMLInputElement>(null);
+  const tcxBikePreselected = useRef(false);
 
   // Vorauswahl auf das erste Bike, sobald die Liste vom Elternteil geladen ist.
+  // Nur einmalig – sonst überschreibt es eine bewusste "kein Rad"-Auswahl (tcxBikeId === '') sofort wieder.
   useEffect(() => {
-    if (bikes.length > 0 && tcxBikeId === '') setTcxBikeId(bikes[0].id);
-  }, [bikes, tcxBikeId]);
+    if (bikes.length > 0 && !tcxBikePreselected.current) {
+      tcxBikePreselected.current = true;
+      setTcxBikeId(bikes[0].id);
+    }
+  }, [bikes]);
 
   async function doTcxUpload(e: React.FormEvent) {
     e.preventDefault();

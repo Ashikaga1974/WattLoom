@@ -68,19 +68,27 @@ function gaugeArcPath(cx: number, cy: number, r: number, v: number): string {
   const rad = (endAngle * Math.PI) / 180;
   const endX = cx + r * Math.cos(rad);
   const endY = cy - r * Math.sin(rad);
-  const largeArc = clamped > 0.5 ? 1 : 0;
-  return `M ${cx - r} ${cy} A ${r} ${r} 0 ${largeArc} 0 ${endX.toFixed(2)} ${endY.toFixed(2)}`;
+  // Halbkreis-Gauge: der Bogen von 0% (links) bis 100% (rechts) über den Scheitel ist
+  // für jeden Füllstand ≤180° – das SVG large-arc-flag muss deshalb immer 0 sein.
+  // sweep-flag muss 1 sein (im Uhrzeigersinn: links → oben → rechts); bei 0 zeichnet SVG
+  // stattdessen unterhalb der Grundlinie, was von der viewBox abgeschnitten wird.
+  return `M ${cx - r} ${cy} A ${r} ${r} 0 0 1 ${endX.toFixed(2)} ${endY.toFixed(2)}`;
 }
 
 interface IntensityGaugeProps {
   avgHr: number;
-  maxHr: number;
+  hrMax: number;
+  ratio: number;
   t: TFunction<'workoutdetail'>;
 }
 
-function IntensityGauge({ avgHr, maxHr, t }: IntensityGaugeProps) {
-  const pct = Math.round((avgHr / maxHr) * 100);
-  const v = avgHr / maxHr;
+// avgHr ist der roh gemessene Wert (Anzeige-Text) – ratio kommt separat, da sie bei
+// aktivierter Betablocker-Korrektur (backend/api/zones.py: corrected_hr()) höher liegt
+// als avgHr/hrMax. Analog zum Rest der App fließt die Korrektur nur unsichtbar in die
+// Zonen-/Prozent-Einordnung ein, angezeigte bpm-Werte bleiben immer die echte Messung.
+function IntensityGauge({ avgHr, hrMax, ratio, t }: IntensityGaugeProps) {
+  const pct = Math.round(ratio * 100);
+  const v = ratio;
   const color = intensityColor(pct);
   const zone = intensityZone(pct, t);
   const CX = 110, CY = 105, R = 88;
@@ -90,7 +98,7 @@ function IntensityGauge({ avgHr, maxHr, t }: IntensityGaugeProps) {
       <svg viewBox="0 0 220 120" className="w-full max-w-xs">
         {/* Hintergrund-Track */}
         <path
-          d={`M ${CX - R} ${CY} A ${R} ${R} 0 1 0 ${CX + R} ${CY}`}
+          d={`M ${CX - R} ${CY} A ${R} ${R} 0 1 1 ${CX + R} ${CY}`}
           fill="none" stroke="currentColor" strokeWidth="16"
           strokeLinecap="round" className="text-muted/60"
         />
@@ -117,7 +125,7 @@ function IntensityGauge({ avgHr, maxHr, t }: IntensityGaugeProps) {
       <div className="text-center">
         <p className="text-sm font-semibold" style={{ color }}>{zone}</p>
         <p className="mt-0.5 text-xs text-muted-foreground">
-          {t('gauge.stats', { avgHr: Math.round(avgHr), maxHr: Math.round(maxHr) })}
+          {t('gauge.statsHrMax', { avgHr: Math.round(avgHr), hrMax: Math.round(hrMax) })}
         </p>
       </div>
     </div>
@@ -337,8 +345,10 @@ export default function WorkoutDetailPage() {
   const kcalPerHour = data.calories && data.moving_time_s
     ? Math.round(data.calories / (data.moving_time_s / 3600))
     : null;
-  const hasIntensity = data.avg_hr != null && data.max_hr != null && data.max_hr > 0;
+  const hasIntensity = data.avg_hr != null && data.hr_max > 0;
   const hasHistory = data.history.length > 1;
+  const hasExtraKpis = data.min_hr != null || data.avg_cadence != null || data.max_cadence != null
+    || data.training_effect != null || data.anaerobic_training_effect != null;
 
   return (
     <div className="space-y-6">
@@ -404,6 +414,27 @@ export default function WorkoutDetailPage() {
         />
       </div>
 
+      {/* Zusätzliche Kennzahlen – nur wenn das importierte Gerät/Format sie liefert */}
+      {hasExtraKpis && (
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+          {data.min_hr != null && (
+            <KpiCard label={t('kpi.minHr')} value={`${data.min_hr}`} unit="bpm" />
+          )}
+          {data.avg_cadence != null && (
+            <KpiCard label={t('kpi.avgCadence')} value={`${data.avg_cadence}`} unit="rpm" />
+          )}
+          {data.max_cadence != null && (
+            <KpiCard label={t('kpi.maxCadence')} value={`${data.max_cadence}`} unit="rpm" />
+          )}
+          {data.training_effect != null && (
+            <KpiCard label={t('kpi.trainingEffect')} value={data.training_effect.toFixed(1)} />
+          )}
+          {data.anaerobic_training_effect != null && (
+            <KpiCard label={t('kpi.anaerobicTrainingEffect')} value={data.anaerobic_training_effect.toFixed(1)} />
+          )}
+        </div>
+      )}
+
       {/* Intensität + Verlauf nebeneinander wenn beides vorhanden */}
       <div className={cn('grid gap-6', hasIntensity && hasHistory ? 'lg:grid-cols-2' : '')}>
         {/* Intensitätsgauge */}
@@ -415,7 +446,12 @@ export default function WorkoutDetailPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="pb-6">
-              <IntensityGauge avgHr={data.avg_hr!} maxHr={data.max_hr!} t={t} />
+              <IntensityGauge
+                avgHr={data.avg_hr!}
+                hrMax={data.hr_max}
+                ratio={(data.avg_hr_corrected ?? data.avg_hr!) / data.hr_max}
+                t={t}
+              />
             </CardContent>
           </Card>
         )}

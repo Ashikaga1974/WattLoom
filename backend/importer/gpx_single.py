@@ -20,8 +20,8 @@ _MOVING_THRESHOLD_MS = 1.0  # ≈ 3.6 km/h
 def import_single_gpx(conn: sqlite3.Connection, gpx_bytes: bytes, bike_id: str | None = None) -> dict:
     """
     Importiert eine einzelne .gpx-Datei direkt in die DB.
-    - Radtouren (<trk><type>: 1/Ride/cycling oder bike_id gesetzt) → activities
-    - Alles andere                                                  → other_activities
+    - Radtouren (<trk><type>: 1/Ride/cycling) mit bike_id → activities
+    - Alles andere (inkl. Rad-Sport ohne bike_id)          → other_activities
     Gibt {"activity_id": int, "name": str, "is_ride": bool} zurück.
     """
     root = etree.fromstring(gpx_bytes)
@@ -60,12 +60,12 @@ def import_single_gpx(conn: sqlite3.Connection, gpx_bytes: bytes, bike_id: str |
     trkpts = root.xpath(".//gpx:trkpt", namespaces=NS)
     stats = _aggregate_trackpoints(trkpts)
 
-    # Sport-Routing: type-String → Radfahrt, oder bike_id als Signal
-    is_ride = is_ride_sport(sport_lower) or (not sport_lower and bike_id is not None)
+    # Sport-Routing: type-String → Radfahrt, oder bike_id als Signal. Ohne bike_id
+    # (Nutzerwahl "kein Rad" im Import-Dialog) fällt es auf Workout, unabhängig
+    # vom erkannten Sport-Typ.
+    is_ride = bike_id is not None and (is_ride_sport(sport_lower) or not sport_lower)
 
     if is_ride:
-        if not bike_id:
-            raise ValueError("bike_id ist für Radtouren erforderlich")
         name = trk_name or f"Radfahrt {local_date}{device_hint}"
         return _import_as_ride(
             conn, gpx_bytes, activity_id, start_date, name, bike_id, stats,
@@ -85,6 +85,7 @@ def _aggregate_trackpoints(trkpts: list) -> dict:
     elev_loss     = 0.0
     moving_time_s = 0.0
     hr_values: list[int] = []
+    cadence_values: list[int] = []
 
     prev_lat: float | None = None
     prev_lon: float | None = None
@@ -101,6 +102,10 @@ def _aggregate_trackpoints(trkpts: list) -> dict:
         hr     = (
             _text_int(tpt, ".//gpxdata:hr")
             or _text_int(tpt, ".//ns3:TrackPointExtension/ns3:hr")
+        )
+        cadence = (
+            _text_int(tpt, ".//gpxdata:cadence")
+            or _text_int(tpt, ".//ns3:TrackPointExtension/ns3:cad")
         )
 
         ts_dt: datetime | None = None
@@ -133,13 +138,17 @@ def _aggregate_trackpoints(trkpts: list) -> dict:
 
         if hr is not None:
             hr_values.append(hr)
+        if cadence is not None:
+            cadence_values.append(cadence)
 
         prev_lat, prev_lon, prev_alt = lat, lon, alt
         if ts_dt is not None:
             prev_ts = ts_dt
 
-    elapsed_s = int((last_ts - first_ts).total_seconds()) if (first_ts and last_ts) else None
-    avg_hr    = round(sum(hr_values) / len(hr_values)) if hr_values else None
+    elapsed_s   = int((last_ts - first_ts).total_seconds()) if (first_ts and last_ts) else None
+    avg_hr      = round(sum(hr_values) / len(hr_values)) if hr_values else None
+    avg_cadence = round(sum(cadence_values) / len(cadence_values)) if cadence_values else None
+    max_cadence = max(cadence_values) if cadence_values else None
 
     return {
         "distance_m":       total_dist_m if total_dist_m > 0 else None,
@@ -148,6 +157,8 @@ def _aggregate_trackpoints(trkpts: list) -> dict:
         "elevation_gain_m": round(elev_gain) if elev_gain > 0 else None,
         "elevation_loss_m": round(elev_loss) if elev_loss > 0 else None,
         "avg_hr":           avg_hr,
+        "avg_cadence":      avg_cadence,
+        "max_cadence":      max_cadence,
     }
 
 
@@ -227,12 +238,13 @@ def _import_as_workout(
         conn.execute("""
             INSERT INTO other_activities
                 (id, name, sport_type, start_date_local,
-                 moving_time_s, elapsed_time_s, avg_hr, max_hr, calories, imported_at)
-            VALUES (?,?,?,?,?,?,?,?,?,?)
+                 moving_time_s, elapsed_time_s, avg_hr, max_hr,
+                 avg_cadence, max_cadence, calories, imported_at)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
         """, (
             activity_id, name, sport_code, start_date,
             stats["elapsed_s"], stats["elapsed_s"],
-            stats["avg_hr"], None, None,
+            stats["avg_hr"], None, stats["avg_cadence"], stats["max_cadence"], None,
             datetime.now(timezone.utc).isoformat(),
         ))
 

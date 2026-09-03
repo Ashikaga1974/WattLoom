@@ -1801,6 +1801,7 @@
     "gauge": {
       "label": "Intensity",
       "stats": "Avg {{avgHr}} bpm · Max {{maxHr}} bpm",
+      "statsHrMax": "Avg {{avgHr}} bpm · Max HR {{hrMax}} bpm",
       "title": "Intensity",
       "zones": {
         "aerobic": "Aerobic · Zone 3",
@@ -1816,12 +1817,17 @@
       "title": "History · {{count}} sessions"
     },
     "kpi": {
+      "anaerobicTrainingEffect": "Anaerobic Effect",
+      "avgCadence": "Avg Cadence",
       "avgHr": "Avg. heart rate",
       "calories": "Calories",
       "caloriesPerHour": "≈ {{value}} kcal/h",
       "duration": "Duration",
       "durationSub": "{{minutes}} minutes",
-      "maxHr": "Max heart rate"
+      "maxCadence": "Max Cadence",
+      "maxHr": "Max heart rate",
+      "minHr": "Min Heart Rate",
+      "trainingEffect": "Training Effect"
     },
     "notFound": "Workout not found",
     "totalTime": "({{time}} total)"

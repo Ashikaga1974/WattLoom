@@ -91,16 +91,21 @@ CREATE TABLE laps (
 );
 
 CREATE TABLE other_activities (
-    id               INTEGER PRIMARY KEY,
-    name             TEXT,
-    sport_type       TEXT,
-    start_date_local TEXT,
-    moving_time_s    INTEGER,
-    elapsed_time_s   INTEGER,
-    avg_hr           REAL,
-    max_hr           INTEGER,
-    calories         REAL,
-    imported_at      TEXT
+    id                        INTEGER PRIMARY KEY,
+    name                      TEXT,
+    sport_type                TEXT,
+    start_date_local          TEXT,
+    moving_time_s             INTEGER,
+    elapsed_time_s            INTEGER,
+    avg_hr                    REAL,
+    max_hr                    INTEGER,
+    min_hr                    INTEGER,
+    avg_cadence               INTEGER,
+    max_cadence               INTEGER,
+    training_effect           REAL,
+    anaerobic_training_effect REAL,
+    calories                  REAL,
+    imported_at               TEXT
 );
 
 CREATE TABLE media (

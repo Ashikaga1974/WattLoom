@@ -288,11 +288,19 @@ export interface WorkoutDetail {
   elapsed_time_s: number;
   avg_hr: number | null;
   max_hr: number | null;
+  min_hr: number | null;
+  avg_cadence: number | null;
+  max_cadence: number | null;
+  training_effect: number | null;
+  anaerobic_training_effect: number | null;
   calories: number | null;
   history: WorkoutHistoryEntry[];
   avg_moving_time_s: number | null;
   avg_calories: number | null;
   history_count: number;
+  hr_max: number;
+  hr_correction_applied: boolean;
+  avg_hr_corrected: number | null;
 }
 
 export interface PmcResponse {

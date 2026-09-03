@@ -34,6 +34,7 @@ _RAW_TO_CODE: dict[str, str] = {
     "swimming": "swimming",
     "yoga": "yoga",
     "rowing": "rowing",
+    "indoor_rowing": "rowing",
     "fitness_equipment": "strength_training",
     "generic": "training",
     "training": "training",

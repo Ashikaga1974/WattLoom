@@ -15,11 +15,16 @@ export function FitImportCard({ bikes }: { bikes: Bike[] }) {
   const [fitResult, setFitResult] = useState<SingleImportResult | null>(null);
   const [fitError, setFitError] = useState<string | null>(null);
   const fitInputRef = useRef<HTMLInputElement>(null);
+  const fitBikePreselected = useRef(false);
 
   // Vorauswahl auf das erste Bike, sobald die Liste vom Elternteil geladen ist.
+  // Nur einmalig – sonst überschreibt es eine bewusste "kein Rad"-Auswahl (fitBikeId === '') sofort wieder.
   useEffect(() => {
-    if (bikes.length > 0 && fitBikeId === '') setFitBikeId(bikes[0].id);
-  }, [bikes, fitBikeId]);
+    if (bikes.length > 0 && !fitBikePreselected.current) {
+      fitBikePreselected.current = true;
+      setFitBikeId(bikes[0].id);
+    }
+  }, [bikes]);
 
   async function doFitUpload(e: React.FormEvent) {
     e.preventDefault();

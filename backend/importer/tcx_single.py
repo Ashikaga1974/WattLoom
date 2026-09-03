@@ -15,8 +15,8 @@ from backend.importer.sport_codes import is_ride_sport, sport_code_label_de, to_
 def import_single_tcx(conn: sqlite3.Connection, tcx_bytes: bytes, bike_id: str | None = None) -> dict:
     """
     Importiert eine einzelne .tcx-Datei direkt in die DB.
-    - Radtouren (Sport: biking/cycling) → activities; bike_id ist dann Pflicht.
-    - Alles andere                      → other_activities; bike_id wird ignoriert.
+    - Radtouren (Sport: biking/cycling) mit bike_id → activities.
+    - Alles andere (inkl. Rad-Sport ohne bike_id)    → other_activities.
     Gibt {"activity_id": int, "name": str, "is_ride": bool} zurück.
     """
     raw = tcx_bytes.lstrip()
@@ -76,13 +76,29 @@ def import_single_tcx(conn: sqlite3.Connection, tcx_bytes: bytes, bike_id: str |
     max_hr_vals = [_int(lap, "ns:MaximumHeartRateBpm/ns:Value") for lap in laps]
     max_hr = max((v for v in max_hr_vals if v is not None), default=None)
 
+    # Cadence: Standard-TCX hat <Cadence> direkt am Lap (Bike-Cadence), Garmin-Extension
+    # ns2:LX liefert zusätzlich Lauf-Cadence (Avg/Max). Kein Standardfeld für min_hr/Training
+    # Effect in TCX – bleiben None, siehe Docstring.
+    cadence_vals = [
+        _int(lap, "ns:Cadence") or _int(lap, "ns2:Extensions/ns2:LX/ns2:AvgRunCadence")
+        for lap in laps
+    ]
+    avg_cadence = round(sum(v for v in cadence_vals if v is not None) / len(cadence_vals)) \
+        if any(v is not None for v in cadence_vals) else None
+    max_cadence_vals = [
+        _int(lap, "ns2:Extensions/ns2:LX/ns2:MaxRunCadence")
+        or _int(lap, "ns2:Extensions/ns2:LX/ns2:MaxBikeCadence")
+        for lap in laps
+    ]
+    max_cadence = max((v for v in max_cadence_vals if v is not None), default=None)
+
     # Mi Fitness und ähnliche Apps setzen Sport="" – wenn bike_id übergeben wurde,
     # ist das ein hinreichendes Signal dass es eine Radfahrt ist.
-    is_ride = is_ride_sport(sport_lower) or (sport_lower == "" and bike_id is not None)
+    # Ohne bike_id (Nutzerwahl "kein Rad" im Import-Dialog) fällt es auf den
+    # Workout-Import unten, unabhängig vom erkannten Sport-Typ.
+    is_ride = bike_id is not None and (is_ride_sport(sport_lower) or sport_lower == "")
 
     if is_ride:
-        if not bike_id:
-            raise ValueError("bike_id ist für Radtouren erforderlich")
         return _import_as_ride(
             conn, tcx_bytes, activity_id, start_date, local_date, device_hint,
             bike_id, total_time, total_distance, total_calories, avg_hr, max_hr,
@@ -91,6 +107,7 @@ def import_single_tcx(conn: sqlite3.Connection, tcx_bytes: bytes, bike_id: str |
     return _import_as_workout(
         conn, tcx_bytes, activity_id, start_date, local_date, device_hint,
         sport_lower, total_time, total_calories, avg_hr, max_hr,
+        avg_cadence, max_cadence,
     )
 
 
@@ -170,6 +187,8 @@ def _import_as_workout(
     total_calories: float | None,
     avg_hr: int | None,
     max_hr: int | None,
+    avg_cadence: int | None,
+    max_cadence: int | None,
 ) -> dict:
     dup = conn.execute("SELECT id FROM other_activities WHERE id = ?", (activity_id,)).fetchone()
     if dup:
@@ -182,13 +201,14 @@ def _import_as_workout(
         conn.execute("""
             INSERT INTO other_activities
                 (id, name, sport_type, start_date_local,
-                 moving_time_s, elapsed_time_s, avg_hr, max_hr, calories, imported_at)
-            VALUES (?,?,?,?,?,?,?,?,?,?)
+                 moving_time_s, elapsed_time_s, avg_hr, max_hr,
+                 avg_cadence, max_cadence, calories, imported_at)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
         """, (
             activity_id, activity_name, sport_code, start_date,
             int(total_time) if total_time else None,
             int(total_time) if total_time else None,
-            avg_hr, max_hr, total_calories,
+            avg_hr, max_hr, avg_cadence, max_cadence, total_calories,
             datetime.now(timezone.utc).isoformat(),
         ))
 
