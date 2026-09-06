@@ -489,7 +489,8 @@
       "compare": "Compare",
       "deleted": "Deleted",
       "overview": "Overview"
-    }
+    },
+    "title": "Bikes"
   },
   "cadence": {
     "distribution": {
@@ -709,7 +710,19 @@
     },
     "license": {
       "enterKey": "Enter license",
-      "trialBanner": "Trial version – {{days}} days left (until {{date}})"
+      "trialBanner": "Trial version – {{days}} days left (until {{date}})",
+      "activationFailed": "Activation failed",
+      "retry": "Try again",
+      "activating": "Checking …",
+      "activate": "Activate license",
+      "connectionFailed": {
+        "title": "Connection failed",
+        "body": "Could not load license status. Is the backend running?"
+      },
+      "trialExpired": {
+        "title": "Trial period expired",
+        "body": "The 14-day trial has ended. Please enter your license key to keep using WattLoom."
+      }
     },
     "nav": {
       "activities": "Activities",
@@ -756,6 +769,10 @@
       "walking": "Walking",
       "warm_up": "Warm-up",
       "yoga": "Yoga"
+    },
+    "insightCard": {
+      "title": "Insight",
+      "subtitle": "Automatically derived from your data"
     }
   },
   "dashboard": {
@@ -1738,6 +1755,17 @@
       "fastestSegmentSuffix": "with avg {{speed}} km/h ({{count}} rides)",
       "subtitle": "Avg speed & heart rate by wind strength",
       "title": "Wind impact"
+    },
+    "timeline": {
+      "title": "Temperature, wind & rain over time",
+      "subtitle": "(one value per day)",
+      "temp": "{{value}}°C",
+      "rained": "Rain",
+      "dry": "Dry",
+      "legendRain": "Rain",
+      "legendTrend": "Trend (rolling avg, 15 days)",
+      "wind": "{{value}} m/s wind",
+      "legendWind": "Wind"
     }
   },
   "weekend": {

@@ -44,7 +44,7 @@ Lokale Web-App zur Analyse von Strava-Exportdaten. Kein Strava-API-Zugriff nöti
 | **Heatmap** | Alle Tracks als interaktive Karte, filterbar nach Jahr |
 | **Tempoentwicklung** | Scatter + 20-Rides-Rolling-Ø, Jahresvergleich, Saison-Heatmap (Monat × Jahr) |
 | **Kalorien** | Energieverbrauch aus Rides + Workouts; KPI-Kacheln, gestapelter Monatsverlauf mit 3M-gleitendem Ø, Jahresvergleich |
-| **Wetter & Leistung** | Ø-Speed nach Temperatur-Buckets, Wind-Impact-Chart; Wetterdaten via Open-Meteo (abrufbar per Knopfdruck) |
+| **Wetter & Leistung** | Ø-Speed nach Temperatur-Buckets, Wind-Impact-Chart, Temperatur-/Wind-/Regenverlauf über alle Jahre (ein Wert je Tag); Wetterdaten via Open-Meteo (abrufbar per Knopfdruck) |
 | **Formkurve (PMC)** | CTL/ATL/TSB nach Trainingstagebuch-Methodik, hrTSS, 28-Tage-CTL-Trend, Ride- und Workout-Marker, Einschätzungs-Banner |
 | **Bestzeiten** | Rekorde und Top-Leistungen; Best-Effort-Segmente je Distanz (5–70 km, analog Strava) über alle Fahrten hinweg |
 | **Bikes** | 3 Tabs: Übersicht (Foto-Thumbnail, Kennzahlen einzeilig, Verschleiß-Tracker als Karten mit Fortschrittsbalken + verknüpftem Lagerartikel-Namen, Einbauen aus Lager inkl. Übernahme der Laufleistung gebrauchter Teile, Ausbauen mit km-Erfassung + automatischer Lagerrückgabe, nachträgliches Verknüpfen verbauter Altbestand-Komponenten mit einem Einkauf; Einkaufs-Lager-Tabelle darunter, inaktive Bikes per Dropdown ganz unten) · Gelöscht (Historie unwiderruflich gelöschter Komponenten inkl. Lagerbezug, rein informativ) · Vergleich (km, Speed, Höhenmeter, Unterhaltskosten inkl. €/100km, Jahresverlauf, Distanzhistogramm) |
@@ -268,6 +268,7 @@ GET  /analytics/speed-hr                       → per Ride: month, speed_kmh, h
 GET  /analytics/speed-trend         ?year      → Scatter, Rolling-Ø, Jahres-Aggregate, Monats-Heatmap
 GET  /analytics/temp-correlation
 GET  /analytics/wind-impact                    → Windstärke vs. Speed/HR je Aktivität
+GET  /analytics/weather-timeline                → Temperatur/Wind/Regen je Tag über alle Jahre (kein Monats-Ø)
 GET  /analytics/hr-curve            ?year
 GET  /analytics/pmc                            → CTL/ATL/TSB + hrTSS
 GET  /analytics/wrapped             ?year, tz_offset

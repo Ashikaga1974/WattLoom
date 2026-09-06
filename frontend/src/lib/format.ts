@@ -53,6 +53,12 @@ export function fmtDateShort(dateStr: string): string {
   return d.toLocaleDateString(_locale, { day: '2-digit', month: '2-digit', year: '2-digit' });
 }
 
+/** "YYYY-MM-DD" → voller Tag inkl. Monatsname (z.B. "15. Juni 2022") */
+export function fmtDayFull(day: string): string {
+  const d = new Date(`${day}T00:00:00`);
+  return d.toLocaleDateString(_locale, { day: '2-digit', month: 'long', year: 'numeric' });
+}
+
 /** ISO-Datum → Wochentag-Kürzel (z.B. "Mo.") */
 export function fmtWeekday(dateStr: string): string {
   const d = new Date(dateStr.endsWith('Z') ? dateStr : dateStr + 'Z');

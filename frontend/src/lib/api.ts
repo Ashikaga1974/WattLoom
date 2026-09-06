@@ -711,6 +711,9 @@ export const api = {
   windImpact: () =>
     get<{ points: { wind_ms: number; speed_kmh: number; hr: number; dist_km: number }[] }>('/analytics/wind-impact'),
 
+  weatherTimeline: () =>
+    get<{ points: { day: string; temp_c: number; wind_ms: number | null; rides: number; rained: boolean }[] }>('/analytics/weather-timeline'),
+
   calories: (year?: number | null) =>
     get<{
       total_kcal: number;

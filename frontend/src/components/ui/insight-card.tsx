@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import type { Insight } from '@/lib/insights';
 
@@ -7,18 +8,15 @@ interface InsightCardProps {
   subtitle?: string;
 }
 
-export function InsightCard({
-  insights,
-  title = 'Einschätzung',
-  subtitle = 'Automatisch aus deinen Daten abgeleitet',
-}: InsightCardProps) {
+export function InsightCard({ insights, title, subtitle }: InsightCardProps) {
+  const { t } = useTranslation('common');
   if (insights.length === 0) return null;
 
   return (
     <Card className="shadow-sm border">
       <CardHeader className="pb-1 border-b">
-        <CardTitle className="text-base font-semibold">{title}</CardTitle>
-        <p className="text-xs text-muted-foreground mt-0.5">{subtitle}</p>
+        <CardTitle className="text-base font-semibold">{title ?? t('insightCard.title')}</CardTitle>
+        <p className="text-xs text-muted-foreground mt-0.5">{subtitle ?? t('insightCard.subtitle')}</p>
       </CardHeader>
       <CardContent className="pt-4">
         <ul className="space-y-2.5">

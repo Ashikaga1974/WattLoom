@@ -9,6 +9,7 @@ import {
   Tooltip, ResponsiveContainer, Area, AreaChart, Cell, ReferenceLine,
 } from 'recharts';
 import { useConfig } from '@/lib/config-context';
+import { fmtDayFull } from '@/lib/format';
 
 // --- Wind-Impact-Typen und Hilfsfunktionen ---
 
@@ -68,6 +69,58 @@ function WindTooltip({ active, payload, label }: { active?: boolean; payload?: {
         <span style={{ color: 'var(--primary)' }}>{t('tooltip.avgSpeed', { value: d.avg_speed })}</span>
         <span style={{ color: 'var(--chart-2)' }}>{t('tooltip.avgHr', { value: d.avg_hr })}</span>
         <span className="text-muted-foreground">{t('tooltip.rides', { count: d.count })}</span>
+      </div>
+    </div>
+  );
+}
+
+interface TimelinePt {
+  day: string;
+  ts: number;
+  temp_c: number;
+  wind_ms: number | null;
+  rides: number;
+  rained: boolean;
+  rain_flag: number;
+  rolling_temp_c: number | null;
+  rolling_wind_ms: number | null;
+}
+
+const TIMELINE_ROLLING_WINDOW = 15;
+
+/** Trailing gleitender Ø über die letzten n Tage mit Daten (nicht Kalendertage) – glättet die
+    Tageswerte zu einer Trendlinie, ohne die Rohwerte selbst zu verändern. Wind kann pro Tag
+    null sein (kein Wert von Open-Meteo) – fließt dann nicht in den Fensterschnitt ein. */
+function withRollingAverage(pts: Omit<TimelinePt, 'rolling_temp_c' | 'rolling_wind_ms'>[]): TimelinePt[] {
+  return pts.map((p, i) => {
+    const windowSlice = pts.slice(Math.max(0, i - (TIMELINE_ROLLING_WINDOW - 1)), i + 1);
+    const avg = windowSlice.reduce((s, w) => s + w.temp_c, 0) / windowSlice.length;
+    const windSlice = windowSlice.filter((w): w is typeof w & { wind_ms: number } => w.wind_ms != null);
+    const windAvg = windSlice.length ? windSlice.reduce((s, w) => s + w.wind_ms, 0) / windSlice.length : null;
+    return { ...p, rolling_temp_c: +avg.toFixed(1), rolling_wind_ms: windAvg != null ? +windAvg.toFixed(1) : null };
+  });
+}
+
+function formatTimelineTick(ts: number): string {
+  return new Date(ts).toLocaleDateString('de-DE', { month: 'short', year: '2-digit' });
+}
+
+function TimelineTooltip({ active, payload }: { active?: boolean; payload?: { payload: TimelinePt }[] }) {
+  const { t } = useTranslation('tempcorr');
+  if (!active || !payload?.length) return null;
+  const d = payload[0].payload;
+  return (
+    <div className="rounded-lg border border-border bg-background/95 px-3 py-2 text-sm shadow-md backdrop-blur">
+      <p className="font-semibold mb-1.5">{fmtDayFull(d.day)}</p>
+      <div className="flex flex-col gap-1 text-xs">
+        <span style={{ color: 'var(--primary)' }}>{t('timeline.temp', { value: d.temp_c })}</span>
+        {d.wind_ms != null && (
+          <span style={{ color: 'var(--chart-4)' }}>{t('timeline.wind', { value: d.wind_ms })}</span>
+        )}
+        <span style={{ color: d.rained ? 'var(--chart-2)' : 'var(--muted-foreground)' }}>
+          {d.rained ? t('timeline.rained') : t('timeline.dry')}
+        </span>
+        <span className="text-muted-foreground">{t('tooltip.rides', { count: d.rides })}</span>
       </div>
     </div>
   );
@@ -156,14 +209,25 @@ export default function TempCorrPage() {
   const config = useConfig();
   const [pts, setPts] = useState<Pt[]>([]);
   const [windPts, setWindPts] = useState<WindPt[]>([]);
+  const [timelinePts, setTimelinePts] = useState<TimelinePt[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    Promise.all([api.tempCorrelation(), api.windImpact()])
-      .then(([tempRes, windRes]) => {
+    Promise.all([api.tempCorrelation(), api.windImpact(), api.weatherTimeline()])
+      .then(([tempRes, windRes, timelineRes]) => {
         setPts(tempRes.points.filter(p => p.year >= 2000));
         setWindPts(windRes.points);
+        const withTs = timelineRes.points.map(p => ({
+          day: p.day,
+          ts: new Date(`${p.day}T00:00:00`).getTime(),
+          temp_c: p.temp_c,
+          wind_ms: p.wind_ms,
+          rides: p.rides,
+          rained: p.rained,
+          rain_flag: p.rained ? 1 : 0,
+        }));
+        setTimelinePts(withRollingAverage(withTs));
       })
       .catch(e => setError(e instanceof Error ? e.message : t('errorFallback')))
       .finally(() => setLoading(false));
@@ -179,6 +243,18 @@ export default function TempCorrPage() {
   const calmest = buckets.length
     ? buckets.reduce((a, b) => b.avg_hr < a.avg_hr ? b : a, buckets[0])
     : null;
+
+  const timelineTempMin = timelinePts.length ? Math.floor(Math.min(...timelinePts.map(p => p.temp_c)) / 5) * 5 - 5 : -5;
+  const timelineTempMax = timelinePts.length ? Math.ceil(Math.max(...timelinePts.map(p => p.temp_c)) / 5) * 5 + 5 : 30;
+  const timelineTempTicks = useMemo(() => {
+    const ticks: number[] = [];
+    for (let v = timelineTempMin; v <= timelineTempMax; v += 5) ticks.push(v);
+    return ticks;
+  }, [timelineTempMin, timelineTempMax]);
+  const timelineMaxWind = useMemo(() => {
+    const winds = timelinePts.map(p => p.wind_ms).filter((w): w is number => w != null);
+    return winds.length ? Math.max(...winds) : 1;
+  }, [timelinePts]);
 
   const speedMin = buckets.length ? Math.floor(Math.min(...buckets.map(b => b.avg_speed)) - 2) : 0;
   const speedMax = buckets.length ? Math.ceil(Math.max(...buckets.map(b => b.avg_speed)) + 2) : 40;
@@ -213,6 +289,132 @@ export default function TempCorrPage() {
           <p className="text-xs text-muted-foreground border border-border rounded-md px-3 py-2">
             {t('disclaimer')}
           </p>
+
+          {/* Temperatur-, Wind- & Regenverlauf über alle Jahre – ein Wert je Tag (kein Monats-Ø).
+              Drei eng zusammenhängende Reihen mit gemeinsamer Zeitachse statt eines
+              Dual-Axis-Charts: °C, m/s und "hat es geregnet" sind unterschiedliche Skalen –
+              eine zweite Achse auf demselben Plot würde eine Korrelation vortäuschen, die so
+              nicht in den Daten steckt (Dataviz-Regel "kein Dual-Axis-Chart"). Regen läuft
+              dafür als eigener schmaler „Barcode"-Streifen statt als Punktfarbe auf der
+              Temperaturlinie – das hatte zuvor unruhig gewirkt. */}
+          {timelinePts.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm font-medium">
+                  {t('timeline.title')}{' '}
+                  <span className="font-normal text-muted-foreground">{t('timeline.subtitle')}</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {/* Reihe 1: Temperatur (Rolling-Ø als Trendfläche + Tageswerte als dezente Punkte) */}
+                <ResponsiveContainer width="100%" height={config.chart_height}>
+                  <ComposedChart data={timelinePts} margin={{ top: 8, right: 10, bottom: 0, left: 0 }}>
+                    <defs>
+                      <linearGradient id="timelineTempGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.22} />
+                        <stop offset="95%" stopColor="var(--primary)" stopOpacity={0.01} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid vertical={false} stroke="var(--border)" strokeOpacity={0.5} />
+                    <XAxis dataKey="ts" type="number" domain={['dataMin', 'dataMax']} hide />
+                    <YAxis
+                      domain={[timelineTempMin, timelineTempMax]}
+                      ticks={timelineTempTicks}
+                      tickFormatter={v => `${v}°`}
+                      tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
+                      axisLine={false}
+                      tickLine={false}
+                      width={36}
+                    />
+                    <Tooltip content={<TimelineTooltip />} />
+                    <Area
+                      type="monotone"
+                      dataKey="rolling_temp_c"
+                      stroke="var(--primary)"
+                      strokeWidth={2.5}
+                      fill="url(#timelineTempGrad)"
+                      dot={false}
+                      activeDot={false}
+                      connectNulls
+                      isAnimationActive={false}
+                    />
+                    <Line
+                      dataKey="temp_c"
+                      stroke="none"
+                      isAnimationActive={false}
+                      dot={{ r: 2, fill: 'var(--muted-foreground)', fillOpacity: 0.35, strokeWidth: 0 }}
+                      activeDot={{ r: 5, fill: 'var(--primary)', stroke: 'var(--background)', strokeWidth: 2 }}
+                    />
+                  </ComposedChart>
+                </ResponsiveContainer>
+
+                {/* Reihe 2: Regen-Streifen – "Barcode" statt Punktfarbe, nur wo es tatsächlich geregnet hat */}
+                <ResponsiveContainer width="100%" height={48}>
+                  <ComposedChart data={timelinePts} margin={{ top: 0, right: 10, bottom: 0, left: 0 }}>
+                    <XAxis dataKey="ts" type="number" domain={['dataMin', 'dataMax']} hide />
+                    <YAxis domain={[0, 1]} hide />
+                    <Tooltip content={<TimelineTooltip />} />
+                    <Bar dataKey="rain_flag" fill="var(--chart-2)" maxBarSize={16} isAnimationActive={false} />
+                  </ComposedChart>
+                </ResponsiveContainer>
+
+                {/* Reihe 3: Wind-Streifen – Intensität (Opacity) statt eigener Achse, trägt die Zeitachse,
+                    plus gleitender Ø als durchgängige Linie über den Balken */}
+                <ResponsiveContainer width="100%" height={100}>
+                  <ComposedChart data={timelinePts} margin={{ top: 2, right: 10, bottom: 0, left: 0 }}>
+                    <XAxis
+                      dataKey="ts"
+                      type="number"
+                      domain={['dataMin', 'dataMax']}
+                      scale="time"
+                      tickCount={8}
+                      tickFormatter={formatTimelineTick}
+                      tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
+                      axisLine={false}
+                      tickLine={false}
+                      height={28}
+                    />
+                    <YAxis domain={[0, timelineMaxWind]} hide />
+                    <Tooltip content={<TimelineTooltip />} />
+                    <Bar dataKey="wind_ms" maxBarSize={16} isAnimationActive={false}>
+                      {timelinePts.map((p, i) => (
+                        <Cell
+                          key={i}
+                          fill="var(--chart-4)"
+                          fillOpacity={p.wind_ms == null ? 0 : 0.15 + 0.65 * (p.wind_ms / timelineMaxWind)}
+                        />
+                      ))}
+                    </Bar>
+                    <Line
+                      type="monotone"
+                      dataKey="rolling_wind_ms"
+                      stroke="var(--chart-4)"
+                      strokeWidth={2}
+                      dot={false}
+                      activeDot={false}
+                      connectNulls
+                      isAnimationActive={false}
+                    />
+                  </ComposedChart>
+                </ResponsiveContainer>
+
+                <div className="flex items-center gap-5 justify-end text-xs text-muted-foreground mt-2 pr-1">
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-4 h-0.5 inline-block rounded" style={{ background: 'var(--primary)' }} />
+                    {t('timeline.legendTrend')}
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 rounded-sm inline-block" style={{ background: 'var(--chart-2)' }} />
+                    {t('timeline.legendRain')}
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 rounded-sm inline-block" style={{ background: 'var(--chart-4)' }} />
+                    {t('timeline.legendWind')}
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* KPI-Kacheln */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

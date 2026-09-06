@@ -17,7 +17,7 @@ export default function BikesPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Bikes" />
+      <PageHeader title={t('title')} />
 
       <Tabs value={tab} onValueChange={handleTabChange}>
         <TabsList>

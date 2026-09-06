@@ -154,6 +154,39 @@ def temp_correlation():
         }
 
 
+@router.get("/weather-timeline")
+def weather_timeline():
+    """Temperatur-, Wind- und Regenverlauf über alle Jahre – ein Wert je Tag mit mind. einer
+    Aktivität mit Wetterdaten (kein Monats-Durchschnitt); mehrere Rides am selben Tag
+    werden zu Tages-Ø gemittelt, `rained` ist true sobald einer davon Niederschlag hatte."""
+    with db_connection() as conn:
+        rows = conn.execute("""
+            SELECT
+                DATE(a.start_date_local)                            AS day,
+                ROUND(AVG(a.weather_temp_c), 1)                     AS temp_c,
+                ROUND(AVG(a.weather_wind_ms), 1)                    AS wind_ms,
+                COUNT(*)                                             AS rides,
+                MAX(CASE WHEN a.weather_precip_mm > 0 THEN 1 ELSE 0 END) AS rained
+            FROM activities a
+            WHERE a.weather_temp_c IS NOT NULL
+              AND strftime('%Y', a.start_date_local) >= '2000'
+            GROUP BY day
+            ORDER BY day
+        """).fetchall()
+        return {
+            "points": [
+                {
+                    "day": r["day"],
+                    "temp_c": r["temp_c"],
+                    "wind_ms": r["wind_ms"],
+                    "rides": r["rides"],
+                    "rained": bool(r["rained"]),
+                }
+                for r in rows
+            ]
+        }
+
+
 @router.get("/wind-impact")
 def wind_impact():
     """Windstärke vs. Speed und HR – Quelle: Open-Meteo weather_wind_ms je Aktivität."""

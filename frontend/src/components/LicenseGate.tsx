@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { api, type LicenseStatus } from '@/lib/api';
 
 const LicenseStatusContext = createContext<LicenseStatus | null>(null);
@@ -18,6 +19,7 @@ export function useLicenseStatus(): LicenseStatus | null {
  * ein Banner über der kompletten Seite die fixed-positionierte Sidebar überdecken würde.
  */
 export function LicenseGate({ children }: { children: React.ReactNode }) {
+  const { t } = useTranslation('common');
   const [status, setStatus] = useState<LicenseStatus | null>(null);
   // Getrennt von `status === null`, damit ein fehlgeschlagener Fetch (Backend noch nicht
   // erreichbar, Netzwerkfehler) nicht wie "lädt noch" aussieht und die App dauerhaft weiß bleibt.
@@ -44,7 +46,7 @@ export function LicenseGate({ children }: { children: React.ReactNode }) {
       await api.activateLicense(key.trim());
       setStatus(await api.licenseStatus());
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Aktivierung fehlgeschlagen');
+      setError(e instanceof Error ? e.message : t('license.activationFailed'));
     } finally {
       setActivating(false);
     }
@@ -57,16 +59,16 @@ export function LicenseGate({ children }: { children: React.ReactNode }) {
       <div className="min-h-screen flex items-center justify-center p-6">
         <div className="w-full max-w-sm rounded-2xl border p-6 space-y-4 text-center">
           <div>
-            <h1 className="text-lg font-semibold">Verbindung fehlgeschlagen</h1>
+            <h1 className="text-lg font-semibold">{t('license.connectionFailed.title')}</h1>
             <p className="text-sm text-muted-foreground mt-1">
-              Der Lizenzstatus konnte nicht geladen werden. Läuft das Backend?
+              {t('license.connectionFailed.body')}
             </p>
           </div>
           <button
             onClick={loadStatus}
             className="w-full rounded-md bg-primary text-primary-foreground px-4 py-2 text-sm font-medium"
           >
-            Erneut versuchen
+            {t('license.retry')}
           </button>
         </div>
       </div>
@@ -81,9 +83,9 @@ export function LicenseGate({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen flex items-center justify-center p-6">
       <div className="w-full max-w-sm rounded-2xl border p-6 space-y-4">
         <div>
-          <h1 className="text-lg font-semibold">Testzeitraum abgelaufen</h1>
+          <h1 className="text-lg font-semibold">{t('license.trialExpired.title')}</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Der 14-tägige Testzeitraum ist beendet. Bitte gib deinen Lizenzschlüssel ein, um WattLoom weiter zu nutzen.
+            {t('license.trialExpired.body')}
           </p>
         </div>
         <input
@@ -99,7 +101,7 @@ export function LicenseGate({ children }: { children: React.ReactNode }) {
           disabled={activating || !key.trim()}
           className="w-full rounded-md bg-primary text-primary-foreground px-4 py-2 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {activating ? 'Prüfe …' : 'Lizenz aktivieren'}
+          {activating ? t('license.activating') : t('license.activate')}
         </button>
       </div>
     </div>
