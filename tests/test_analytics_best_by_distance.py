@@ -237,3 +237,70 @@ class TestBestByDistanceCaching:
 
         five_km = next(b for b in result["buckets"] if b["distance_km"] == 5)
         assert five_km["activity_name"] == "Schneller Ritt"
+
+
+# ── Inkrementeller Scan (activity_ids/start) für pr_detection.py ────────────
+# _best_by_distance_map(conn, activity_ids=[...], start=before) muss exakt dasselbe
+# Ergebnis liefern wie ein voller Scan aller Aktivitäten – sonst würde der PR-Check
+# nach einem Einzelimport (backend/pr_detection.py) falsche Bestzeiten melden.
+
+class TestIncrementalBestByDistanceMap:
+    def test_matches_full_scan_when_new_ride_is_faster(self, db, monkeypatch):
+        _patch_db(monkeypatch, db)
+        _insert_ride(db, 1, distance_m=6000.0, name="Alter Bestwert")
+        _insert_points(db, 1, [
+            ("2026-05-01T08:00:00", 0.0),
+            ("2026-05-01T08:15:00", 6000.0),
+        ])
+        before = analytics._best_by_distance_map(db)
+
+        _insert_ride(db, 2, distance_m=6000.0, name="Neuer Bestwert")
+        _insert_points(db, 2, [
+            ("2026-05-02T08:00:00", 0.0),
+            ("2026-05-02T08:05:00", 6000.0),
+        ])
+
+        full_scan = analytics._best_by_distance_map(db)
+        incremental = analytics._best_by_distance_map(db, activity_ids=[2], start=before)
+        assert incremental == full_scan
+        assert incremental[5.0]["activity_id"] == 2
+
+    def test_matches_full_scan_when_new_ride_is_slower(self, db, monkeypatch):
+        _patch_db(monkeypatch, db)
+        _insert_ride(db, 1, distance_m=6000.0, name="Bestwert bleibt")
+        _insert_points(db, 1, [
+            ("2026-05-01T08:00:00", 0.0),
+            ("2026-05-01T08:05:00", 6000.0),
+        ])
+        before = analytics._best_by_distance_map(db)
+
+        _insert_ride(db, 2, distance_m=6000.0, name="Langsamer")
+        _insert_points(db, 2, [
+            ("2026-05-02T08:00:00", 0.0),
+            ("2026-05-02T08:15:00", 6000.0),
+        ])
+
+        full_scan = analytics._best_by_distance_map(db)
+        incremental = analytics._best_by_distance_map(db, activity_ids=[2], start=before)
+        assert incremental == full_scan
+        assert incremental[5.0]["activity_id"] == 1  # unverändert, da die neue Fahrt langsamer war
+
+    def test_start_dict_is_not_mutated(self, db, monkeypatch):
+        # detect_and_record() übergibt `before` als `start` – ein In-Place-Update würde
+        # den Snapshot-Vergleich verfälschen, wenn `before` danach nochmal genutzt wird.
+        _patch_db(monkeypatch, db)
+        _insert_ride(db, 1, distance_m=6000.0)
+        _insert_points(db, 1, [
+            ("2026-05-01T08:00:00", 0.0),
+            ("2026-05-01T08:15:00", 6000.0),
+        ])
+        before = analytics._best_by_distance_map(db)
+        before_copy = dict(before)
+
+        _insert_ride(db, 2, distance_m=6000.0, name="Schneller")
+        _insert_points(db, 2, [
+            ("2026-05-02T08:00:00", 0.0),
+            ("2026-05-02T08:05:00", 6000.0),
+        ])
+        analytics._best_by_distance_map(db, activity_ids=[2], start=before)
+        assert before == before_copy

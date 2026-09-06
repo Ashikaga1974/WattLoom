@@ -556,6 +556,7 @@ export interface Settings {
   hr_correction_pct: number;
   hr_correction_since: string | null;
   chain_maintenance_km: number;
+  app_sync_enabled: number;
 }
 
 export interface FitnessComponent {

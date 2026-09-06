@@ -53,13 +53,20 @@ def _fastest_segment(dist: list, elapsed: list, target_m: float):
 BEST_BY_DISTANCE_BUCKETS_KM = [5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70]
 
 
-def _best_by_distance_map(conn) -> dict:
+def _best_by_distance_map(conn, *, activity_ids: list[int] | None = None, start: dict | None = None) -> dict:
     """
     Kern von best_by_distance(): berechnet für jede Zieldistanz das schnellste
     zusammenhängende Segment über alle Fahrten mit Track-Daten hinweg und gibt
     das rohe {distance_km: best_or_None}-Dict zurück (ohne Auffüllen der Lücken).
     Als eigene Funktion extrahiert, damit backend/pr_detection.py denselben Snapshot
     vor und nach einem Import berechnen und auf neue persönliche Bestzeiten vergleichen kann.
+
+    `activity_ids`/`start` erlauben eine inkrementelle Berechnung: statt alle Aktivitäten
+    neu zu scannen, wird nur `activity_ids` gescannt und gegen `start` (bereits bekannter
+    Bestwert je Distanz, z.B. der Snapshot vor einem Einzelimport) verglichen – korrekt,
+    solange `start` tatsächlich den vollen Scan ohne diese Aktivitäten repräsentiert
+    (siehe pr_detection.detect_and_record). Ohne diese Parameter (Default) unverändert
+    ein voller Scan über alle Aktivitäten, wie zuvor.
     """
     max_speed_row = conn.execute(
         "SELECT value FROM config WHERE key = 'max_plausible_speed_ms'"
@@ -67,13 +74,18 @@ def _best_by_distance_map(conn) -> dict:
     max_speed_ms = float(max_speed_row["value"]) if max_speed_row else MAX_PLAUSIBLE_SPEED_MS
 
     ph = ','.join('?' * len(RIDE_TYPES))
+    params: list = list(RIDE_TYPES)
+    id_filter = ""
+    if activity_ids is not None:
+        id_filter = f" AND id IN ({','.join('?' * len(activity_ids))})"
+        params += list(activity_ids)
     activities = conn.execute(f"""
         SELECT id, name, start_date_local AS date, distance_m, smart_device
         FROM activities
-        WHERE activity_type IN ({ph}) AND distance_m > 0
-    """, RIDE_TYPES).fetchall()
+        WHERE activity_type IN ({ph}) AND distance_m > 0{id_filter}
+    """, params).fetchall()
 
-    best = {d_km: None for d_km in BEST_BY_DISTANCE_BUCKETS_KM}
+    best = dict(start) if start is not None else {d_km: None for d_km in BEST_BY_DISTANCE_BUCKETS_KM}
 
     for act in activities:
         targets_m = [d_km * 1000 for d_km in BEST_BY_DISTANCE_BUCKETS_KM if d_km * 1000 <= act['distance_m']]

@@ -12,14 +12,24 @@ def snapshot(conn) -> dict:
     return _best_by_distance_map(conn)
 
 
-def detect_and_record(conn, before: dict) -> list[dict]:
+def detect_and_record(conn, before: dict, activity_ids: list[int] | None = None) -> list[dict]:
     """
     Vergleicht `before` (Snapshot vor dem Import) mit dem aktuellen Stand und legt
     für jede Distanz, die sich verbessert hat, einen pr_events-Eintrag an.
     Distanzen ohne vorherigen Bestwert (before[d] is None) zählen nicht als PR –
     sonst würde der allererste Import jede Distanz als "neuen Rekord" melden.
+
+    `activity_ids`: bei einem Einzelimport (genau 1-2 neue Aktivitäten bekannt) wird
+    NUR für diese neu gescannt statt alle ~400 Aktivitäten erneut komplett durchzurechnen
+    (siehe _best_by_distance_map) – `before` ist bereits der korrekte volle Scan ohne
+    diese Aktivitäten, das Ergebnis ist damit identisch zu einem kompletten Re-Scan.
+    None (Default, z.B. beim ZIP-Bulk-Import mit vielen neuen Aktivitäten) behält das
+    bisherige Verhalten (voller Re-Scan) bei.
     """
-    after = _best_by_distance_map(conn)
+    if activity_ids is not None:
+        after = _best_by_distance_map(conn, activity_ids=activity_ids, start=before)
+    else:
+        after = _best_by_distance_map(conn)
     new_events = []
     for d_km, after_best in after.items():
         before_best = before.get(d_km)

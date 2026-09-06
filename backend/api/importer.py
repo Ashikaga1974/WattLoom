@@ -77,8 +77,16 @@ def _fmt_hms(seconds: float) -> str:
 
 def _sync_app_after_import() -> None:
     """Stößt den WattLoomApp-Sync direkt nach einem Import an (analog zum automatischen
-    Wetter-Fetch) statt den manuellen Button in den Einstellungen zu erfordern."""
+    Wetter-Fetch) statt den manuellen Button in den Einstellungen zu erfordern.
+    Per Einstellung (app_sync_enabled) abschaltbar, da der Subprocess-Aufruf ~10-15s
+    dauert – der manuelle Button bleibt davon unberührt immer nutzbar."""
+    from backend.database import db_connection
     from backend.api.app_sync import _do_sync
+
+    with db_connection() as conn:
+        row = conn.execute("SELECT value FROM config WHERE key = 'app_sync_enabled'").fetchone()
+    if row is not None and row["value"] == "0":
+        return
 
     try:
         result = _do_sync()
@@ -96,15 +104,17 @@ def _invalidate_analytics_cache() -> None:
     invalidate()
 
 
-def _check_new_prs(baseline: dict) -> None:
+def _check_new_prs(baseline: dict, activity_ids: list[int] | None = None) -> None:
     """Vergleicht den Best-by-Distance-Snapshot von vor dem Import mit dem aktuellen
-    Stand und meldet neue persönliche Bestzeiten (siehe backend/pr_detection.py)."""
+    Stand und meldet neue persönliche Bestzeiten (siehe backend/pr_detection.py).
+    activity_ids: bei Einzelimporten (genau 1 neue Aktivität) übergeben, damit
+    detect_and_record() nur diese statt aller Aktivitäten neu scannt."""
     from backend.database import db_connection
     from backend.pr_detection import detect_and_record
 
     try:
         with db_connection() as conn:
-            events = detect_and_record(conn, baseline)
+            events = detect_and_record(conn, baseline, activity_ids=activity_ids)
         for e in events:
             print(f"  🏆 Neuer PR: {e['distance_km']:.0f} km in {_fmt_hms(e['best_time_s'])} ({e['activity_name']})")
             logger.info("Neuer PR: %.0f km in %.0fs (activity %s)", e["distance_km"], e["best_time_s"], e["activity_id"])
@@ -208,12 +218,10 @@ async def import_fit_file(
 
     logger.info("FIT-Import: %s (activity %s, is_ride=%s)", file.filename, result["activity_id"], result["is_ride"])
 
-    # Wetter direkt nach dem Import für neue Radtouren abrufen
     if result.get("is_ride"):
-        _fetch_weather_for_activity(result["activity_id"])
-        _estimate_power_for_activity(result["activity_id"])
+        _run_weather_and_power_async(result["activity_id"])
         _invalidate_analytics_cache()
-        _check_new_prs(baseline)
+        _check_new_prs(baseline, activity_ids=[result["activity_id"]])
         _sync_app_after_import()
 
     return result
@@ -228,6 +236,18 @@ def _estimate_power_for_activity(activity_id: int) -> None:
             estimate_and_store(conn, activity_id)
     except Exception as exc:
         logger.error("Leistungsschätzung für activity %s fehlgeschlagen: %s", activity_id, exc)
+
+
+def _run_weather_and_power_async(activity_id: int) -> None:
+    """Holt Wetter + schätzt Leistung im Hintergrund, damit der Einzelimport nicht auf den
+    externen Open-Meteo-Call warten muss. Power-Schätzung läuft bewusst NACH dem Wetter-Fetch
+    (nicht parallel dazu) im selben Thread, da sie weather_temp_c für die Luftdichte nutzt,
+    falls vorhanden – sonst würde sie immer auf den Temperatur-Fallback zurückfallen."""
+    def _job() -> None:
+        _fetch_weather_for_activity(activity_id)
+        _estimate_power_for_activity(activity_id)
+
+    threading.Thread(target=_job, daemon=True).start()
 
 
 def _fetch_weather_for_activity(activity_id: int) -> None:
@@ -297,10 +317,9 @@ async def import_tcx_file(
     logger.info("TCX-Import: %s (activity %s, is_ride=%s)", file.filename, result["activity_id"], result["is_ride"])
 
     if result.get("is_ride"):
-        _fetch_weather_for_activity(result["activity_id"])
-        _estimate_power_for_activity(result["activity_id"])
+        _run_weather_and_power_async(result["activity_id"])
         _invalidate_analytics_cache()
-        _check_new_prs(baseline)
+        _check_new_prs(baseline, activity_ids=[result["activity_id"]])
         _sync_app_after_import()
 
     return result
@@ -335,10 +354,9 @@ async def import_gpx_file(
     logger.info("GPX-Import: %s (activity %s, is_ride=%s)", file.filename, result["activity_id"], result["is_ride"])
 
     if result.get("is_ride"):
-        _fetch_weather_for_activity(result["activity_id"])
-        _estimate_power_for_activity(result["activity_id"])
+        _run_weather_and_power_async(result["activity_id"])
         _invalidate_analytics_cache()
-        _check_new_prs(baseline)
+        _check_new_prs(baseline, activity_ids=[result["activity_id"]])
         _sync_app_after_import()
 
     return result

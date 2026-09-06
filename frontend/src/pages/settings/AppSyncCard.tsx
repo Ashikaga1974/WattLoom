@@ -9,6 +9,8 @@ export function AppSyncCard() {
   const [appSyncStatus, setAppSyncStatus] = useState<{ last_synced_at: string | null; last_status: string | null; last_message: string | null } | null>(null);
   const [appSyncBusy, setAppSyncBusy] = useState(false);
   const [appSyncError, setAppSyncError] = useState<string | null>(null);
+  const [autoSyncEnabled, setAutoSyncEnabled] = useState(true);
+  const [autoSyncSaving, setAutoSyncSaving] = useState(false);
 
   async function loadAppSyncStatus() {
     try {
@@ -16,7 +18,22 @@ export function AppSyncCard() {
     } catch { /* ignorieren */ }
   }
 
-  useEffect(() => { loadAppSyncStatus(); }, []);
+  useEffect(() => {
+    loadAppSyncStatus();
+    api.getSettings().then(res => setAutoSyncEnabled(res.app_sync_enabled !== 0)).catch(() => {});
+  }, []);
+
+  async function toggleAutoSync(checked: boolean) {
+    setAutoSyncEnabled(checked);
+    setAutoSyncSaving(true);
+    try {
+      await api.saveSettings({ app_sync_enabled: checked ? 1 : 0 });
+    } catch {
+      setAutoSyncEnabled(!checked);
+    } finally {
+      setAutoSyncSaving(false);
+    }
+  }
 
   async function startAppSync() {
     setAppSyncBusy(true);
@@ -41,6 +58,16 @@ export function AppSyncCard() {
         </p>
       </CardHeader>
       <CardContent className="pt-5 space-y-4">
+        <label className="flex items-center gap-2.5 text-sm cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={autoSyncEnabled}
+            disabled={autoSyncSaving}
+            onChange={e => toggleAutoSync(e.target.checked)}
+            className="accent-primary h-4 w-4"
+          />
+          <span className="font-medium">{ts('appSync.autoSyncLabel')}</span>
+        </label>
         {appSyncStatus?.last_synced_at && (
           <p className="text-sm text-muted-foreground">
             {ts('appSync.lastSync', { date: fmtDate(appSyncStatus.last_synced_at), time: fmtClock(appSyncStatus.last_synced_at) })}
