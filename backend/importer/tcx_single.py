@@ -10,6 +10,7 @@ from lxml import etree
 
 from backend.importer.tcx import NS, _float, _int, _text, import_tcx, read_tcx_device
 from backend.importer.sport_codes import is_ride_sport, sport_code_label_de, to_sport_code
+from backend.utils import moving_time_from_track_points
 
 
 def import_single_tcx(conn: sqlite3.Connection, tcx_bytes: bytes, bike_id: str | None = None) -> dict:
@@ -168,6 +169,17 @@ def _import_as_ride(
     if count > 0:
         with conn:
             conn.execute("UPDATE activities SET has_track=1 WHERE id=?", (activity_id,))
+
+    # Gerät meldet die Lap-Summe (TotalTimeSeconds) oft zu hoch (Standzeiten werden
+    # mitgezählt) – Moving Time wird nachträglich aus dem Track neu berechnet, analog zu Strava.
+    computed_moving = moving_time_from_track_points(conn, activity_id)
+    if computed_moving:
+        new_avg_speed = (total_distance / computed_moving) if total_distance else None
+        with conn:
+            conn.execute(
+                "UPDATE activities SET moving_time_s = ?, avg_speed_ms = ? WHERE id = ?",
+                (computed_moving, new_avg_speed, activity_id),
+            )
 
     return {
         "activity_id": activity_id, "name": activity_name, "is_ride": True,

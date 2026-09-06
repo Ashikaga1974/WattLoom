@@ -1,9 +1,15 @@
 import bisect
 import math
+import sqlite3
 import statistics
+from datetime import datetime
 
 _R_KM = 6_371.0
 MS_TO_KMH = 3.6
+
+# Zeitintervalle unter diesem Schwellwert (m/s) gelten als Pause und fließen
+# nicht in die Moving Time ein – analog zu Stravas Logik (~1.4 m/s für Rad)
+MOVING_THRESHOLD_MS = 1.0  # ≈ 3.6 km/h
 
 
 def smooth_speeds(speeds: list[float | None], window: int = 5) -> list[float | None]:
@@ -38,6 +44,52 @@ def haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
 def haversine_m(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     """Luftlinien-Distanz zweier GPS-Koordinaten in Metern."""
     return haversine_km(lat1, lon1, lat2, lon2) * 1_000.0
+
+
+def moving_time_from_track_points(
+    conn: sqlite3.Connection, activity_id: int, threshold_ms: float = MOVING_THRESHOLD_MS,
+) -> int | None:
+    """Berechnet die Moving Time nachträglich aus bereits importierten track_points
+    (Position + Zeitstempel), analog zur Live-Berechnung beim GPX-Import: Zeitintervalle
+    unter dem Geschwindigkeits-Schwellenwert gelten als Pause. Nötig, da FIT/TCX-Geräte
+    ihren eigenen Timer-Wert (total_timer_time / Lap-Summe) melden, der Standzeiten nicht
+    zuverlässig herausrechnet – Strava berechnet die Moving Time dagegen selbst aus dem
+    Track. Gibt None zurück, wenn zu wenige Punkte mit Position+Zeit vorhanden sind (z.B.
+    Indoor-Aktivität ohne GPS) – die Aufrufer behalten dann den Geräte-Wert als Fallback."""
+    rows = conn.execute(
+        "SELECT timestamp, lat, lon FROM track_points WHERE activity_id = ? ORDER BY timestamp",
+        (activity_id,),
+    ).fetchall()
+
+    moving_s = 0.0
+    have_segment = False
+    prev_lat: float | None = None
+    prev_lon: float | None = None
+    prev_ts: datetime | None = None
+
+    for row in rows:
+        ts_str, lat, lon = row["timestamp"], row["lat"], row["lon"]
+        if not ts_str:
+            continue
+        try:
+            ts = datetime.fromisoformat(ts_str)
+        except ValueError:
+            continue
+
+        if lat is not None and lon is not None and prev_lat is not None and prev_lon is not None:
+            dt_s = (ts - prev_ts).total_seconds()
+            seg_m = haversine_m(prev_lat, prev_lon, lat, lon)
+            if dt_s > 0 and seg_m / dt_s >= threshold_ms:
+                moving_s += dt_s
+            have_segment = True
+
+        # Immer aktualisieren (auch auf None bei GPS-Lücke) – ein Segment über eine
+        # Lücke hinweg würde sonst mit dem letzten bekannten Punkt und einem zu
+        # kurzen Zeitdelta fälschlich verrechnet.
+        prev_lat, prev_lon = lat, lon
+        prev_ts = ts
+
+    return int(moving_s) if have_segment else None
 
 
 TrackDistanceIndex = tuple[list[float], list[tuple[float, float]]]

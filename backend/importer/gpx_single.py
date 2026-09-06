@@ -10,11 +10,8 @@ from lxml import etree
 
 from backend.importer.gpx import NS, _attr_float, _text_str, _text_float, _text_int, import_gpx, read_gpx_device
 from backend.importer.sport_codes import is_ride_sport, sport_code_label_de, to_sport_code
+from backend.utils import MOVING_THRESHOLD_MS as _MOVING_THRESHOLD_MS
 from backend.utils import haversine_m
-
-# Zeitintervalle unter diesem Schwellwert (m/s) gelten als Pause und fließen
-# nicht in die Moving Time ein – analog zu Stravas Logik (~1.4 m/s für Rad)
-_MOVING_THRESHOLD_MS = 1.0  # ≈ 3.6 km/h
 
 
 def import_single_gpx(conn: sqlite3.Connection, gpx_bytes: bytes, bike_id: str | None = None) -> dict:

@@ -12,7 +12,7 @@ import fitparse
 
 from backend.importer.fit import _SafeProcessor, _val, import_fit, read_fit_device
 from backend.importer.sport_codes import is_ride_sport, lookup_sport_code, sport_code_label_de, to_sport_code
-from backend.utils import haversine_m
+from backend.utils import haversine_m, moving_time_from_track_points
 
 def import_single_fit(conn: sqlite3.Connection, fit_bytes: bytes, bike_id: str | None = None) -> dict:
     """
@@ -143,6 +143,17 @@ def _import_as_ride(
     if count > 0:
         with conn:
             conn.execute("UPDATE activities SET has_track=1 WHERE id=?", (activity_id,))
+
+    # Gerät meldet total_timer_time oft zu hoch (Standzeiten werden mitgezählt) –
+    # Moving Time wird nachträglich aus dem Track neu berechnet, analog zu Strava.
+    computed_moving = moving_time_from_track_points(conn, activity_id)
+    if computed_moving:
+        new_avg_speed = (distance_m / computed_moving) if distance_m else None
+        with conn:
+            conn.execute(
+                "UPDATE activities SET moving_time_s = ?, avg_speed_ms = ? WHERE id = ?",
+                (computed_moving, new_avg_speed, activity_id),
+            )
 
     return {
         "activity_id": activity_id, "name": activity_name, "is_ride": True,
