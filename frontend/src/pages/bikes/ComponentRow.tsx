@@ -22,6 +22,7 @@ export function ComponentRow({
   const pct = comp.pct_used ?? 0;
   const color = wearColor(pct);
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
   const [uninstalling, setUninstalling] = useState(false);
   const [uninstallKm, setUninstallKm] = useState(Math.round(comp.km_since_service));
@@ -68,6 +69,7 @@ export function ComponentRow({
 
   async function handleSave() {
     setBusy(true);
+    setError(null);
     try {
       await api.updateBikeComponent(bikeId, comp.id, {
         type: editType,
@@ -76,12 +78,15 @@ export function ComponentRow({
       });
       setEditing(false);
       onChanged();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t('componentRow.actionFailed'));
     } finally {
       setBusy(false);
     }
   }
   async function handleUninstall() {
     setBusy(true);
+    setError(null);
     try {
       const pid = await resolvePurchaseId(uninstallPurchaseId);
       await api.uninstallBikeComponent(bikeId, comp.id, uninstallKm, pid);
@@ -89,11 +94,14 @@ export function ComponentRow({
       setUninstallPurchaseId('');
       setNewStockName('');
       onChanged();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t('componentRow.actionFailed'));
     } finally { setBusy(false); }
   }
   async function handleLinkToStock() {
     if (linkPurchaseId === '') return;
     setBusy(true);
+    setError(null);
     try {
       const pid = await resolvePurchaseId(linkPurchaseId);
       if (pid == null) return;
@@ -105,19 +113,26 @@ export function ComponentRow({
       setLinkPurchaseId('');
       setNewStockName('');
       onChanged();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t('componentRow.actionFailed'));
     } finally { setBusy(false); }
   }
   async function handleDelete() {
     setBusy(true);
+    setError(null);
     try { await api.deleteBikeComponent(bikeId, comp.id); onChanged(); }
+    catch (e) { setError(e instanceof Error ? e.message : t('componentRow.actionFailed')); }
     finally { setBusy(false); }
   }
   async function handleMaintain() {
     setBusy(true);
+    setError(null);
     try {
       await api.maintainBikeComponent(bikeId, comp.id, maintainDate);
       setMaintaining(false);
       onChanged();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t('componentRow.actionFailed'));
     } finally { setBusy(false); }
   }
 
@@ -170,6 +185,12 @@ export function ComponentRow({
 
   return (
     <div className={`rounded-xl border border-border p-2.5 space-y-1.5${isRetired ? ' opacity-60' : ' bg-muted/30'}`}>
+      {error && (
+        <p className="text-sm text-red-500 rounded-lg border border-red-500/30 bg-red-500/5 px-3 py-2">
+          {error}
+        </p>
+      )}
+
       {/* Titel + Metadaten + Fortschritt in % */}
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-x-2.5 gap-y-1 min-w-0 flex-wrap">

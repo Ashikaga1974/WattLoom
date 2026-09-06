@@ -391,7 +391,8 @@
       "toStockButtonTitle": "Nachträglich einem Lagerartikel zuordnen und zurücklegen",
       "uninstallButton": "Ausbauen",
       "uninstallButtonTitle": "Komponente ausbauen und ggf. ins Lager zurücklegen",
-      "uninstalledAfter": "ausgebaut nach {{km}} km"
+      "uninstalledAfter": "ausgebaut nach {{km}} km",
+      "actionFailed": "Aktion fehlgeschlagen"
     },
     "deleted": {
       "empty": "Noch keine Komponenten gelöscht.",

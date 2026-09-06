@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { GitCompare, Trash2 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 
@@ -54,6 +54,8 @@ function fmtWorkoutDay(d: string)  { return fmtWeekday(d + 'T12:00:00'); }
 export default function ActivitiesPage() {
   const { t } = useTranslation(['activities', 'common']);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const bikeParam = searchParams.get('bike');
 
   const [activeTab, setActiveTab] = useState<Tab>('rides');
 
@@ -70,7 +72,7 @@ export default function ActivitiesPage() {
 
   // Filter
   const [filterYear, setFilterYear]         = useState('');
-  const [filterBike, setFilterBike]         = useState('');
+  const [filterBike, setFilterBike]         = useState(bikeParam ?? '');
   const [filterHasTrack, setFilterHasTrack] = useState(false);
   const [sortBy, setSortBy]                 = useState('start_date');
 

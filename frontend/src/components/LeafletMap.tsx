@@ -54,11 +54,17 @@ export default function LeafletMap({ points = [], multiPoints, speedColorBuckets
 
     const validPts = allPts.filter(p => p.lat != null && p.lon != null);
     if (validPts.length < 2) return { zIndex: 0, height: '240px' };
-    const lats = validPts.map(p => p.lat);
-    const lons = validPts.map(p => p.lon);
-    const latRange = Math.max(...lats) - Math.min(...lats);
-    const lonRange = Math.max(...lons) - Math.min(...lons);
-    const avgLat = ((Math.max(...lats) + Math.min(...lats)) / 2) * (Math.PI / 180);
+    // Loop statt Math.min/max(...array) – Spread über große Tracks (>100k Punkte) sprengt den Call-Stack
+    let minLat = Infinity, maxLat = -Infinity, minLon = Infinity, maxLon = -Infinity;
+    for (const p of validPts) {
+      if (p.lat < minLat) minLat = p.lat;
+      if (p.lat > maxLat) maxLat = p.lat;
+      if (p.lon < minLon) minLon = p.lon;
+      if (p.lon > maxLon) maxLon = p.lon;
+    }
+    const latRange = maxLat - minLat;
+    const lonRange = maxLon - minLon;
+    const avgLat = ((maxLat + minLat) / 2) * (Math.PI / 180);
     // Visuelle Breite/Höhe im Mercator-Maßstab
     const geoRatio = (lonRange * Math.cos(avgLat)) / Math.max(latRange, 0.00001);
     // Containerbreite = Viewport - Sidebar - Padding (Schätzung)
@@ -151,8 +157,12 @@ export default function LeafletMap({ points = [], multiPoints, speedColorBuckets
         haloLines.push(halo);
         colorLines.push(poly);
       } else {
-        const minSpd = Math.min(...validSpeeds);
-        const maxSpd = Math.max(...validSpeeds);
+        // Loop statt Math.min/max(...array) – Spread über große Tracks sprengt den Call-Stack
+        let minSpd = Infinity, maxSpd = -Infinity;
+        for (const s of validSpeeds) {
+          if (s < minSpd) minSpd = s;
+          if (s > maxSpd) maxSpd = s;
+        }
 
         function speedColor(kmh: number): string {
           const t = maxSpd > minSpd ? Math.max(0, Math.min(1, (kmh - minSpd) / (maxSpd - minSpd))) : 0;

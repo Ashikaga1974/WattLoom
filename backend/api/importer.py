@@ -34,8 +34,12 @@ class _ListStream:
         pass
 
 
-def _run_power_estimation() -> None:
-    """Schätzt Leistung für alle Radtouren mit Track-Daten (bulk, inline)."""
+def _run_power_estimation(only_missing: bool = False) -> None:
+    """Schätzt Leistung für Radtouren mit Track-Daten (bulk, inline).
+    only_missing=True (automatischer Lauf nach ZIP-Import): nur Rides ohne bestehende
+    Schätzung, damit nicht bei jedem Import erneut über die gesamte Historie simuliert wird.
+    only_missing=False (POST /import/recalculate-power, manuell angestoßen): alle Rides neu
+    schätzen, z.B. nach einer Änderung von crr/cda/bike_kg in den Einstellungen."""
     from backend.database import db_connection
     from backend.importer.power_estimator import estimate_and_store, _get_weight_kg
 
@@ -46,11 +50,12 @@ def _run_power_estimation() -> None:
         print("  Leistungsschätzung übersprungen – kein Körpergewicht in Einstellungen")
         return
 
+    missing_clause = " AND est_avg_power_w IS NULL" if only_missing else ""
     with db_connection() as conn:
         ids = [
             r[0]
             for r in conn.execute(
-                "SELECT id FROM activities WHERE has_track = 1 ORDER BY start_date DESC"
+                f"SELECT id FROM activities WHERE has_track = 1{missing_clause} ORDER BY start_date DESC"
             ).fetchall()
         ]
 
@@ -146,7 +151,7 @@ def _run_import() -> None:
         _fetch_all_job()
 
         print("→ Leistung schätzen …")
-        _run_power_estimation()
+        _run_power_estimation(only_missing=True)
 
         print("→ Bestzeiten prüfen …")
         _check_new_prs(baseline)
@@ -219,10 +224,12 @@ async def import_fit_file(
     logger.info("FIT-Import: %s (activity %s, is_ride=%s)", file.filename, result["activity_id"], result["is_ride"])
 
     if result.get("is_ride"):
+        # App-Sync läuft nicht hier synchron, sondern am Ende von _run_weather_and_power_async()
+        # im selben Background-Thread – sonst pusht er die Fahrt mit noch NULL
+        # weather_temp_c/est_avg_power_w in die Cloud-Kopie.
         _run_weather_and_power_async(result["activity_id"])
         _invalidate_analytics_cache()
         _check_new_prs(baseline, activity_ids=[result["activity_id"]])
-        _sync_app_after_import()
 
     return result
 
@@ -242,10 +249,13 @@ def _run_weather_and_power_async(activity_id: int) -> None:
     """Holt Wetter + schätzt Leistung im Hintergrund, damit der Einzelimport nicht auf den
     externen Open-Meteo-Call warten muss. Power-Schätzung läuft bewusst NACH dem Wetter-Fetch
     (nicht parallel dazu) im selben Thread, da sie weather_temp_c für die Luftdichte nutzt,
-    falls vorhanden – sonst würde sie immer auf den Temperatur-Fallback zurückfallen."""
+    falls vorhanden – sonst würde sie immer auf den Temperatur-Fallback zurückfallen.
+    Der App-Sync läuft danach im selben Thread (statt synchron direkt im Request), sonst pusht
+    er die Fahrt fast immer mit noch NULL weather_temp_c/est_avg_power_w in die Cloud-Kopie."""
     def _job() -> None:
         _fetch_weather_for_activity(activity_id)
         _estimate_power_for_activity(activity_id)
+        _sync_app_after_import()
 
     threading.Thread(target=_job, daemon=True).start()
 
@@ -317,10 +327,12 @@ async def import_tcx_file(
     logger.info("TCX-Import: %s (activity %s, is_ride=%s)", file.filename, result["activity_id"], result["is_ride"])
 
     if result.get("is_ride"):
+        # App-Sync läuft nicht hier synchron, sondern am Ende von _run_weather_and_power_async()
+        # im selben Background-Thread – sonst pusht er die Fahrt mit noch NULL
+        # weather_temp_c/est_avg_power_w in die Cloud-Kopie.
         _run_weather_and_power_async(result["activity_id"])
         _invalidate_analytics_cache()
         _check_new_prs(baseline, activity_ids=[result["activity_id"]])
-        _sync_app_after_import()
 
     return result
 
@@ -354,10 +366,12 @@ async def import_gpx_file(
     logger.info("GPX-Import: %s (activity %s, is_ride=%s)", file.filename, result["activity_id"], result["is_ride"])
 
     if result.get("is_ride"):
+        # App-Sync läuft nicht hier synchron, sondern am Ende von _run_weather_and_power_async()
+        # im selben Background-Thread – sonst pusht er die Fahrt mit noch NULL
+        # weather_temp_c/est_avg_power_w in die Cloud-Kopie.
         _run_weather_and_power_async(result["activity_id"])
         _invalidate_analytics_cache()
         _check_new_prs(baseline, activity_ids=[result["activity_id"]])
-        _sync_app_after_import()
 
     return result
 

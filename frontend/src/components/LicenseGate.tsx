@@ -19,13 +19,23 @@ export function useLicenseStatus(): LicenseStatus | null {
  */
 export function LicenseGate({ children }: { children: React.ReactNode }) {
   const [status, setStatus] = useState<LicenseStatus | null>(null);
+  // Getrennt von `status === null`, damit ein fehlgeschlagener Fetch (Backend noch nicht
+  // erreichbar, Netzwerkfehler) nicht wie "lädt noch" aussieht und die App dauerhaft weiß bleibt.
+  const [loading, setLoading] = useState(true);
+  const [fetchFailed, setFetchFailed] = useState(false);
   const [key, setKey] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [activating, setActivating] = useState(false);
 
-  useEffect(() => {
-    api.licenseStatus().then(setStatus).catch(() => setStatus(null));
-  }, []);
+  function loadStatus() {
+    setLoading(true);
+    setFetchFailed(false);
+    api.licenseStatus()
+      .then(res => { setStatus(res); setLoading(false); })
+      .catch(() => { setFetchFailed(true); setLoading(false); });
+  }
+
+  useEffect(loadStatus, []);
 
   async function activate() {
     setActivating(true);
@@ -40,7 +50,28 @@ export function LicenseGate({ children }: { children: React.ReactNode }) {
     }
   }
 
-  if (status === null) return null;
+  if (loading) return null;
+
+  if (fetchFailed || status === null) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-6">
+        <div className="w-full max-w-sm rounded-2xl border p-6 space-y-4 text-center">
+          <div>
+            <h1 className="text-lg font-semibold">Verbindung fehlgeschlagen</h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              Der Lizenzstatus konnte nicht geladen werden. Läuft das Backend?
+            </p>
+          </div>
+          <button
+            onClick={loadStatus}
+            className="w-full rounded-md bg-primary text-primary-foreground px-4 py-2 text-sm font-medium"
+          >
+            Erneut versuchen
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   if (status.access) {
     return <LicenseStatusContext.Provider value={status}>{children}</LicenseStatusContext.Provider>;

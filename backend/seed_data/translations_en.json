@@ -391,7 +391,8 @@
       "toStockButtonTitle": "Retroactively assign to a stock item and return it to stock",
       "uninstallButton": "Remove",
       "uninstallButtonTitle": "Remove component and optionally return it to stock",
-      "uninstalledAfter": "removed after {{km}} km"
+      "uninstalledAfter": "removed after {{km}} km",
+      "actionFailed": "Action failed"
     },
     "deleted": {
       "empty": "No components deleted yet.",

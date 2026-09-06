@@ -135,12 +135,13 @@ def get_zones(activity_id: int):
     Zeitdelta zwischen aufeinanderfolgenden Punkten wird auf max. 10 s gecappt
     (GPS-Pausen werden so ausgeschlossen).
     """
+    # Lazy Import: analytics/pmc.py importiert umgekehrt aus diesem Modul (Zirkularimport
+    # bei Modulebene-Import hier).
+    from backend.api.analytics._shared import _effective_hr_max
+
     with db_connection() as conn:
-        # 1. HRmax aus allen Aktivitäten
-        row = conn.execute(
-            "SELECT MAX(max_hr) AS v FROM activities WHERE max_hr > 0"
-        ).fetchone()
-        hr_max = int(row["v"]) if row and row["v"] else None
+        # 1. HRmax: echter Messwert über alle Aktivitäten, sonst Config-Fallback (analog PMC/Zone-Distribution)
+        hr_max = int(_effective_hr_max(conn))
 
         # 2. Manueller FTP aus config-Tabelle
         row = conn.execute(
@@ -222,6 +223,7 @@ def get_zones(activity_id: int):
         "hr_max":     hr_max,
         "ftp":        ftp,
         "hr_correction_pct": round(correction_pct * 100, 1) if correction_pct else 0.0,
+        "hr_correction_applied": correction_pct > 0,
         "has_hr":     has_hr,
         "has_power":  has_power,
     }

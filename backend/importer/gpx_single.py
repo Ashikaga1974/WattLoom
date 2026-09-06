@@ -240,7 +240,7 @@ def _import_as_workout(
             VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
         """, (
             activity_id, name, sport_code, start_date,
-            stats["elapsed_s"], stats["elapsed_s"],
+            stats["moving_time_s"], stats["elapsed_s"],
             stats["avg_hr"], None, stats["avg_cadence"], stats["max_cadence"], None,
             datetime.now(timezone.utc).isoformat(),
         ))

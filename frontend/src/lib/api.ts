@@ -608,6 +608,15 @@ async function post<T>(path: string, body: unknown): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+async function put<T>(path: string, body?: unknown): Promise<T> {
+  const res = await fetch(`${BASE}${path}`, {
+    method: 'PUT',
+    ...(body !== undefined ? { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) } : {}),
+  });
+  if (!res.ok) return res.json().then(j => { throw new Error(errorMessage(j.detail, res.status)); });
+  return res.json() as Promise<T>;
+}
+
 export function buildQuery(params: Record<string, string | number | boolean | null | undefined>): string {
   const q = Object.entries(params)
     .filter(([, v]) => v !== null && v !== undefined && v !== '')
@@ -865,32 +874,26 @@ export const api = {
     post<{ ok: boolean }>(`/bikes/${bikeId}/components`, data),
 
   updateBikeComponent: (bikeId: string, compId: number, data: { type: string; km_threshold: number; installed_at?: string }) =>
-    fetch(`${BASE}/bikes/${bikeId}/components/${compId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })
-      .then(r => { if (!r.ok) throw new Error(`Fehler ${r.status}`); return r.json(); }),
+    put<{ ok: boolean }>(`/bikes/${bikeId}/components/${compId}`, data),
 
   uninstallBikeComponent: (bikeId: string, compId: number, kmRidden: number, purchaseId?: number): Promise<{ ok: boolean }> =>
-    fetch(`${BASE}/bikes/${bikeId}/components/${compId}/uninstall`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ km_ridden: kmRidden, purchase_id: purchaseId }) })
-      .then(r => { if (!r.ok) throw new Error(`Fehler ${r.status}`); return r.json(); }),
+    put(`/bikes/${bikeId}/components/${compId}/uninstall`, { km_ridden: kmRidden, purchase_id: purchaseId }),
 
   returnComponentToStock: (bikeId: string, compId: number, purchaseId: number): Promise<{ ok: boolean }> =>
-    fetch(`${BASE}/bikes/${bikeId}/components/${compId}/return-to-stock`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ purchase_id: purchaseId }) })
-      .then(r => { if (!r.ok) throw new Error(`Fehler ${r.status}`); return r.json(); }),
+    put(`/bikes/${bikeId}/components/${compId}/return-to-stock`, { purchase_id: purchaseId }),
 
   linkComponentPurchase: (bikeId: string, compId: number, purchaseId: number): Promise<{ ok: boolean }> =>
-    fetch(`${BASE}/bikes/${bikeId}/components/${compId}/link-purchase`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ purchase_id: purchaseId }) })
-      .then(r => { if (!r.ok) throw new Error(`Fehler ${r.status}`); return r.json(); }),
+    put(`/bikes/${bikeId}/components/${compId}/link-purchase`, { purchase_id: purchaseId }),
 
   resetBikeComponent: (bikeId: string, compId: number): Promise<{ ok: boolean }> =>
-    fetch(`${BASE}/bikes/${bikeId}/components/${compId}/reset`, { method: 'PUT' })
-      .then(r => { if (!r.ok) throw new Error(`Fehler ${r.status}`); return r.json(); }),
+    put(`/bikes/${bikeId}/components/${compId}/reset`),
 
   maintainBikeComponent: (bikeId: string, compId: number, maintainedAt?: string): Promise<{ ok: boolean; last_maintained_at: string; last_maintained_km: number }> =>
-    fetch(`${BASE}/bikes/${bikeId}/components/${compId}/maintain`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ maintained_at: maintainedAt }) })
-      .then(r => { if (!r.ok) throw new Error(`Fehler ${r.status}`); return r.json(); }),
+    put(`/bikes/${bikeId}/components/${compId}/maintain`, { maintained_at: maintainedAt }),
 
   deleteBikeComponent: (bikeId: string, compId: number): Promise<{ ok: boolean }> =>
     fetch(`${BASE}/bikes/${bikeId}/components/${compId}`, { method: 'DELETE' })
-      .then(r => { if (!r.ok) throw new Error(`Fehler ${r.status}`); return r.json(); }),
+      .then(r => { if (!r.ok) return r.json().then(j => { throw new Error(errorMessage(j.detail, r.status)); }); return r.json(); }),
 
   toggleBikeRetired: (bikeId: string): Promise<{ ok: boolean; retired: number }> =>
     fetch(`${BASE}/bikes/${bikeId}/toggle-retired`, { method: 'PUT' })

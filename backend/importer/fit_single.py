@@ -144,6 +144,19 @@ def _import_as_ride(
         with conn:
             conn.execute("UPDATE activities SET has_track=1 WHERE id=?", (activity_id,))
 
+    # total_distance aus der FIT-Session kann fehlen/0 sein (Geräte-Eigenheit) – Fallback:
+    # kumulative Distanz aus den (ggf. per Haversine nachgefüllten) Track-Punkten übernehmen,
+    # sonst bleibt die Fahrt dauerhaft aus best_by_distance()/PR-Erkennung ausgeschlossen
+    # (WHERE distance_m > 0).
+    if not distance_m:
+        row = conn.execute(
+            "SELECT MAX(distance_m) AS d FROM track_points WHERE activity_id = ?", (activity_id,)
+        ).fetchone()
+        if row and row["d"]:
+            distance_m = row["d"]
+            with conn:
+                conn.execute("UPDATE activities SET distance_m = ? WHERE id = ?", (distance_m, activity_id))
+
     # Gerät meldet total_timer_time oft zu hoch (Standzeiten werden mitgezählt) –
     # Moving Time wird nachträglich aus dem Track neu berechnet, analog zu Strava.
     computed_moving = moving_time_from_track_points(conn, activity_id)
