@@ -1289,7 +1289,9 @@
         "totalTrainingTime": "Total Training Time"
       },
       "workoutCount_one": "{{count}} Workout · {{time}}",
-      "workoutCount_other": "{{count}} Workouts · {{time}}"
+      "workoutCount_other": "{{count}} Workouts · {{time}}",
+      "heatmapTitle": "Training times by weekday",
+      "peakLegend": "Peak time"
     },
     "volumeTab": {
       "currentLabel": "Current",
@@ -1321,7 +1323,8 @@
       }
     },
     "yearComparisonTab": {
-      "activeMonthsStat": "{{count}} active months · ⌀ {{avg}} km/mo"
+      "activeMonthsStat": "{{count}} active months · ⌀ {{avg}} km/mo",
+      "chartTitle": "Monthly comparison"
     }
   },
   "settings": {
