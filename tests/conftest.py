@@ -129,6 +129,70 @@ CREATE TABLE config (
     key   TEXT PRIMARY KEY,
     value TEXT
 );
+
+CREATE TABLE bike_components (
+    id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+    bike_id             TEXT REFERENCES bikes(id),
+    type                TEXT,
+    model               TEXT,
+    description         TEXT,
+    distance_m          REAL,
+    added_at            TEXT,
+    retired_at          TEXT,
+    km_threshold        REAL,
+    km_at_service       REAL DEFAULT 0,
+    uninstalled_km      REAL,
+    last_maintained_at  TEXT,
+    last_maintained_km  REAL,
+    purchase_item_id    INTEGER REFERENCES purchase_items(id)
+);
+
+CREATE TABLE purchases (
+    id                   INTEGER PRIMARY KEY AUTOINCREMENT,
+    name                 TEXT NOT NULL,
+    shop                 TEXT,
+    url                  TEXT,
+    price                REAL,
+    order_date           TEXT,
+    delivery_date        TEXT,
+    notes                TEXT,
+    component_type       TEXT,
+    storage_location_id  INTEGER REFERENCES storage_locations(id) ON DELETE SET NULL
+);
+
+CREATE TABLE storage_locations (
+    id   INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL UNIQUE
+);
+
+CREATE TABLE purchase_items (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    purchase_id  INTEGER NOT NULL REFERENCES purchases(id),
+    disposed_at  TEXT
+);
+
+CREATE TABLE purchase_returns (
+    id                INTEGER PRIMARY KEY AUTOINCREMENT,
+    bike_id           TEXT,
+    component_type    TEXT,
+    km_ridden         REAL,
+    returned_at       TEXT,
+    purchase_item_id  INTEGER REFERENCES purchase_items(id)
+);
+
+CREATE TABLE deleted_components (
+    id                INTEGER PRIMARY KEY AUTOINCREMENT,
+    bike_id           TEXT,
+    type              TEXT,
+    km_threshold      REAL,
+    km_at_service     REAL,
+    km_since_service  REAL,
+    added_at          TEXT,
+    retired_at        TEXT,
+    uninstalled_km    REAL,
+    purchase_item_id  INTEGER REFERENCES purchase_items(id),
+    deleted_at        TEXT
+);
 """
 
 
