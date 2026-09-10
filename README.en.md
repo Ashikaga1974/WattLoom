@@ -1,14 +1,49 @@
 # WattLoom
 
-Local web app for analyzing Strava export data. No Strava API access needed – everything runs locally based on a downloaded ZIP export.
+**Local-first Strava analytics for cyclists.**
+
+Analyze your complete Strava history locally – without Strava API access, without cloud upload.
+Just download the ZIP export, import it, done.
 
 ![Dashboard](res/dashboard2.png)
 
 > 🇩🇪 [Deutsche README](README.md)
 
+⭐ **Features**
+📊 Training analytics · 🚴 Bike management · 🌦 Weather & performance · 🏆 PRs & best efforts ·
+🗺 Routes & heatmap · 🔒 100% local
+
 ![Stack](https://img.shields.io/badge/Backend-FastAPI%20%2B%20SQLite-blue)
 ![Stack](https://img.shields.io/badge/Frontend-React%2019%20%2B%20Vite%20%2B%20shadcn%2Fui-orange)
 ![Platform](https://img.shields.io/badge/Platform-Linux%20%2F%20macOS-lightgrey)
+![License](https://img.shields.io/badge/License-AGPL--3.0-green)
+
+---
+
+### Why WattLoom?
+
+**No API.**
+Import your Strava ZIP export.
+
+**No cloud.**
+Your activities stay on your own machine.
+
+**No subscription.**
+Fully open source (AGPL-3.0) – no license key, ever.
+
+**One dashboard.**
+Training, performance, weather, and bike maintenance in one place.
+
+### Comparison with existing solutions
+
+| | WattLoom | Strava | GoldenCheetah | Intervals.icu |
+|---|---|---|---|---|
+| Local data | ✅ | ❌ | ✅ | ❌ |
+| Strava API required | ❌ | — | optional | optional |
+| Cloud account required | ❌ | ✅ | ❌ | ✅ |
+| Web UI | ✅ | ✅ | ❌ (desktop app) | ✅ |
+| Bike maintenance | ✅ | Limited | Limited (manual only) | not found |
+| Weather analysis | ✅ (free) | Limited | not found | ✅ (paid tier only) |
 
 ---
 
@@ -19,6 +54,7 @@ Local web app for analyzing Strava export data. No Strava API access needed – 
 
 ## Table of Contents
 
+- [Why WattLoom?](#why-wattloom)
 - [Security note](#security-note)
 - [Features](#features)
 - [Prerequisites](#prerequisites)
