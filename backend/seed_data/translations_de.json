@@ -1365,16 +1365,6 @@
       "wearPctHint": "Ab diesem Verschleiß-% erscheint die Dashboard-Warnung (50–100)",
       "wearPctLabel": "Verschleiß-Warnschwelle"
     },
-    "appSync": {
-      "autoSyncLabel": "Automatisch nach jedem Import synchronisieren",
-      "failedPrefix": "– fehlgeschlagen:",
-      "lastSync": "Letzter Sync: {{date}} {{time}}",
-      "notSyncedYet": "Noch nicht synchronisiert.",
-      "subtitle": "Spiegelt die Daten in die Cloud-DB der mobilen App (Neon Postgres). Läuft automatisch nach jedem Import, sofern aktiviert – der Button unten stößt jederzeit einen manuellen Sync an.",
-      "syncNow": "Jetzt synchronisieren",
-      "syncing": "Synchronisiert…",
-      "title": "WattLoomApp-Sync"
-    },
     "common": {
       "saveFailed": "Speichern fehlgeschlagen",
       "saved": "Gespeichert",

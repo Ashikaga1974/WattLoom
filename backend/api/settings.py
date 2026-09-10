@@ -47,10 +47,6 @@ _FIELDS: dict[str, tuple[type, object]] = {
     # Ketten-Pflegeintervall (Reinigen/Ölen) – unabhängig vom Verschleiß-/Austausch-Intervall
     # (km_threshold der Komponente selbst)
     "chain_maintenance_km":  (float, 300.0),
-    # Automatischer WattLoomApp-Sync nach jedem Import an/aus (siehe app_sync.py) – der
-    # Subprocess-Aufruf dauert ~10-15s, manueller Button in den Einstellungen bleibt
-    # davon unabhängig immer nutzbar.
-    "app_sync_enabled":      (int,   1),
 }
 
 

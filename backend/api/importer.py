@@ -80,27 +80,6 @@ def _fmt_hms(seconds: float) -> str:
     return f"{h}:{m:02d}:{s:02d}" if h else f"{m}:{s:02d}"
 
 
-def _sync_app_after_import() -> None:
-    """Stößt den WattLoomApp-Sync direkt nach einem Import an (analog zum automatischen
-    Wetter-Fetch) statt den manuellen Button in den Einstellungen zu erfordern.
-    Per Einstellung (app_sync_enabled) abschaltbar, da der Subprocess-Aufruf ~10-15s
-    dauert – der manuelle Button bleibt davon unberührt immer nutzbar."""
-    from backend.database import db_connection
-    from backend.api.app_sync import _do_sync
-
-    with db_connection() as conn:
-        row = conn.execute("SELECT value FROM config WHERE key = 'app_sync_enabled'").fetchone()
-    if row is not None and row["value"] == "0":
-        return
-
-    try:
-        result = _do_sync()
-        if not result["ok"]:
-            logger.warning("WattLoomApp-Sync nach Import fehlgeschlagen: %s", result["message"])
-    except Exception as exc:
-        logger.error("WattLoomApp-Sync nach Import fehlgeschlagen: %s", exc)
-
-
 def _invalidate_analytics_cache() -> None:
     """Verwirft den best_by_distance-/heatmap-Cache (siehe backend/cache.py) – neue oder
     gelöschte Aktivitäten/Tracks würden sonst bis zum nächsten Backend-Neustart mit dem
@@ -155,9 +134,6 @@ def _run_import() -> None:
 
         print("→ Bestzeiten prüfen …")
         _check_new_prs(baseline)
-
-        print("→ WattLoomApp-Sync …")
-        _sync_app_after_import()
 
         with _lock:
             _state["status"] = "done"
@@ -224,9 +200,6 @@ async def import_fit_file(
     logger.info("FIT-Import: %s (activity %s, is_ride=%s)", file.filename, result["activity_id"], result["is_ride"])
 
     if result.get("is_ride"):
-        # App-Sync läuft nicht hier synchron, sondern am Ende von _run_weather_and_power_async()
-        # im selben Background-Thread – sonst pusht er die Fahrt mit noch NULL
-        # weather_temp_c/est_avg_power_w in die Cloud-Kopie.
         _run_weather_and_power_async(result["activity_id"])
         _invalidate_analytics_cache()
         _check_new_prs(baseline, activity_ids=[result["activity_id"]])
@@ -249,13 +222,10 @@ def _run_weather_and_power_async(activity_id: int) -> None:
     """Holt Wetter + schätzt Leistung im Hintergrund, damit der Einzelimport nicht auf den
     externen Open-Meteo-Call warten muss. Power-Schätzung läuft bewusst NACH dem Wetter-Fetch
     (nicht parallel dazu) im selben Thread, da sie weather_temp_c für die Luftdichte nutzt,
-    falls vorhanden – sonst würde sie immer auf den Temperatur-Fallback zurückfallen.
-    Der App-Sync läuft danach im selben Thread (statt synchron direkt im Request), sonst pusht
-    er die Fahrt fast immer mit noch NULL weather_temp_c/est_avg_power_w in die Cloud-Kopie."""
+    falls vorhanden – sonst würde sie immer auf den Temperatur-Fallback zurückfallen."""
     def _job() -> None:
         _fetch_weather_for_activity(activity_id)
         _estimate_power_for_activity(activity_id)
-        _sync_app_after_import()
 
     threading.Thread(target=_job, daemon=True).start()
 
@@ -327,9 +297,6 @@ async def import_tcx_file(
     logger.info("TCX-Import: %s (activity %s, is_ride=%s)", file.filename, result["activity_id"], result["is_ride"])
 
     if result.get("is_ride"):
-        # App-Sync läuft nicht hier synchron, sondern am Ende von _run_weather_and_power_async()
-        # im selben Background-Thread – sonst pusht er die Fahrt mit noch NULL
-        # weather_temp_c/est_avg_power_w in die Cloud-Kopie.
         _run_weather_and_power_async(result["activity_id"])
         _invalidate_analytics_cache()
         _check_new_prs(baseline, activity_ids=[result["activity_id"]])
@@ -366,9 +333,6 @@ async def import_gpx_file(
     logger.info("GPX-Import: %s (activity %s, is_ride=%s)", file.filename, result["activity_id"], result["is_ride"])
 
     if result.get("is_ride"):
-        # App-Sync läuft nicht hier synchron, sondern am Ende von _run_weather_and_power_async()
-        # im selben Background-Thread – sonst pusht er die Fahrt mit noch NULL
-        # weather_temp_c/est_avg_power_w in die Cloud-Kopie.
         _run_weather_and_power_async(result["activity_id"])
         _invalidate_analytics_cache()
         _check_new_prs(baseline, activity_ids=[result["activity_id"]])

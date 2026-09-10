@@ -10,7 +10,6 @@ import { AppConfigCard } from './settings/AppConfigCard';
 import { AdvancedCard } from './settings/AdvancedCard';
 import { HrCorrectionCard } from './settings/HrCorrectionCard';
 import { DisplayConfigCard } from './settings/DisplayConfigCard';
-import { AppSyncCard } from './settings/AppSyncCard';
 import { ResetCard } from './settings/ResetCard';
 import { ImportZipCard } from './settings/ImportZipCard';
 import { FitImportCard } from './settings/FitImportCard';
@@ -122,7 +121,6 @@ export default function SettingsPage() {
           <AdvancedCard bikes={bikes} />
           <HrCorrectionCard />
           <DisplayConfigCard />
-          <AppSyncCard />
           <ResetCard importRunning={importStatus === 'running'} onResetSuccess={handleResetSuccess} />
         </TabsContent>
 

@@ -1365,16 +1365,6 @@
       "wearPctHint": "Dashboard warning appears from this wear % (50–100)",
       "wearPctLabel": "Wear warning threshold"
     },
-    "appSync": {
-      "autoSyncLabel": "Sync automatically after every import",
-      "failedPrefix": "– failed:",
-      "lastSync": "Last sync: {{date}} {{time}}",
-      "notSyncedYet": "Not synced yet.",
-      "subtitle": "Mirrors the data to the mobile app's cloud DB (Neon Postgres). Runs automatically after every import when enabled – the button below triggers a manual sync anytime.",
-      "syncNow": "Sync now",
-      "syncing": "Syncing…",
-      "title": "WattLoomApp Sync"
-    },
     "common": {
       "saveFailed": "Save failed",
       "saved": "Saved",

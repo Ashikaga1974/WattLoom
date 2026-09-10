@@ -55,7 +55,7 @@ Lokale Web-App zur Analyse von Strava-Exportdaten. Kein Strava-API-Zugriff nöti
 | **Trainingsverteilung** | HF-Zonen-Zeit monatlich aggregiert (Polarized-Training-Check): easy/moderate/hard-%-Kacheln, gestapeltes Monats-Chart, Zonen-Breakdown, automatischer 80/20-Einschätzungstext |
 | **Kalender** | Monatskalender: Radtouren + Workouts (grau markiert), Ring-Indikator bei Kombi-Tagen |
 | **Berechnungen** | Dokumentation aller verwendeten Formeln und Parameter |
-| **Einstellungen** | Gewicht, Geburtsjahr, Zeitzone, Trainingsziele (Jahres-km, Wochenstunden), Sprache (DE/EN aktuell übersetzt, 7 weitere vorbereitet); FIT/TCX-Einzelimport (Amazfit, Garmin ohne Strava); Wetterdaten-Abruf; Leistung für alle Rides neu berechnen; WattLoomApp-Sync (läuft automatisch nach jedem Import, zusätzlich manuell anstoßbar); Übersetzungen als JSON exportieren/importieren; DB-Reset sichert vorher automatisch eine Backup-Kopie |
+| **Einstellungen** | Gewicht, Geburtsjahr, Zeitzone, Trainingsziele (Jahres-km, Wochenstunden), Sprache (DE/EN aktuell übersetzt, 7 weitere vorbereitet); FIT/TCX-Einzelimport (Amazfit, Garmin ohne Strava); Wetterdaten-Abruf; Leistung für alle Rides neu berechnen; Übersetzungen als JSON exportieren/importieren; DB-Reset sichert vorher automatisch eine Backup-Kopie |
 | **Mehrsprachigkeit** | Komplette UI über react-i18next; Übersetzungen liegen DB-gestützt in der `translations`-Tabelle statt im Frontend-Bundle – neue Sprachen (z.B. per ChatGPT/DeepL übersetzt) lassen sich ohne Code-Änderung über Einstellungen → Export/Import einspielen |
 
 ---
@@ -159,7 +159,6 @@ WattLoom/
 │   ├── api/
 │   │   ├── activities.py    # /activities/* (inkl. laps, power-Patch)
 │   │   ├── analytics/       # /analytics/* (PMC, Wrapped, Kalorien, Best-of, Wind-Impact, Fitness-Fingerprint, …) – Paket, siehe CLAUDE.md
-│   │   ├── app_sync.py      # /app-sync/run, /app-sync/status (WattLoomApp-Sync-Subprocess)
 │   │   ├── bikes.py         # /bikes, /bikes/{id}, /bikes/compare, Komponenten-Einbau/Ausbau
 │   │   ├── errors.py        # api_error() – einheitliches Fehlerantwort-Format
 │   │   ├── purchases.py     # /purchases – Einkaufs-Lager (purchase_items: 1 Zeile je physischem Teil)
@@ -317,9 +316,6 @@ POST /import/recalculate-track-speeds → Background-Job: speed_ms/distance_m au
 POST /import/recalculate-power      → Background-Job: Leistungsschätzung für alle Rides neu berechnen
 GET  /media/{filename}
 GET  /health                        → Liveness-Check ({status: "ok"})
-
-GET  /app-sync/status               → letztes WattLoomApp-Sync-Ergebnis
-POST /app-sync/run                  → WattLoomApp-Sync manuell anstoßen (läuft nach jedem Import zusätzlich automatisch)
 
 GET  /translations/languages        → feste Sprachliste + welche davon in der DB vorhanden sind
 GET  /translations/export           ?lang → alle Übersetzungen einer Sprache als JSON (Download)

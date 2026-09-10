@@ -55,7 +55,7 @@ Local web app for analyzing Strava export data. No Strava API access needed – 
 | **Training distribution** | HR zone time aggregated monthly (polarized training check): easy/moderate/hard % tiles, stacked monthly chart, zone breakdown, automatic 80/20 insight text |
 | **Calendar** | Monthly calendar: rides + workouts (marked grey), ring indicator on combo days |
 | **Calculations** | Documentation of all formulas and parameters used |
-| **Settings** | Weight, birth year, timezone, training goals (yearly km, weekly hours), language (DE/EN translated so far, 7 more prepared); single FIT/TCX import (Amazfit, Garmin without Strava); weather data fetch; recalculate power for all rides; WattLoomApp sync (runs automatically after every import, also triggerable manually); export/import translations as JSON; DB reset automatically backs up a copy first |
+| **Settings** | Weight, birth year, timezone, training goals (yearly km, weekly hours), language (DE/EN translated so far, 7 more prepared); single FIT/TCX import (Amazfit, Garmin without Strava); weather data fetch; recalculate power for all rides; export/import translations as JSON; DB reset automatically backs up a copy first |
 | **Multi-language support** | Full UI via react-i18next; translations live DB-backed in the `translations` table instead of the frontend bundle – new languages (e.g. translated via ChatGPT/DeepL) can be imported without any code change via Settings → Export/Import |
 
 ---
@@ -159,7 +159,6 @@ WattLoom/
 │   ├── api/
 │   │   ├── activities.py    # /activities/* (incl. laps, power patch)
 │   │   ├── analytics/       # /analytics/* (PMC, Wrapped, calories, best-of, wind impact, fitness fingerprint, …) – package, see CLAUDE.md
-│   │   ├── app_sync.py      # /app-sync/run, /app-sync/status (WattLoomApp sync subprocess)
 │   │   ├── bikes.py         # /bikes, /bikes/{id}, /bikes/compare, component install/uninstall
 │   │   ├── errors.py        # api_error() – unified error response format
 │   │   ├── purchases.py     # /purchases – purchase/stock management (purchase_items: 1 row per physical item)
@@ -316,9 +315,6 @@ POST /import/recalculate-track-speeds → background job: recompute speed_ms/dis
 POST /import/recalculate-power      → background job: recompute power estimation for all rides
 GET  /media/{filename}
 GET  /health                        → liveness check ({status: "ok"})
-
-GET  /app-sync/status               → last WattLoomApp sync result
-POST /app-sync/run                  → trigger WattLoomApp sync manually (also runs automatically after every import)
 
 GET  /translations/languages        → fixed language list + which ones exist in the DB
 GET  /translations/export           ?lang → all translations for one language as JSON (download)
