@@ -5,6 +5,7 @@ import type { TFunction } from 'i18next';
 import { api, type WeeklyVolume } from '@/lib/api';
 import { useConfig } from '@/lib/config-context';
 import { Card, CardContent } from '@/components/ui/card';
+import { EmptyState } from '@/components/ui/empty-state';
 import { InsightCard } from '@/components/ui/insight-card';
 import { Button } from '@/components/ui/button';
 import {
@@ -159,7 +160,7 @@ export function VolumeTab() {
   const currentWeek = chartData.find(w => w.weeks_ago === 0);
 
   if (loading) return <div className="h-64 bg-muted animate-pulse rounded-xl" />;
-  if (error) return <div className="rounded border border-destructive/50 bg-destructive/10 p-4 text-destructive text-sm">{error}</div>;
+  if (error) return <EmptyState message={error} />;
 
   const tiles = [
     { label: t('volumeTab.tiles.rideTotal'), value: fmtTime(stats.totalRide * 60), color: '#fc4c02', icon: '🚴' },

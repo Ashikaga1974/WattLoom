@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api, type Bike, type Purchase } from '@/lib/api';
+import { EmptyState } from '@/components/ui/empty-state';
 import { BikeCard } from './BikeCard';
+import { AddBikeForm } from './AddBikeForm';
 import { PurchasesTab } from './PurchasesTab';
 
 export function OverviewTab() {
@@ -46,7 +48,7 @@ export function OverviewTab() {
   }, [refreshKey]);
 
   if (error) {
-    return <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive">{error}</div>;
+    return <EmptyState message={error} />;
   }
 
   if (loading) {
@@ -83,6 +85,10 @@ export function OverviewTab() {
       {bikes.length === 0 && (
         <p className="col-span-2 text-muted-foreground">{t('overview.noBikes')}</p>
       )}
+    </div>
+
+    <div className={activeBikes.length === 0 ? undefined : 'mt-4'}>
+      <AddBikeForm onAdded={reload} />
     </div>
 
     <div className="mt-8 space-y-3">

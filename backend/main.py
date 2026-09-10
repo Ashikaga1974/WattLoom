@@ -1,5 +1,5 @@
 import logging
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -63,6 +63,24 @@ def health():
 # UI überhaupt zu sehen bekommt – ein Prozess, kein separater Node-Server nötig.
 if FRONTEND_DIST_DIR.is_dir():
     app.mount("/assets", StaticFiles(directory=FRONTEND_DIST_DIR / "assets"), name="frontend-assets")
+
+    # Einige Frontend-Routen (React-Router) und Backend-Endpunkte teilen sich zufällig denselben
+    # Pfad (/bikes, /activities, /settings sind jeweils sowohl eine Seite als auch ein GET-Listen-
+    # Endpunkt). Solange man in der App navigiert, läuft das clientseitig und stört nicht – aber
+    # ein direkter Aufruf/Reload/Bookmark auf genau so einen Pfad ist ein echter Browser-Request,
+    # der sonst am API-Router hängen bleibt und rohes JSON statt der Seite zeigt. Browser markieren
+    # einen solchen Top-Level-Seitenaufruf mit "Sec-Fetch-Mode: navigate" – der interne fetch()-Call
+    # der SPA auf denselben Pfad (um die eigentlichen Daten zu laden) hat dieses Mode nicht und
+    # erreicht die API dadurch weiterhin ganz normal.
+    @app.middleware("http")
+    async def spa_navigation_fallback(request: Request, call_next):
+        if (
+            request.method == "GET"
+            and request.headers.get("sec-fetch-mode") == "navigate"
+            and not request.url.path.startswith(("/assets/", "/media/"))
+        ):
+            return FileResponse(FRONTEND_DIST_DIR / "index.html")
+        return await call_next(request)
 
     @app.get("/{full_path:path}")
     def serve_frontend(full_path: str):

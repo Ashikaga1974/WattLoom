@@ -6,6 +6,9 @@ __pycache__/
 *.pyd
 .Python
 
+# Docker-Bind-Mount (docker-compose.yml) – enthält DB/Medien/ZIP-Exports wie data/ oben
+wattloom-data/
+
 # Datenbank & persönliche Daten
 data/mybiking.db
 data/mybiking.db-shm

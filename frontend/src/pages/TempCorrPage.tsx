@@ -4,6 +4,7 @@ import { api } from '@/lib/api';
 import { PageHeader } from '@/components/ui/page-header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { EmptyState } from '@/components/ui/empty-state';
 import {
   ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, Area, AreaChart, Cell, ReferenceLine,
@@ -270,9 +271,7 @@ export default function TempCorrPage() {
         subtitle={t('subtitle', { count: pts.length })}
       />
 
-      {error && (
-        <div className="rounded border border-destructive/50 bg-destructive/10 p-4 text-destructive text-sm">{error}</div>
-      )}
+      {error && <EmptyState message={error} />}
 
       {loading ? (
         <div className="space-y-4">

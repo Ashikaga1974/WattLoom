@@ -22,6 +22,7 @@ import { PageHeader } from '@/components/ui/page-header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { InsightCard } from '@/components/ui/insight-card';
 import { ChartTooltip } from '@/components/ui/chart-tooltip';
+import { EmptyState } from '@/components/ui/empty-state';
 import { fmtDate } from '@/lib/format';
 import type { Insight } from '@/lib/insights';
 
@@ -211,9 +212,7 @@ export default function SpeedTrendPage() {
     return (
       <div className="space-y-6">
         <PageHeader title={t('pageHeader.title')} />
-        <div className="rounded border border-destructive/50 bg-destructive/10 p-4 text-destructive text-sm">
-          {error || t('errors.noData')}
-        </div>
+        <EmptyState message={error || t('errors.noData')} />
       </div>
     );
   }

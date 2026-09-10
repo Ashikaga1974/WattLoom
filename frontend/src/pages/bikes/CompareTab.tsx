@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api, type BikeCompareData } from '@/lib/api';
 import { Card, CardContent } from '@/components/ui/card';
+import { EmptyState } from '@/components/ui/empty-state';
 import { fmtNum } from '@/lib/format';
 
 const BIKE_COLORS = ['#3b82f6', '#f97316'];
@@ -60,9 +61,7 @@ export function CompareTab() {
   }
 
   if (error || !data?.summary.length) {
-    return error
-      ? <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive">{error}</div>
-      : <p className="text-sm text-muted-foreground">{t('compare.noData')}</p>;
+    return <EmptyState message={error || t('compare.noData')} />;
   }
 
   const filteredYearly = data.yearly.filter(y => parseInt(y.year) >= 2000);

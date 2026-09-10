@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api, type PmcDay, type PmcResponse, type WeeklyVolume } from '@/lib/api';
+import { EmptyState } from '@/components/ui/empty-state';
 
 // TSB-Zone → Farbe + Label (labelKey wird an den Render-Stellen mit t() übersetzt)
 function tsbZone(tsb: number) {
@@ -248,16 +249,8 @@ export default function FormPage() {
     );
   }
 
-  if (error) {
-    return (
-      <div className="rounded border border-destructive/50 bg-destructive/10 p-4 text-destructive text-sm">
-        {error}
-      </div>
-    );
-  }
-
-  if (!data?.current) {
-    return <p className="text-muted-foreground text-sm">{t('noData')}</p>;
+  if (error || !data?.current) {
+    return <EmptyState message={error || t('noData')} />;
   }
 
   const cur = data.current;

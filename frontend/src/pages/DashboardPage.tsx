@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import { api, type ActivityStats, type Bike, type Activity, type WeeklyStats, type MonthlyStats, type WeeklyVolume, type PmcDay, type PrEvent } from '@/lib/api';
 import { useConfig } from '@/lib/config-context';
+import { EmptyState } from '@/components/ui/empty-state';
 
 import { HeroBanner } from './dashboard/HeroBanner';
 import { GoalWidget } from './dashboard/GoalWidget';
@@ -118,11 +119,7 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      {error && (
-        <p className="text-destructive text-sm rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3">
-          {t('error.backendUnreachable', { message: error })}
-        </p>
-      )}
+      {error && <EmptyState message={t('error.backendUnreachable', { message: error })} />}
 
       {/* ── Hero: Letzter Ride ── */}
       <HeroBanner activity={recentActivities[0] ?? null} loading={loading} />

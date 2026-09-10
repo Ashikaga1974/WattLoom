@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api } from '@/lib/api';
 import { PageHeader } from '@/components/ui/page-header';
+import { EmptyState } from '@/components/ui/empty-state';
 
 export default function HeatmapPage() {
   const { t } = useTranslation('heatmap');
@@ -143,11 +144,7 @@ export default function HeatmapPage() {
         onYearChange={handleYearChange}
       />
 
-      {error && (
-        <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive">
-          {error}
-        </div>
-      )}
+      {error && <EmptyState message={error} />}
 
       <div className="relative">
         {loading && (

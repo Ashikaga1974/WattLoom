@@ -326,6 +326,12 @@
     "title": "Best of – Persönliche Rekorde"
   },
   "bikes": {
+    "addBikeForm": {
+      "closedButton": "+ Neues Bike anlegen",
+      "create": "Anlegen",
+      "nameLabel": "Name",
+      "panelTitle": "Neues Bike"
+    },
     "addForm": {
       "carryOverLabel": "Vorbelastung übernehmen (welches Exemplar wird eingebaut?)",
       "carryOverReturnedSuffix": " (zurückgelegt {{date}})",
@@ -369,6 +375,7 @@
       }
     },
     "componentRow": {
+      "chainMaintenanceDue": "Pflege fällig!",
       "confirm": "Bestätigen",
       "confirmAndStock": "Bestätigen + ins Lager",
       "deleteButtonTitle": "Komponente entfernen",
@@ -380,7 +387,13 @@
       "linkDescReturned": "Ordnet die ausgebaute Komponente einem Einkauf zu und legt sie ins Lager zurück.",
       "linkDescStillInstalled": "Ordnet diese aktuell verbaute Komponente nachträglich einem Einkauf zu – sie bleibt verbaut.",
       "linkedPurchaseTitle": "Verknüpfter Lagerartikel",
+      "lastMaintained": "zuletzt {{date}}",
+      "maintenanceButton": "Gepflegt",
+      "maintenanceButtonTitle": "Kette als gereinigt/geölt markieren",
+      "maintenanceDateLabel": "Datum",
       "maintenanceDue": "Wartung fällig!",
+      "maintenanceLabel": "Ketten-Pflege",
+      "neverMaintained": "noch nie gepflegt",
       "noStockRefOption": "– kein Lagerbezug –",
       "orderLinkText": "↗ Link",
       "orderLinkTitle": "Bestelllink öffnen",

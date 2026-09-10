@@ -5,6 +5,7 @@ import type { TFunction } from 'i18next';
 import { api, type WeeklyVolume, type FitnessFingerprint } from '@/lib/api';
 import { useConfig } from '@/lib/config-context';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { EmptyState } from '@/components/ui/empty-state';
 import { InsightCard } from '@/components/ui/insight-card';
 import {
   ComposedChart, Line, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
@@ -263,9 +264,7 @@ export function ProgressTab() {
 
   if (loading) return <div className="h-80 bg-muted animate-pulse rounded-xl" />;
 
-  if (error) return (
-    <div className="rounded border border-destructive/50 bg-destructive/10 p-4 text-destructive text-sm">{error}</div>
-  );
+  if (error) return <EmptyState message={error} />;
 
   const currentYearColor = progYearColor(years, currentYear);
 

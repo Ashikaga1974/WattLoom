@@ -1,0 +1,8 @@
+services:
+  wattloom:
+    build: .
+    ports:
+      - "${WATTLOOM_PORT:-8000}:8000"
+    volumes:
+      - ./wattloom-data:/data
+    restart: unless-stopped

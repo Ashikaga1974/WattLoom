@@ -198,13 +198,6 @@ def init_db() -> None:
                 PRIMARY KEY (lang, ns, key)
             );
         """)
-        # Default-Bike sicherstellen – wird nach jedem Reset neu angelegt
-        conn.execute(
-            "INSERT OR IGNORE INTO bikes (id, name, brand, retired) VALUES (?, ?, ?, 0)",
-            ("giant_propel", "Giant Propel", "Giant"),
-        )
-        conn.commit()
-
         # Migrations: activities-Spalten einmalig einlesen
         cols = [r[1] for r in conn.execute("PRAGMA table_info(activities)").fetchall()]
 
@@ -299,18 +292,6 @@ def init_db() -> None:
                 "ALTER TABLE purchases ADD COLUMN storage_location_id "
                 "INTEGER REFERENCES storage_locations(id) ON DELETE SET NULL"
             )
-        loc_count = conn.execute("SELECT COUNT(*) FROM storage_locations").fetchone()[0]
-        if loc_count == 0:
-            conn.executemany(
-                "INSERT INTO storage_locations (name) VALUES (?)",
-                [
-                    ("Kleine Kiste (obere Schublade Durchgang)",),
-                    ("Kleine Kiste (untere Schublade Durchgang)",),
-                    ("Grosse Kiste (Schlafzimmer)",),
-                    ("Rad-Flasche",),
-                ],
-            )
-
         # Migration: Laufleistungs-Historie zurückgelegter Komponenten
         # (bike_components-Zeile wird beim Zurücklegen gelöscht, die Laufleistung bleibt hier erhalten)
         conn.execute("""
@@ -553,9 +534,24 @@ def init_db() -> None:
             if col not in other_act_cols:
                 conn.execute(f"ALTER TABLE other_activities ADD COLUMN {col} {typ}")
 
+        # db_connection() committet beim Schließen nicht automatisch – ohne diesen commit() würde
+        # eine hier noch offene, von INSERT/UPDATE implizit gestartete Transaktion (z.B. die
+        # purchase_items-Datenübernahme oben) beim conn.close() stillschweigend zurückgerollt,
+        # obwohl die dazwischenliegenden ALTER TABLE-Statements erfolgreich gelaufen sind.
+        conn.commit()
+
+        # WICHTIG: muss vor dem workoutdetail.kpi.*-Patch unten laufen. _seed_translations_if_empty()
+        # prüft COUNT(*) FROM translations == 0 und überspringt das komplette Seeding sonst – der
+        # Patch danach fügt per INSERT OR IGNORE bereits 12 Zeilen ein, was die Leer-Prüfung bei
+        # einer frischen Installation (z.B. Docker) fälschlich als "schon befüllt" auffasst und die
+        # komplette Übersetzungstabelle leer lässt (gefunden Session 2026-09-10 beim Docker-Test –
+        # bestehende Installationen wie Saschas eigene hatten schon Übersetzungen und waren nie betroffen).
+        _seed_translations_if_empty(conn)
+
         # Neue workoutdetail.kpi.*-Übersetzungsschlüssel für die zusätzlichen Session-Kennzahlen
-        # (siehe other_activities-Migration oben) nachträglich ergänzen – _seed_translations_if_empty()
-        # läuft nur bei komplett leerer Tabelle, würde eine bestehende Installation also nie erreichen.
+        # (siehe other_activities-Migration oben) nachträglich ergänzen – für Installationen, deren
+        # Seed-Stand älter ist als diese Schlüssel. INSERT OR IGNORE macht das für neue Installationen
+        # (die die Schlüssel schon über den Seed oben bekommen haben) folgenlos.
         _WORKOUTDETAIL_KPI_KEYS = {
             "de": {
                 "kpi.minHr": "Min Herzfrequenz",
@@ -581,13 +577,60 @@ def init_db() -> None:
                     (lang, key, json.dumps(value)),
                 )
 
-        # db_connection() committet beim Schließen nicht automatisch – ohne diesen commit() würde
-        # eine hier noch offene, von INSERT/UPDATE implizit gestartete Transaktion (z.B. die
-        # purchase_items-Datenübernahme oben) beim conn.close() stillschweigend zurückgerollt,
-        # obwohl die dazwischenliegenden ALTER TABLE-Statements erfolgreich gelaufen sind.
-        conn.commit()
+        # Neue bikes.addBikeForm.*-Schlüssel (Session 2026-09-10, "Neues Bike anlegen") für
+        # Installationen, deren Seed-Stand älter ist – analog zum workoutdetail.kpi.*-Patch oben.
+        _ADD_BIKE_FORM_KEYS = {
+            "de": {
+                "closedButton": "+ Neues Bike anlegen",
+                "create": "Anlegen",
+                "nameLabel": "Name",
+                "panelTitle": "Neues Bike",
+            },
+            "en": {
+                "closedButton": "+ Add new bike",
+                "create": "Create",
+                "nameLabel": "Name",
+                "panelTitle": "New bike",
+            },
+        }
+        for lang, keys in _ADD_BIKE_FORM_KEYS.items():
+            for key, value in keys.items():
+                conn.execute(
+                    "INSERT OR IGNORE INTO translations(lang, ns, key, value) VALUES (?, 'bikes', ?, ?)",
+                    (lang, f"addBikeForm.{key}", json.dumps(value)),
+                )
 
-        _seed_translations_if_empty(conn)
+        # Fehlende bikes.componentRow.*-Schlüssel der Ketten-Pflege-Funktion nachtragen – waren
+        # nie im Seed enthalten (gefunden Session 2026-09-10, nicht nur ein Migrations-Lücken-Fall
+        # wie addBikeForm oben, sondern schlicht nie ergänzt).
+        _CHAIN_MAINTENANCE_KEYS = {
+            "de": {
+                "chainMaintenanceDue": "Pflege fällig!",
+                "lastMaintained": "zuletzt {{date}}",
+                "maintenanceButton": "Gepflegt",
+                "maintenanceButtonTitle": "Kette als gereinigt/geölt markieren",
+                "maintenanceDateLabel": "Datum",
+                "maintenanceLabel": "Ketten-Pflege",
+                "neverMaintained": "noch nie gepflegt",
+            },
+            "en": {
+                "chainMaintenanceDue": "Maintenance due!",
+                "lastMaintained": "last {{date}}",
+                "maintenanceButton": "Maintained",
+                "maintenanceButtonTitle": "Mark chain as cleaned/oiled",
+                "maintenanceDateLabel": "Date",
+                "maintenanceLabel": "Chain maintenance",
+                "neverMaintained": "never maintained",
+            },
+        }
+        for lang, keys in _CHAIN_MAINTENANCE_KEYS.items():
+            for key, value in keys.items():
+                conn.execute(
+                    "INSERT OR IGNORE INTO translations(lang, ns, key, value) VALUES (?, 'bikes', ?, ?)",
+                    (lang, f"componentRow.{key}", json.dumps(value)),
+                )
+
+        conn.commit()
 
 
 def _flatten_translations(obj: dict, prefix: str = "") -> dict[str, str]:

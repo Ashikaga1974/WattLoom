@@ -5,6 +5,7 @@ import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'rec
 import { api, type ActivityDetail, type SimilarActivity, type TrackPoint } from '@/lib/api';
 import { PageHeader } from '@/components/ui/page-header';
 import { Card, CardContent } from '@/components/ui/card';
+import { EmptyState } from '@/components/ui/empty-state';
 import { RouteThumbnail } from '@/components/RouteThumbnail';
 import { ChartTooltip } from '@/components/ui/chart-tooltip';
 import { fmtDate, fmtKm, fmtTime, fmtTimeShort } from '@/lib/format';
@@ -387,9 +388,7 @@ export default function StreckenPage() {
         <div className="py-16 text-center text-muted-foreground">{t('loading')}</div>
       )}
 
-      {error && (
-        <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive">{error}</div>
-      )}
+      {error && <EmptyState message={error} />}
 
       {refActivity && !loading && (
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">

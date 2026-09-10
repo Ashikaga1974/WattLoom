@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { api } from '@/lib/api';
 import { useConfig } from '@/lib/config-context';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { EmptyState } from '@/components/ui/empty-state';
 import {
   ComposedChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
 } from 'recharts';
@@ -85,7 +86,7 @@ export function YearComparisonTab() {
   const chartData = useMemo(() => buildMonthlyData(rawData, sortedSelected), [rawData, sortedSelected]);
 
   if (loading) return <div className="h-64 bg-muted animate-pulse rounded-xl" />;
-  if (error) return <div className="rounded border border-destructive/50 bg-destructive/10 p-4 text-destructive text-sm">{error}</div>;
+  if (error) return <EmptyState message={error} />;
 
   return (
     <div className="space-y-6">

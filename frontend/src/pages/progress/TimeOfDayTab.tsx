@@ -5,6 +5,7 @@ import { api } from '@/lib/api';
 import { useConfig } from '@/lib/config-context';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { InsightCard } from '@/components/ui/insight-card';
+import { EmptyState } from '@/components/ui/empty-state';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
@@ -178,9 +179,7 @@ export function TimeOfDayTab() {
         </div>
       )}
 
-      {error && (
-        <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive">{error}</div>
-      )}
+      {error && <EmptyState message={error} />}
 
       {tooltip && (
         <div
@@ -286,7 +285,7 @@ export function TimeOfDayTab() {
           <InsightCard insights={insights} />
         </>
       ) : (
-        <p className="text-muted-foreground text-sm">{t('timeOfDayTab.noData')}</p>
+        <EmptyState message={t('timeOfDayTab.noData')} />
       )}
     </div>
   );

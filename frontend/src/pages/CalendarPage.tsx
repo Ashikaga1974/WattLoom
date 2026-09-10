@@ -5,6 +5,7 @@ import { api, type Activity, type OtherActivity } from '@/lib/api';
 import { rideTitle } from '@/lib/activity-display';
 import { fmtNum } from '@/lib/format';
 import { PageHeader } from '@/components/ui/page-header';
+import { EmptyState } from '@/components/ui/empty-state';
 
 // toISOString() gibt immer UTC zurück – bei UTC+2 ist lokale Mitternacht = UTC Vortag 22:00,
 // wodurch alle Kalender-Zellen einen Tag zu früh landen. Daher lokale Datumsmethoden nutzen.
@@ -163,9 +164,7 @@ export default function CalendarPage() {
         onYearChange={handleYearChange}
       />
 
-      {error && (
-        <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive">{error}</div>
-      )}
+      {error && <EmptyState message={error} />}
 
       {/* Tooltip */}
       {tooltip && (

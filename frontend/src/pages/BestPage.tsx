@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { api, type Activity, type BestByDistanceBucket } from '@/lib/api';
 import { PageHeader } from '@/components/ui/page-header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { EmptyState } from '@/components/ui/empty-state';
 import { fmtDate } from '@/lib/format';
 import { rideTitleWithDevice } from '@/lib/activity-display';
 
@@ -118,9 +119,7 @@ export default function BestPage() {
     <div className="space-y-8">
       <PageHeader title={t('title', { ns: 'best' })} />
 
-      {error && (
-        <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive">{error}</div>
-      )}
+      {error && <EmptyState message={error} />}
 
       {/* Bestzeiten nach Distanz */}
       {loading ? (

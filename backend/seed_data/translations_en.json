@@ -326,6 +326,12 @@
     "title": "Best of – Personal Records"
   },
   "bikes": {
+    "addBikeForm": {
+      "closedButton": "+ Add new bike",
+      "create": "Create",
+      "nameLabel": "Name",
+      "panelTitle": "New bike"
+    },
     "addForm": {
       "carryOverLabel": "Carry over previous wear (which unit is being installed?)",
       "carryOverReturnedSuffix": " (returned {{date}})",
@@ -369,6 +375,7 @@
       }
     },
     "componentRow": {
+      "chainMaintenanceDue": "Maintenance due!",
       "confirm": "Confirm",
       "confirmAndStock": "Confirm + return to stock",
       "deleteButtonTitle": "Remove component",
@@ -380,7 +387,13 @@
       "linkDescReturned": "Assigns the removed component to a purchase and returns it to stock.",
       "linkDescStillInstalled": "Retroactively assigns this currently installed component to a purchase – it stays installed.",
       "linkedPurchaseTitle": "Linked stock item",
+      "lastMaintained": "last {{date}}",
+      "maintenanceButton": "Maintained",
+      "maintenanceButtonTitle": "Mark chain as cleaned/oiled",
+      "maintenanceDateLabel": "Date",
       "maintenanceDue": "Maintenance due!",
+      "maintenanceLabel": "Chain maintenance",
+      "neverMaintained": "never maintained",
       "noStockRefOption": "– no stock reference –",
       "orderLinkText": "↗ Link",
       "orderLinkTitle": "Open order link",

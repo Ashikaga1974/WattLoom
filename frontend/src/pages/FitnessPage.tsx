@@ -13,6 +13,7 @@ import { PageHeader } from '@/components/ui/page-header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ChartTooltip } from '@/components/ui/chart-tooltip';
+import { EmptyState } from '@/components/ui/empty-state';
 
 // Zählt von 0 auf target hoch (cubic ease-out)
 function useCountUp(target: number, duration = 1400): number {
@@ -255,12 +256,25 @@ export default function FitnessPage() {
     return (
       <div className="flex flex-col gap-6">
         <PageHeader title={t('page.title')} />
-        <Card><CardContent className="pt-6 text-muted-foreground">{error ?? t('page.noData')}</CardContent></Card>
+        <EmptyState message={error || t('page.noData')} />
       </div>
     );
   }
 
   const { score, level, components, trend, insight_parts, history } = data;
+
+  // Frische Installation ohne Aktivitäten: Backend liefert components: {} (siehe pmc.py),
+  // ohne diese Prüfung crasht der Zugriff auf components.ctl.score etc. weiter unten.
+  // Alle vier Felder werden hier geprüft, damit TypeScript sie ab hier als definiert erkennt.
+  if (!components.ctl || !components.efficiency || !components.form || !components.consistency) {
+    return (
+      <div className="flex flex-col gap-6">
+        <PageHeader title={t('page.title')} />
+        <EmptyState message={t('page.noData')} />
+      </div>
+    );
+  }
+
   const insight = insight_parts.map(code => t(`insights.${code}`)).join(' ');
   const cfg = LEVEL_CONFIG[level] ?? LEVEL_CONFIG['Einsteiger'];
 

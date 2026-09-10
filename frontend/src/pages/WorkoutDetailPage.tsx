@@ -12,6 +12,7 @@ import { fmtTime } from '@/lib/format';
 import { workoutTitle } from '@/lib/activity-display';
 import { useConfig } from '@/lib/config-context';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { EmptyState } from '@/components/ui/empty-state';
 import { cn } from '@/lib/utils';
 import { ChartTooltip } from '@/components/ui/chart-tooltip';
 
@@ -333,9 +334,7 @@ export default function WorkoutDetailPage() {
         <button onClick={() => navigate(-1)} className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
           <ArrowLeft size={14} /> {t('back')}
         </button>
-        <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive">
-          {error ?? t('notFound')}
-        </div>
+        <EmptyState message={error ?? t('notFound')} />
       </div>
     );
   }

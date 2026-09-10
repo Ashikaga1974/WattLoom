@@ -5,6 +5,7 @@ import { PageHeader } from '@/components/ui/page-header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ChartTooltip } from '@/components/ui/chart-tooltip';
+import { EmptyState } from '@/components/ui/empty-state';
 import {
   ComposedChart, BarChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Cell, Legend,
@@ -138,9 +139,7 @@ export default function CaloriesPage() {
         onYearChange={v => setSelectedYear(v === 'all' ? null : v)}
       />
 
-      {error && (
-        <div className="rounded border border-destructive/50 bg-destructive/10 p-4 text-destructive text-sm">{error}</div>
-      )}
+      {error && <EmptyState message={error} />}
 
       {loading ? (
         <div className="space-y-4">

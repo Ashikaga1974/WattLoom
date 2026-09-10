@@ -1,3 +1,4 @@
+import re
 import uuid
 from pathlib import Path
 
@@ -64,6 +65,43 @@ def list_bikes():
             ]
             result.append(b)
         return result
+
+
+class BikeCreate(BaseModel):
+    name: str
+    brand: str | None = None
+
+
+def _slugify_bike_name(name: str) -> str:
+    """Erzeugt eine Bike-ID im gleichen Format wie der ZIP-Import aus Strava-Gear-Namen
+    (pipeline.py: name.lower().replace(" ", "_")), aber zusätzlich robust gegen Sonderzeichen."""
+    slug = re.sub(r"[^a-z0-9]+", "_", name.strip().lower()).strip("_")
+    return slug or "bike"
+
+
+@router.post("")
+def create_bike(body: BikeCreate):
+    """Legt ein neues Bike manuell an – notwendig, da Bikes sonst nur über den ZIP-Import
+    (Strava-Gear-Zuordnung) entstehen. Ohne diesen Endpoint gibt es bei reinem FIT/TCX/GPX-
+    Einzelimport keine Möglichkeit, überhaupt ein Bike zur Auswahl zu haben (gefunden Session
+    2026-09-10: frische Installationen hatten dadurch keinerlei Bike-Option)."""
+    name = body.name.strip()
+    if not name:
+        raise api_error(400, "bike_name_required", "Name darf nicht leer sein")
+
+    base_id = _slugify_bike_name(name)
+    with db_connection() as conn:
+        bike_id = base_id
+        suffix = 2
+        while conn.execute("SELECT 1 FROM bikes WHERE id = ?", (bike_id,)).fetchone():
+            bike_id = f"{base_id}_{suffix}"
+            suffix += 1
+        conn.execute(
+            "INSERT INTO bikes (id, name, brand, retired) VALUES (?, ?, ?, 0)",
+            (bike_id, name, body.brand.strip() if body.brand else None),
+        )
+        conn.commit()
+        return {"id": bike_id, "name": name}
 
 
 @router.get("/compare")

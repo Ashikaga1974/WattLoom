@@ -562,10 +562,10 @@ export interface FitnessFingerprint {
   score: number;
   level: string;
   components: {
-    ctl: FitnessComponent;
-    efficiency: FitnessComponent;
-    form: FitnessComponent;
-    consistency: FitnessComponent;
+    ctl?: FitnessComponent;
+    efficiency?: FitnessComponent;
+    form?: FitnessComponent;
+    consistency?: FitnessComponent;
   };
   trend: 'up' | 'down' | 'neutral';
   insight_parts: string[];
@@ -850,6 +850,9 @@ export const api = {
   updateBike: (bikeId: string, name: string): Promise<{ ok: boolean }> =>
     fetch(`${BASE}/bikes/${bikeId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) })
       .then(r => { if (!r.ok) throw new Error(`Fehler ${r.status}`); return r.json(); }),
+
+  createBike: (name: string): Promise<{ id: string; name: string }> =>
+    post('/bikes', { name }),
 
   addBikeComponent: (bikeId: string, data: { type: string; km_threshold: number; installed_at?: string; purchase_id?: number; return_id?: number }) =>
     post<{ ok: boolean }>(`/bikes/${bikeId}/components`, data),

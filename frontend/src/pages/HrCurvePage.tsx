@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { PageHeader } from '@/components/ui/page-header';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { EmptyState } from '@/components/ui/empty-state';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
@@ -221,11 +222,7 @@ function HrKurveTab() {
         </p>
       </div>
 
-      {error && (
-        <div className="rounded border border-destructive/50 bg-destructive/10 p-4 text-destructive text-sm">
-          {error}
-        </div>
-      )}
+      {error && <EmptyState message={error} />}
 
       {loading ? (
         <>
@@ -650,11 +647,7 @@ function EffizienzTab() {
 
   return (
     <div className="space-y-6">
-      {error && (
-        <div className="rounded border border-destructive/50 bg-destructive/10 p-4 text-destructive text-sm">
-          {error}
-        </div>
-      )}
+      {error && <EmptyState message={error} />}
 
       {loading ? (
         <div className="h-64 rounded-xl bg-muted animate-pulse" />

@@ -18,6 +18,7 @@ import { useConfig } from '@/lib/config-context';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ChartTooltip } from '@/components/ui/chart-tooltip';
+import { EmptyState } from '@/components/ui/empty-state';
 
 const ORANGE = '#fc4c02';
 const BLUE = '#3b82f6';
@@ -127,20 +128,13 @@ export default function WrappedPage() {
     );
   }
 
-  if (error) {
+  // data.year ist null, wenn das Backend keine Aktivitäten findet (siehe /analytics/wrapped) –
+  // totals ist in dem Fall ein leeres Objekt {}, "data.totals.rides === 0" träfe also nie zu.
+  if (error || !data || data.year === null) {
     return (
       <div className="space-y-4">
         <h1 className="text-2xl font-semibold tracking-tight">{t('title')}</h1>
-        <p className="text-red-500 text-sm">{error}</p>
-      </div>
-    );
-  }
-
-  if (!data || data.totals.rides === 0) {
-    return (
-      <div className="space-y-4">
-        <h1 className="text-2xl font-semibold tracking-tight">{t('title')}</h1>
-        <p className="text-muted-foreground text-sm">{t('noData')}</p>
+        <EmptyState message={error || t('noData')} />
       </div>
     );
   }

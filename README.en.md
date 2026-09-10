@@ -17,6 +17,7 @@ Local web app for analyzing Strava export data. No Strava API access needed – 
 - [Features](#features)
 - [Prerequisites](#prerequisites)
 - [Installation & Start](#installation--start)
+- [Docker (alternative to manual install)](#docker-alternative-to-manual-install)
 - [Autostart via systemd (optional)](#autostart-via-systemd-optional)
 - [Project structure](#project-structure)
 - [API overview](#api-overview)
@@ -125,6 +126,25 @@ python -m pytest tests/ -v
 ### 6. Import data
 
 In the browser: **Settings → Start import** – the importer reads the ZIP, parses all FIT/TCX/GPX files, and populates the SQLite database.
+
+---
+
+## Docker (alternative to manual install)
+
+Requires: [Docker Desktop](https://www.docker.com/products/docker-desktop/) (Windows/macOS/Linux).
+
+```bash
+docker compose up --build
+```
+
+Open the app: **http://localhost:8000** (backend and frontend run in a single container).
+
+The database, media, and backups live in the local `wattloom-data/` folder (bind mount, see
+`docker-compose.yml`) – they survive container restarts. Place your Strava export ZIP in
+`wattloom-data/download/` instead of `download/`.
+
+**Security note:** WattLoom deliberately has no authentication (single-user design). Don't
+forward the port to the open internet – local or your own LAN/VPN only.
 
 ---
 

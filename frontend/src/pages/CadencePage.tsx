@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { PageHeader } from '@/components/ui/page-header';
+import { EmptyState } from '@/components/ui/empty-state';
 import { api, type CadenceData, type CadenceZone } from '@/lib/api';
 
 const ZONE_COLORS: Record<string, string> = {
@@ -145,8 +146,6 @@ export default function CadencePage() {
     load(y);
   }
 
-  if (!data && !loading) return null;
-
   const maxDistCount = data ? Math.max(...data.distribution.map(d => d.count)) : 1;
   const totalZoneCount = data ? data.zones.reduce((s, z) => s + z.count, 0) : 0;
   const favoriteZone = data?.zones.reduce((best, z) => (z.count > best.count ? z : best), data.zones[0]);
@@ -192,11 +191,7 @@ export default function CadencePage() {
         onYearChange={handleYearChange}
       />
 
-      {error && (
-        <div className="rounded border border-destructive/50 bg-destructive/10 p-4 text-destructive text-sm">
-          {error}
-        </div>
-      )}
+      {error && <EmptyState message={error} />}
 
       {loading ? (
         <>
