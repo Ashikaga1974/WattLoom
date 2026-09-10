@@ -5,6 +5,8 @@
 Analyze your complete Strava history locally – without Strava API access, without cloud upload.
 Just download the ZIP export, import it, done.
 
+<video src="res/demo.webm" controls muted title="WattLoom Demo"></video>
+
 ![Dashboard](res/dashboard2.png)
 
 > 🇩🇪 [Deutsche README](README.md)
