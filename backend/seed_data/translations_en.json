@@ -708,22 +708,6 @@
       "storage_location_not_found": "Storage location not found",
       "workout_not_found": "Workout not found"
     },
-    "license": {
-      "enterKey": "Enter license",
-      "trialBanner": "Trial version – {{days}} days left (until {{date}})",
-      "activationFailed": "Activation failed",
-      "retry": "Try again",
-      "activating": "Checking …",
-      "activate": "Activate license",
-      "connectionFailed": {
-        "title": "Connection failed",
-        "body": "Could not load license status. Is the backend running?"
-      },
-      "trialExpired": {
-        "title": "Trial period expired",
-        "body": "The 14-day trial has ended. Please enter your license key to keep using WattLoom."
-      }
-    },
     "nav": {
       "activities": "Activities",
       "activitiesList": "List",
@@ -1495,17 +1479,6 @@
       "importSuccess": "Import successful.",
       "title": "Sprache / Language",
       "translateHint": "Missing your language? Export the German translation, translate it externally (e.g. via ChatGPT/DeepL), and import it back as a new language."
-    },
-    "license": {
-      "activateButton": "Activate",
-      "activateSuccess": "License activated.",
-      "activating": "Checking…",
-      "keyPlaceholder": "WLM1....",
-      "licensedFor": "Licensed for {{customer}}",
-      "subtitle": "Status of your trial period or license.",
-      "title": "License",
-      "trialActive": "Trial: {{days}} days left",
-      "trialExpired": "Trial expired"
     },
     "log": {
       "empty": "No log entries yet.",

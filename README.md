@@ -26,7 +26,6 @@ Lokale Web-App zur Analyse von Strava-Exportdaten. Kein Strava-API-Zugriff nöti
 - [Konfigurierbare Parameter](#konfigurierbare-parameter)
 - [Bekannte Eigenheiten](#bekannte-eigenheiten)
 - [Tech Stack](#tech-stack)
-- [Lizenzierung (Trial & Schlüssel)](#lizenzierung-trial--schlüssel)
 - [Lizenz](#lizenz)
 
 ---
@@ -163,7 +162,6 @@ WattLoom/
 │   │   ├── app_sync.py      # /app-sync/run, /app-sync/status (WattLoomApp-Sync-Subprocess)
 │   │   ├── bikes.py         # /bikes, /bikes/{id}, /bikes/compare, Komponenten-Einbau/Ausbau
 │   │   ├── errors.py        # api_error() – einheitliches Fehlerantwort-Format
-│   │   ├── license.py       # /license/status, /license/activate (Trial + Lizenzschlüssel-Aktivierung)
 │   │   ├── purchases.py     # /purchases – Einkaufs-Lager (purchase_items: 1 Zeile je physischem Teil)
 │   │   ├── heatmap.py       # /tracks/heatmap
 │   │   ├── settings.py      # /settings (Gewicht, Geburtsjahr, HRmax, Timezone)
@@ -176,7 +174,6 @@ WattLoom/
 │   ├── utils.py             # Shared: haversine_km(), haversine_m(), MS_TO_KMH
 │   ├── pr_detection.py      # Snapshot-Diff auf Best-by-Distance vor/nach Import → pr_events
 │   ├── weather.py           # Open-Meteo Archive API: fetch_weather(lat, lon, date_utc)
-│   ├── licensing/           # Lizenzierung: Trial + Lizenzschlüssel (siehe Abschnitt „Lizenzierung")
 │   ├── importer/
 │   │   ├── pipeline.py      # run_import() – Haupteinstieg
 │   │   ├── fit.py           # FIT-Parser (Garmin, mit _SafeProcessor)
@@ -206,8 +203,6 @@ WattLoom/
 │       │   │   └── AppSidebar.tsx      # Collapsible Sidebar mit Sub-Navigation
 │       │   ├── LeafletMap.tsx          # Leaflet-Karte (React.lazy), Speed-Halo, Hover-Sync
 │       │   ├── RouteThumbnail.tsx      # Mini-Routenform ohne Leaflet (SVG-Polyline, simplify=20)
-│       │   ├── LicenseGate.tsx         # Sperrt die App bei abgelaufenem Trial ohne Lizenz; liefert Status per Context
-│       │   ├── TrialBanner.tsx         # Banner im Content-Bereich während laufendem Trial (Tage übrig, Ablaufdatum)
 │       │   └── ui/                     # shadcn/ui base-nova Komponenten
 │       ├── hooks/
 │       │   └── use-mobile.ts
@@ -237,8 +232,6 @@ WattLoom/
 ├── data/
 │   └── mybiking.db          # SQLite-Datenbank (wird beim Import erstellt)
 ├── download/                # Strava-Export-ZIP ablegen
-├── scripts/
-│   └── licensing_keygen.py  # Offline-Tool (Vendor): Schlüsselpaar erzeugen, Lizenzschlüssel für Kunden ausstellen
 └── README.md
 ```
 
@@ -324,9 +317,6 @@ POST /import/recalculate-track-speeds → Background-Job: speed_ms/distance_m au
 POST /import/recalculate-power      → Background-Job: Leistungsschätzung für alle Rides neu berechnen
 GET  /media/{filename}
 GET  /health                        → Liveness-Check ({status: "ok"})
-
-GET  /license/status                → {licensed, customer, trial_days_left, trial_end_date, access}
-POST /license/activate               → {license_key} → prüft Signatur, speichert bei Erfolg in config
 
 GET  /app-sync/status               → letztes WattLoomApp-Sync-Ergebnis
 POST /app-sync/run                  → WattLoomApp-Sync manuell anstoßen (läuft nach jedem Import zusätzlich automatisch)
@@ -428,7 +418,7 @@ Snapshot aller `bike_components`-Felder zum Löschzeitpunkt plus `km_since_servi
 `activity_id` (FK), `filename` (UUID, Datei in `data/media/`), `taken_at`, `lat`, `lon`.
 
 ### `config` – Key-Value-Einstellungen
-`key`/`value` (beide TEXT). ~29 Keys, definiert in `backend/api/settings.py: _FIELDS` – u.a. `weight_kg`, `birth_year`, `tz_offset`, `hr_max`, `language`, `yearly_km_goal`, `weekly_hours_goal`, `default_bike_id`, `crr`, `cda`, `bike_kg`, `ctl_days`, `atl_days` sowie alle Werte aus der „Konfigurierbare Parameter"-Tabelle oben. Zusätzlich (außerhalb von `_FIELDS`): interner Trial-/Lizenzstatus, siehe Abschnitt „Lizenzierung" unten.
+`key`/`value` (beide TEXT). ~29 Keys, definiert in `backend/api/settings.py: _FIELDS` – u.a. `weight_kg`, `birth_year`, `tz_offset`, `hr_max`, `language`, `yearly_km_goal`, `weekly_hours_goal`, `default_bike_id`, `crr`, `cda`, `bike_kg`, `ctl_days`, `atl_days` sowie alle Werte aus der „Konfigurierbare Parameter"-Tabelle oben. Zusätzlich (außerhalb von `_FIELDS`, ungenutzte Reste des ausgebauten Lizenzsystems – Logik liegt in Branch `licensing-system`): `trial_started_at`, `trial_signature`, `license_key`.
 
 ### `translations` – UI-Übersetzungen (DB statt Frontend-Bundle)
 `lang`, `ns` (Namespace, entspricht einer Frontend-Seite bzw. `common`), `key` (Punkt-Pfad, z.B. `nav.activities`), `value` (als JSON kodiert – auch einfache Strings, damit Arrays/Objekte wie `weekdaysShort` verlustfrei rein-/rausgehen). Primary Key `(lang, ns, key)`. Wird über `GET/POST /translations/*` verwaltet, nicht über die Einstellungsseite direkt editiert.
@@ -514,10 +504,6 @@ In [frontend/src/lib/config-context.tsx](frontend/src/lib/config-context.tsx):
 - **TypeScript** – vollständig typisiert
 
 ---
-
-## Lizenzierung (Trial & Schlüssel)
-
-Für eine kommerzielle Distribution: 14 Tage kostenloser Test ab Erststart, danach Sperre bis zur Aktivierung eines Lizenzschlüssels.
 
 ## Lizenz
 

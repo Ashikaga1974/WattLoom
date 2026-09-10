@@ -1,12 +1,11 @@
 import logging
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from backend.api import activities, tracks, bikes, heatmap, analytics, settings, importer, zones, weather, purchases, storage_locations, app_sync, translations, system, license as license_api
+from backend.api import activities, tracks, bikes, heatmap, analytics, settings, importer, zones, weather, purchases, storage_locations, app_sync, translations, system
 from backend.database import db_connection, init_db
-from backend.licensing.state import ensure_trial_started, has_access
 from backend.paths import FRONTEND_DIST_DIR, LOG_FILE, MEDIA_DIR
 
 _LOG_FILE = LOG_FILE
@@ -22,8 +21,6 @@ logging.basicConfig(
 
 app = FastAPI(title="WattLoom API", version="0.1.0")
 init_db()
-with db_connection() as _conn:
-    ensure_trial_started(_conn)
 
 app.add_middleware(
     CORSMiddleware,
@@ -32,32 +29,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Allowlist statt Denylist: nur echte Daten-API-Pfade werden gesperrt. Alles andere
-# (Frontend-Static-Files, /health, /license/*) muss immer erreichbar bleiben – sonst
-# könnte die UI nicht mal den Sperr-Bildschirm selbst laden (Henne-Ei-Problem beim
-# gebündelten Frontend, siehe StaticFiles-Mount unten).
-_PROTECTED_PREFIXES = (
-    "/activities", "/tracks", "/bikes", "/analytics", "/settings",
-    "/import", "/weather", "/purchases", "/storage-locations",
-    "/app-sync", "/translations", "/media", "/system",
-)
-
-
-@app.middleware("http")
-async def license_gate(request: Request, call_next):
-    if request.method == "OPTIONS" or not request.url.path.startswith(_PROTECTED_PREFIXES):
-        return await call_next(request)
-    with db_connection() as conn:
-        allowed = has_access(conn)
-    if not allowed:
-        return JSONResponse(
-            status_code=402,
-            content={"code": "trial_expired", "message": "Testzeitraum abgelaufen – bitte Lizenzschlüssel eingeben"},
-        )
-    return await call_next(request)
-
-
-app.include_router(license_api.router)
 app.include_router(activities.router)
 app.include_router(tracks.router)
 app.include_router(bikes.router)

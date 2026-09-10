@@ -4,8 +4,6 @@ import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { AppSidebar } from '@/components/layout/AppSidebar';
 import { ConfigProvider } from '@/lib/config-context';
-import { LicenseGate } from '@/components/LicenseGate';
-import { TrialBanner } from '@/components/TrialBanner';
 import { useSyncLanguage } from '@/lib/i18n';
 
 import DashboardPage from '@/pages/DashboardPage';
@@ -39,7 +37,6 @@ function AppRoutes() {
         <SidebarProvider>
           <AppSidebar />
           <SidebarInset>
-            <TrialBanner />
             <main className="p-6 min-h-screen">
               {/* i18next-http-backend lädt den Namespace jeder Seite erst beim ersten Mount nach
                   (siehe lib/i18n.ts) – ohne Suspense-Boundary würden Seiten mit synchronem
@@ -88,10 +85,8 @@ function AppRoutes() {
 
 export default function App() {
   return (
-    <LicenseGate>
-      <ConfigProvider>
-        <AppRoutes />
-      </ConfigProvider>
-    </LicenseGate>
+    <ConfigProvider>
+      <AppRoutes />
+    </ConfigProvider>
   );
 }
