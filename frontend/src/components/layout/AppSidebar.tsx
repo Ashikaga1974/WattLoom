@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { APP_VERSION } from '@/lib/version';
 import {
   Sidebar,
   SidebarContent,
@@ -220,6 +221,7 @@ export function AppSidebar() {
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
+        <div className="px-3 py-2 text-xs text-muted-foreground">v{APP_VERSION}</div>
       </SidebarFooter>
     </Sidebar>
   );

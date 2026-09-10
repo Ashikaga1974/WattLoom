@@ -168,13 +168,18 @@ def best_by_distance():
 def pr_events():
     """Noch nicht verworfene, erkannte neue persönliche Bestzeiten (siehe pr_detection.py)."""
     with db_connection() as conn:
-        rows = conn.execute("SELECT * FROM pr_events ORDER BY distance_km ASC").fetchall()
+        rows = conn.execute(
+            "SELECT * FROM pr_events WHERE dismissed_at IS NULL ORDER BY distance_km ASC"
+        ).fetchall()
         return [dict(r) for r in rows]
 
 
 @router.delete("/pr-events/{event_id}")
 def dismiss_pr_event(event_id: int):
+    """Markiert einen PR-Event als verworfen statt ihn zu löschen – Zeile bleibt als Historie erhalten."""
     with db_connection() as conn:
         with conn:
-            conn.execute("DELETE FROM pr_events WHERE id = ?", (event_id,))
+            conn.execute(
+                "UPDATE pr_events SET dismissed_at = datetime('now') WHERE id = ?", (event_id,)
+            )
     return {"ok": True}

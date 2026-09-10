@@ -16,7 +16,8 @@ CREATE TABLE pr_events (
     activity_name     TEXT,
     activity_date     TEXT,
     previous_time_s   REAL NOT NULL,
-    created_at        TEXT NOT NULL DEFAULT (datetime('now'))
+    created_at        TEXT NOT NULL DEFAULT (datetime('now')),
+    dismissed_at      TEXT
 )
 """
 

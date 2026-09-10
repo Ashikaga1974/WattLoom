@@ -41,6 +41,8 @@ def detect_and_record(conn, before: dict, activity_ids: list[int] | None = None)
             continue
         # Verhindert doppelte Dashboard-Kacheln, wenn dieselbe Aktivität (z.B. nach
         # Löschen + Reimport) für dieselbe Distanz erneut als "neuer PR" erkannt wird.
+        # dismissed_at wird ignoriert: ein bereits verworfener/überholter Eintrag für
+        # dieselbe Aktivität+Distanz soll nicht erneut angelegt werden.
         already_recorded = conn.execute(
             "SELECT 1 FROM pr_events WHERE distance_km = ? AND activity_id = ?",
             (d_km, after_best['activity_id']),
@@ -61,9 +63,10 @@ def detect_and_record(conn, before: dict, activity_ids: list[int] | None = None)
         with conn:
             # Alte, noch nicht verworfene Events derselben Distanz sind durch den
             # neuen Rekord überholt - sonst zeigt das Dashboard mehrere "Bestzeiten"
-            # für dieselbe Distanz gleichzeitig an.
+            # für dieselbe Distanz gleichzeitig an. Nur als überholt markieren statt
+            # löschen, die Historie bleibt in der DB erhalten.
             conn.executemany(
-                "DELETE FROM pr_events WHERE distance_km = ?",
+                "UPDATE pr_events SET dismissed_at = datetime('now') WHERE distance_km = ? AND dismissed_at IS NULL",
                 [(e['distance_km'],) for e in new_events],
             )
             conn.executemany(

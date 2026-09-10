@@ -405,6 +405,10 @@ def init_db() -> None:
                 SET activity_date = (SELECT start_date_local FROM activities WHERE activities.id = pr_events.activity_id)
                 WHERE activity_date IS NULL
             """)
+        if "dismissed_at" not in pr_cols:
+            # NULL = aktiv (auf dem Dashboard sichtbar); gesetzt = verworfen oder von einem
+            # neueren Rekord derselben Distanz überholt – Zeile bleibt als Historie erhalten.
+            conn.execute("ALTER TABLE pr_events ADD COLUMN dismissed_at TEXT")
 
         # Migration: deutsche Klartext-Sport-/Komponenten-Werte → stabile, sprachneutrale Codes
         # (Grundlage für die Mehrsprachigkeit, DE/EN). Vorher schrieben die Importer German
