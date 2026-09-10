@@ -12,8 +12,14 @@ Local web app for analyzing Strava export data. No Strava API access needed – 
 
 ---
 
+> ⚠️ **Security note:** WattLoom deliberately has **no authentication** (single-user design for
+> local use). Only run it locally or on your own LAN/VPN – never expose it to the open internet.
+
+---
+
 ## Table of Contents
 
+- [Security note](#security-note)
 - [Features](#features)
 - [Prerequisites](#prerequisites)
 - [Installation & Start](#installation--start)
@@ -58,6 +64,25 @@ Local web app for analyzing Strava export data. No Strava API access needed – 
 | **Calculations** | Documentation of all formulas and parameters used |
 | **Settings** | Weight, birth year, timezone, training goals (yearly km, weekly hours), language (DE/EN translated so far, 7 more prepared); single FIT/TCX import (Amazfit, Garmin without Strava); weather data fetch; recalculate power for all rides; export/import translations as JSON; DB reset automatically backs up a copy first |
 | **Multi-language support** | Full UI via react-i18next; translations live DB-backed in the `translations` table instead of the frontend bundle – new languages (e.g. translated via ChatGPT/DeepL) can be imported without any code change via Settings → Export/Import |
+
+---
+
+## Security note
+
+WattLoom is designed as a **single-user application for local use**: no authentication, no user
+management, no tenant separation – each installation is meant for exactly one person. That's a
+deliberate design choice, not a security gap, as long as you follow this rule:
+
+- **Never expose it to the open internet** – don't forward the backend port (8000) or the
+  frontend port (5173/Docker port) publicly or via port forwarding.
+- For remote access (e.g. from your phone while out), use a **VPN tunnel** (e.g. WireGuard,
+  Tailscale) into your own LAN instead of exposing the port directly.
+- Inside your own trusted LAN, WattLoom can safely be made reachable for your own devices (e.g.
+  binding to `0.0.0.0` instead of `localhost`) – no auth is needed there since only your own
+  devices on the network have access.
+
+If you need multi-user support, auth, or public hosting, WattLoom's current architecture isn't
+the right fit – see "Known quirks" or `CLAUDE.md` for the deliberate single-user scope.
 
 ---
 
@@ -143,8 +168,8 @@ The database, media, and backups live in the local `wattloom-data/` folder (bind
 `docker-compose.yml`) – they survive container restarts. Place your Strava export ZIP in
 `wattloom-data/download/` instead of `download/`.
 
-**Security note:** WattLoom deliberately has no authentication (single-user design). Don't
-forward the port to the open internet – local or your own LAN/VPN only.
+**Security note:** see [Security note](#security-note) above – don't forward port 8000 to the
+open internet.
 
 ---
 
@@ -522,4 +547,7 @@ In [frontend/src/lib/config-context.tsx](frontend/src/lib/config-context.tsx):
 
 ## License
 
-Proprietary – no open-source right to redistribute or modify, see [LICENSE](LICENSE). Copyright (c) 2026 Ashikaga1974.
+**AGPL-3.0** – genuinely open source. Redistribution and modification are permitted; if you make
+a modified version available to others (including as a hosted service), you must also make the
+source of your changes available under AGPL-3.0. See [LICENSE](LICENSE). Copyright (c) 2026
+Ashikaga1974.

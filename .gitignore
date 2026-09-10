@@ -42,6 +42,8 @@ mybiking-mobile/
 *.md
 !README.md
 !README.en.md
+!CONTRIBUTING.md
+!.github/ISSUE_TEMPLATE/*.md
 
 # Persönliche Vorgehens-/Planungsnotizen, nie fürs Repo gedacht
 Vorgehen/
