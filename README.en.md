@@ -1,19 +1,17 @@
 # WattLoom
 
-**Local-first Strava analytics for cyclists.**
+> 🇬🇧 [English README](README.md)
 
-Analyze your complete Strava history locally – without Strava API access, without cloud upload.
-Just download the ZIP export, import it, done.
+**Local-first Strava-Analytics für Radfahrer.**
+
+Analysiere deine komplette Strava-Historie lokal – ohne Strava-API-Zugriff, ohne Cloud-Upload.
+Einfach den ZIP-Export herunterladen, importieren, fertig.
 
 ![Demo](res/demo.gif)
 
-![Dashboard](res/dashboard2.png)
-
-> 🇩🇪 [Deutsche README](README.md)
-
 ⭐ **Features**
-📊 Training analytics · 🚴 Bike management · 🌦 Weather & performance · 🏆 PRs & best efforts ·
-🗺 Routes & heatmap · 🔒 100% local
+📊 Trainingsanalyse · 🚴 Bike-Management · 🌦 Wetter & Performance · 🏆 PRs & Best Efforts ·
+🗺 Strecken & Heatmap · 🔒 100 % lokal
 
 ![Stack](https://img.shields.io/badge/Backend-FastAPI%20%2B%20SQLite-blue)
 ![Stack](https://img.shields.io/badge/Frontend-React%2019%20%2B%20Vite%20%2B%20shadcn%2Fui-orange)
@@ -22,131 +20,135 @@ Just download the ZIP export, import it, done.
 
 ---
 
-### Why WattLoom?
+### Warum WattLoom?
 
-**No API.**
-Import your Strava ZIP export.
+**Keine API.**
+Strava-ZIP-Export importieren, fertig.
 
-**No cloud.**
-Your activities stay on your own machine.
+**Keine Cloud.**
+Deine Aktivitäten bleiben auf deinem eigenen Rechner.
 
-**No subscription.**
-Fully open source (AGPL-3.0) – no license key, ever.
+**Kein Abo.**
+Komplett Open Source (AGPL-3.0) – kein Lizenzschlüssel, nie.
 
-**One dashboard.**
-Training, performance, weather, and bike maintenance in one place.
+**Ein Dashboard.**
+Training, Performance, Wetter und Bike-Wartung an einem Ort.
 
-### Comparison with existing solutions
+### Vergleich mit bestehenden Lösungen
 
 | | WattLoom | Strava | GoldenCheetah | Intervals.icu |
 |---|---|---|---|---|
-| Local data | ✅ | ❌ | ✅ | ❌ |
-| Strava API required | ❌ | — | optional | optional |
-| Cloud account required | ❌ | ✅ | ❌ | ✅ |
-| Web UI | ✅ | ✅ | ❌ (desktop app) | ✅ |
-| Bike maintenance | ✅ | Limited | Limited (manual only) | not found |
-| Weather analysis | ✅ (free) | Limited | not found | ✅ (paid tier only) |
+| Lokale Daten | ✅ | ❌ | ✅ | ❌ |
+| Strava-API nötig | ❌ | — | optional | optional |
+| Cloud-Account nötig | ❌ | ✅ | ❌ | ✅ |
+| Web-UI | ✅ | ✅ | ❌ (Desktop-App) | ✅ |
+| Bike-Wartung | ✅ | Limited | Limited (nur manuell) | nicht gefunden |
+| Wetteranalyse | ✅ (kostenlos) | Limited | nicht gefunden | ✅ (nur Bezahl-Tarif) |
 
 ---
 
-> ⚠️ **Security note:** WattLoom deliberately has **no authentication** (single-user design for
-> local use). Only run it locally or on your own LAN/VPN – never expose it to the open internet.
+> ⚠️ **Sicherheitshinweis:** WattLoom hat bewusst **keine Authentifizierung** (Single-User-Design
+> für den lokalen Gebrauch). Nur lokal oder im eigenen LAN/VPN betreiben – niemals ungeschützt
+> ins offene Internet stellen.
 
 ---
 
-## Table of Contents
+## Inhaltsverzeichnis
 
-- [Why WattLoom?](#why-wattloom)
-- [Security note](#security-note)
+- [Warum WattLoom?](#warum-wattloom)
+- [Sicherheitshinweis](#sicherheitshinweis)
 - [Features](#features)
-- [Prerequisites](#prerequisites)
+- [Voraussetzungen](#voraussetzungen)
 - [Installation & Start](#installation--start)
-- [Docker (alternative to manual install)](#docker-alternative-to-manual-install)
+- [Docker (Alternative zur manuellen Installation)](#docker-alternative-zur-manuellen-installation)
 - [Autostart via systemd (optional)](#autostart-via-systemd-optional)
-- [Project structure](#project-structure)
-- [API overview](#api-overview)
-- [Database schema](#database-schema)
-- [Supported file formats](#supported-file-formats)
-- [Calculations & formulas](#calculations--formulas)
-- [Configurable parameters](#configurable-parameters)
-- [Known quirks](#known-quirks)
-- [Tech stack](#tech-stack)
-- [License](#license)
+- [Projektstruktur](#projektstruktur)
+- [API-Übersicht](#api-übersicht)
+- [Datenbankschema](#datenbankschema)
+- [Unterstützte Datei-Formate](#unterstützte-datei-formate)
+- [Berechnungen & Formeln](#berechnungen--formeln)
+- [Konfigurierbare Parameter](#konfigurierbare-parameter)
+- [Bekannte Eigenheiten](#bekannte-eigenheiten)
+- [Tech Stack](#tech-stack)
+- [Lizenz](#lizenz)
 
 ---
 
 ## Features
 
-| Area | What it does |
-|------|---------------|
-| **Dashboard** | Hero banner (most recent ride), training-form widget (TSB/CTL/ATL with recommendation), animated KPI numbers (count-up), distance chart, training volume, recent activities, bike progress |
-| **Activity list** | Tabs: rides (filter/sort/pagination) + workouts (sport-type badges, colored calories); watts column shows power + NP line; individual activities deletable |
-| **Activity detail** | Map (Leaflet), elevation profile, speed profile (colors synced with map gradient), HR profile, weather tile, photos; "~ power" tile (physics-based estimate ~W + NP + W/kg) |
-| **Year in review** | "Wrapped"-style: best rides, strongest months, day/hour heatmaps |
-| **Year overview** | 4 tabs: progress (cumulative km + forecast) · year comparison (km/month per year) · volume (stacked weekly training) · time-of-day heatmap |
-| **HR analysis** | 2 tabs: HR curve (best avg HR per time window 1–60 min, threshold HR, monthly HR trend) · aerobic efficiency (km/h ÷ bpm monthly, year comparison) |
-| **Heatmap** | All tracks as an interactive map, filterable by year |
-| **Pace trend** | Scatter + 20-ride rolling average, year comparison, seasonal heatmap (month × year) |
-| **Calories** | Energy expenditure from rides + workouts; KPI tiles, stacked monthly trend with 3-month moving average, year comparison |
-| **Weather & performance** | Avg speed by temperature bucket, wind-impact chart; weather data via Open-Meteo (fetch on demand) |
-| **Form curve (PMC)** | CTL/ATL/TSB following training-journal methodology, hrTSS, 28-day CTL trend, ride/workout markers, assessment banner |
-| **Best times** | Records and top performances; best-effort segments per distance (5–70 km, Strava-style) across all rides |
-| **Bikes** | 3 tabs: overview (photo thumbnail, single-line KPIs, wear tracker as cards with progress bars + linked stock-item name, installing from stock incl. carrying over mileage of used parts, uninstalling with km entry + automatic stock return, retroactively linking already-mounted legacy components to a purchase; purchase/stock table below, inactive bikes via dropdown at the very bottom) · Deleted (history of irreversibly deleted components incl. stock link, informational only) · Comparison (km, speed, elevation, maintenance cost incl. €/100km, yearly trend, distance histogram) |
-| **Workout detail** | Detail view per workout: sport hero, 4 KPI tiles, SVG intensity gauge (avg HR / max HR), history chart, average comparison |
-| **Weekday analysis** | Weekday (Mon–Fri) vs. weekend (Sat–Sun): duel card with winner indicators, rides-per-weekday bars, monthly trend |
-| **Route comparison** | Find similar rides (Haversine radius + distance match, then point-by-point track matching for true route overlap) |
-| **Cadence analysis** | Radial distribution chart (polar chart), 6 cadence zones, monthly trend, efficiency sweet spot |
-| **Fitness fingerprint** | Overall score 0–100 from CTL, aerobic efficiency, form (TSB), and consistency; arc gauge, strengths radar, 4 component cards, score history across the entire recorded period, level system (beginner → elite) |
-| **Training distribution** | HR zone time aggregated monthly (polarized training check): easy/moderate/hard % tiles, stacked monthly chart, zone breakdown, automatic 80/20 insight text |
-| **Calendar** | Monthly calendar: rides + workouts (marked grey), ring indicator on combo days |
-| **Calculations** | Documentation of all formulas and parameters used |
-| **Settings** | Weight, birth year, timezone, training goals (yearly km, weekly hours), language (DE/EN translated so far, 7 more prepared); single FIT/TCX import (Amazfit, Garmin without Strava); weather data fetch; recalculate power for all rides; export/import translations as JSON; DB reset automatically backs up a copy first |
-| **Multi-language support** | Full UI via react-i18next; translations live DB-backed in the `translations` table instead of the frontend bundle – new languages (e.g. translated via ChatGPT/DeepL) can be imported without any code change via Settings → Export/Import |
+| Bereich | Was es kann |
+|---------|-------------|
+| **Dashboard** | Hero-Banner (letzter Ride), Trainingsform-Widget (TSB/CTL/ATL mit Empfehlung), Trainingsziele (Jahres-km/Wochenstunden mit Fortschrittsbalken), Verschleiß-Warnung (Bike-Komponenten ≥90 %), neue Bestzeit-Hinweis, animierte KPI-Zahlen (count-up), Distanz-Chart, Trainingsvolumen, letzte Aktivitäten, Bike-Progress |
+| **Aktivitätsliste** | Tabs: Radtouren (Filter/Sort/Paginierung) + Workouts (Sportart-Badges, Kalorien farbig); Watt-Spalte zeigt Leistung + NP-Zeile; einzelne Aktivitäten löschbar |
+| **Aktivitätsdetail** | Karte (Leaflet), Höhenprofil, Geschwindigkeits-Profil (Farben synchron mit Karten-Gradient), HR-Profil, Wetterkachel, Fotos; Kachel „~ Leistung" (physikalische Schätzung ~W + NP + W/kg) |
+| **Jahresrückblick** | „Wrapped"-Style: beste Rides, stärkste Monate, Tages-/Stunden-Heatmaps |
+| **Jahresübersicht** | 4 Tabs: Fortschritt (kumulierte km + Prognose) · Jahresvergleich (km/Monat je Jahr) · Volumen (Wochentraining gestapelt) · Tageszeit-Heatmap |
+| **HR-Analyse** | 2 Tabs: HR-Kurve (beste Ø-HF je Zeitfenster 1–60 min, Schwellen-HF, monatlicher HR-Trend) · Aerobe Effizienz (km/h ÷ bpm monatlich, Jahresvergleich) |
+| **Heatmap** | Alle Tracks als interaktive Karte, filterbar nach Jahr |
+| **Tempoentwicklung** | Scatter + 20-Rides-Rolling-Ø, Jahresvergleich, Saison-Heatmap (Monat × Jahr) |
+| **Kalorien** | Energieverbrauch aus Rides + Workouts; KPI-Kacheln, gestapelter Monatsverlauf mit 3M-gleitendem Ø, Jahresvergleich |
+| **Wetter & Leistung** | Ø-Speed nach Temperatur-Buckets, Wind-Impact-Chart, Temperatur-/Wind-/Regenverlauf über alle Jahre (ein Wert je Tag); Wetterdaten via Open-Meteo (abrufbar per Knopfdruck) |
+| **Formkurve (PMC)** | CTL/ATL/TSB nach Trainingstagebuch-Methodik, hrTSS, 28-Tage-CTL-Trend, Ride- und Workout-Marker, Einschätzungs-Banner |
+| **Bestzeiten** | Rekorde und Top-Leistungen; Best-Effort-Segmente je Distanz (5–70 km, analog Strava) über alle Fahrten hinweg |
+| **Bikes** | 3 Tabs: Übersicht (Foto-Thumbnail, Kennzahlen einzeilig, Verschleiß-Tracker als Karten mit Fortschrittsbalken + verknüpftem Lagerartikel-Namen, Einbauen aus Lager inkl. Übernahme der Laufleistung gebrauchter Teile, Ausbauen mit km-Erfassung + automatischer Lagerrückgabe, nachträgliches Verknüpfen verbauter Altbestand-Komponenten mit einem Einkauf; Einkaufs-Lager-Tabelle darunter, inaktive Bikes per Dropdown ganz unten) · Gelöscht (Historie unwiderruflich gelöschter Komponenten inkl. Lagerbezug, rein informativ) · Vergleich (km, Speed, Höhenmeter, Unterhaltskosten inkl. €/100km, Jahresverlauf, Distanzhistogramm) |
+| **Workout-Detail** | Detailansicht je Workout: Sport-Hero, 4 KPI-Kacheln, SVG-Intensitätsgauge (Ø HR / Max HR), Verlaufschart, Ø-Vergleich |
+| **Wochentag-Analyse** | Werktag (Mo–Fr) vs. Wochenende (Sa–So): Duell-Karte mit Gewinner-Indikatoren, Rides/Wochentag-Balken, Monatsverlauf |
+| **Streckenvergleich** | Ähnliche Rides finden (Haversine-Radius + Distanzabgleich, dann Trackpunkt-Abgleich per absoluten Distanz-Marken für echte Streckenübereinstimmung) |
+| **Kadenz-Analyse** | Radiales Verteilungsdiagramm (Polar-Chart), 6 Kadenz-Zonen, Monatstrend, Effizienz-Sweetspot |
+| **Fitness-Fingerprint** | Gesamtscore 0–100 aus CTL, Aerober Effizienz, Form (TSB) und Kontinuität; Arc-Gauge, Stärken-Radar, 4 Komponenten-Karten, Score-Verlauf über die gesamte erfasste Zeit, Level-System (Einsteiger → Elite) |
+| **Trainingsverteilung** | HF-Zonen-Zeit monatlich aggregiert (Polarized-Training-Check): easy/moderate/hard-%-Kacheln, gestapeltes Monats-Chart, Zonen-Breakdown, automatischer 80/20-Einschätzungstext |
+| **Kalender** | Monatskalender: Radtouren + Workouts (grau markiert), Ring-Indikator bei Kombi-Tagen |
+| **Berechnungen** | Dokumentation aller verwendeten Formeln und Parameter |
+| **Einstellungen** | Gewicht, Geburtsjahr, Zeitzone, Trainingsziele (Jahres-km, Wochenstunden), Sprache (DE/EN aktuell übersetzt, 7 weitere vorbereitet); FIT/TCX-Einzelimport (Amazfit, Garmin ohne Strava); Wetterdaten-Abruf; Leistung für alle Rides neu berechnen; Übersetzungen als JSON exportieren/importieren; DB-Reset sichert vorher automatisch eine Backup-Kopie |
+| **Mehrsprachigkeit** | Komplette UI über react-i18next; Übersetzungen liegen DB-gestützt in der `translations`-Tabelle statt im Frontend-Bundle – neue Sprachen (z.B. per ChatGPT/DeepL übersetzt) lassen sich ohne Code-Änderung über Einstellungen → Export/Import einspielen |
 
 ---
 
-## Security note
+## Sicherheitshinweis
 
-WattLoom is designed as a **single-user application for local use**: no authentication, no user
-management, no tenant separation – each installation is meant for exactly one person. That's a
-deliberate design choice, not a security gap, as long as you follow this rule:
+WattLoom ist als **Single-User-Anwendung für den lokalen Gebrauch** konzipiert: keine
+Authentifizierung, keine Benutzerverwaltung, keine Mandantentrennung – jede Installation ist für
+genau eine Person gedacht. Das ist eine bewusste Design-Entscheidung, keine Sicherheitslücke,
+solange folgende Regel eingehalten wird:
 
-- **Never expose it to the open internet** – don't forward the backend port (8000) or the
-  frontend port (5173/Docker port) publicly or via port forwarding.
-- For remote access (e.g. from your phone while out), use a **VPN tunnel** (e.g. WireGuard,
-  Tailscale) into your own LAN instead of exposing the port directly.
-- Inside your own trusted LAN, WattLoom can safely be made reachable for your own devices (e.g.
-  binding to `0.0.0.0` instead of `localhost`) – no auth is needed there since only your own
-  devices on the network have access.
+- **Niemals ungeschützt ins offene Internet stellen** – weder Backend-Port (8000) noch
+  Frontend-Port (5173/Docker-Port) öffentlich freigeben oder per Port-Forwarding erreichbar
+  machen.
+- Für Fernzugriff (z. B. vom Handy unterwegs) einen **VPN-Tunnel** (z. B. WireGuard, Tailscale)
+  ins eigene LAN nutzen statt den Port direkt zu exponieren.
+- Innerhalb des eigenen, vertrauenswürdigen LAN kann WattLoom bedenkenlos für mehrere eigene
+  Geräte erreichbar gemacht werden (z. B. `0.0.0.0`-Bind statt `localhost`) – dort ist kein Auth
+  nötig, da nur die eigenen Geräte im Netz Zugriff haben.
 
-If you need multi-user support, auth, or public hosting, WattLoom's current architecture isn't
-the right fit – see "Known quirks" or `CLAUDE.md` for the deliberate single-user scope.
+Wer Multi-User-Betrieb, Auth oder öffentliches Hosting braucht, ist mit WattLoom in seiner
+jetzigen Architektur falsch bedient – siehe „Bekannte Eigenheiten" bzw. `CLAUDE.md` für den
+bewussten Single-User-Rahmen.
 
 ---
 
-## Prerequisites
+## Voraussetzungen
 
-| Tool | Version | Note |
-|------|---------|------|
+| Tool | Version | Hinweis |
+|------|---------|---------|
 | Python | ≥ 3.11 | `python3 --version` |
-| Node.js | ≥ 20 | via [fnm](https://github.com/Schniz/fnm) or nvm recommended |
-| npm | ≥ 10 | ships with Node |
+| Node.js | ≥ 20 | via [fnm](https://github.com/Schniz/fnm) oder nvm empfohlen |
+| npm | ≥ 10 | kommt mit Node |
 
 ---
 
 ## Installation & Start
 
-### 1. Download your Strava export
+### 1. Strava-Export herunterladen
 
-Strava → Settings → My Account → Download your data → download the ZIP.
+Strava → Einstellungen → Mein Konto → Meine Daten herunterladen → ZIP herunterladen.
 
-Place the ZIP file in the `download/` folder (auto-detected):
+Die ZIP-Datei in den `download/`-Ordner legen (wird automatisch erkannt):
 
 ```
 download/export_XXXXXXXX.zip
 ```
 
-### 2. Set up the backend
+### 2. Backend einrichten
 
 ```bash
 python3 -m venv .venv
@@ -154,73 +156,73 @@ source .venv/bin/activate        # Linux/macOS
 pip install -r backend/requirements.txt
 ```
 
-### 3. Set up the frontend
+### 3. Frontend einrichten
 
 ```bash
 cd frontend
 npm install
 ```
 
-### 4. Start
+### 4. Starten
 
-**Terminal 1 – Backend (port 8000):**
+**Terminal 1 – Backend (Port 8000):**
 ```bash
 source .venv/bin/activate
 python -m uvicorn backend.main:app --port 8000 --reload
 ```
 
-**Terminal 2 – Frontend (port 5173):**
+**Terminal 2 – Frontend (Port 5173):**
 ```bash
 cd frontend
 npm run dev
 ```
 
-Open the app: **http://localhost:5173**
+App öffnen: **http://localhost:5173**
 
-### 5. Run tests
+### 5. Tests ausführen
 
 ```bash
 source .venv/bin/activate
 python -m pytest tests/ -v
 ```
 
-102 tests in `tests/` (pytest): Haversine, physics engine, hrTSS/CTL/ATL, FIT and TCX importers, zone aggregation, beta-blocker HR correction.
+102 Tests in `tests/` (pytest): Haversine, Physik-Engine, hrTSS/CTL/ATL, FIT- und TCX-Importer, Zonen-Aggregation, Betablocker-HF-Korrektur.
 
-### 6. Import data
+### 6. Daten importieren
 
-In the browser: **Settings → Start import** – the importer reads the ZIP, parses all FIT/TCX/GPX files, and populates the SQLite database.
+Im Browser: **Einstellungen → Import starten** – der Importer liest die ZIP, parst alle FIT/TCX/GPX-Dateien und befüllt die SQLite-Datenbank.
 
 ---
 
-## Docker (alternative to manual install)
+## Docker (Alternative zur manuellen Installation)
 
-Requires: [Docker Desktop](https://www.docker.com/products/docker-desktop/) (Windows/macOS/Linux).
+Voraussetzung: [Docker Desktop](https://www.docker.com/products/docker-desktop/) (Windows/macOS/Linux).
 
 ```bash
 docker compose up --build
 ```
 
-Open the app: **http://localhost:8000** (backend and frontend run in a single container).
+App öffnen: **http://localhost:8000** (Backend und Frontend laufen in einem Container).
 
-The database, media, and backups live in the local `wattloom-data/` folder (bind mount, see
-`docker-compose.yml`) – they survive container restarts. Place your Strava export ZIP in
-`wattloom-data/download/` instead of `download/`.
+Die Datenbank, Medien und Backups landen im lokalen Ordner `wattloom-data/` (Bind-Mount, siehe
+`docker-compose.yml`) – bleiben also über Container-Neustarts hinweg erhalten. Das
+Strava-Export-ZIP entsprechend nach `wattloom-data/download/` legen statt nach `download/`.
 
-**Security note:** see [Security note](#security-note) above – don't forward port 8000 to the
-open internet.
+**Sicherheitshinweis:** siehe [Sicherheitshinweis](#sicherheitshinweis) oben – Port 8000 nicht
+ungeschützt ins offene Internet weiterleiten.
 
 ---
 
 ## Autostart via systemd (optional)
 
-For permanent operation without manual startup:
+Für dauerhaften Betrieb ohne manuellen Start:
 
 ```bash
 systemctl --user enable wattloom-backend.service
 systemctl --user enable wattloom-frontend.service
 loginctl enable-linger $USER
 
-# Control manually
+# Manuell steuern
 systemctl --user start|stop|restart wattloom-backend
 systemctl --user start|stop|restart wattloom-frontend
 
@@ -228,25 +230,25 @@ systemctl --user start|stop|restart wattloom-frontend
 journalctl --user -u wattloom-backend.service -f
 ```
 
-Service files live in `~/.config/systemd/user/`. Stop them before debugging with VS Code so ports 8000/5173 are free.
+Service-Dateien liegen in `~/.config/systemd/user/`. Beim Debuggen mit VS Code vorher stoppen, damit Port 8000/5173 frei sind.
 
 ---
 
-## Project structure
+## Projektstruktur
 
 ```
 WattLoom/
 ├── backend/
-│   ├── main.py              # FastAPI app, CORS for localhost:5173
-│   ├── database.py          # SQLite schema, init_db()
+│   ├── main.py              # FastAPI-App, CORS für localhost:5173
+│   ├── database.py          # SQLite-Schema, init_db()
 │   ├── api/
-│   │   ├── activities.py    # /activities/* (incl. laps, power patch)
-│   │   ├── analytics/       # /analytics/* (PMC, Wrapped, calories, best-of, wind impact, fitness fingerprint, …) – package, see CLAUDE.md
-│   │   ├── bikes.py         # /bikes, /bikes/{id}, /bikes/compare, component install/uninstall
-│   │   ├── errors.py        # api_error() – unified error response format
-│   │   ├── purchases.py     # /purchases – purchase/stock management (purchase_items: 1 row per physical item)
+│   │   ├── activities.py    # /activities/* (inkl. laps, power-Patch)
+│   │   ├── analytics/       # /analytics/* (PMC, Wrapped, Kalorien, Best-of, Wind-Impact, Fitness-Fingerprint, …) – Paket, siehe CLAUDE.md
+│   │   ├── bikes.py         # /bikes, /bikes/{id}, /bikes/compare, Komponenten-Einbau/Ausbau
+│   │   ├── errors.py        # api_error() – einheitliches Fehlerantwort-Format
+│   │   ├── purchases.py     # /purchases – Einkaufs-Lager (purchase_items: 1 Zeile je physischem Teil)
 │   │   ├── heatmap.py       # /tracks/heatmap
-│   │   ├── settings.py      # /settings (weight, birth year, HRmax, timezone)
+│   │   ├── settings.py      # /settings (Gewicht, Geburtsjahr, HRmax, Timezone)
 │   │   ├── storage_locations.py # /storage-locations
 │   │   ├── translations.py  # /translations/* (languages, export, import, {lang}/{ns})
 │   │   ├── zones.py         # /activities/{id}/zones
@@ -254,53 +256,53 @@ WattLoom/
 │   │   ├── tracks.py        # /activities/{id}/track
 │   │   └── weather.py       # /weather/status, /weather/fetch-all (Open-Meteo)
 │   ├── utils.py             # Shared: haversine_km(), haversine_m(), MS_TO_KMH
-│   ├── pr_detection.py      # Snapshot diff on best-by-distance before/after import → pr_events
-│   ├── weather.py           # Open-Meteo archive API: fetch_weather(lat, lon, date_utc)
+│   ├── pr_detection.py      # Snapshot-Diff auf Best-by-Distance vor/nach Import → pr_events
+│   ├── weather.py           # Open-Meteo Archive API: fetch_weather(lat, lon, date_utc)
 │   ├── importer/
-│   │   ├── pipeline.py      # run_import() – main entry point
-│   │   ├── fit.py           # FIT parser (Garmin, with _SafeProcessor)
-│   │   ├── fit_single.py    # single FIT import (Amazfit, Garmin without Strava)
-│   │   ├── tcx.py           # TCX parser
-│   │   ├── tcx_single.py    # single TCX import
-│   │   ├── gpx.py           # GPX parser (tracks + routes)
-│   │   ├── gpx_single.py    # single GPX import
-│   │   ├── power_estimator.py # physics-based est_avg_power_w/est_norm_power_w estimation without a power meter
-│   │   └── sport_codes.py   # canonical sport codes, is_ride_sport()
+│   │   ├── pipeline.py      # run_import() – Haupteinstieg
+│   │   ├── fit.py           # FIT-Parser (Garmin, mit _SafeProcessor)
+│   │   ├── fit_single.py    # FIT-Einzelimport (Amazfit, Garmin ohne Strava)
+│   │   ├── tcx.py           # TCX-Parser
+│   │   ├── tcx_single.py    # TCX-Einzelimport
+│   │   ├── gpx.py           # GPX-Parser (Tracks + Routen)
+│   │   ├── gpx_single.py    # GPX-Einzelimport
+│   │   ├── power_estimator.py # Physik-Schätzung est_avg_power_w/est_norm_power_w ohne Powermeter
+│   │   └── sport_codes.py   # kanonische Sport-Codes, is_ride_sport()
 │   └── requirements.txt
 ├── frontend/
 │   └── src/
-│       ├── main.tsx                    # Entry point, React + router
-│       ├── App.tsx                     # Root component with react-router-dom routes
-│       ├── index.css                   # TailwindCSS v4, CSS custom properties, themes
+│       ├── main.tsx                    # Einstiegspunkt, React + Router
+│       ├── App.tsx                     # Root-Komponente mit react-router-dom-Routen
+│       ├── index.css                   # TailwindCSS v4, CSS Custom Properties, Themes
 │       ├── lib/
-│       │   ├── activity-display.ts     # rideTitle()/workoutTitle() – display names for activities/workouts
-│       │   ├── api.ts                  # Typed API client
-│       │   ├── config-context.tsx      # Central parameters (smoothing, simplification, …), loaded from backend settings
+│       │   ├── activity-display.ts     # rideTitle()/workoutTitle() – Anzeigenamen für Aktivitäten/Workouts
+│       │   ├── api.ts                  # Typisierter API-Client
+│       │   ├── config-context.tsx      # Zentrale Parameter (Glättung, Vereinfachung, …), aus Backend-Settings geladen
 │       │   ├── format.ts               # fmtKm, fmtSpeed, fmtTime, fmtDate, fmtNum, fmtHm
-│       │   ├── i18n.ts                 # react-i18next setup, lazy-loads namespaces
-│       │   ├── insights.ts             # Insight type + helpers for dynamic interpretation sentences
-│       │   └── utils.ts                # cn() Tailwind merge helper
+│       │   ├── i18n.ts                 # react-i18next-Setup, lädt Namespaces lazy
+│       │   ├── insights.ts             # Insight-Typ + Helper für dynamische Interpretations-Sätze
+│       │   └── utils.ts                # cn() Tailwind-Merge-Helper
 │       ├── components/
 │       │   ├── layout/
-│       │   │   └── AppSidebar.tsx      # Collapsible sidebar with sub-navigation
-│       │   ├── LeafletMap.tsx          # Leaflet map (React.lazy), speed halo, hover sync
-│       │   ├── RouteThumbnail.tsx      # Mini route shape without Leaflet (SVG polyline, simplify=20)
-│       │   └── ui/                     # shadcn/ui base-nova components
+│       │   │   └── AppSidebar.tsx      # Collapsible Sidebar mit Sub-Navigation
+│       │   ├── LeafletMap.tsx          # Leaflet-Karte (React.lazy), Speed-Halo, Hover-Sync
+│       │   ├── RouteThumbnail.tsx      # Mini-Routenform ohne Leaflet (SVG-Polyline, simplify=20)
+│       │   └── ui/                     # shadcn/ui base-nova Komponenten
 │       ├── hooks/
 │       │   └── use-mobile.ts
-│       └── pages/                      # 22 pages as .tsx (tab containers bundle related views)
+│       └── pages/                      # 22 Seiten als .tsx (Tab-Container bündeln verwandte Ansichten)
 │           ├── DashboardPage.tsx
 │           ├── ActivitiesPage.tsx
 │           ├── ActivityDetailPage.tsx
 │           ├── BestPage.tsx
-│           ├── BikesPage.tsx           # Tabs: Overview · Deleted · Comparison (/bikes?tab=übersicht|gelöscht|vergleich)
-│           ├── WorkoutDetailPage.tsx   # Workout detail with intensity gauge (/workouts/:id)
-│           ├── WeekendPage.tsx         # Weekday analysis (/weekend)
+│           ├── BikesPage.tsx           # Tabs: Übersicht · Gelöscht · Vergleich (/bikes?tab=übersicht|gelöscht|vergleich)
+│           ├── WorkoutDetailPage.tsx   # Workout-Detail mit Intensitätsgauge (/workouts/:id)
+│           ├── WeekendPage.tsx         # Wochentag-Analyse (/weekend)
 │           ├── CalendarPage.tsx
 │           ├── FormPage.tsx
 │           ├── HeatmapPage.tsx
-│           ├── HrCurvePage.tsx         # Tabs: HR curve · aerobic efficiency (/hrcurve?tab=kurve|effizienz)
-│           ├── ProgressPage.tsx        # Tabs: progress · year comparison · volume · time of day (/progress?tab=…)
+│           ├── HrCurvePage.tsx         # Tabs: HR-Kurve · Aerobe Effizienz (/hrcurve?tab=kurve|effizienz)
+│           ├── ProgressPage.tsx        # Tabs: Fortschritt · Jahresvergleich · Volumen · Tageszeit (/progress?tab=…)
 │           ├── SettingsPage.tsx
 │           ├── StreckenPage.tsx
 │           ├── TempCorrPage.tsx
@@ -308,18 +310,18 @@ WattLoom/
 │           ├── BerechnungenPage.tsx
 │           ├── CadencePage.tsx
 │           ├── CaloriesPage.tsx
-│           ├── SpeedTrendPage.tsx      # Pace trend (/speed-trend)
-│           ├── FitnessPage.tsx         # Fitness fingerprint (/fitness)
-│           └── ZoneDistributionPage.tsx # Training distribution / 80-20 check (/zone-distribution)
+│           ├── SpeedTrendPage.tsx      # Tempoentwicklung (/speed-trend)
+│           ├── FitnessPage.tsx         # Fitness-Fingerprint (/fitness)
+│           └── ZoneDistributionPage.tsx # Trainingsverteilung / 80-20-Check (/zone-distribution)
 ├── data/
-│   └── mybiking.db          # SQLite database (created on import)
-├── download/                # Place the Strava export ZIP here
+│   └── mybiking.db          # SQLite-Datenbank (wird beim Import erstellt)
+├── download/                # Strava-Export-ZIP ablegen
 └── README.md
 ```
 
 ---
 
-## API overview
+## API-Übersicht
 
 ```
 GET  /activities                    ?limit, offset, year, bike_id, has_track, sort_by, sort_dir
@@ -327,265 +329,266 @@ GET  /activities/stats              ?year
 GET  /activities/weekly             ?weeks=8
 GET  /activities/monthly            ?year
 GET  /activities/monthly-all
-GET  /activities/other              ?year      → other sport types (running, strength, …)
+GET  /activities/other              ?year      → andere Sportarten (Laufen, Kraft, …)
 GET    /activities/{id}
-DELETE /activities/{id}             → deletes activity incl. track_points, media, laps
-GET    /activities/{id}/laps        → lap splits
-PATCH  /activities/{id}/power       → {avg_power_w} set manually (manually imported activities only)
+DELETE /activities/{id}             → löscht Aktivität inkl. track_points, media, laps
+GET    /activities/{id}/laps        → Rundensplits
+PATCH  /activities/{id}/power       → {avg_power_w} setzen (nur manuell importierte Aktivitäten)
 GET  /activities/{id}/track         ?simplify, fields
 GET  /activities/{id}/media
-GET  /activities/{id}/zones         → HR zones + power zones
-GET  /activities/{id}/similar       ?limit=10  → similar rides (Haversine + distance prefilter ±3%, then track-point matching → path_match_pct)
+GET  /activities/{id}/zones         → HR-Zonen + Power-Zonen
+GET  /activities/{id}/similar       ?limit=10  → ähnliche Rides (Haversine+Distanz-Vorfilter ±3 %, dann Trackpunkt-Abgleich → path_match_pct)
 
 GET  /analytics/year-progress
 GET  /analytics/time-heatmap        ?year, tz_offset
-GET  /analytics/speed-hr                       → per ride: month, speed_kmh, hr, dist_km
-GET  /analytics/speed-trend         ?year      → scatter, rolling avg, yearly aggregates, monthly heatmap
+GET  /analytics/speed-hr                       → per Ride: month, speed_kmh, hr, dist_km
+GET  /analytics/speed-trend         ?year      → Scatter, Rolling-Ø, Jahres-Aggregate, Monats-Heatmap
 GET  /analytics/temp-correlation
-GET  /analytics/wind-impact                    → wind strength vs. speed/HR per activity
+GET  /analytics/wind-impact                    → Windstärke vs. Speed/HR je Aktivität
+GET  /analytics/weather-timeline                → Temperatur/Wind/Regen je Tag über alle Jahre (kein Monats-Ø)
 GET  /analytics/hr-curve            ?year
 GET  /analytics/pmc                            → CTL/ATL/TSB + hrTSS
 GET  /analytics/wrapped             ?year, tz_offset
 GET  /analytics/weekly-volume       ?weeks
-GET  /analytics/best-by-distance               → fastest segment per target distance (5–70 km) across all rides (best effort)
-GET    /analytics/pr-events                    → not-yet-dismissed new personal bests (dashboard widget)
-DELETE /analytics/pr-events/{id}               → dismiss a PR notice
-GET  /analytics/cadence             ?year      → distribution, zones, monthly trend, efficiency buckets
-GET  /analytics/calories            ?year      → total_kcal, rides + workouts, monthly/yearly
-GET  /analytics/weekend-weekday     ?year      → weekday vs. weekend average metrics
-GET  /analytics/fitness-fingerprint            → score 0–100 from CTL, efficiency, form, consistency + history
-GET  /analytics/zone-distribution   ?year        → HR zone time aggregated monthly, easy/moderate/hard % split (polarized training check)
+GET  /analytics/best-by-distance               → schnellstes Segment je Zieldistanz (5–70 km) über alle Fahrten hinweg (Best Effort)
+GET    /analytics/pr-events                    → noch nicht verworfene neue Bestzeiten (Dashboard-Widget)
+DELETE /analytics/pr-events/{id}               → PR-Hinweis verwerfen
+GET  /analytics/cadence             ?year      → Distribution, Zonen, Monatsverlauf, Effizienz-Buckets
+GET  /analytics/calories            ?year      → total_kcal, rides + workouts, monatlich/jährlich
+GET  /analytics/weekend-weekday     ?year      → Ø-Kennzahlen Werktag vs. Wochenende
+GET  /analytics/fitness-fingerprint            → Score 0–100 aus CTL, Effizienz, Form, Kontinuität + History
+GET  /analytics/zone-distribution   ?year        → HF-Zonen-Zeit monatlich aggregiert, easy/moderate/hard-%-Split (Polarized-Training-Check)
 
 GET  /weather/status
-POST /weather/fetch-all             → fetch weather data for all activities via Open-Meteo (background job)
+POST /weather/fetch-all             → Wetterdaten für alle Aktivitäten via Open-Meteo (Background-Job)
 
 GET  /bikes
-GET  /bikes/{id}                   → incl. current_km, components (km_since_service, pct_used, estimated_service_date, purchase_name, purchase_url derived live via the linked stock item)
-PUT  /bikes/{id}                   → { name } rename bike
+GET  /bikes/{id}                   → inkl. current_km, components (km_since_service, pct_used, estimated_service_date, purchase_name, purchase_url live über Lagerbezug abgeleitet)
+PUT  /bikes/{id}                   → { name } Bikenamen umbenennen
 GET  /bikes/compare
-GET  /bikes/deleted-components     → history of irreversibly deleted components (snapshot + purchase link)
-PUT  /bikes/{id}/toggle-retired    → bike active ↔ inactive
+GET  /bikes/deleted-components     → Historie unwiderruflich gelöschter Komponenten (Snapshot + Einkaufsbezug)
+PUT  /bikes/{id}/toggle-retired    → Bike aktiv ↔ inaktiv
 GET  /bikes/{id}/image
-POST /bikes/{id}/image             → upload photo (multipart)
-POST /bikes/{id}/components        → install a component from stock (purchase_id, optional return_id to carry over prior mileage)
-PUT  /bikes/{id}/components/{cid}  → edit component (type, km_threshold, installed_at)
-PUT  /bikes/{id}/components/{cid}/reset          → mark as serviced (resets km_at_service to the current km reading)
-PUT  /bikes/{id}/components/{cid}/uninstall     → {km_ridden, purchase_id?} → if stock-linked: record return + delete component
-PUT  /bikes/{id}/components/{cid}/return-to-stock → {purchase_id} → retroactively return an already-uninstalled component to stock
-PUT  /bikes/{id}/components/{cid}/link-purchase   → {purchase_id} → retroactively link a still-mounted component to a purchase (stays mounted)
-DELETE /bikes/{id}/components/{cid} → deletes irreversibly; snapshot goes to deleted_components, a linked purchase_item is disposed of instead of being freed back to stock
-GET  /purchases                    → purchase/stock management: 1 purchase_items row per physical item, quantity/installed_count derived live + returns (mileage history)
-POST /purchases                    → new purchase (quantity creates that many purchase_items, incl. component_type)
-PUT  /purchases/{id}               → edit order (quantity not editable – only via /adjust)
-PUT  /purchases/{id}/adjust        → {delta} → creates |delta| new items (delta>0) or disposes of |delta| un-mounted items (delta<0)
-DELETE /purchases/{id}             → 409 if items are still mounted or open returns exist
+POST /bikes/{id}/image             → Foto hochladen (multipart)
+POST /bikes/{id}/components        → Komponente aus Lager einbauen (purchase_id, optional return_id für Vorbelastungs-Übernahme)
+PUT  /bikes/{id}/components/{cid}  → Komponente editieren (type, km_threshold, installed_at)
+PUT  /bikes/{id}/components/{cid}/reset         → als gewartet markieren (km_at_service auf aktuellen km-Stand setzen)
+PUT  /bikes/{id}/components/{cid}/uninstall     → {km_ridden, purchase_id?} → bei Lagerbezug: Rückgabe vermerken + Komponente löschen
+PUT  /bikes/{id}/components/{cid}/return-to-stock → {purchase_id} → bereits ausgebaute Komponente nachträglich ins Lager zurücklegen
+PUT  /bikes/{id}/components/{cid}/link-purchase   → {purchase_id} → noch verbaute Komponente nachträglich einem Einkauf zuordnen (bleibt verbaut)
+DELETE /bikes/{id}/components/{cid} → löscht unwiderruflich; Snapshot nach deleted_components, verknüpftes purchase_item wird entsorgt (disposed_at) statt ins Lager freigegeben
+GET  /purchases                    → Einkaufs-Lager: 1 purchase_items-Zeile je physischem Teil, quantity/installed_count live daraus abgeleitet + returns (Laufleistungs-Historie)
+POST /purchases                    → neuer Einkauf (quantity legt entsprechend viele purchase_items an, inkl. component_type)
+PUT  /purchases/{id}               → Bestellung bearbeiten (Menge nicht editierbar – nur über /adjust)
+PUT  /purchases/{id}/adjust        → {delta} → legt |delta| neue Items an (delta>0) bzw. entsorgt |delta| unverbaute Items (delta<0)
+DELETE /purchases/{id}             → 409 falls noch Items verbaut sind oder offene Rückgaben existieren
 
-GET    /storage-locations           → storage locations
-POST   /storage-locations           → { name } create a new storage location
-PUT    /storage-locations/{id}      → { name } rename
-DELETE /storage-locations/{id}      → delete (referencing purchases get set to NULL)
+GET    /storage-locations           → Lagerplätze
+POST   /storage-locations           → { name } neuer Lagerplatz
+PUT    /storage-locations/{id}      → { name } umbenennen
+DELETE /storage-locations/{id}      → löschen (referenzierende purchases werden auf NULL gesetzt)
 
 GET  /tracks/heatmap                ?simplify, year
 GET  /settings
 POST /settings
 POST /import/start
 GET  /import/status
-POST /import/reset                  → backs up a copy to data/backups/ beforehand
+POST /import/reset                  → sichert vorher eine Backup-Kopie nach data/backups/
 POST /import/fit-file               → multipart: file (.fit) + bike_id
 POST /import/tcx-file               → multipart: file (.tcx) + bike_id
 POST /import/gpx-file               → multipart: file (.gpx) + bike_id
-POST /import/recalculate-track-speeds → background job: recompute speed_ms/distance_m from lat/lon/timestamp
-POST /import/recalculate-power      → background job: recompute power estimation for all rides
+POST /import/recalculate-track-speeds → Background-Job: speed_ms/distance_m aus lat/lon/timestamp nachberechnen
+POST /import/recalculate-power      → Background-Job: Leistungsschätzung für alle Rides neu berechnen
 GET  /media/{filename}
-GET  /health                        → liveness check ({status: "ok"})
+GET  /health                        → Liveness-Check ({status: "ok"})
 
-GET  /translations/languages        → fixed language list + which ones exist in the DB
-GET  /translations/export           ?lang → all translations for one language as JSON (download)
-POST /translations/import           → { lang, translations } → import/update translations
-GET  /translations/{lang}/{ns}      → one namespace for i18next-http-backend (frontend loads per page)
+GET  /translations/languages        → feste Sprachliste + welche davon in der DB vorhanden sind
+GET  /translations/export           ?lang → alle Übersetzungen einer Sprache als JSON (Download)
+POST /translations/import           → { lang, translations } → Übersetzungen einspielen/aktualisieren
+GET  /translations/{lang}/{ns}      → ein Namespace für i18next-http-backend (Frontend lädt seitenweise nach)
 ```
 
 ---
 
-## Database schema
+## Datenbankschema
 
-SQLite file at `data/mybiking.db`, schema defined in `backend/database.py` (`init_db()`, additive migrations via `ALTER TABLE`/`PRAGMA table_info` checks). Distances are stored in **meters** throughout, speeds in **m/s** (the UI converts to km/h resp. km). Timestamps are ISO8601 text without a timezone (see "Known quirks" – effectively UTC).
+SQLite-Datei unter `data/mybiking.db`, Schema in `backend/database.py` (`init_db()`, additive Migrationen per `ALTER TABLE`/`PRAGMA table_info`-Check). Distanzen sind durchgehend in **Metern**, Geschwindigkeiten in **m/s** gespeichert (Anzeige rechnet auf km/h bzw. km um). Zeiten als ISO8601-Text ohne Zeitzone (siehe „Bekannte Eigenheiten" – de facto UTC).
 
-### `activities` – imported rides
-| Field | Meaning |
-|-------|---------|
-| `id` | Strava activity ID (positive) or `-int(start_ts)` for single FIT/TCX/GPX imports (negative) |
-| `name`, `activity_type`, `sport_type` | Title + Strava type (normalized DE→EN during CSV import) |
-| `start_date`, `start_date_local`, `timezone` | Both date fields contain UTC (Strava export artifact, see below) |
-| `distance_m`, `moving_time_s`, `elapsed_time_s`, `elevation_gain_m`, `elevation_loss_m` | Core metrics |
-| `avg_speed_ms`, `max_speed_ms`, `avg_hr`, `max_hr`, `avg_power_w`, `max_power_w`, `avg_cadence` | Avg/max values from Strava resp. the track |
-| `avg_temp_c` | **always NULL** – actual temperature lives in `track_points.temp_c` |
-| `calories` | Calorie expenditure |
-| `bike_id` | FK → `bikes.id`; if the Strava gear assignment is missing, `DEFAULT_BIKE_ID` applies |
-| `commute`, `trainer`, `manual` | Boolean flags (0/1) from Strava |
-| `track_file` | Relative path to the track file inside the ZIP export |
-| `has_track` | 0/1, whether `track_points` exist |
-| `imported_at` | Time of import |
-| `smart_device` | Device name, read from the file content (`read_fit/tcx/gpx_device()`), not guessed |
-| `weather_temp_c`, `weather_wind_ms`, `weather_wind_deg`, `weather_precip_mm` | Filled in after import via Open-Meteo, NULL until fetched |
-| `est_avg_power_w`, `est_norm_power_w` | Physics-based power estimate (`power_estimator.py`), NULL without a track/weight |
+### `activities` – importierte Radtouren
+| Feld | Bedeutung |
+|------|-----------|
+| `id` | Strava Activity-ID (positiv) oder `-int(start_ts)` bei FIT/TCX/GPX-Einzelimport (negativ) |
+| `name`, `activity_type`, `sport_type` | Bezeichnung + Strava-Typ (normalisiert DE→EN beim CSV-Import) |
+| `start_date`, `start_date_local`, `timezone` | Beide Datumsfelder enthalten UTC (Strava-Export-Artefakt, siehe unten) |
+| `distance_m`, `moving_time_s`, `elapsed_time_s`, `elevation_gain_m`, `elevation_loss_m` | Kernkennzahlen |
+| `avg_speed_ms`, `max_speed_ms`, `avg_hr`, `max_hr`, `avg_power_w`, `max_power_w`, `avg_cadence` | Ø/Max-Werte aus Strava bzw. Track |
+| `avg_temp_c` | **immer NULL** – echte Temperatur liegt in `track_points.temp_c` |
+| `calories` | Kalorienverbrauch |
+| `bike_id` | FK → `bikes.id`; fehlt die Strava-Gear-Zuweisung, greift `DEFAULT_BIKE_ID` |
+| `commute`, `trainer`, `manual` | Boolean-Flags (0/1) aus Strava |
+| `track_file` | relativer Pfad zur Track-Datei im ZIP-Export |
+| `has_track` | 0/1, ob `track_points` existieren |
+| `imported_at` | Zeitpunkt des Imports |
+| `smart_device` | Gerätename, aus Dateiinhalt gelesen (`read_fit/tcx/gpx_device()`), nicht geraten |
+| `weather_temp_c`, `weather_wind_ms`, `weather_wind_deg`, `weather_precip_mm` | Open-Meteo-Nachimport, NULL bis abgerufen |
+| `est_avg_power_w`, `est_norm_power_w` | physikalische Leistungsschätzung (`power_estimator.py`), NULL ohne Track/Gewicht |
 
-### `track_points` – per-second telemetry per activity
-`activity_id` (FK), `timestamp`, `lat`/`lon` (can be NULL if no GPS fix at start), `altitude_m`, `distance_m` (cumulative, Haversine fallback for TCX where needed), `speed_ms`, `hr`, `power_w` (mostly NULL – no power meter), `cadence`, `temp_c`.
+### `track_points` – Sekunden-Telemetrie je Aktivität
+`activity_id` (FK), `timestamp`, `lat`/`lon` (können NULL sein bei fehlendem GPS-Fix), `altitude_m`, `distance_m` (kumulativ, bei TCX ggf. Haversine-Fallback), `speed_ms`, `hr`, `power_w` (meist NULL – kein Powermeter), `cadence`, `temp_c`.
 
-### `laps` – lap splits (from FIT/TCX)
+### `laps` – Rundensplits (aus FIT/TCX)
 `activity_id` (FK), `lap_number`, `start_time`, `total_time_s`, `distance_m`, `avg_speed_ms`, `max_speed_ms`, `avg_hr`, `max_hr`, `avg_power_w`, `max_power_w`, `avg_cadence`, `elevation_gain_m`.
 
-### `segment_efforts` – Strava segment attempts (from FIT)
-`activity_id` (FK), `name`, `start_time`, `elapsed_time_s`, `distance_m`, `avg_speed_ms`, `max_speed_ms`, `avg_hr`, `max_hr`, `avg_power_w`, `max_power_w`, `avg_cadence`, `total_ascent_m`, `rank`, `pr_rank`. Deleted along with the ZIP reset (`activity_id > 0`).
+### `segment_efforts` – Strava-Segment-Versuche (aus FIT)
+`activity_id` (FK), `name`, `start_time`, `elapsed_time_s`, `distance_m`, `avg_speed_ms`, `max_speed_ms`, `avg_hr`, `max_hr`, `avg_power_w`, `max_power_w`, `avg_cadence`, `total_ascent_m`, `rank`, `pr_rank`. Wird beim ZIP-Reset mitgelöscht (`activity_id > 0`).
 
-### `other_activities` – non-cycling activities (workouts)
-`id` (Strava activity ID), `name`, `sport_type`, `start_date_local`, `moving_time_s`, `elapsed_time_s`, `avg_hr`, `max_hr`, `calories`, `imported_at`. No `bike_id` – workouts aren't tied to a bike.
+### `other_activities` – Nicht-Rad-Aktivitäten (Workouts)
+`id` (Strava Activity-ID), `name`, `sport_type`, `start_date_local`, `moving_time_s`, `elapsed_time_s`, `avg_hr`, `max_hr`, `calories`, `imported_at`. Kein `bike_id` – Workouts sind nicht bikebezogen.
 
-### `bikes` – bikes
-| Field | Meaning |
-|-------|---------|
-| `id` | Strava gear ID (e.g. `giant_propel`) or manually assigned |
-| `name` | Display name, editable inline |
-| `brand`, `model`, `description` | Free-text metadata, shown as a subtitle when it differs from the name |
-| `distance_m` | **unused** (dead field from the original Strava gear import) – mileage is instead summed live from `activities` (`current_km`) |
-| `retired` | 0/1, active/inactive (toggle button) |
-| `image_filename` | File name in `data/bike_images/` |
+### `bikes` – Räder
+| Feld | Bedeutung |
+|------|-----------|
+| `id` | Strava Gear-ID (z.B. `giant_propel`) oder manuell vergeben |
+| `name` | Anzeigename, inline editierbar |
+| `brand`, `model`, `description` | Freitext-Metadaten, Anzeige als Untertitel wenn abweichend vom Namen |
+| `distance_m` | **unbenutzt** (totes Feld aus dem ursprünglichen Strava-Gear-Import) – Kilometerstand wird stattdessen live aus `activities` summiert (`current_km`) |
+| `retired` | 0/1, aktiv/inaktiv (Toggle-Button) |
+| `image_filename` | Dateiname in `data/bike_images/` |
 
-### `bike_components` – wear parts currently mounted on a bike
-| Field | Meaning |
-|-------|---------|
+### `bike_components` – Verschleißteile, die aktuell an einem Bike verbaut sind
+| Feld | Bedeutung |
+|------|-----------|
 | `bike_id` | FK → `bikes.id` |
-| `type` | Component type (chain, tire front/rear, …) |
-| `model`, `description`, `distance_m` | **unused** (leftovers from the original schema, never wired up to the frontend) |
-| `added_at` | Install date (ISO) |
-| `retired_at` | Set on uninstall (see `uninstall_component`); as long as it's NULL, the component counts as actively mounted |
-| `km_threshold` | Maintenance interval in km |
-| `km_at_service` | Bike mileage on the install date (or shifted to account for prior mileage) – basis for `km_since_service` |
-| `uninstalled_km` | Mileage ridden at uninstall time **without** a stock link (transitional case, the row stays as history) |
-| `purchase_item_id` | FK → `purchase_items.id`; NULL = no stock link (legacy stock or not linked yet) |
+| `type` | Komponenten-Typ (Kette, Mantel vorne/hinten, …) |
+| `model`, `description`, `distance_m` | **unbenutzt** (Reste aus dem ursprünglichen Schema, nie ans Frontend angebunden) |
+| `added_at` | Einbaudatum (ISO) |
+| `retired_at` | gesetzt beim Ausbau (siehe `uninstall_component`); solange NULL gilt die Komponente als aktiv verbaut |
+| `km_threshold` | Wartungsintervall in km |
+| `km_at_service` | Bike-km-Stand am Einbaudatum (bzw. um Vorbelastung verschoben) – Basis für `km_since_service` |
+| `uninstalled_km` | gefahrene km beim Ausbau **ohne** Lagerbezug (Übergangsfall, Zeile bleibt als Verlauf stehen) |
+| `purchase_item_id` | FK → `purchase_items.id`; NULL = kein Lagerbezug (Altbestand oder noch nicht verknüpft) |
 
-`km_since_service`, `pct_used`, `estimated_service_date`, `purchase_url`, `purchase_name` are **not stored** – they're computed live on every `GET`, resp. joined via `purchase_item_id → purchase_items.purchase_id → purchases`.
+`km_since_service`, `pct_used`, `estimated_service_date`, `purchase_url`, `purchase_name` werden **nicht gespeichert**, sondern bei jedem `GET` live berechnet bzw. über `purchase_item_id → purchase_items.purchase_id → purchases` gejoint.
 
-### `purchases` – purchase orders (order header)
-| Field | Meaning |
-|-------|---------|
-| `name` | Item name (required) |
-| `shop` | Retailer (e.g. "Amazon", "BOC Eschweiler") – **not** a manufacturer field |
-| `url`, `price`, `order_date`, `delivery_date`, `notes` | Free-text order metadata |
-| `component_type` | Base type (e.g. "tire") used for matching in the install form, overrides name-based detection |
+### `purchases` – Einkäufe (Bestell-Kopfzeile)
+| Feld | Bedeutung |
+|------|-----------|
+| `name` | Artikelbezeichnung (Pflichtfeld) |
+| `shop` | Händler (z.B. „Amazon", „BOC Eschweiler") – **kein** Hersteller-Feld |
+| `url`, `price`, `order_date`, `delivery_date`, `notes` | Freitext-Metadaten der Bestellung |
+| `component_type` | Basis-Typ (z.B. „Mantel") für die Zuordnung im Einbauen-Formular, überschreibt Namens-Erkennung |
 
-`quantity`/`installed_count` are **not stored** – they're derived from `purchase_items`.
+`quantity`/`installed_count` werden **nicht gespeichert**, sondern aus `purchase_items` abgeleitet.
 
-### `purchase_items` – 1 row per physical item purchased
-`purchase_id` (FK → `purchases.id`, NOT NULL), `disposed_at` (TEXT, NULL = not disposed of). Status is never stored, only derived: **mounted** = a `bike_components` row references it via `purchase_item_id`, **disposed of** = `disposed_at` set, otherwise **in stock**.
+### `purchase_items` – 1 Zeile je physisch gekauftem Teil
+`purchase_id` (FK → `purchases.id`, NOT NULL), `disposed_at` (TEXT, NULL = nicht entsorgt). Status wird nie gespeichert, sondern abgeleitet: **verbaut** = eine `bike_components`-Zeile verweist per `purchase_item_id` darauf, **entsorgt** = `disposed_at` gesetzt, sonst **auf Lager**.
 
-### `purchase_returns` – mileage history of returned components
-`purchase_item_id` (FK), `bike_id`, `component_type`, `km_ridden`, `returned_at`. Created when a stock-linked component is returned to stock; **deleted** again (not just marked) when its mileage is carried over on reinstall (`return_id`) – the mileage then lives on in the new `bike_components` row.
+### `purchase_returns` – Laufleistungs-Historie zurückgelegter Komponenten
+`purchase_item_id` (FK), `bike_id`, `component_type`, `km_ridden`, `returned_at`. Entsteht beim Zurücklegen einer Komponente mit Lagerbezug ins Lager; wird beim Wiedereinbau mit Vorbelastungs-Übernahme (`return_id`) wieder **gelöscht** (nicht nur markiert) – die km leben dann in der neuen `bike_components`-Zeile weiter.
 
-### `deleted_components` – history of irreversibly deleted components
-Snapshot of all `bike_components` fields at the time of deletion, plus `km_since_service` (computed wear level) and `deleted_at`. `purchase_item_id` stays referenced (not copied) – price/shop/link, if needed, still come from the purchase. On deletion, a linked `purchase_item` is **disposed of** (`disposed_at` set) rather than freed back to stock – the physical component is gone, not returned. Informational only, no restore.
+### `deleted_components` – Historie unwiderruflich gelöschter Komponenten
+Snapshot aller `bike_components`-Felder zum Löschzeitpunkt plus `km_since_service` (berechneter Verschleißstand) und `deleted_at`. `purchase_item_id` bleibt referenziert (nicht kopiert) – Preis/Shop/Link kommen bei Bedarf weiterhin über den Einkauf. Beim Löschen wird ein verknüpftes `purchase_item` **entsorgt** (`disposed_at` gesetzt), nicht wieder freigegeben – die physische Komponente ist weg, nicht zurückgelegt. Rein informativ, kein Wiederherstellen vorgesehen.
 
-### `pr_events` – detected new personal records
-`distance_km`, `best_time_s`, `best_speed_kmh`, `activity_id`, `activity_name` (snapshot, not live-joined), `previous_time_s`, `created_at`. Filled by `pr_detection.py` via a snapshot diff over `best_by_distance()` before/after every import; shown as a dashboard tile until dismissed via `DELETE /analytics/pr-events/{id}`.
+### `pr_events` – erkannte neue Bestzeiten
+`distance_km`, `best_time_s`, `best_speed_kmh`, `activity_id`, `activity_name` (Snapshot, nicht live gejoint), `previous_time_s`, `created_at`. Wird von `pr_detection.py` per Snapshot-Diff auf `best_by_distance()` vor/nach jedem Import befüllt; erscheint als Dashboard-Kachel, bis sie per `DELETE /analytics/pr-events/{id}` verworfen wird.
 
-### `routes` / `route_points` – imported GPX routes (not rides)
+### `routes` / `route_points` – importierte GPX-Routen (keine Rides)
 `routes`: `name`, `description`, `distance_m`, `source_file`. `route_points`: `route_id` (FK), `seq`, `lat`, `lon`, `altitude_m`.
 
-### `media` – photos attached to activities
-`activity_id` (FK), `filename` (UUID, file in `data/media/`), `taken_at`, `lat`, `lon`.
+### `media` – Fotos zu Aktivitäten
+`activity_id` (FK), `filename` (UUID, Datei in `data/media/`), `taken_at`, `lat`, `lon`.
 
-### `config` – key-value settings
-`key`/`value` (both TEXT). ~29 keys, defined in `backend/api/settings.py: _FIELDS` – incl. `weight_kg`, `birth_year`, `tz_offset`, `hr_max`, `language`, `yearly_km_goal`, `weekly_hours_goal`, `default_bike_id`, `crr`, `cda`, `bike_kg`, `ctl_days`, `atl_days`, plus every value from the "Configurable parameters" table above. Additionally (outside `_FIELDS`, unused leftovers from the removed licensing system – logic lives in branch `licensing-system`): `trial_started_at`, `trial_signature`, `license_key`.
+### `config` – Key-Value-Einstellungen
+`key`/`value` (beide TEXT). ~29 Keys, definiert in `backend/api/settings.py: _FIELDS` – u.a. `weight_kg`, `birth_year`, `tz_offset`, `hr_max`, `language`, `yearly_km_goal`, `weekly_hours_goal`, `default_bike_id`, `crr`, `cda`, `bike_kg`, `ctl_days`, `atl_days` sowie alle Werte aus der „Konfigurierbare Parameter"-Tabelle oben. Zusätzlich (außerhalb von `_FIELDS`, ungenutzte Reste des ausgebauten Lizenzsystems – Logik liegt in Branch `licensing-system`): `trial_started_at`, `trial_signature`, `license_key`.
 
-### `translations` – UI translations (DB instead of frontend bundle)
-`lang`, `ns` (namespace, corresponds to one frontend page or `common`), `key` (dot path, e.g. `nav.activities`), `value` (JSON-encoded – even plain strings, so arrays/objects like `weekdaysShort` round-trip losslessly). Primary key `(lang, ns, key)`. Managed via `GET/POST /translations/*`, not edited directly on the settings page.
-
----
-
-## Supported file formats
-
-| Format | Source | Notes |
-|--------|--------|-------|
-| **FIT** | Garmin devices | `enhanced_altitude`/`enhanced_speed` preferred; semicircle coordinates |
-| **TCX** | Garmin Connect (legacy) | Leading whitespace is tolerated |
-| **GPX** | Many devices/apps | Tracks + routes |
-| **CSV** | Strava (`activities.csv`) | Distance in meters, date format `Jun 17, 2023, 8:59:12 AM` |
+### `translations` – UI-Übersetzungen (DB statt Frontend-Bundle)
+`lang`, `ns` (Namespace, entspricht einer Frontend-Seite bzw. `common`), `key` (Punkt-Pfad, z.B. `nav.activities`), `value` (als JSON kodiert – auch einfache Strings, damit Arrays/Objekte wie `weekdaysShort` verlustfrei rein-/rausgehen). Primary Key `(lang, ns, key)`. Wird über `GET/POST /translations/*` verwaltet, nicht über die Einstellungsseite direkt editiert.
 
 ---
 
-## Calculations & formulas
+## Unterstützte Datei-Formate
 
-All formulas used are documented on the `/berechnungen` page and read directly from `config-context.tsx` – always up to date. Key metrics:
+| Format | Quelle | Hinweise |
+|--------|--------|---------|
+| **FIT** | Garmin-Geräte | `enhanced_altitude`/`enhanced_speed` bevorzugt; Semicircle-Koordinaten |
+| **TCX** | Garmin Connect (alt) | Führender Whitespace wird toleriert |
+| **GPX** | Viele Geräte / Apps | Tracks + Routen |
+| **CSV** | Strava (`activities.csv`) | Distanz in Metern, Datumsformat `Jun 17, 2023, 8:59:12 AM` |
 
-| Metric | Formula |
-|--------|---------|
-| **hrTSS** | `(duration_h × hr_ratio² / 0.81) × 100` |
-| **CTL** | 42-day EMA, K = 2/43 |
-| **ATL** | 7-day EMA, K = 2/8 |
+---
+
+## Berechnungen & Formeln
+
+Alle verwendeten Formeln sind auf der Seite `/berechnungen` dokumentiert und werden direkt aus `config-context.tsx` gelesen – immer aktuell. Wichtigste Kennzahlen:
+
+| Kennzahl | Formel |
+|----------|--------|
+| **hrTSS** | `(dauer_h × hr_ratio² / 0.81) × 100` |
+| **CTL** | 42-Tage EMA, K = 2/43 |
+| **ATL** | 7-Tage EMA, K = 2/8 |
 | **TSB** | `CTL − ATL` |
-| **Aerobic efficiency** | `avg_speed_kmh / avg_hr × 100` (aggregated monthly) |
-| **Year-end forecast** | `(km_today / day_of_year) × 365` |
+| **Aerobe Effizienz** | `avg_speed_kmh / avg_hr × 100` (monatlich aggregiert) |
+| **Jahresprognose** | `(km_heute / Jahrestag) × 365` |
 
 ---
 
-## Configurable parameters
+## Konfigurierbare Parameter
 
 In [frontend/src/lib/config-context.tsx](frontend/src/lib/config-context.tsx):
 
-| Constant | Default | Meaning |
-|----------|---------|---------|
-| `bezier_tension` | `0.2` | Curve smoothing (0 = straight, 0.5 = strong) |
-| `sparkline_weeks` | `8` | Weeks shown in the dashboard sparkline |
-| `block_hours` | `3` | Hour width of time blocks (time-of-day tab, /progress) |
-| `volume_trend_weeks` | `4` | Rolling-average window for the volume trend line (/progress) |
-| `speed_color_buckets` | `20` | Color steps on the speed map |
-| `track_simplify_m` | `5` | RDP tolerance in meters when loading a track |
-| `wear_warning_pct` | `90` | Wear warning threshold (dashboard widget) |
-| `comparison_simplify` | `20` | Simplification used for route comparison |
-| `chart_height_mini` | `100` | Tiny inline sparklines |
-| `chart_height_compact` | `140` | Small trend charts |
-| `chart_height` | `200` | Standard analytics chart |
-| `chart_height_dense` | `220` | Dense multi-series charts (upper cap) |
-| `comparison_colors` | `#f97316,#3b82f6,#22c55e,#a855f7,#eab308` | Color order for route comparison |
+| Konstante | Standard | Bedeutung |
+|-----------|----------|-----------|
+| `bezier_tension` | `0.2` | Kurvenglättung (0 = gerade, 0.5 = stark) |
+| `sparkline_weeks` | `8` | Wochen im Dashboard-Sparkline |
+| `block_hours` | `3` | Stundenbreite der Zeitblöcke (Tageszeit-Tab, /progress) |
+| `volume_trend_weeks` | `4` | Rolling-Ø-Fenster Volumen-Trendlinie (/progress) |
+| `speed_color_buckets` | `20` | Farbstufen auf der Geschwindigkeitskarte |
+| `track_simplify_m` | `5` | RDP-Toleranz in Metern beim Track-Laden |
+| `wear_warning_pct` | `90` | Verschleiß-Warnschwelle (Dashboard-Widget) |
+| `comparison_simplify` | `20` | Vereinfachung beim Streckenvergleich |
+| `chart_height_mini` | `100` | Winzige Inline-Sparklines |
+| `chart_height_compact` | `140` | Kleine Trend-Charts |
+| `chart_height` | `200` | Standard-Analyse-Chart |
+| `chart_height_dense` | `220` | Dichte Mehrserien-Charts (Cap nach oben) |
+| `comparison_colors` | `#f97316,#3b82f6,#22c55e,#a855f7,#eab308` | Farbreihenfolge Streckenvergleich |
 
 ---
 
-## Known quirks
+## Bekannte Eigenheiten
 
-- Activities without a Strava gear assignment automatically get the default bike on import
-- `activities.avg_temp_c` is always NULL – the actual temperature lives in `track_points.temp_c`
-- GPS outliers (coordinates outside the country of origin) are filtered in the heatmap via median±5°
-- One entry from 1990/12 (bad date) shows up in the monthly overall trend; analyses filter with `>= '2000'`
-- Track points can have `lat: null, lon: null` (no GPS fix at start) → the frontend filters these out
-- fitparse 1.2.0 returns component fields as tuples → `_SafeProcessor` in `fit.py` works around this
-- **`Activity Date` in the Strava export is UTC** (not local time) – `start_date_local` in the DB therefore also contains UTC; pages with time-of-day analysis pass the browser's timezone offset to the API
-- **Strava export language**: column names and activity types come in English or German depending on the Strava account language – the importer detects both automatically
+- Aktivitäten ohne Strava-Gear-Zuweisung erhalten beim Import automatisch das Standard-Bike
+- `activities.avg_temp_c` ist immer NULL – Temperatur liegt in `track_points.temp_c`
+- GPS-Ausreißer (Koordinaten außerhalb des Ursprungslandes) werden in der Heatmap per Median±5° gefiltert
+- Ein Eintrag aus 1990/12 (Fehldatum) erscheint im monatlichen Gesamtverlauf; Analysen filtern mit `>= '2000'`
+- Track-Punkte können `lat: null, lon: null` haben (kein GPS-Fix beim Start) → Frontend filtert diese
+- fitparse 1.2.0 liefert component fields als Tupel → `_SafeProcessor` in `fit.py` als Workaround
+- **`Activity Date` im Strava-Export ist UTC** (nicht Lokalzeit) – `start_date_local` in der DB enthält daher ebenfalls UTC; Seiten mit Tageszeit-Auswertung übergeben den Browser-Timezone-Offset an die API
+- **Strava-Export-Sprache**: Spaltennamen und Aktivitätstypen kommen je nach Strava-Konto-Sprache auf Englisch oder Deutsch – der Importer erkennt beide automatisch
 
 ---
 
-## Tech stack
+## Tech Stack
 
 ### Backend
-- **FastAPI** – REST API with automatic OpenAPI docs (`/docs`)
-- **SQLite** – database at `data/mybiking.db`
-- **fitparse** – FIT file parser
-- **lxml** – TCX/GPX parsing
+- **FastAPI** – REST-API mit automatischer OpenAPI-Doku (`/docs`)
+- **SQLite** – Datenbank unter `data/mybiking.db`
+- **fitparse** – FIT-Datei-Parser
+- **lxml** – TCX/GPX-Parsing
 
 ### Frontend
-- **React 19** + **Vite** – SPA with react-router-dom v7
-- **shadcn/ui base-nova** – component library (built on `@base-ui/react`)
-- **Recharts** – charting library
+- **React 19** + **Vite** – SPA mit react-router-dom v7
+- **shadcn/ui base-nova** – Komponenten-Bibliothek (nutzt `@base-ui/react`)
+- **Recharts** – Chart-Bibliothek
 - **TailwindCSS v4**
-- **Leaflet.js** – interactive maps (dynamic import via `React.lazy()`)
-- **react-i18next** – multi-language support, translations from the `translations` DB table instead of a bundle
-- **TypeScript** – fully typed
+- **Leaflet.js** – interaktive Karten (dynamischer Import via `React.lazy()`)
+- **react-i18next** – Mehrsprachigkeit, Übersetzungen aus der `translations`-DB-Tabelle statt Bundle
+- **TypeScript** – vollständig typisiert
 
 ---
 
-## License
+## Lizenz
 
-**AGPL-3.0** – genuinely open source. Redistribution and modification are permitted; if you make
-a modified version available to others (including as a hosted service), you must also make the
-source of your changes available under AGPL-3.0. See [LICENSE](LICENSE). Copyright (c) 2026
-Ashikaga1974.
+**AGPL-3.0** – echtes Open Source. Weiterverbreitung und Modifikation sind erlaubt; wird eine
+modifizierte Version (auch als gehosteter Service) Dritten zugänglich gemacht, muss der
+Quellcode der Änderungen ebenfalls unter AGPL-3.0 offengelegt werden. Siehe [LICENSE](LICENSE).
+Copyright (c) 2026 Ashikaga1974.
