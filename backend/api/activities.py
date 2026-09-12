@@ -451,6 +451,7 @@ def delete_activity(activity_id: int):
         conn.execute("DELETE FROM track_points WHERE activity_id = ?", (activity_id,))
         conn.execute("DELETE FROM media WHERE activity_id = ?", (activity_id,))
         conn.execute("DELETE FROM laps WHERE activity_id = ?", (activity_id,))
+        conn.execute("DELETE FROM segment_efforts WHERE activity_id = ?", (activity_id,))
         conn.execute("DELETE FROM activities WHERE id = ?", (activity_id,))
         conn.commit()
 

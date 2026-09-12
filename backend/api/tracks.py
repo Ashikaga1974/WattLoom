@@ -24,7 +24,7 @@ def get_track(
     Mit simplify=5 z.B. jeden 5. Punkt – reduziert Datenmenge für erste Kartenansicht."""
     allowed = {
         "timestamp", "lat", "lon", "altitude_m", "distance_m",
-        "speed_ms", "hr", "power_w", "cadence", "temp_c",
+        "speed_ms", "hr", "power_w", "cadence", "temp_c", "grade_pct",
     }
     requested = [f.strip() for f in fields.split(",")]
     invalid = set(requested) - allowed

@@ -70,7 +70,8 @@ CREATE TABLE track_points (
     hr          INTEGER,
     power_w     INTEGER,
     cadence     INTEGER,
-    temp_c      REAL
+    temp_c      REAL,
+    grade_pct   REAL
 );
 
 CREATE TABLE laps (
@@ -88,6 +89,30 @@ CREATE TABLE laps (
     max_power_w      INTEGER,
     avg_cadence      REAL,
     elevation_gain_m REAL
+);
+
+CREATE TABLE segment_efforts (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    activity_id     INTEGER NOT NULL REFERENCES activities(id),
+    name            TEXT,
+    start_time      TEXT,
+    elapsed_time_s  REAL,
+    distance_m      REAL,
+    avg_speed_ms    REAL,
+    max_speed_ms    REAL,
+    avg_hr          REAL,
+    max_hr          INTEGER,
+    avg_power_w     REAL,
+    max_power_w     INTEGER,
+    avg_cadence     REAL,
+    total_ascent_m  REAL,
+    rank            INTEGER,
+    pr_rank         INTEGER,
+    uuid            TEXT,
+    start_lat       REAL,
+    start_lon       REAL,
+    end_lat         REAL,
+    end_lon         REAL
 );
 
 CREATE TABLE other_activities (

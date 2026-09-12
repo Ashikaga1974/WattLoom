@@ -74,7 +74,8 @@ def init_db() -> None:
                 hr          INTEGER,
                 power_w     INTEGER,
                 cadence     INTEGER,
-                temp_c      REAL
+                temp_c      REAL,
+                grade_pct   REAL
             );
             CREATE INDEX IF NOT EXISTS idx_tp_activity ON track_points(activity_id);
 
@@ -112,7 +113,12 @@ def init_db() -> None:
                 avg_cadence     REAL,
                 total_ascent_m  REAL,
                 rank            INTEGER,
-                pr_rank         INTEGER
+                pr_rank         INTEGER,
+                uuid            TEXT,
+                start_lat       REAL,
+                start_lon       REAL,
+                end_lat         REAL,
+                end_lon         REAL
             );
             CREATE INDEX IF NOT EXISTS idx_seg_activity ON segment_efforts(activity_id);
 
@@ -227,6 +233,23 @@ def init_db() -> None:
         ]:
             if col not in cols:
                 conn.execute(f"ALTER TABLE activities ADD COLUMN {col} {typ}")
+
+        # Migration: Steigung pro Trackpunkt (FIT record.grade)
+        tp_cols = [r[1] for r in conn.execute("PRAGMA table_info(track_points)").fetchall()]
+        if "grade_pct" not in tp_cols:
+            conn.execute("ALTER TABLE track_points ADD COLUMN grade_pct REAL")
+
+        # Migration: Segment-Identifikation + Start-/Endpunkt (FIT segment_lap)
+        seg_cols = [r[1] for r in conn.execute("PRAGMA table_info(segment_efforts)").fetchall()]
+        for col, typ in [
+            ("uuid", "TEXT"),
+            ("start_lat", "REAL"),
+            ("start_lon", "REAL"),
+            ("end_lat", "REAL"),
+            ("end_lon", "REAL"),
+        ]:
+            if col not in seg_cols:
+                conn.execute(f"ALTER TABLE segment_efforts ADD COLUMN {col} {typ}")
 
         # Migration: bike_components Verschleiß-Tracking
         comp_cols = [r[1] for r in conn.execute("PRAGMA table_info(bike_components)").fetchall()]
@@ -602,6 +625,25 @@ def init_db() -> None:
                 conn.execute(
                     "INSERT OR IGNORE INTO translations(lang, ns, key, value) VALUES (?, 'bikes', ?, ?)",
                     (lang, f"addBikeForm.{key}", json.dumps(value)),
+                )
+
+        # Neue activitydetail.charts.gradeTitle/tooltip.grade-Schlüssel (Session 2026-09-12,
+        # Steigungs-Chart aus FIT record.grade) – analog zum workoutdetail.kpi.*-Patch oben.
+        _GRADE_CHART_KEYS = {
+            "de": {
+                "charts.gradeTitle": "Steigung",
+                "charts.tooltip.grade": "Steigung",
+            },
+            "en": {
+                "charts.gradeTitle": "Grade",
+                "charts.tooltip.grade": "Grade",
+            },
+        }
+        for lang, keys in _GRADE_CHART_KEYS.items():
+            for key, value in keys.items():
+                conn.execute(
+                    "INSERT OR IGNORE INTO translations(lang, ns, key, value) VALUES (?, 'activitydetail', ?, ?)",
+                    (lang, key, json.dumps(value)),
                 )
 
         # Fehlende bikes.componentRow.*-Schlüssel der Ketten-Pflege-Funktion nachtragen – waren

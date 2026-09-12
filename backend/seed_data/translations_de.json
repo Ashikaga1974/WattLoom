@@ -66,8 +66,10 @@
       "tooltip": {
         "elevation": "Höhe",
         "heartRate": "Herzrate",
-        "speed": "Geschw."
-      }
+        "speed": "Geschw.",
+        "grade": "Steigung"
+      },
+      "gradeTitle": "Steigung"
     },
     "errors": {
       "deleteFailed": "Fehler beim Löschen",

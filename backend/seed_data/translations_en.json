@@ -66,8 +66,10 @@
       "tooltip": {
         "elevation": "Elevation",
         "heartRate": "Heart rate",
-        "speed": "Speed"
-      }
+        "speed": "Speed",
+        "grade": "Grade"
+      },
+      "gradeTitle": "Grade"
     },
     "errors": {
       "deleteFailed": "Failed to delete",

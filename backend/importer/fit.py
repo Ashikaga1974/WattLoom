@@ -63,9 +63,24 @@ _MANUFACTURER_NAMES: dict[int, str] = {
     339: "Amazfit",
 }
 
+# fitparse löst bekannte Hersteller-IDs (u.a. Wahoo) bereits selbst zu einem
+# String auf (z.B. "wahoo_fitness") statt der rohen ID – eigene Anzeigenamen dafür
+_MANUFACTURER_STRING_NAMES: dict[str, str] = {
+    "wahoo_fitness": "Wahoo",
+}
+
 # (manufacturer_id, product_name) → Anzeigename (hat Vorrang vor product_name allein)
 _PRODUCT_OVERRIDES: dict[tuple[int, str], str] = {
     (132, "M1"): "Cycplus - M1",
+}
+
+# Wahoo-Geräte setzen kein product_name, nur einen rohen numerischen Produktcode.
+# (manufacturer, product_code) → Anzeigename, wenn product_name fehlt.
+# Unbestätigte Annahme: Produktcode 64 = ELEMNT BOLT, abgeleitet allein aus dem
+# Dateinamen "..._ELEMNT_BOLT_..." einer Testdatei – keine offizielle Wahoo-Quelle
+# geprüft. Bei falscher Zuordnung hier korrigieren.
+_PRODUCT_CODE_OVERRIDES: dict[tuple[int | str, int], str] = {
+    ("wahoo_fitness", 64): "Wahoo ELEMNT Bolt",
 }
 
 
@@ -93,11 +108,20 @@ def read_fit_device(data: bytes, *, compressed: bool) -> str:
                         return override
                 return name.strip()
 
+            # kein product_name: numerischen Produktcode + Hersteller als Override probieren
+            product = fields.get("product")
+            if isinstance(product, int) and (mfr is not None):
+                override = _PRODUCT_CODE_OVERRIDES.get((mfr, product))
+                if override:
+                    return override
+
             # Hersteller-ID als Fallback (kein product_name vorhanden)
             if isinstance(mfr, int):
                 label = _MANUFACTURER_NAMES.get(mfr)
                 if label:
                     return label
+            elif isinstance(mfr, str) and mfr.strip():
+                return _MANUFACTURER_STRING_NAMES.get(mfr, mfr.replace("_", " ").title())
     except Exception:
         pass
     return "Unbekannt"
@@ -121,6 +145,12 @@ def _val_coord(msg: fitparse.DataMessage, field: str) -> int | None:
     if v == _FIT_INVALID_SINT32:
         return None
     return v
+
+
+def _val_latlon(msg: fitparse.DataMessage, field: str) -> float | None:
+    """Liest ein Koordinatenfeld als Grad (Semicircle → Grad, wie bei record.position_lat/long)."""
+    sc = _val_coord(msg, field)
+    return sc * (180 / 2**31) if sc is not None else None
 
 
 def _ts(msg: fitparse.DataMessage) -> str | None:
@@ -186,6 +216,7 @@ def import_fit(conn: sqlite3.Connection, activity_id: int, data: bytes, *, compr
                 _val(msg, "power"),
                 _val(msg, "cadence"),
                 _val(msg, "temperature"),
+                _val(msg, "grade"),
             ))
 
         elif name == "lap":
@@ -211,7 +242,8 @@ def import_fit(conn: sqlite3.Connection, activity_id: int, data: bytes, *, compr
                 activity_id,
                 _val(msg, "name"),
                 _ts(msg),
-                _val(msg, "total_elapsed_time"),
+                # Wahoo liefert nur total_timer_time (Garmin: total_elapsed_time)
+                _val(msg, "total_elapsed_time") or _val(msg, "total_timer_time"),
                 _val(msg, "total_distance"),
                 _val(msg, "avg_speed"),
                 _val(msg, "max_speed"),
@@ -223,6 +255,11 @@ def import_fit(conn: sqlite3.Connection, activity_id: int, data: bytes, *, compr
                 _val(msg, "total_ascent"),
                 _val(msg, "status"),      # enthält manchmal Rang-Info
                 None,                     # pr_rank – nicht immer vorhanden
+                _val(msg, "uuid"),
+                _val_latlon(msg, "start_position_lat"),
+                _val_latlon(msg, "start_position_long"),
+                _val_latlon(msg, "end_position_lat"),
+                _val_latlon(msg, "end_position_long"),
             ))
 
     with conn:
@@ -230,8 +267,8 @@ def import_fit(conn: sqlite3.Connection, activity_id: int, data: bytes, *, compr
             conn.executemany("""
                 INSERT INTO track_points
                     (activity_id, timestamp, lat, lon, altitude_m, distance_m,
-                     speed_ms, hr, power_w, cadence, temp_c)
-                VALUES (?,?,?,?,?,?,?,?,?,?,?)
+                     speed_ms, hr, power_w, cadence, temp_c, grade_pct)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
             """, points)
 
         if laps:
@@ -249,6 +286,6 @@ def import_fit(conn: sqlite3.Connection, activity_id: int, data: bytes, *, compr
                     (activity_id, name, start_time, elapsed_time_s, distance_m,
                      avg_speed_ms, max_speed_ms, avg_hr, max_hr,
                      avg_power_w, max_power_w, avg_cadence, total_ascent_m,
-                     rank, pr_rank)
-                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                     rank, pr_rank, uuid, start_lat, start_lon, end_lat, end_lon)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
             """, segments)

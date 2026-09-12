@@ -121,6 +121,19 @@ function HRTooltip({ active, payload }: { active?: boolean; payload?: any[] }) {
   );
 }
 
+function GradeTooltip({ active, payload }: { active?: boolean; payload?: any[] }) {
+  const { t } = useTranslation('activitydetail');
+  if (!active || !payload?.length) return null;
+  const d = payload[0]?.payload;
+  return (
+    <ChartTooltip
+      active={active}
+      label={d?.dist != null ? `${d.dist} km` : undefined}
+      rows={[{ label: t('charts.tooltip.grade'), value: d?.grade != null ? `${d.grade} %` : null, color: '#f97316' }]}
+    />
+  );
+}
+
 function SpeedTooltip({ active, payload }: { active?: boolean; payload?: any[] }) {
   const { t } = useTranslation('activitydetail');
   if (!active || !payload?.length) return null;
@@ -238,6 +251,46 @@ function HRChart({ points, onHover, activeDist }: { points: TrackPoint[]; onHove
             <ReferenceLine x={activeDist} stroke="#ef4444" strokeWidth={1.5} strokeDasharray="4 2" />
           )}
           <Area type="monotone" dataKey="hr" stroke="#ef4444" fill="url(#hrGrad)" strokeWidth={1.5} dot={false} />
+        </AreaChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+function GradeChart({ points, onHover, activeDist }: { points: TrackPoint[]; onHover?: HoverFn; activeDist?: number | null }) {
+  const { t } = useTranslation('activitydetail');
+  const { chart_height_mini } = useConfig();
+  const valid = points.map((p, i) => ({ p, i })).filter(({ p }) => p.grade_pct != null && p.distance_m != null);
+  if (valid.length < 2) return null;
+
+  const data = valid.map(({ p, i }) => ({
+    dist: Math.round((p.distance_m! / 1000) * 10) / 10,
+    grade: Math.round(p.grade_pct! * 10) / 10,
+    origIdx: i,
+  }));
+
+  const { handleMouseMove, handleMouseLeave } = useChartHover(data, points, onHover);
+
+  return (
+    <div>
+      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">{t('charts.gradeTitle')}</p>
+      <ResponsiveContainer width="100%" height={chart_height_mini}>
+        <AreaChart data={data} margin={{ top: 0, right: 0, left: -30, bottom: 0 }}
+          syncId="ap" syncMethod="value"
+          onMouseMove={handleMouseMove} onMouseLeave={handleMouseLeave}>
+          <defs>
+            <linearGradient id="gradeGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor="#f97316" stopOpacity={0.4} />
+              <stop offset="95%" stopColor="#f97316" stopOpacity={0.05} />
+            </linearGradient>
+          </defs>
+          <XAxis dataKey="dist" type="number" domain={[0, 'dataMax']} hide />
+          <YAxis tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }} axisLine={false} tickLine={false} />
+          <Tooltip content={<GradeTooltip />} />
+          {activeDist != null && (
+            <ReferenceLine x={activeDist} stroke="#f97316" strokeWidth={1.5} strokeDasharray="4 2" />
+          )}
+          <Area type="monotone" dataKey="grade" stroke="#f97316" fill="url(#gradeGrad)" strokeWidth={1.5} dot={false} />
         </AreaChart>
       </ResponsiveContainer>
     </div>
@@ -441,6 +494,7 @@ export default function ActivityDetailPage() {
   const hasElevation = trackPoints.some(p => p.altitude_m != null);
   const hasSpeed = trackPoints.some(p => p.speed_ms != null && p.speed_ms > 0);
   const hasHR = trackPoints.some(p => p.hr != null);
+  const hasGrade = trackPoints.some(p => p.grade_pct != null);
 
   return (
     <div className="space-y-6">
@@ -508,12 +562,13 @@ export default function ActivityDetailPage() {
       )}
 
       {/* Höhen- und Speed-Profile */}
-      {trackPoints.length > 1 && (hasElevation || hasSpeed || hasHR) && (
+      {trackPoints.length > 1 && (hasElevation || hasSpeed || hasHR || hasGrade) && (
         <Card>
           <CardContent className="space-y-4">
             {hasElevation && <ElevationChart points={trackPoints} onHover={onHover} activeDist={activeDistKm} />}
             {hasSpeed && <SpeedChart points={trackPoints} onHover={onHover} activeDist={activeDistKm} />}
             {hasHR && <HRChart points={trackPoints} onHover={onHover} activeDist={activeDistKm} />}
+            {hasGrade && <GradeChart points={trackPoints} onHover={onHover} activeDist={activeDistKm} />}
           </CardContent>
         </Card>
       )}

@@ -105,6 +105,7 @@ export interface TrackPoint {
   distance_m: number | null;
   speed_ms: number | null;
   hr: number | null;
+  grade_pct: number | null;
 }
 
 export interface TrackResponse {
@@ -650,7 +651,7 @@ export const api = {
   mediaUrl: (filename: string) => `${BASE}/media/${filename}`,
 
   activityTrack: (id: number, simplify: number) =>
-    get<TrackResponse>(`/activities/${id}/track${buildQuery({ simplify, fields: 'lat,lon,altitude_m,distance_m,speed_ms,hr' })}`),
+    get<TrackResponse>(`/activities/${id}/track${buildQuery({ simplify, fields: 'lat,lon,altitude_m,distance_m,speed_ms,hr,grade_pct' })}`),
 
   bikes: () =>
     get<Bike[]>('/bikes'),
