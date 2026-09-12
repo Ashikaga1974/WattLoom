@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.0.1 – 2026-09-12
+
+- Wahoo-FIT-Import repariert (Geräteerkennung, Löschen von Aktivitäten mit Segmenten)
+- Neuer Steigungs-Chart (grade_pct) auf der Aktivitäts-Detailseite
+- Segment-Daten (segment_efforts) um UUID/Koordinaten erweitert, Dauer-Erfassung für Wahoo-Geräte gefixt
+
 ## v1.0.0 – 2026-09-10
 
 Erstes Open-Source-Release (Git-Tag `v1.0.0`).
