@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.0.2 – 2026-09-13
+
+Setup-Wizard, Import-Seite ausgelagert, has_media-Label
+
 ## v1.0.1 – 2026-09-12
 
 - Wahoo-FIT-Import repariert (Geräteerkennung, Löschen von Aktivitäten mit Segmenten)

@@ -19,7 +19,7 @@ logging.basicConfig(
     ],
 )
 
-app = FastAPI(title="WattLoom API", version="1.0.1")
+app = FastAPI(title="WattLoom API", version="1.0.2")
 init_db()
 
 app.add_middleware(
