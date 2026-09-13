@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WattLoom – Local-first Strava analytics for cyclists</title>
+<meta name="description" content="Analyze your complete Strava history locally – no API, no cloud, no subscription. Open source, AGPL-3.0.">
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #0b0d12;
+    --bg-alt: #12151c;
+    --card: #171b24;
+    --border: #262b36;
+    --text: #e7e9ee;
+    --text-muted: #9aa1b2;
+    --accent: #f97316;
+    --accent-2: #3b82f6;
+    --good: #22c55e;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.6;
+  }
+  a { color: var(--accent-2); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .wrap {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 0 20px;
+  }
+  header.hero {
+    padding: 72px 0 48px;
+    text-align: center;
+    border-bottom: 1px solid var(--border);
+    background: radial-gradient(ellipse at top, rgba(249,115,22,0.10), transparent 60%);
+  }
+  .logo-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    margin-bottom: 18px;
+  }
+  .logo-dot {
+    width: 14px; height: 14px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  }
+  h1 {
+    font-size: 2.6rem;
+    margin: 0 0 12px;
+    letter-spacing: -0.02em;
+  }
+  .tagline {
+    font-size: 1.2rem;
+    color: var(--text-muted);
+    max-width: 640px;
+    margin: 0 auto 28px;
+  }
+  .cta-row {
+    display: flex;
+    gap: 14px;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-bottom: 28px;
+  }
+  .btn {
+    display: inline-block;
+    padding: 12px 22px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.95rem;
+  }
+  .btn-primary {
+    background: var(--accent);
+    color: #1a1200;
+  }
+  .btn-primary:hover { text-decoration: none; filter: brightness(1.08); }
+  .btn-secondary {
+    background: var(--card);
+    border: 1px solid var(--border);
+    color: var(--text);
+  }
+  .btn-secondary:hover { text-decoration: none; border-color: var(--accent-2); }
+  .badges {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  .badges img { height: 20px; }
+
+  section { padding: 56px 0; border-bottom: 1px solid var(--border); }
+  section:last-of-type { border-bottom: none; }
+  h2 {
+    font-size: 1.7rem;
+    margin: 0 0 8px;
+    text-align: center;
+  }
+  .section-sub {
+    text-align: center;
+    color: var(--text-muted);
+    max-width: 600px;
+    margin: 0 auto 36px;
+  }
+
+  .demo-frame {
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+  }
+  .demo-frame img { display: block; width: 100%; }
+
+  .why-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 24px;
+  }
+  .why-card h3 {
+    margin: 0 0 6px;
+    font-size: 1.05rem;
+    color: var(--accent);
+  }
+  .why-card p {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 0.95rem;
+  }
+
+  .feature-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 16px;
+  }
+  .feature-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 20px;
+  }
+  .feature-card h3 {
+    margin: 0 0 8px;
+    font-size: 1rem;
+  }
+  .feature-card p {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+  }
+
+  .shots {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+  }
+  .shots figure {
+    margin: 0;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .shots img { display: block; width: 100%; }
+  .shots figcaption {
+    padding: 10px 14px;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    border-top: 1px solid var(--border);
+  }
+
+  table.compare {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.92rem;
+  }
+  table.compare th, table.compare td {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    text-align: center;
+  }
+  table.compare th:first-child, table.compare td:first-child {
+    text-align: left;
+    color: var(--text-muted);
+  }
+  table.compare th { color: var(--text); }
+  table.compare th.highlight, table.compare td.highlight {
+    background: rgba(249,115,22,0.08);
+  }
+
+  .security-box {
+    background: var(--card);
+    border: 1px solid #4a3413;
+    border-left: 4px solid var(--accent);
+    border-radius: 10px;
+    padding: 20px 24px;
+    color: var(--text-muted);
+    font-size: 0.95rem;
+  }
+  .security-box strong { color: var(--text); }
+
+  .install-box {
+    background: #0d1117;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 22px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.88rem;
+    overflow-x: auto;
+    color: #cbd5e1;
+  }
+  .install-box .comment { color: #64748b; }
+
+  footer {
+    padding: 40px 0 60px;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+  }
+  footer a { margin: 0 10px; }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="logo-row">
+      <span class="logo-dot"></span>
+      <span style="font-weight:700; font-size:1.1rem; letter-spacing:-0.01em;">WattLoom</span>
+    </div>
+    <h1>Local-first Strava analytics for cyclists</h1>
+    <p class="tagline">
+      Analyze your complete Strava history on your own machine – no API access, no cloud upload,
+      no subscription. Download the ZIP export, import it, done.
+    </p>
+    <div class="cta-row">
+      <a class="btn btn-primary" href="https://github.com/Ashikaga1974/WattLoom">View on GitHub</a>
+      <a class="btn btn-secondary" href="https://github.com/Ashikaga1974/WattLoom#installation--start">Get started</a>
+      <a class="btn btn-secondary" href="https://buymeacoffee.com/saschalerst">☕ Buy me a coffee</a>
+    </div>
+    <div class="badges">
+      <img src="https://img.shields.io/badge/Backend-FastAPI%20%2B%20SQLite-blue" alt="Backend: FastAPI + SQLite">
+      <img src="https://img.shields.io/badge/Frontend-React%2019%20%2B%20Vite%20%2B%20shadcn%2Fui-orange" alt="Frontend: React 19">
+      <img src="https://img.shields.io/badge/Platform-Linux%20%2F%20macOS-lightgrey" alt="Platform">
+      <img src="https://img.shields.io/badge/License-AGPL--3.0-green" alt="License: AGPL-3.0">
+    </div>
+  </div>
+</header>
+
+<section>
+  <div class="wrap">
+    <div class="demo-frame">
+      <img src="demo.gif" alt="WattLoom demo showing dashboard, activities, maps and analytics" loading="lazy">
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Why WattLoom?</h2>
+    <p class="section-sub">Built for one person, running entirely on their own machine.</p>
+    <div class="why-grid">
+      <div class="why-card">
+        <h3>No API</h3>
+        <p>Import your Strava ZIP export directly – no developer account, no rate limits, no paid API tier.</p>
+      </div>
+      <div class="why-card">
+        <h3>No cloud</h3>
+        <p>Your activities stay on your own machine. Nothing is ever uploaded anywhere.</p>
+      </div>
+      <div class="why-card">
+        <h3>No subscription</h3>
+        <p>Fully open source under AGPL-3.0 – no license key, ever.</p>
+      </div>
+      <div class="why-card">
+        <h3>One dashboard</h3>
+        <p>Training, performance, weather, and bike maintenance in a single place.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>What it does</h2>
+    <p class="section-sub">A focused feature set for serious cyclists, not a generic fitness suite.</p>
+    <div class="feature-grid">
+      <div class="feature-card">
+        <h3>📊 Training analytics</h3>
+        <p>Form curve (CTL/ATL/TSB), HR curve, aerobic efficiency, cadence, fitness fingerprint score.</p>
+      </div>
+      <div class="feature-card">
+        <h3>🚴 Bike management</h3>
+        <p>Wear tracking per component, purchase/stock inventory, maintenance cost per bike.</p>
+      </div>
+      <div class="feature-card">
+        <h3>🌦 Weather & performance</h3>
+        <p>Temperature, wind and rain correlation via Open-Meteo – free, no paid tier required.</p>
+      </div>
+      <div class="feature-card">
+        <h3>🏆 PRs & best efforts</h3>
+        <p>Best-effort segments per distance (5–70 km), automatic PR detection after every import.</p>
+      </div>
+      <div class="feature-card">
+        <h3>🗺 Routes & heatmap</h3>
+        <p>Interactive track heatmap, route comparison by real point-by-point track matching.</p>
+      </div>
+      <div class="feature-card">
+        <h3>🔒 100% local</h3>
+        <p>SQLite database on disk, single process, no accounts, no telemetry.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>See it in action</h2>
+    <div class="shots">
+      <figure>
+        <img src="dashboard.png" alt="WattLoom dashboard screenshot" loading="lazy">
+        <figcaption>Dashboard – hero banner, training form, KPIs and recent activities</figcaption>
+      </figure>
+      <figure>
+        <img src="dashboard2.png" alt="WattLoom dashboard screenshot, dark theme" loading="lazy">
+        <figcaption>Dashboard variant – distance chart, training volume, bike progress</figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>How it compares</h2>
+    <table class="compare">
+      <thead>
+        <tr>
+          <th></th>
+          <th class="highlight">WattLoom</th>
+          <th>Strava</th>
+          <th>GoldenCheetah</th>
+          <th>Intervals.icu</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Local data</td><td class="highlight">✅</td><td>❌</td><td>✅</td><td>❌</td>
+        </tr>
+        <tr>
+          <td>Strava API required</td><td class="highlight">❌</td><td>—</td><td>optional</td><td>optional</td>
+        </tr>
+        <tr>
+          <td>Cloud account required</td><td class="highlight">❌</td><td>✅</td><td>❌</td><td>✅</td>
+        </tr>
+        <tr>
+          <td>Web UI</td><td class="highlight">✅</td><td>✅</td><td>❌ (desktop app)</td><td>✅</td>
+        </tr>
+        <tr>
+          <td>Bike maintenance</td><td class="highlight">✅</td><td>Limited</td><td>Limited (manual only)</td><td>not found</td>
+        </tr>
+        <tr>
+          <td>Weather analysis</td><td class="highlight">✅ (free)</td><td>Limited</td><td>not found</td><td>✅ (paid tier only)</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Quick start</h2>
+    <p class="section-sub">One process, one port, no external services required.</p>
+    <div class="install-box">
+<span class="comment"># clone the repo and copy your Strava export into the data folder</span>
+git clone https://github.com/Ashikaga1974/WattLoom.git
+cd WattLoom
+mkdir -p wattloom-data/download
+<span class="comment"># copy your Strava ZIP export into wattloom-data/download/</span>
+
+<span class="comment"># build & run via Docker</span>
+docker compose up --build
+
+<span class="comment"># open the app</span>
+open http://localhost:8000
+    </div>
+    <p style="text-align:center; margin-top:18px; color:var(--text-muted);">
+      Manual (Python + Node) install and systemd autostart:
+      see the <a href="https://github.com/Ashikaga1974/WattLoom#installation--start">full README</a>.
+    </p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="security-box">
+      <strong>⚠️ Security note:</strong> WattLoom deliberately has <strong>no authentication</strong>
+      (single-user design for local use). Only run it locally or on your own LAN/VPN –
+      never expose it to the open internet.
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <p>WattLoom is open source under AGPL-3.0.</p>
+    <p>
+      <a href="https://github.com/Ashikaga1974/WattLoom">GitHub</a>
+      <a href="https://github.com/Ashikaga1974/WattLoom/issues">Issues</a>
+      <a href="https://github.com/Ashikaga1974/WattLoom/blob/main/CONTRIBUTING.md">Contributing</a>
+      <a href="https://buymeacoffee.com/saschalerst">Buy me a coffee</a>
+    </p>
+  </div>
+</footer>
+
+</body>
+</html>
