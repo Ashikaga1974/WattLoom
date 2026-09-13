@@ -17,6 +17,7 @@ Einfach den ZIP-Export herunterladen, importieren, fertig.
 ![Stack](https://img.shields.io/badge/Frontend-React%2019%20%2B%20Vite%20%2B%20shadcn%2Fui-orange)
 ![Platform](https://img.shields.io/badge/Platform-Linux%20%2F%20macOS-lightgrey)
 ![License](https://img.shields.io/badge/License-AGPL--3.0-green)
+[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-support-FFDD00?logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/saschalerst)
 
 ---
 
@@ -590,8 +591,10 @@ In [frontend/src/lib/config-context.tsx](frontend/src/lib/config-context.tsx):
 ## Unterstützen
 
 WattLoom ist kostenlos und Open Source, entwickelt und gepflegt in meiner Freizeit. Wenn es dir
-nützt, freue ich mich über eine Unterstützung via [Buy Me a Coffee](https://buymeacoffee.com/saschalerst)
-– sie ist aber nie Voraussetzung. Kein Feature wird jemals hinter einer Bezahlschranke landen.
+nützt, freue ich mich über eine Unterstützung – sie ist aber nie Voraussetzung. Kein Feature wird
+jemals hinter einer Bezahlschranke landen.
+
+[![Buy Me a Coffee](https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png)](https://buymeacoffee.com/saschalerst)
 
 ---
 
