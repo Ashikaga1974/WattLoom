@@ -70,6 +70,7 @@ Training, Performance, Wetter und Bike-Wartung an einem Ort.
 - [Konfigurierbare Parameter](#konfigurierbare-parameter)
 - [Bekannte Eigenheiten](#bekannte-eigenheiten)
 - [Tech Stack](#tech-stack)
+- [Unterstützen](#unterstützen)
 - [Lizenz](#lizenz)
 
 ---
@@ -583,6 +584,14 @@ In [frontend/src/lib/config-context.tsx](frontend/src/lib/config-context.tsx):
 - **Leaflet.js** – interaktive Karten (dynamischer Import via `React.lazy()`)
 - **react-i18next** – Mehrsprachigkeit, Übersetzungen aus der `translations`-DB-Tabelle statt Bundle
 - **TypeScript** – vollständig typisiert
+
+---
+
+## Unterstützen
+
+WattLoom ist kostenlos und Open Source, entwickelt und gepflegt in meiner Freizeit. Wenn es dir
+nützt, freue ich mich über eine Unterstützung via [Buy Me a Coffee](https://buymeacoffee.com/saschalerst)
+– sie ist aber nie Voraussetzung. Kein Feature wird jemals hinter einer Bezahlschranke landen.
 
 ---
 
