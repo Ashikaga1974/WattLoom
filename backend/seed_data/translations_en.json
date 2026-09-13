@@ -44,6 +44,7 @@
       "distance": "Distance",
       "duration": "Duration",
       "elevation": "Elev",
+      "hasMedia": "Contains photos",
       "hr": "HR",
       "kcal": "kcal",
       "name": "Name",
@@ -740,6 +741,7 @@
       "form": "Form (PMC)",
       "heatmap": "Heatmap",
       "hrAnalysis": "HR analysis",
+      "import": "Import",
       "map": "Map",
       "routeComparison": "Route comparison",
       "settings": "Settings",
@@ -1190,6 +1192,39 @@
     },
     "yearFilter": {
       "allYears": "All years"
+    }
+  },
+  "onboarding": {
+    "welcome": {
+      "title": "Welcome to WattLoom",
+      "subtitle": "A few quick steps so your stats are right from the start."
+    },
+    "steps": {
+      "language": "Language",
+      "profile": "Profile",
+      "bike": "Bike",
+      "import": "Import",
+      "done": "Done"
+    },
+    "bike": {
+      "title": "Add your first bike",
+      "subtitle": "Used as the default bike for activities without an assignment.",
+      "nameLabel": "Name",
+      "namePlaceholder": "e.g. Road bike",
+      "createButton": "Add bike & continue",
+      "creating": "Creating…",
+      "error": "Bike could not be created"
+    },
+    "import": {
+      "hint": "Optional: import a first activity right away. The full ZIP export import (complete Strava export) remains available anytime later via the Import section in the sidebar."
+    },
+    "done": {
+      "text": "All set. Enjoy WattLoom!",
+      "button": "Let's go",
+      "finishing": "Finishing…"
+    },
+    "actions": {
+      "next": "Next"
     }
   },
   "progress": {

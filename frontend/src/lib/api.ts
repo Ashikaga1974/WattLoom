@@ -24,6 +24,7 @@ export interface Activity {
   smart_device: string | null;
   est_avg_power_w: number | null;
   est_norm_power_w: number | null;
+  has_media: number;
 }
 
 export interface SingleImportResult {
@@ -549,6 +550,7 @@ export interface Settings {
   hr_correction_pct: number;
   hr_correction_since: string | null;
   chain_maintenance_km: number;
+  onboarding_completed: number;
 }
 
 export interface FitnessComponent {

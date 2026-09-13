@@ -73,20 +73,6 @@ def import_tracks(zf: zipfile.ZipFile, rides: list[dict]) -> None:
     print(f"  Tracks: {ok} OK, {err} Fehler, {skip} übersprungen")
 
 
-def import_routes(zf: zipfile.ZipFile) -> None:
-    from backend.importer import gpx as gpx_mod
-
-    route_files = [n for n in zf.namelist() if n.startswith("routes/") and n.endswith(".gpx")]
-
-    with db_connection() as conn:
-        for path in route_files:
-            with zf.open(path) as f:
-                data = f.read()
-            gpx_mod.import_route(conn, Path(path).name, data)
-
-    print(f"  Routen importiert: {len(route_files)}")
-
-
 def import_media(zf: zipfile.ZipFile, media_map: dict[str, int]) -> None:
     """Extrahiert Mediadateien nach data/media/ und verknüpft sie mit Aktivitäten."""
     MEDIA_DIR.mkdir(parents=True, exist_ok=True)

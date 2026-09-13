@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { GitCompare, Trash2 } from 'lucide-react';
+import { Camera, GitCompare, Trash2 } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
@@ -363,6 +363,11 @@ export default function ActivitiesPage() {
                             {act.smart_device && (
                               <span className="text-xs px-1.5 py-0 rounded-full bg-muted text-muted-foreground border border-border/60 leading-5">
                                 {act.smart_device}
+                              </span>
+                            )}
+                            {!!act.has_media && (
+                              <span title={t('table.hasMedia')}>
+                                <Camera size={13} className="text-muted-foreground shrink-0" />
                               </span>
                             )}
                           </span>

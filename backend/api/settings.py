@@ -47,6 +47,10 @@ _FIELDS: dict[str, tuple[type, object]] = {
     # Ketten-Pflegeintervall (Reinigen/Ölen) – unabhängig vom Verschleiß-/Austausch-Intervall
     # (km_threshold der Komponente selbst)
     "chain_maintenance_km":  (float, 300.0),
+    # Setup-Wizard beim allerersten Start (Profil + erstes Bike anlegen). Default 0 heißt
+    # "Wizard noch nicht durchlaufen" – init_db() setzt das Flag für bereits bestehende
+    # Installationen (vorhandene Aktivitäten/Bikes/Config) automatisch auf 1.
+    "onboarding_completed":  (int,   0),
 }
 
 

@@ -40,19 +40,27 @@ export const CONFIG_DEFAULTS: AppConfig = {
 interface ConfigContextValue {
   config: AppConfig;
   reload: () => Promise<void>;
+  loading: boolean;
+  onboardingCompleted: boolean;
 }
 
 const ConfigContext = createContext<ConfigContextValue>({
   config: CONFIG_DEFAULTS,
   reload: async () => {},
+  loading: true,
+  // Fail-safe-Default: solange nichts geladen wurde, keinen Wizard erzwingen
+  onboardingCompleted: true,
 });
 
 export function ConfigProvider({ children }: { children: React.ReactNode }) {
   const [config, setConfig] = useState<AppConfig>(CONFIG_DEFAULTS);
+  const [loading, setLoading] = useState(true);
+  const [onboardingCompleted, setOnboardingCompleted] = useState(true);
 
   const reload = useCallback(async () => {
     try {
       const s = await api.getSettings();
+      setOnboardingCompleted(s.onboarding_completed === 1);
       const colors = s.comparison_colors ? s.comparison_colors.split(',').filter(Boolean) : null;
       setConfig({
         language:            s.language ?? CONFIG_DEFAULTS.language,
@@ -71,13 +79,14 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
         chart_height_dense:  s.chart_height_dense   ?? CONFIG_DEFAULTS.chart_height_dense,
         comparison_colors:   colors && colors.length > 0 ? colors : CONFIG_DEFAULTS.comparison_colors,
       });
-    } catch { /* Backend nicht erreichbar, Defaults behalten */ }
+    } catch { /* Backend nicht erreichbar, Defaults behalten, Wizard bleibt aus (fail-safe) */ }
+    finally { setLoading(false); }
   }, []);
 
   useEffect(() => { reload(); }, [reload]);
 
   return (
-    <ConfigContext.Provider value={{ config, reload }}>
+    <ConfigContext.Provider value={{ config, reload, loading, onboardingCompleted }}>
       {children}
     </ConfigContext.Provider>
   );
@@ -89,4 +98,9 @@ export function useConfig(): AppConfig {
 
 export function useConfigReload(): () => Promise<void> {
   return useContext(ConfigContext).reload;
+}
+
+export function useOnboarding(): { loading: boolean; onboardingCompleted: boolean } {
+  const { loading, onboardingCompleted } = useContext(ConfigContext);
+  return { loading, onboardingCompleted };
 }

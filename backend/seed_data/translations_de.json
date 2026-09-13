@@ -44,6 +44,7 @@
       "distance": "Distanz",
       "duration": "Dauer",
       "elevation": "Hm",
+      "hasMedia": "Enthält Fotos",
       "hr": "HR",
       "kcal": "kcal",
       "name": "Name",
@@ -740,6 +741,7 @@
       "form": "Form (PMC)",
       "heatmap": "Heatmap",
       "hrAnalysis": "HR-Analyse",
+      "import": "Import",
       "map": "Karte",
       "routeComparison": "Streckenvergleich",
       "settings": "Einstellungen",
@@ -1190,6 +1192,39 @@
     },
     "yearFilter": {
       "allYears": "Alle Jahre"
+    }
+  },
+  "onboarding": {
+    "welcome": {
+      "title": "Willkommen bei WattLoom",
+      "subtitle": "Ein paar kurze Schritte, damit die Auswertungen von Anfang an stimmen."
+    },
+    "steps": {
+      "language": "Sprache",
+      "profile": "Profil",
+      "bike": "Bike",
+      "import": "Import",
+      "done": "Fertig"
+    },
+    "bike": {
+      "title": "Erstes Bike anlegen",
+      "subtitle": "Wird als Standard-Bike für Aktivitäten ohne Zuordnung verwendet.",
+      "nameLabel": "Name",
+      "namePlaceholder": "z.B. Rennrad",
+      "createButton": "Bike anlegen & weiter",
+      "creating": "Wird angelegt…",
+      "error": "Bike konnte nicht angelegt werden"
+    },
+    "import": {
+      "hint": "Optional: direkt eine erste Aktivität importieren. Der vollständige ZIP-Export-Import (Strava-Gesamtexport) steht später jederzeit über den Import-Bereich in der Sidebar zur Verfügung."
+    },
+    "done": {
+      "text": "Alles bereit. Viel Spaß mit WattLoom!",
+      "button": "Los geht's",
+      "finishing": "Wird abgeschlossen…"
+    },
+    "actions": {
+      "next": "Weiter"
     }
   },
   "progress": {

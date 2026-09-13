@@ -1,6 +1,6 @@
 """
 Import-Pipeline: liest den Strava-Export-ZIP und befüllt die SQLite-DB.
-Reihenfolge: bikes → activities (CSV) → track-Dateien (FIT/TCX/GPX) → routes → media
+Reihenfolge: bikes → activities (CSV) → track-Dateien (FIT/TCX/GPX) → media
 """
 
 import zipfile
@@ -9,7 +9,7 @@ from pathlib import Path
 from backend.database import init_db
 from backend.importer.csv_helpers import _find_latest_zip
 from backend.importer.import_csv import import_activities_csv, import_bikes, import_other_activities_csv
-from backend.importer.import_media_tracks import import_media, import_routes, import_tracks
+from backend.importer.import_media_tracks import import_media, import_tracks
 
 
 def run_import(zip_path: Path | None = None) -> None:
@@ -30,9 +30,6 @@ def run_import(zip_path: Path | None = None) -> None:
 
         print("→ Track-Dateien …")
         import_tracks(zf, rides)
-
-        print("→ Routen …")
-        import_routes(zf)
 
         print("→ Media …")
         import_media(zf, media_map)

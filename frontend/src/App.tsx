@@ -3,8 +3,9 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { AppSidebar } from '@/components/layout/AppSidebar';
-import { ConfigProvider } from '@/lib/config-context';
+import { ConfigProvider, useOnboarding } from '@/lib/config-context';
 import { useSyncLanguage } from '@/lib/i18n';
+import SetupWizard from '@/pages/onboarding/SetupWizard';
 
 import DashboardPage from '@/pages/DashboardPage';
 import ActivitiesPage from '@/pages/ActivitiesPage';
@@ -15,6 +16,7 @@ import CalendarPage from '@/pages/CalendarPage';
 import FormPage from '@/pages/FormPage';
 import HeatmapPage from '@/pages/HeatmapPage';
 import HrCurvePage from '@/pages/HrCurvePage';
+import ImportPage from '@/pages/ImportPage';
 import ProgressPage from '@/pages/ProgressPage';
 import SettingsPage from '@/pages/SettingsPage';
 import StreckenPage from '@/pages/StreckenPage';
@@ -30,19 +32,17 @@ import FitnessPage from '@/pages/FitnessPage';
 import ZoneDistributionPage from '@/pages/ZoneDistributionPage';
 
 function AppRoutes() {
-  useSyncLanguage();
   return (
-    <BrowserRouter>
-      <TooltipProvider>
-        <SidebarProvider>
-          <AppSidebar />
-          <SidebarInset>
-            <main className="p-6 min-h-screen">
-              {/* i18next-http-backend lädt den Namespace jeder Seite erst beim ersten Mount nach
-                  (siehe lib/i18n.ts) – ohne Suspense-Boundary würden Seiten mit synchronem
-                  t(key, {returnObjects:true}) (z.B. CalendarPage) kurz mit dem rohen Key statt
-                  einem Array rendern und crashen, bevor der Namespace geladen ist. */}
-              <Suspense fallback={null}>
+    <TooltipProvider>
+      <SidebarProvider>
+        <AppSidebar />
+        <SidebarInset>
+          <main className="p-6 min-h-screen">
+            {/* i18next-http-backend lädt den Namespace jeder Seite erst beim ersten Mount nach
+                (siehe lib/i18n.ts) – ohne Suspense-Boundary würden Seiten mit synchronem
+                t(key, {returnObjects:true}) (z.B. CalendarPage) kurz mit dem rohen Key statt
+                einem Array rendern und crashen, bevor der Namespace geladen ist. */}
+            <Suspense fallback={null}>
               <Routes>
                 <Route path="/" element={<DashboardPage />} />
                 <Route path="/activities" element={<ActivitiesPage />} />
@@ -55,6 +55,7 @@ function AppRoutes() {
                 <Route path="/form" element={<FormPage />} />
                 <Route path="/heatmap" element={<HeatmapPage />} />
                 <Route path="/hrcurve" element={<HrCurvePage />} />
+                <Route path="/import" element={<ImportPage />} />
                 <Route path="/progress" element={<ProgressPage />} />
                 <Route path="/settings" element={<SettingsPage />} />
                 <Route path="/routes" element={<Navigate to="/strecken" replace />} />
@@ -74,19 +75,31 @@ function AppRoutes() {
                 <Route path="/fitness" element={<FitnessPage />} />
                 <Route path="/zone-distribution" element={<ZoneDistributionPage />} />
               </Routes>
-              </Suspense>
-            </main>
-          </SidebarInset>
-        </SidebarProvider>
-      </TooltipProvider>
-    </BrowserRouter>
+            </Suspense>
+          </main>
+        </SidebarInset>
+      </SidebarProvider>
+    </TooltipProvider>
   );
+}
+
+function AppGate() {
+  const { loading, onboardingCompleted } = useOnboarding();
+  // Hier statt in AppRoutes, damit i18next auch während des Setup-Wizards (der Schritt
+  // "Sprache" ausgenommen, siehe SetupWizard.tsx) synchron zur gewählten Sprache bleibt.
+  useSyncLanguage();
+  // Solange die Settings noch nicht geladen sind, nichts rendern – sonst würde für einen
+  // kurzen Moment die normale App (oder fälschlich der Wizard) aufblitzen.
+  if (loading) return null;
+  return onboardingCompleted ? <AppRoutes /> : <SetupWizard />;
 }
 
 export default function App() {
   return (
     <ConfigProvider>
-      <AppRoutes />
+      <BrowserRouter>
+        <AppGate />
+      </BrowserRouter>
     </ConfigProvider>
   );
 }

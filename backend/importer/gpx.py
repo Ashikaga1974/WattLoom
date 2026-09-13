@@ -1,7 +1,6 @@
 """
 GPX-Parser: liest .gpx / .gpx.gz via lxml.
 import_gpx()  → track_points für eine Aktivität
-import_route() → routes + route_points für gespeicherte Routen
 """
 
 import gzip
@@ -139,33 +138,3 @@ def import_gpx(conn: sqlite3.Connection, activity_id: int, data: bytes, *, compr
                      speed_ms, hr, power_w, cadence, temp_c)
                 VALUES (?,?,?,?,?,?,?,?,?,?,?)
             """, [(activity_id, *p) for p in points])
-
-
-def import_route(conn: sqlite3.Connection, filename: str, data: bytes) -> None:
-    root = etree.fromstring(data)
-    name = _text_str(root, "gpx:metadata/gpx:name") or _text_str(root, "gpx:rte/gpx:name") or filename
-    desc = _text_str(root, "gpx:metadata/gpx:desc") or _text_str(root, "gpx:rte/gpx:desc")
-
-    # Gesamtdistanz aus Routenpunkten annähern (optional)
-    rte_points = [
-        (i, _attr_float(pt, "lat"), _attr_float(pt, "lon"), _text_float(pt, "gpx:ele"))
-        for i, pt in enumerate(root.xpath(".//gpx:rtept", namespaces=NS))
-    ]
-    # Fallback: trackpoints
-    if not rte_points:
-        rte_points = [
-            (i, _attr_float(pt, "lat"), _attr_float(pt, "lon"), _text_float(pt, "gpx:ele"))
-            for i, pt in enumerate(root.xpath(".//gpx:trkpt", namespaces=NS))
-        ]
-
-    with conn:
-        cur = conn.execute(
-            "INSERT INTO routes (name, description, source_file) VALUES (?,?,?)",
-            (name, desc, filename),
-        )
-        route_id = cur.lastrowid
-        if rte_points:
-            conn.executemany(
-                "INSERT INTO route_points (route_id, seq, lat, lon, altitude_m) VALUES (?,?,?,?,?)",
-                [(route_id, seq, lat, lon, alt) for seq, lat, lon, alt in rte_points],
-            )

@@ -143,24 +143,6 @@ def init_db() -> None:
                 retired_at      TEXT
             );
 
-            CREATE TABLE IF NOT EXISTS routes (
-                id          INTEGER PRIMARY KEY AUTOINCREMENT,
-                name        TEXT,
-                description TEXT,
-                distance_m  REAL,
-                source_file TEXT
-            );
-
-            CREATE TABLE IF NOT EXISTS route_points (
-                id          INTEGER PRIMARY KEY AUTOINCREMENT,
-                route_id    INTEGER NOT NULL REFERENCES routes(id),
-                seq         INTEGER,
-                lat         REAL,
-                lon         REAL,
-                altitude_m  REAL
-            );
-            CREATE INDEX IF NOT EXISTS idx_rp_route ON route_points(route_id);
-
             CREATE TABLE IF NOT EXISTS media (
                 id          INTEGER PRIMARY KEY AUTOINCREMENT,
                 activity_id INTEGER REFERENCES activities(id),
@@ -676,7 +658,119 @@ def init_db() -> None:
                     (lang, f"componentRow.{key}", json.dumps(value)),
                 )
 
+        # Neuer Sidebar-Eintrag "Import" (eigene Seite statt Settings-Tab, Session 2026-09-13) +
+        # der komplette Setup-Wizard – für Installationen mit älterem Seed-Stand nachtragen, analog
+        # zu den Patches oben (INSERT OR IGNORE macht das für frische Installationen folgenlos).
+        conn.execute(
+            "INSERT OR IGNORE INTO translations(lang, ns, key, value) VALUES ('de', 'common', 'nav.import', ?)",
+            (json.dumps("Import"),),
+        )
+        conn.execute(
+            "INSERT OR IGNORE INTO translations(lang, ns, key, value) VALUES ('en', 'common', 'nav.import', ?)",
+            (json.dumps("Import"),),
+        )
+
+        _ONBOARDING_KEYS = {
+            "de": {
+                "welcome.title": "Willkommen bei WattLoom",
+                "welcome.subtitle": "Ein paar kurze Schritte, damit die Auswertungen von Anfang an stimmen.",
+                "steps.language": "Sprache",
+                "steps.profile": "Profil",
+                "steps.bike": "Bike",
+                "steps.import": "Import",
+                "steps.done": "Fertig",
+                "bike.title": "Erstes Bike anlegen",
+                "bike.subtitle": "Wird als Standard-Bike für Aktivitäten ohne Zuordnung verwendet.",
+                "bike.nameLabel": "Name",
+                "bike.namePlaceholder": "z.B. Rennrad",
+                "bike.createButton": "Bike anlegen & weiter",
+                "bike.creating": "Wird angelegt…",
+                "bike.error": "Bike konnte nicht angelegt werden",
+                "import.hint": "Optional: direkt eine erste Aktivität importieren. Der vollständige ZIP-Export-Import (Strava-Gesamtexport) steht später jederzeit über den Import-Bereich in der Sidebar zur Verfügung.",
+                "done.text": "Alles bereit. Viel Spaß mit WattLoom!",
+                "done.button": "Los geht's",
+                "done.finishing": "Wird abgeschlossen…",
+                "actions.next": "Weiter",
+            },
+            "en": {
+                "welcome.title": "Welcome to WattLoom",
+                "welcome.subtitle": "A few quick steps so your stats are right from the start.",
+                "steps.language": "Language",
+                "steps.profile": "Profile",
+                "steps.bike": "Bike",
+                "steps.import": "Import",
+                "steps.done": "Done",
+                "bike.title": "Add your first bike",
+                "bike.subtitle": "Used as the default bike for activities without an assignment.",
+                "bike.nameLabel": "Name",
+                "bike.namePlaceholder": "e.g. Road bike",
+                "bike.createButton": "Add bike & continue",
+                "bike.creating": "Creating…",
+                "bike.error": "Bike could not be created",
+                "import.hint": "Optional: import a first activity right away. The full ZIP export import (complete Strava export) remains available anytime later via the Import section in the sidebar.",
+                "done.text": "All set. Enjoy WattLoom!",
+                "done.button": "Let's go",
+                "done.finishing": "Finishing…",
+                "actions.next": "Next",
+            },
+        }
+        for lang, keys in _ONBOARDING_KEYS.items():
+            for key, value in keys.items():
+                conn.execute(
+                    "INSERT OR IGNORE INTO translations(lang, ns, key, value) VALUES (?, 'onboarding', ?, ?)",
+                    (lang, key, json.dumps(value)),
+                )
+
+        _migrate_onboarding_flag(conn)
+
+        # media: INSERT OR REPLACE in import_media_tracks.py griff ohne UNIQUE-Constraint auf
+        # filename nie als Konfliktziel, sondern legte bei jedem (Re-)Import stumpf neue Zeilen an.
+        # Dabei sind u.a. Karteileichen mit activity_id=NULL entstanden (media_map-Lookup schlug
+        # in einem früheren Import-Lauf fehl) – über keine Route erreichbar (GET .../media filtert
+        # exakt auf activity_id), reiner Datenmüll. Vor dem UNIQUE-Index löschen, sonst würde
+        # dessen Anlage an den verbliebenen Duplikaten scheitern.
+        conn.execute("DELETE FROM media WHERE activity_id IS NULL")
+        conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_media_filename ON media(filename)")
+
+        # routes/route_points: totes Feature (Session 2026-09-13) – befüllt bei jedem ZIP-Import,
+        # aber seit der Streichung von "Top-Strecken" (Session 2026-08-20, siehe /strecken statt
+        # /routes) liest keine einzige Route mehr daraus. Für bestehende Installationen, die die
+        # Tabellen noch aus einem alten Schema-Stand haben, hier abräumen.
+        conn.execute("DROP TABLE IF EXISTS route_points")
+        conn.execute("DROP TABLE IF EXISTS routes")
+
+        # Neuer activities.table.hasMedia-Schlüssel (Foto-Hinweis-Icon in der Radtouren-Liste,
+        # Session 2026-09-13) – für Installationen mit älterem Seed-Stand nachtragen.
+        conn.execute(
+            "INSERT OR IGNORE INTO translations(lang, ns, key, value) VALUES ('de', 'activities', 'table.hasMedia', ?)",
+            (json.dumps("Enthält Fotos"),),
+        )
+        conn.execute(
+            "INSERT OR IGNORE INTO translations(lang, ns, key, value) VALUES ('en', 'activities', 'table.hasMedia', ?)",
+            (json.dumps("Contains photos"),),
+        )
+
         conn.commit()
+
+
+def _migrate_onboarding_flag(conn) -> None:
+    """Markiert bestehende Installationen (schon Aktivitäten oder Bikes vorhanden) automatisch
+    als onboarded, damit der neue Setup-Wizard nur bei einer wirklich leeren, frischen DB
+    (Docker-Erststart, neuer Selbst-Hoster) erscheint und nicht rückwirkend bestehende Nutzer
+    (z.B. Sascha selbst) durch den Wizard zwingt. Bewusst NICHT über "config nicht leer" geprüft –
+    init_db() selbst schreibt vorher schon eigene Migrations-Marker (migrated_i18n_sport_codes
+    u.ä.) in config, die sonst jede frische Installation fälschlich als "bestehend" einstufen
+    würden."""
+    exists = conn.execute("SELECT 1 FROM config WHERE key = 'onboarding_completed'").fetchone()
+    if exists:
+        return
+    already_used = conn.execute(
+        "SELECT EXISTS(SELECT 1 FROM activities) OR EXISTS(SELECT 1 FROM bikes)"
+    ).fetchone()[0]
+    if already_used:
+        conn.execute(
+            "INSERT INTO config(key, value) VALUES('onboarding_completed', '1')"
+        )
 
 
 def _flatten_translations(obj: dict, prefix: str = "") -> dict[str, str]:

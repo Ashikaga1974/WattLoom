@@ -36,6 +36,7 @@ import {
   Fingerprint,
   ChevronDown,
   Layers,
+  Upload,
 } from 'lucide-react';
 
 interface NavSubItem {
@@ -209,6 +210,15 @@ export function AppSidebar() {
             >
               <HelpCircle size={16} />
               <span>{t('nav.calculations')}</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              render={<Link to="/import" />}
+              isActive={p === '/import'}
+            >
+              <Upload size={16} />
+              <span>{t('nav.import')}</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>

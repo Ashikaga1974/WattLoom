@@ -489,11 +489,16 @@ def reset_db():
             DELETE FROM laps WHERE activity_id > 0;
             DELETE FROM segment_efforts WHERE activity_id > 0;
             DELETE FROM media WHERE activity_id > 0;
-            DELETE FROM route_points;
-            DELETE FROM routes;
             DELETE FROM activities WHERE id > 0;
             DELETE FROM other_activities;
         """)
     init_db()
     _invalidate_analytics_cache()
+    with _lock:
+        # Import lebt auf einer eigenen Seite (unabhängig von der Reset-Aktion in den
+        # Einstellungen) – ohne diesen Reset würde sie nach einem DB-Reset weiterhin den Log/
+        # Status des letzten (jetzt gelöschten) Imports anzeigen, statt korrekt "idle".
+        _state["status"] = "idle"
+        _state["log"] = []
+        _state["zip_name"] = None
     return {"ok": True, "backup": backup_name}

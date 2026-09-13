@@ -56,7 +56,8 @@ def list_activities(
             SELECT id, name, activity_type, start_date, distance_m, moving_time_s,
                    elevation_gain_m, avg_speed_ms, avg_hr, avg_power_w, avg_cadence,
                    calories, bike_id, has_track, manual, smart_device,
-                   est_avg_power_w, est_norm_power_w
+                   est_avg_power_w, est_norm_power_w,
+                   EXISTS(SELECT 1 FROM media m WHERE m.activity_id = activities.id) AS has_media
             FROM activities
             {where}
             ORDER BY {null_last}

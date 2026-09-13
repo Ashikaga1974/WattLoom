@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api } from '@/lib/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
-export function ResetCard({ importRunning, onResetSuccess }: { importRunning: boolean; onResetSuccess: () => void }) {
+export function ResetCard() {
   const { t } = useTranslation('common');
   const { t: ts } = useTranslation('settings');
   const [resetConfirm, setResetConfirm] = useState(false);
@@ -11,6 +11,14 @@ export function ResetCard({ importRunning, onResetSuccess }: { importRunning: bo
   const [resetError, setResetError] = useState<string | null>(null);
   const [resetDone, setResetDone] = useState(false);
   const [resetBackupName, setResetBackupName] = useState<string | null>(null);
+  // Import lebt seit der Auslagerung auf einer eigenen Seite (ImportPage.tsx) – der
+  // "läuft gerade ein Import"-Status wird deshalb hier unabhängig direkt vom Backend
+  // abgefragt statt über einen Prop von der Settings-Seite durchgereicht.
+  const [importRunning, setImportRunning] = useState(false);
+
+  useEffect(() => {
+    api.importStatus().then(s => setImportRunning(s.status === 'running')).catch(() => {});
+  }, []);
 
   async function confirmReset() {
     setResetBusy(true);
@@ -22,7 +30,6 @@ export function ResetCard({ importRunning, onResetSuccess }: { importRunning: bo
       setResetDone(true);
       setResetBackupName(res.backup ?? null);
       setResetConfirm(false);
-      onResetSuccess();
     } catch (e) {
       setResetError(e instanceof Error ? e.message : ts('reset.genericError'));
     } finally {
