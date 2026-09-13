@@ -4,6 +4,7 @@ import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { AppSidebar } from '@/components/layout/AppSidebar';
 import { ConfigProvider, useOnboarding } from '@/lib/config-context';
+import { ThemeProvider } from '@/lib/theme-context';
 import { useSyncLanguage } from '@/lib/i18n';
 import SetupWizard from '@/pages/onboarding/SetupWizard';
 
@@ -96,10 +97,12 @@ function AppGate() {
 
 export default function App() {
   return (
-    <ConfigProvider>
-      <BrowserRouter>
-        <AppGate />
-      </BrowserRouter>
-    </ConfigProvider>
+    <ThemeProvider>
+      <ConfigProvider>
+        <BrowserRouter>
+          <AppGate />
+        </BrowserRouter>
+      </ConfigProvider>
+    </ThemeProvider>
   );
 }

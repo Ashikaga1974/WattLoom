@@ -5,6 +5,17 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>frontend</title>
+    <script>
+      // Vor dem ersten Render ausgeführt, damit die Seite nie kurz im falschen Theme aufblitzt
+      // (React-Context könnte die Klasse erst nach dem ersten Paint setzen).
+      (function () {
+        try {
+          var stored = localStorage.getItem('wattloom-theme');
+          var isDark = stored === 'dark' || (stored !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+          document.documentElement.classList.toggle('dark', isDark);
+        } catch (e) { /* localStorage nicht verfügbar (z.B. privater Modus) → Default hell */ }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

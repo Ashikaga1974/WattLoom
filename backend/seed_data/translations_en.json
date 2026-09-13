@@ -1578,6 +1578,15 @@
       "subtitle": "Import a single .tcx file from Amazfit/Mi Fitness, Garmin or other devices directly.",
       "title": "Import TCX File"
     },
+    "theme": {
+      "title": "Appearance",
+      "hint": "Applies instantly, no save button needed.",
+      "options": {
+        "light": "Light",
+        "dark": "Dark",
+        "system": "System"
+      }
+    },
     "units": {
       "bpm": "bpm",
       "days": "days",

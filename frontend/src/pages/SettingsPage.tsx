@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { api, type Bike } from '@/lib/api';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { LanguageCard } from './settings/LanguageCard';
+import { ThemeCard } from './settings/ThemeCard';
 import { PersonalDataCard } from './settings/PersonalDataCard';
 import { GoalsCard } from './settings/GoalsCard';
 import { AppConfigCard } from './settings/AppConfigCard';
@@ -43,6 +44,7 @@ export default function SettingsPage() {
 
         <TabsContent value="allgemein" className="mt-6 space-y-8">
           <LanguageCard />
+          <ThemeCard />
           <PersonalDataCard />
           <GoalsCard />
           <AppConfigCard />
