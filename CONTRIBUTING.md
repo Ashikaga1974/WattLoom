@@ -1,38 +1,40 @@
 # Contributing to WattLoom
 
-WattLoom ist ein Hobby-Projekt, das in der Freizeit entwickelt wird. Beiträge sind willkommen,
-aber bitte mit realistischen Erwartungen: Reviews und Antworten passieren best-effort, nicht
-garantiert innerhalb bestimmter Fristen.
+> 🇩🇪 [Deutsche Version](CONTRIBUTING.de.md)
 
-## Bugs melden
+WattLoom is a hobby project developed in spare time. Contributions are welcome,
+but please keep expectations realistic: reviews and responses happen on a best-effort
+basis, not guaranteed within any fixed timeframe.
 
-Bitte über [GitHub Issues](../../issues) mit dem "Bug"-Template. Je genauer die
-Reproduktionsschritte (Betriebssystem, Docker vs. manuelle Installation, betroffene Seite/API-
-Endpunkt), desto schneller lässt sich der Fehler eingrenzen.
+## Reporting bugs
 
-## Feature-Wünsche
+Please use [GitHub Issues](../../issues) with the "Bug" template. The more precise the
+reproduction steps (operating system, Docker vs. manual install, affected page/API
+endpoint), the faster the issue can be narrowed down.
 
-Ebenfalls über GitHub Issues mit dem "Feature Request"-Template. WattLoom ist bewusst als
-Single-User-Anwendung für Strava-Exportdaten konzipiert (siehe `CLAUDE.md`) – Vorschläge, die
-Multi-User-Betrieb, Auth oder eine Live-Strava-API-Anbindung voraussetzen, passen nicht zur
-Architektur und werden wahrscheinlich abgelehnt.
+## Feature requests
 
-## Pull Requests
+Also via GitHub Issues, using the "Feature Request" template. WattLoom is deliberately
+designed as a single-user application for Strava export data (see `CLAUDE.md`) –
+suggestions that require multi-user operation, auth, or a live Strava API connection
+don't fit the architecture and will likely be rejected.
 
-- Kleine, fokussierte PRs bevorzugt – ein PR, eine Änderung.
-- Backend-Änderungen: bitte mit passenden Tests (`pytest`, siehe `tests/`).
-- Frontend-Änderungen: `cd frontend && npx tsc --noEmit -p tsconfig.app.json` muss sauber
-  durchlaufen (nicht `tsconfig.json` direkt – das prüft nichts, siehe `CLAUDE.md`).
-- Bestehenden Code-Stil beibehalten (siehe `CLAUDE.md` für Konventionen: viele kleine
-  Funktionen, Kommentare nur wo der WHY nicht offensichtlich ist).
-- Commit-Messages kurz und beschreibend, kein festes Schema erzwungen.
+## Pull requests
 
-## Entwicklungsumgebung einrichten
+- Small, focused PRs preferred – one PR, one change.
+- Backend changes: please include matching tests (`pytest`, see `tests/`).
+- Frontend changes: `cd frontend && npx tsc --noEmit -p tsconfig.app.json` must pass
+  cleanly (not `tsconfig.json` directly – that checks nothing, see `CLAUDE.md`).
+- Keep the existing code style (see `CLAUDE.md` for conventions: many small,
+  focused functions, comments only where the WHY isn't obvious).
+- Commit messages short and descriptive, no fixed schema enforced.
 
-Siehe [README.md](README.md#installation--start) für die vollständige Anleitung
-(Backend/Frontend manuell oder per Docker).
+## Setting up a dev environment
 
-## Lizenz
+See [README.md](README.md#installation--start) for the full guide
+(backend/frontend manually or via Docker).
 
-Mit einem Beitrag stimmst du zu, dass dein Code unter der Projektlizenz (AGPL-3.0, siehe
-[LICENSE](LICENSE)) veröffentlicht wird.
+## License
+
+By contributing, you agree that your code will be published under the project's
+license (AGPL-3.0, see [LICENSE](LICENSE)).
