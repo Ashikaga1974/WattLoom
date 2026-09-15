@@ -121,6 +121,19 @@ function HRTooltip({ active, payload }: { active?: boolean; payload?: any[] }) {
   );
 }
 
+function CadenceTooltip({ active, payload }: { active?: boolean; payload?: any[] }) {
+  const { t } = useTranslation('activitydetail');
+  if (!active || !payload?.length) return null;
+  const d = payload[0]?.payload;
+  return (
+    <ChartTooltip
+      active={active}
+      label={d?.dist != null ? `${d.dist} km` : undefined}
+      rows={[{ label: t('charts.tooltip.cadence'), value: d?.cadence != null ? `${d.cadence} rpm` : null, color: '#f59e0b' }]}
+    />
+  );
+}
+
 function GradeTooltip({ active, payload }: { active?: boolean; payload?: any[] }) {
   const { t } = useTranslation('activitydetail');
   if (!active || !payload?.length) return null;
@@ -251,6 +264,47 @@ function HRChart({ points, onHover, activeDist }: { points: TrackPoint[]; onHove
             <ReferenceLine x={activeDist} stroke="#ef4444" strokeWidth={1.5} strokeDasharray="4 2" />
           )}
           <Area type="monotone" dataKey="hr" stroke="#ef4444" fill="url(#hrGrad)" strokeWidth={1.5} dot={false} />
+        </AreaChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+function CadenceChart({ points, onHover, activeDist }: { points: TrackPoint[]; onHover?: HoverFn; activeDist?: number | null }) {
+  const { t } = useTranslation('activitydetail');
+  const { chart_height_mini } = useConfig();
+  // cadence == 0 sind Stillstandsphasen (Ampel, Pause) – würden die Linie sonst auf 0 ziehen
+  const valid = points.map((p, i) => ({ p, i })).filter(({ p }) => p.cadence != null && p.cadence > 0 && p.distance_m != null);
+  if (valid.length < 2) return null;
+
+  const data = valid.map(({ p, i }) => ({
+    dist: Math.round((p.distance_m! / 1000) * 10) / 10,
+    cadence: Math.round(p.cadence!),
+    origIdx: i,
+  }));
+
+  const { handleMouseMove, handleMouseLeave } = useChartHover(data, points, onHover);
+
+  return (
+    <div>
+      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">{t('charts.cadenceTitle')}</p>
+      <ResponsiveContainer width="100%" height={chart_height_mini}>
+        <AreaChart data={data} margin={{ top: 0, right: 0, left: -30, bottom: 0 }}
+          syncId="ap" syncMethod="value"
+          onMouseMove={handleMouseMove} onMouseLeave={handleMouseLeave}>
+          <defs>
+            <linearGradient id="cadenceGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.4} />
+              <stop offset="95%" stopColor="#f59e0b" stopOpacity={0.05} />
+            </linearGradient>
+          </defs>
+          <XAxis dataKey="dist" type="number" domain={[0, 'dataMax']} hide />
+          <YAxis tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }} axisLine={false} tickLine={false} />
+          <Tooltip content={<CadenceTooltip />} />
+          {activeDist != null && (
+            <ReferenceLine x={activeDist} stroke="#f59e0b" strokeWidth={1.5} strokeDasharray="4 2" />
+          )}
+          <Area type="monotone" dataKey="cadence" stroke="#f59e0b" fill="url(#cadenceGrad)" strokeWidth={1.5} dot={false} />
         </AreaChart>
       </ResponsiveContainer>
     </div>
@@ -494,6 +548,7 @@ export default function ActivityDetailPage() {
   const hasElevation = trackPoints.some(p => p.altitude_m != null);
   const hasSpeed = trackPoints.some(p => p.speed_ms != null && p.speed_ms > 0);
   const hasHR = trackPoints.some(p => p.hr != null);
+  const hasCadence = trackPoints.some(p => p.cadence != null && p.cadence > 0);
   const hasGrade = trackPoints.some(p => p.grade_pct != null);
 
   return (
@@ -562,12 +617,13 @@ export default function ActivityDetailPage() {
       )}
 
       {/* Höhen- und Speed-Profile */}
-      {trackPoints.length > 1 && (hasElevation || hasSpeed || hasHR || hasGrade) && (
+      {trackPoints.length > 1 && (hasElevation || hasSpeed || hasHR || hasCadence || hasGrade) && (
         <Card>
           <CardContent className="space-y-4">
             {hasElevation && <ElevationChart points={trackPoints} onHover={onHover} activeDist={activeDistKm} />}
             {hasSpeed && <SpeedChart points={trackPoints} onHover={onHover} activeDist={activeDistKm} />}
             {hasHR && <HRChart points={trackPoints} onHover={onHover} activeDist={activeDistKm} />}
+            {hasCadence && <CadenceChart points={trackPoints} onHover={onHover} activeDist={activeDistKm} />}
             {hasGrade && <GradeChart points={trackPoints} onHover={onHover} activeDist={activeDistKm} />}
           </CardContent>
         </Card>

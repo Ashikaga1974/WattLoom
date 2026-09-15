@@ -64,11 +64,13 @@
       "elevationTitle": "Elevation profile",
       "heartRateTitle": "Heart rate",
       "speedTitle": "Speed",
+      "cadenceTitle": "Cadence",
       "tooltip": {
         "elevation": "Elevation",
         "heartRate": "Heart rate",
         "speed": "Speed",
-        "grade": "Grade"
+        "grade": "Grade",
+        "cadence": "Cadence"
       },
       "gradeTitle": "Grade"
     },

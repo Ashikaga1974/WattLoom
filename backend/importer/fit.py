@@ -233,6 +233,7 @@ def import_fit(conn: sqlite3.Connection, activity_id: int, data: bytes, *, compr
                 _val(msg, "avg_power"),
                 _val(msg, "max_power"),
                 _val(msg, "avg_cadence"),
+                _val(msg, "max_cadence"),
                 _val(msg, "total_ascent"),
             ))
             lap_number += 1
@@ -276,8 +277,8 @@ def import_fit(conn: sqlite3.Connection, activity_id: int, data: bytes, *, compr
                 INSERT INTO laps
                     (activity_id, lap_number, start_time, total_time_s, distance_m,
                      avg_speed_ms, max_speed_ms, avg_hr, max_hr,
-                     avg_power_w, max_power_w, avg_cadence, elevation_gain_m)
-                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
+                     avg_power_w, max_power_w, avg_cadence, max_cadence, elevation_gain_m)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
             """, laps)
 
         if segments:

@@ -88,6 +88,7 @@ CREATE TABLE laps (
     avg_power_w      REAL,
     max_power_w      INTEGER,
     avg_cadence      REAL,
+    max_cadence      INTEGER,
     elevation_gain_m REAL
 );
 

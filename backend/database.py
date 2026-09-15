@@ -93,6 +93,7 @@ def init_db() -> None:
                 avg_power_w     REAL,
                 max_power_w     INTEGER,
                 avg_cadence     REAL,
+                max_cadence     INTEGER,
                 elevation_gain_m REAL
             );
             CREATE INDEX IF NOT EXISTS idx_laps_activity ON laps(activity_id);
@@ -220,6 +221,11 @@ def init_db() -> None:
         tp_cols = [r[1] for r in conn.execute("PRAGMA table_info(track_points)").fetchall()]
         if "grade_pct" not in tp_cols:
             conn.execute("ALTER TABLE track_points ADD COLUMN grade_pct REAL")
+
+        # Migration: maximale Trittfrequenz pro Lap (FIT lap.max_cadence)
+        lap_cols = [r[1] for r in conn.execute("PRAGMA table_info(laps)").fetchall()]
+        if "max_cadence" not in lap_cols:
+            conn.execute("ALTER TABLE laps ADD COLUMN max_cadence INTEGER")
 
         # Migration: Segment-Identifikation + Start-/Endpunkt (FIT segment_lap)
         seg_cols = [r[1] for r in conn.execute("PRAGMA table_info(segment_efforts)").fetchall()]

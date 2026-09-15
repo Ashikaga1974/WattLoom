@@ -64,11 +64,13 @@
       "elevationTitle": "Höhenprofil",
       "heartRateTitle": "Herzfrequenz",
       "speedTitle": "Geschwindigkeit",
+      "cadenceTitle": "Trittfrequenz",
       "tooltip": {
         "elevation": "Höhe",
         "heartRate": "Herzrate",
         "speed": "Geschw.",
-        "grade": "Steigung"
+        "grade": "Steigung",
+        "cadence": "Trittfrequenz"
       },
       "gradeTitle": "Steigung"
     },
