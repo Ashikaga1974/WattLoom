@@ -91,7 +91,7 @@ Training, performance, weather, and bike maintenance in one place.
 | **Weather & performance** | Avg speed by temperature bucket, wind-impact chart; weather data via Open-Meteo (fetch on demand) |
 | **Form curve (PMC)** | CTL/ATL/TSB following training-journal methodology, hrTSS, 28-day CTL trend, ride/workout markers, assessment banner |
 | **Best times** | Records and top performances; best-effort segments per distance (5–70 km, Strava-style) across all rides |
-| **Bikes** | 3 tabs: overview (photo thumbnail, single-line KPIs, wear tracker as cards with progress bars + linked stock-item name, installing from stock incl. carrying over mileage of used parts, uninstalling with km entry + automatic stock return, retroactively linking already-mounted legacy components to a purchase; purchase/stock table below, inactive bikes via dropdown at the very bottom) · Deleted (history of irreversibly deleted components incl. stock link, informational only) · Comparison (km, speed, elevation, maintenance cost incl. €/100km, yearly trend, distance histogram) |
+| **Bikes** | Cross-bike maintenance queue at the top (sorted by wear, jumps to the affected bike). 3 tabs: overview (collapsible bike cards with status chip, photo thumbnail, single-line KPIs, wear tracker sorted by wear with progress bars + linked stock-item name, one quick action + kebab menu per component, installing from stock incl. carrying over mileage of used parts, uninstalling with km entry + automatic stock return, retroactively linking already-mounted legacy components to a purchase, inactive bikes as dimmed cards) · Stock (purchase/stock table, moved out of the overview) · Deleted (history of irreversibly deleted components incl. stock link, informational only). Comparison (km, speed, elevation, maintenance cost incl. €/100km, yearly trend, distance histogram) is its own page, linked from the sidebar |
 | **Workout detail** | Detail view per workout: sport hero, 4 KPI tiles, SVG intensity gauge (avg HR / max HR), history chart, average comparison |
 | **Weekday analysis** | Weekday (Mon–Fri) vs. weekend (Sat–Sun): duel card with winner indicators, rides-per-weekday bars, monthly trend |
 | **Route comparison** | Find similar rides (Haversine radius + distance match, then point-by-point track matching for true route overlap) |
@@ -288,12 +288,13 @@ WattLoom/
 │       │   └── ui/                     # shadcn/ui base-nova components
 │       ├── hooks/
 │       │   └── use-mobile.ts
-│       └── pages/                      # 22 pages as .tsx (tab containers bundle related views)
+│       └── pages/                      # 24 pages as .tsx (tab containers bundle related views)
 │           ├── DashboardPage.tsx
 │           ├── ActivitiesPage.tsx
 │           ├── ActivityDetailPage.tsx
 │           ├── BestPage.tsx
-│           ├── BikesPage.tsx           # Tabs: Overview · Deleted · Comparison (/bikes?tab=übersicht|gelöscht|vergleich)
+│           ├── BikesPage.tsx           # Tabs: Overview · Stock · Deleted (/bikes?tab=übersicht|lager|gelöscht)
+│           ├── BikeComparePage.tsx     # Bike comparison, own page (/bikes/compare)
 │           ├── WorkoutDetailPage.tsx   # Workout detail with intensity gauge (/workouts/:id)
 │           ├── WeekendPage.tsx         # Weekday analysis (/weekend)
 │           ├── CalendarPage.tsx
@@ -362,7 +363,7 @@ POST /weather/fetch-all             → fetch weather data for all activities vi
 GET  /bikes
 GET  /bikes/{id}                   → incl. current_km, components (km_since_service, pct_used, estimated_service_date, purchase_name, purchase_url derived live via the linked stock item)
 PUT  /bikes/{id}                   → { name } rename bike
-GET  /bikes/compare
+GET  /bikes/compare                 → summary per bike incl. total_cost + cost_per_100km; rendered on its own page (/bikes/compare), no longer a Bikes tab
 GET  /bikes/deleted-components     → history of irreversibly deleted components (snapshot + purchase link)
 PUT  /bikes/{id}/toggle-retired    → bike active ↔ inactive
 GET  /bikes/{id}/image

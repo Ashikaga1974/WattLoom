@@ -92,7 +92,7 @@ Training, Performance, Wetter und Bike-Wartung an einem Ort.
 | **Wetter & Leistung** | Ø-Speed nach Temperatur-Buckets, Wind-Impact-Chart, Temperatur-/Wind-/Regenverlauf über alle Jahre (ein Wert je Tag); Wetterdaten via Open-Meteo (abrufbar per Knopfdruck) |
 | **Formkurve (PMC)** | CTL/ATL/TSB nach Trainingstagebuch-Methodik, hrTSS, 28-Tage-CTL-Trend, Ride- und Workout-Marker, Einschätzungs-Banner |
 | **Bestzeiten** | Rekorde und Top-Leistungen; Best-Effort-Segmente je Distanz (5–70 km, analog Strava) über alle Fahrten hinweg |
-| **Bikes** | 3 Tabs: Übersicht (Foto-Thumbnail, Kennzahlen einzeilig, Verschleiß-Tracker als Karten mit Fortschrittsbalken + verknüpftem Lagerartikel-Namen, Einbauen aus Lager inkl. Übernahme der Laufleistung gebrauchter Teile, Ausbauen mit km-Erfassung + automatischer Lagerrückgabe, nachträgliches Verknüpfen verbauter Altbestand-Komponenten mit einem Einkauf; Einkaufs-Lager-Tabelle darunter, inaktive Bikes per Dropdown ganz unten) · Gelöscht (Historie unwiderruflich gelöschter Komponenten inkl. Lagerbezug, rein informativ) · Vergleich (km, Speed, Höhenmeter, Unterhaltskosten inkl. €/100km, Jahresverlauf, Distanzhistogramm) |
+| **Bikes** | Bike-übergreifende Wartungsleiste oben (nach Verschleiß sortiert, springt zum betroffenen Rad). 3 Tabs: Übersicht (einklappbare Bike-Karten mit Status-Chip, Foto-Thumbnail, Kennzahlen einzeilig, Verschleiß-Tracker nach Verschleiß sortiert mit Fortschrittsbalken + verknüpftem Lagerartikel-Namen, ein Quick-Action-Button + Kebab-Menü je Komponente, Einbauen aus Lager inkl. Übernahme der Laufleistung gebrauchter Teile, Ausbauen mit km-Erfassung + automatischer Lagerrückgabe, nachträgliches Verknüpfen verbauter Altbestand-Komponenten mit einem Einkauf, inaktive Bikes als gedimmte Karten) · Lager (Einkaufs-Lager-Tabelle, aus der Übersicht ausgelagert) · Gelöscht (Historie unwiderruflich gelöschter Komponenten inkl. Lagerbezug, rein informativ). Vergleich (km, Speed, Höhenmeter, Unterhaltskosten inkl. €/100km, Jahresverlauf, Distanzhistogramm) ist eine eigene Seite, verlinkt aus der Sidebar |
 | **Workout-Detail** | Detailansicht je Workout: Sport-Hero, 4 KPI-Kacheln, SVG-Intensitätsgauge (Ø HR / Max HR), Verlaufschart, Ø-Vergleich |
 | **Wochentag-Analyse** | Werktag (Mo–Fr) vs. Wochenende (Sa–So): Duell-Karte mit Gewinner-Indikatoren, Rides/Wochentag-Balken, Monatsverlauf |
 | **Streckenvergleich** | Ähnliche Rides finden (Haversine-Radius + Distanzabgleich, dann Trackpunkt-Abgleich per absoluten Distanz-Marken für echte Streckenübereinstimmung) |
@@ -292,12 +292,13 @@ WattLoom/
 │       │   └── ui/                     # shadcn/ui base-nova Komponenten
 │       ├── hooks/
 │       │   └── use-mobile.ts
-│       └── pages/                      # 22 Seiten als .tsx (Tab-Container bündeln verwandte Ansichten)
+│       └── pages/                      # 24 Seiten als .tsx (Tab-Container bündeln verwandte Ansichten)
 │           ├── DashboardPage.tsx
 │           ├── ActivitiesPage.tsx
 │           ├── ActivityDetailPage.tsx
 │           ├── BestPage.tsx
-│           ├── BikesPage.tsx           # Tabs: Übersicht · Gelöscht · Vergleich (/bikes?tab=übersicht|gelöscht|vergleich)
+│           ├── BikesPage.tsx           # Tabs: Übersicht · Lager · Gelöscht (/bikes?tab=übersicht|lager|gelöscht)
+│           ├── BikeComparePage.tsx     # Bike-Vergleich, eigene Seite (/bikes/compare)
 │           ├── WorkoutDetailPage.tsx   # Workout-Detail mit Intensitätsgauge (/workouts/:id)
 │           ├── WeekendPage.tsx         # Wochentag-Analyse (/weekend)
 │           ├── CalendarPage.tsx
@@ -367,7 +368,7 @@ POST /weather/fetch-all             → Wetterdaten für alle Aktivitäten via O
 GET  /bikes
 GET  /bikes/{id}                   → inkl. current_km, components (km_since_service, pct_used, estimated_service_date, purchase_name, purchase_url live über Lagerbezug abgeleitet)
 PUT  /bikes/{id}                   → { name } Bikenamen umbenennen
-GET  /bikes/compare
+GET  /bikes/compare                 → Summary je Bike inkl. total_cost + cost_per_100km; wird auf eigener Seite (/bikes/compare) gerendert, kein Bikes-Tab mehr
 GET  /bikes/deleted-components     → Historie unwiderruflich gelöschter Komponenten (Snapshot + Einkaufsbezug)
 PUT  /bikes/{id}/toggle-retired    → Bike aktiv ↔ inaktiv
 GET  /bikes/{id}/image
