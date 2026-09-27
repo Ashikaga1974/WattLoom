@@ -355,6 +355,8 @@
       "noComponents": "No components recorded.",
       "statRides": "Rides",
       "statTotalKm": "Total km",
+      "statusCritical": "{{count}} critical",
+      "statusOk": "Looking good",
       "toggleTitle": "Click to toggle status",
       "uploadImage": "Upload",
       "wearTitle": "Wear"
@@ -400,6 +402,7 @@
       "maintenanceDateLabel": "Date",
       "maintenanceDue": "Maintenance due!",
       "maintenanceLabel": "Chain maintenance",
+      "moreActions": "More actions",
       "neverMaintained": "never maintained",
       "noStockRefOption": "– no stock reference –",
       "orderLinkText": "↗ Link",
@@ -439,6 +442,8 @@
     },
     "overview": {
       "inactiveBikesHeading": "Inactive bikes",
+      "maintenanceQueueEmpty": "No upcoming maintenance – everything looks good.",
+      "maintenanceQueueHeading": "Upcoming maintenance",
       "noBikes": "No bikes found.",
       "purchasesHeading": "Purchases / stock",
       "selectBikePlaceholder": "– select bike –"
@@ -508,7 +513,8 @@
     "tabs": {
       "compare": "Compare",
       "deleted": "Deleted",
-      "overview": "Overview"
+      "overview": "Overview",
+      "stock": "Stock"
     },
     "title": "Bikes"
   },
@@ -734,6 +740,8 @@
       "analysis": "Analysis",
       "best": "Best of",
       "bikes": "Bikes",
+      "bikesCompare": "Compare",
+      "bikesOverview": "Overview",
       "cadence": "Cadence",
       "calculations": "Calculations",
       "calendar": "Calendar",

@@ -355,6 +355,8 @@
       "noComponents": "Keine Komponenten erfasst.",
       "statRides": "Rides",
       "statTotalKm": "Gesamt km",
+      "statusCritical": "{{count}} kritisch",
+      "statusOk": "Im grünen Bereich",
       "toggleTitle": "Klicken um Status zu wechseln",
       "uploadImage": "Hochladen",
       "wearTitle": "Verschleiß"
@@ -400,6 +402,7 @@
       "maintenanceDateLabel": "Datum",
       "maintenanceDue": "Wartung fällig!",
       "maintenanceLabel": "Ketten-Pflege",
+      "moreActions": "Weitere Aktionen",
       "neverMaintained": "noch nie gepflegt",
       "noStockRefOption": "– kein Lagerbezug –",
       "orderLinkText": "↗ Link",
@@ -439,6 +442,8 @@
     },
     "overview": {
       "inactiveBikesHeading": "Inaktive Räder",
+      "maintenanceQueueEmpty": "Keine anstehenden Wartungen – alles im grünen Bereich.",
+      "maintenanceQueueHeading": "Nächste Wartungen",
       "noBikes": "Keine Bikes gefunden.",
       "purchasesHeading": "Einkäufe / Lager",
       "selectBikePlaceholder": "– Rad wählen –"
@@ -508,7 +513,8 @@
     "tabs": {
       "compare": "Vergleich",
       "deleted": "Gelöscht",
-      "overview": "Übersicht"
+      "overview": "Übersicht",
+      "stock": "Lager"
     },
     "title": "Bikes"
   },
@@ -734,6 +740,8 @@
       "analysis": "Analyse",
       "best": "Best of",
       "bikes": "Bikes",
+      "bikesCompare": "Vergleich",
+      "bikesOverview": "Übersicht",
       "cadence": "Kadenz",
       "calculations": "Berechnungen",
       "calendar": "Kalender",

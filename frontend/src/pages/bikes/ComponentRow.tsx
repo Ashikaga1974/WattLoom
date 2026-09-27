@@ -32,6 +32,7 @@ export function ComponentRow({
   const [newStockName, setNewStockName] = useState('');
   const [maintaining, setMaintaining] = useState(false);
   const [maintainDate, setMaintainDate] = useState(new Date().toISOString().slice(0, 10));
+  const [menuOpen, setMenuOpen] = useState(false);
 
   // Nur relevant für Altbestand ohne bestehenden Lagerbezug (Übergang zum Einkaufs-Lager)
   const availableStock = stockItems.filter(p => p.quantity - p.installed_count > 0);
@@ -183,141 +184,158 @@ export function ComponentRow({
   const actionBtn = "text-sm px-3 py-1.5 rounded-md border font-medium transition-colors disabled:opacity-40";
   const panelFieldCls = "w-full rounded-md border border-border bg-background px-2.5 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-amber-500";
 
+  // Ketten-Pflege ist nur dann eine eigene, sichtbare Zeile wert, wenn sie tatsächlich ansteht –
+  // sonst bläht sie die Komponentenliste unnötig auf (jede Kette hätte sonst dauerhaft einen
+  // zweiten Balken + Button). Solange sie nicht fällig ist, reicht ein kleiner Inline-Hinweis.
+  const maintenancePct = comp.maintenance_pct_used;
+  const maintenanceDue = maintenancePct != null && maintenancePct >= 80;
+
   return (
-    <div className={`rounded-xl border border-border p-2.5 space-y-1.5${isRetired ? ' opacity-60' : ' bg-muted/30'}`}>
+    <div className={`py-2 first:pt-0${isRetired ? ' opacity-60' : ''}`}>
       {error && (
-        <p className="text-sm text-red-500 rounded-lg border border-red-500/30 bg-red-500/5 px-3 py-2">
+        <p className="mb-1.5 text-sm text-red-500 rounded-lg border border-red-500/30 bg-red-500/5 px-3 py-2">
           {error}
         </p>
       )}
 
-      {/* Titel + Metadaten + Fortschritt in % */}
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex items-center gap-x-2.5 gap-y-1 min-w-0 flex-wrap">
-          <span className="text-sm font-semibold truncate">{componentLabel(comp.type, t)}</span>
-          {isRetired && <Badge variant="secondary">{t('status.inactive')}</Badge>}
-          {comp.purchase_name && (
-            <span className="text-sm text-muted-foreground" title={t('componentRow.linkedPurchaseTitle')}>
-              📦 {comp.purchase_name}
-            </span>
-          )}
-          {comp.purchase_url && (
-            <a href={comp.purchase_url} target="_blank" rel="noopener noreferrer"
-              className="text-sm text-primary hover:underline" title={t('componentRow.orderLinkTitle')}>
-              {t('componentRow.orderLinkText')}
-            </a>
-          )}
-          {installedLabel && <span className="text-sm text-muted-foreground">{t('componentRow.since', { date: installedLabel })}</span>}
-          {isRetired && comp.uninstalled_km != null && (
-            <span className="text-sm text-muted-foreground">{t('componentRow.uninstalledAfter', { km: fmtNum(Math.round(comp.uninstalled_km)) })}</span>
-          )}
+      {/* Titel + Metadaten */}
+      <div className="flex items-center gap-x-2.5 gap-y-1 min-w-0 flex-wrap">
+        <span className="text-sm font-semibold truncate">{componentLabel(comp.type, t)}</span>
+        {isRetired && <Badge variant="secondary">{t('status.inactive')}</Badge>}
+        {comp.purchase_name && (
+          <span className="text-sm text-muted-foreground" title={t('componentRow.linkedPurchaseTitle')}>
+            📦 {comp.purchase_name}
+          </span>
+        )}
+        {comp.purchase_url && (
+          <a href={comp.purchase_url} target="_blank" rel="noopener noreferrer"
+            className="text-sm text-primary hover:underline" title={t('componentRow.orderLinkTitle')}>
+            {t('componentRow.orderLinkText')}
+          </a>
+        )}
+        {installedLabel && <span className="text-sm text-muted-foreground">{t('componentRow.since', { date: installedLabel })}</span>}
+        {isRetired && comp.uninstalled_km != null && (
+          <span className="text-sm text-muted-foreground">{t('componentRow.uninstalledAfter', { km: fmtNum(Math.round(comp.uninstalled_km)) })}</span>
+        )}
+        {!isRetired && maintenancePct != null && (
+          <span className="text-sm" style={{ color: maintenanceDue ? wearColor(maintenancePct) : 'var(--muted-foreground)' }}>
+            · {t('componentRow.maintenanceLabel')} {Math.round(maintenancePct)}%
+          </span>
+        )}
+      </div>
+
+      {/* Balken + km/Fälligkeit + Aktionen in einer Zeile */}
+      <div className="mt-1 flex items-center gap-3">
+        <div className="flex-1 min-w-0">
+          <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+            <div className="h-full rounded-full transition-all duration-500"
+              style={{ width: `${Math.min(pct, 100)}%`, background: color }} />
+          </div>
+          <div className="mt-0.5 flex items-center gap-1.5 text-sm text-muted-foreground tabular-nums">
+            <span>{fmtNum(Math.round(comp.km_since_service))} / {fmtNum(comp.km_threshold ?? 0)} km</span>
+            {pct >= 100
+              ? <span className="font-semibold" style={{ color }}>· {t('componentRow.maintenanceDue')}</span>
+              : comp.estimated_service_date && (
+                <span>· {t('componentRow.estimatedDate', { date: new Date(comp.estimated_service_date + 'T00:00:00').toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' }) })}</span>
+              )}
+          </div>
         </div>
+
         <span className="text-sm font-bold tabular-nums shrink-0" style={{ color }}>
           {Math.round(pct)}%
         </span>
-      </div>
 
-      {/* Fortschrittsbalken */}
-      <div className="space-y-1">
-        <div className="h-2 rounded-full bg-muted overflow-hidden">
-          <div className="h-full rounded-full transition-all duration-500"
-            style={{ width: `${Math.min(pct, 100)}%`, background: color }} />
-        </div>
-        <div className="flex items-center justify-between text-sm text-muted-foreground">
-          <span className="tabular-nums">{fmtNum(Math.round(comp.km_since_service))} / {fmtNum(comp.km_threshold ?? 0)} km</span>
-          {pct >= 100
-            ? <span className="font-semibold" style={{ color }}>{t('componentRow.maintenanceDue')}</span>
-            : comp.estimated_service_date
-              ? <span>{t('componentRow.estimatedDate', { date: new Date(comp.estimated_service_date + 'T00:00:00').toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' }) })}</span>
-              : null}
-        </div>
-      </div>
-
-      {/* Ketten-Pflege (Reinigen/Ölen) – eigener Zähler, unabhängig vom Verschleiß oben */}
-      {!isRetired && comp.type === 'chain' && comp.maintenance_pct_used != null && (
-        <div className="space-y-1 pt-1">
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-muted-foreground">{t('componentRow.maintenanceLabel')}</span>
-            <span className="font-bold tabular-nums" style={{ color: wearColor(comp.maintenance_pct_used) }}>
-              {Math.round(comp.maintenance_pct_used)}%
-            </span>
-          </div>
-          <div className="h-2 rounded-full bg-muted overflow-hidden">
-            <div className="h-full rounded-full transition-all duration-500"
-              style={{ width: `${Math.min(comp.maintenance_pct_used, 100)}%`, background: wearColor(comp.maintenance_pct_used) }} />
-          </div>
-          <div className="flex items-center justify-between text-sm text-muted-foreground">
-            <span className="tabular-nums">{fmtNum(Math.round(comp.km_since_maintenance ?? 0))} / {fmtNum(chain_maintenance_km)} km</span>
-            {comp.maintenance_pct_used >= 100
-              ? <span className="font-semibold" style={{ color: wearColor(comp.maintenance_pct_used) }}>{t('componentRow.chainMaintenanceDue')}</span>
-              : (
-                <span className="tabular-nums">
-                  {comp.last_maintained_at
-                    ? t('componentRow.lastMaintained', { date: new Date(comp.last_maintained_at + 'T00:00:00').toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' }) })
-                    : t('componentRow.neverMaintained')}
-                </span>
-              )}
-          </div>
-          {maintaining ? (
-            <div className="flex flex-wrap items-end gap-2 rounded-lg border border-emerald-300 dark:border-emerald-800 bg-emerald-50/60 dark:bg-emerald-950/30 p-2.5">
-              <label className={labelCls}>
-                <span className="block">{t('componentRow.maintenanceDateLabel')}</span>
-                <input type="date" value={maintainDate} onChange={e => setMaintainDate(e.target.value)}
-                  max={new Date().toISOString().slice(0, 10)} className={fieldCls} />
-              </label>
-              <button onClick={handleMaintain} disabled={busy}
-                className={`${actionBtn} border-emerald-400 text-emerald-600 dark:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-950`}>
-                {t('common:actions.save')}
-              </button>
-              <button onClick={() => setMaintaining(false)} disabled={busy}
-                className={`${actionBtn} border-border text-muted-foreground hover:bg-muted`}>
-                {t('common:actions.cancel')}
-              </button>
-            </div>
-          ) : (
-            <button onClick={() => { setMaintainDate(new Date().toISOString().slice(0, 10)); setMaintaining(true); }} disabled={busy}
+        <div className="flex items-center gap-1.5 shrink-0">
+          {!isRetired && (
+            <button onClick={() => { setUninstallKm(Math.round(comp.km_since_service)); setUninstalling(v => !v); }} disabled={busy}
+              className={`${actionBtn} border-border text-foreground hover:bg-muted`}
+              title={t('componentRow.uninstallButtonTitle')}>
+              {t('componentRow.uninstallButton')}
+            </button>
+          )}
+          {isRetired && comp.uninstalled_km != null && comp.purchase_item_id == null && (
+            <button onClick={() => setLinking(v => !v)} disabled={busy}
+              className={`${actionBtn} border-border text-foreground hover:bg-muted`}
+              title={t('componentRow.toStockButtonTitle')}>
+              {t('componentRow.toStockButton')}
+            </button>
+          )}
+          {maintenanceDue && (
+            <button onClick={() => { setMaintainDate(new Date().toISOString().slice(0, 10)); setMaintaining(v => !v); }} disabled={busy}
               className={`${actionBtn} border-emerald-400 text-emerald-600 dark:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-950`}
               title={t('componentRow.maintenanceButtonTitle')}>
               🧴 {t('componentRow.maintenanceButton')}
             </button>
           )}
+          <div className="relative">
+            <button onClick={() => setMenuOpen(v => !v)} disabled={busy}
+              className="w-8 h-8 flex items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-40"
+              aria-label={t('componentRow.moreActions')} title={t('componentRow.moreActions')}>
+              ⋮
+            </button>
+            {menuOpen && (
+              <>
+                <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
+                <div className="absolute right-0 top-full mt-1 z-20 min-w-[170px] rounded-lg border border-border bg-popover shadow-md p-1">
+                  <button onClick={() => { openEdit(); setMenuOpen(false); }}
+                    className="w-full text-left text-sm px-2.5 py-1.5 rounded-md hover:bg-muted">
+                    ✎ {t('common:actions.edit')}
+                  </button>
+                  {!isRetired && maintenancePct != null && !maintenanceDue && (
+                    <button onClick={() => { setMaintainDate(new Date().toISOString().slice(0, 10)); setMaintaining(true); setMenuOpen(false); }}
+                      className="w-full text-left text-sm px-2.5 py-1.5 rounded-md hover:bg-muted"
+                      title={t('componentRow.maintenanceButtonTitle')}>
+                      🧴 {t('componentRow.maintenanceButton')}
+                    </button>
+                  )}
+                  {comp.uninstalled_km == null && comp.purchase_item_id == null && (
+                    <button onClick={() => { setLinking(true); setMenuOpen(false); }}
+                      className="w-full text-left text-sm px-2.5 py-1.5 rounded-md hover:bg-muted"
+                      title={t('componentRow.linkButtonTitle')}>
+                      {t('componentRow.linkButton')}
+                    </button>
+                  )}
+                  <hr className="my-1 border-border" />
+                  <button onClick={() => { handleDelete(); setMenuOpen(false); }}
+                    className="w-full text-left text-sm px-2.5 py-1.5 rounded-md text-red-500 hover:bg-red-50 dark:hover:bg-red-950"
+                    title={t('componentRow.deleteButtonTitle')}>
+                    {t('common:actions.delete')}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Ketten-Pflege-Panel: nur bei tatsächlicher Fälligkeit oder aktivem Formular sichtbar */}
+      {!isRetired && maintenancePct != null && (maintenanceDue || maintaining) && (
+        <div className="mt-1.5 flex items-center gap-2 text-sm text-muted-foreground">
+          <span className="tabular-nums">
+            {fmtNum(Math.round(comp.km_since_maintenance ?? 0))} / {fmtNum(chain_maintenance_km)} km ·{' '}
+            {comp.last_maintained_at
+              ? t('componentRow.lastMaintained', { date: new Date(comp.last_maintained_at + 'T00:00:00').toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' }) })
+              : t('componentRow.neverMaintained')}
+          </span>
         </div>
       )}
-
-      {/* Aktionen */}
-      <div className="flex flex-wrap items-center justify-end gap-1.5">
-        <button onClick={openEdit} disabled={busy}
-          className={`${actionBtn} border-blue-400 text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950`}
-          title={t('common:actions.edit')}>
-          ✎ {t('common:actions.edit')}
-        </button>
-        {!isRetired && (
-          <button onClick={() => { setUninstallKm(Math.round(comp.km_since_service)); setUninstalling(v => !v); }} disabled={busy}
-            className={`${actionBtn} border-amber-400 text-amber-600 dark:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-950`}
-            title={t('componentRow.uninstallButtonTitle')}>
-            {t('componentRow.uninstallButton')}
+      {maintaining && (
+        <div className="mt-1.5 flex flex-wrap items-end gap-2 rounded-lg border border-emerald-300 dark:border-emerald-800 bg-emerald-50/60 dark:bg-emerald-950/30 p-2.5">
+          <label className={labelCls}>
+            <span className="block">{t('componentRow.maintenanceDateLabel')}</span>
+            <input type="date" value={maintainDate} onChange={e => setMaintainDate(e.target.value)}
+              max={new Date().toISOString().slice(0, 10)} className={fieldCls} />
+          </label>
+          <button onClick={handleMaintain} disabled={busy}
+            className={`${actionBtn} border-emerald-400 text-emerald-600 dark:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-950`}>
+            {t('common:actions.save')}
           </button>
-        )}
-        {isRetired && comp.uninstalled_km != null && comp.purchase_item_id == null && (
-          <button onClick={() => setLinking(v => !v)} disabled={busy}
-            className={`${actionBtn} border-amber-400 text-amber-600 dark:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-950`}
-            title={t('componentRow.toStockButtonTitle')}>
-            {t('componentRow.toStockButton')}
+          <button onClick={() => setMaintaining(false)} disabled={busy}
+            className={`${actionBtn} border-border text-muted-foreground hover:bg-muted`}>
+            {t('common:actions.cancel')}
           </button>
-        )}
-        {comp.uninstalled_km == null && comp.purchase_item_id == null && (
-          <button onClick={() => setLinking(v => !v)} disabled={busy}
-            className={`${actionBtn} border-amber-400 text-amber-600 dark:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-950`}
-            title={t('componentRow.linkButtonTitle')}>
-            {t('componentRow.linkButton')}
-          </button>
-        )}
-        <button onClick={handleDelete} disabled={busy}
-          className={`${actionBtn} border-red-300 text-red-500 hover:bg-red-50 dark:hover:bg-red-950`}
-          title={t('componentRow.deleteButtonTitle')}>
-          {t('common:actions.delete')}
-        </button>
-      </div>
+        </div>
+      )}
 
       {/* Ausbauen-Panel */}
       {uninstalling && (

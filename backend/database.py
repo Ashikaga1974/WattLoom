@@ -813,6 +813,45 @@ def init_db() -> None:
                 (json.dumps(keys["explanation"]), lang),
             )
 
+        # Neue Schlüssel für die überarbeitete Bikes-Übersicht (Session 2026-09-27: Wartungsleiste,
+        # Status-Chip auf der Bike-Karte, Lager-Tab, Kebab-Menü) – analog zu den Patches oben.
+        _BIKES_OVERVIEW_REDESIGN_KEYS = {
+            "de": {
+                "tabs.stock": "Lager",
+                "overview.maintenanceQueueHeading": "Nächste Wartungen",
+                "overview.maintenanceQueueEmpty": "Keine anstehenden Wartungen – alles im grünen Bereich.",
+                "bikeCard.statusCritical": "{{count}} kritisch",
+                "bikeCard.statusOk": "Im grünen Bereich",
+                "componentRow.moreActions": "Weitere Aktionen",
+            },
+            "en": {
+                "tabs.stock": "Stock",
+                "overview.maintenanceQueueHeading": "Upcoming maintenance",
+                "overview.maintenanceQueueEmpty": "No upcoming maintenance – everything looks good.",
+                "bikeCard.statusCritical": "{{count}} critical",
+                "bikeCard.statusOk": "Looking good",
+                "componentRow.moreActions": "More actions",
+            },
+        }
+        for lang, keys in _BIKES_OVERVIEW_REDESIGN_KEYS.items():
+            for key, value in keys.items():
+                conn.execute(
+                    "INSERT OR IGNORE INTO translations(lang, ns, key, value) VALUES (?, 'bikes', ?, ?)",
+                    (lang, key, json.dumps(value)),
+                )
+
+        # "Vergleich" als Sidebar-Untermenüpunkt unter "Bikes" (Session 2026-09-27).
+        _BIKES_NAV_SUBITEM_KEYS = {
+            "de": {"bikesOverview": "Übersicht", "bikesCompare": "Vergleich"},
+            "en": {"bikesOverview": "Overview", "bikesCompare": "Compare"},
+        }
+        for lang, keys in _BIKES_NAV_SUBITEM_KEYS.items():
+            for key, value in keys.items():
+                conn.execute(
+                    "INSERT OR IGNORE INTO translations(lang, ns, key, value) VALUES (?, 'common', ?, ?)",
+                    (lang, f"nav.{key}", json.dumps(value)),
+                )
+
         conn.commit()
 
 

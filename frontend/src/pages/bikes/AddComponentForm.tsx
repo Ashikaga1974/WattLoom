@@ -92,7 +92,8 @@ export function AddComponentForm({
       <button
         onClick={() => setOpen(true)}
         disabled={available.length === 0}
-        className="w-full text-sm font-medium py-2.5 rounded-xl border border-dashed border-border text-primary hover:bg-primary/5 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+        className="w-full h-8 flex items-center justify-center text-sm font-semibold px-4 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+        style={{ background: 'var(--primary)', color: 'var(--primary-foreground)' }}
         title={available.length === 0 ? t('addForm.noStockTitle') : undefined}
       >
         {t('addForm.closedButton')}

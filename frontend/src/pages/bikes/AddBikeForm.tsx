@@ -29,7 +29,8 @@ export function AddBikeForm({ onAdded }: { onAdded: () => void }) {
     return (
       <button
         onClick={() => setOpen(true)}
-        className="w-full text-sm font-medium py-2.5 rounded-xl border border-dashed border-border text-primary hover:bg-primary/5 transition-colors"
+        className="shrink-0 h-8 flex items-center text-sm font-semibold px-4 rounded-lg transition-colors"
+        style={{ background: 'var(--primary)', color: 'var(--primary-foreground)' }}
       >
         {t('addBikeForm.closedButton')}
       </button>
@@ -37,7 +38,7 @@ export function AddBikeForm({ onAdded }: { onAdded: () => void }) {
   }
 
   return (
-    <div className="rounded-xl border p-4 space-y-3" style={{ borderColor: 'var(--primary)' }}>
+    <div className="w-full rounded-xl border p-4 space-y-3" style={{ borderColor: 'var(--primary)' }}>
       <p className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">{t('addBikeForm.panelTitle')}</p>
       <label className="space-y-1 text-sm text-muted-foreground block">
         <span className="block">{t('addBikeForm.nameLabel')}</span>
