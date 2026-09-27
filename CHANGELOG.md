@@ -1,5 +1,16 @@
 # Changelog
 
+## v1.1.0 – 2026-09-27
+
+- Erholungszeit-Schätzung nach Aktivitäten/Workouts (grobe Heuristik aus hrTSS/IF, keine HRV-Messung)
+- Jahres-Ø-Temperaturlinie im Wetterverlauf (/tempcorr)
+- Rundenbasierte Trittfrequenz-Kadenz-Auswertung + Kadenz-Chart auf der Aktivitäts-Detailseite
+- Dark-Mode-Umschalter in den Einstellungen
+- GitHub-Pages-Landingpage
+- Leistungsschätzung: zeitbasierte NP-Fensterlogik statt Punktanzahl, avg_power_w zeitgewichtet über Bewegungsphasen (Stillstand ausgeklammert)
+- Settings: Domänen-Validierung (weight_kg, birth_year, hr_max, crr, cda, bike_kg)
+- Genauigkeitsangabe zur Leistungsschätzung entschärft, media-Endpoint abgesichert
+
 ## v1.0.2 – 2026-09-13
 
 Setup-Wizard, Import-Seite ausgelagert, has_media-Label
