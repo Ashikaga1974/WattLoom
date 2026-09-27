@@ -85,6 +85,7 @@ interface TimelinePt {
   rain_flag: number;
   rolling_temp_c: number | null;
   rolling_wind_ms: number | null;
+  year_avg_temp_c: number;
 }
 
 const TIMELINE_ROLLING_WINDOW = 15;
@@ -92,13 +93,33 @@ const TIMELINE_ROLLING_WINDOW = 15;
 /** Trailing gleitender Ø über die letzten n Tage mit Daten (nicht Kalendertage) – glättet die
     Tageswerte zu einer Trendlinie, ohne die Rohwerte selbst zu verändern. Wind kann pro Tag
     null sein (kein Wert von Open-Meteo) – fließt dann nicht in den Fensterschnitt ein. */
-function withRollingAverage(pts: Omit<TimelinePt, 'rolling_temp_c' | 'rolling_wind_ms'>[]): TimelinePt[] {
+function withRollingAverage(
+  pts: Omit<TimelinePt, 'rolling_temp_c' | 'rolling_wind_ms' | 'year_avg_temp_c'>[],
+): Omit<TimelinePt, 'year_avg_temp_c'>[] {
   return pts.map((p, i) => {
     const windowSlice = pts.slice(Math.max(0, i - (TIMELINE_ROLLING_WINDOW - 1)), i + 1);
     const avg = windowSlice.reduce((s, w) => s + w.temp_c, 0) / windowSlice.length;
     const windSlice = windowSlice.filter((w): w is typeof w & { wind_ms: number } => w.wind_ms != null);
     const windAvg = windSlice.length ? windSlice.reduce((s, w) => s + w.wind_ms, 0) / windSlice.length : null;
     return { ...p, rolling_temp_c: +avg.toFixed(1), rolling_wind_ms: windAvg != null ? +windAvg.toFixed(1) : null };
+  });
+}
+
+/** Ø-Temperatur je Kalenderjahr, als konstanter Wert auf jeden Tag dieses Jahres gemappt –
+    zusammen mit type="stepAfter" in der Line ergibt das ein horizontales Segment je Jahr mit
+    einem Sprung am Jahreswechsel statt einer schrägen Verbindungslinie zwischen den Jahren. */
+function withYearAverage<T extends { day: string; temp_c: number }>(pts: T[]): (T & { year_avg_temp_c: number })[] {
+  const sumByYear = new Map<string, { sum: number; count: number }>();
+  for (const p of pts) {
+    const year = p.day.slice(0, 4);
+    const entry = sumByYear.get(year) ?? { sum: 0, count: 0 };
+    entry.sum += p.temp_c;
+    entry.count += 1;
+    sumByYear.set(year, entry);
+  }
+  return pts.map(p => {
+    const entry = sumByYear.get(p.day.slice(0, 4))!;
+    return { ...p, year_avg_temp_c: +(entry.sum / entry.count).toFixed(1) };
   });
 }
 
@@ -115,6 +136,7 @@ function TimelineTooltip({ active, payload }: { active?: boolean; payload?: { pa
       <p className="font-semibold mb-1.5">{fmtDayFull(d.day)}</p>
       <div className="flex flex-col gap-1 text-xs">
         <span style={{ color: 'var(--primary)' }}>{t('timeline.temp', { value: d.temp_c })}</span>
+        <span style={{ color: 'var(--chart-3)' }}>{t('timeline.yearAvg', { value: d.year_avg_temp_c })}</span>
         {d.wind_ms != null && (
           <span style={{ color: 'var(--chart-4)' }}>{t('timeline.wind', { value: d.wind_ms })}</span>
         )}
@@ -228,7 +250,7 @@ export default function TempCorrPage() {
           rained: p.rained,
           rain_flag: p.rained ? 1 : 0,
         }));
-        setTimelinePts(withRollingAverage(withTs));
+        setTimelinePts(withYearAverage(withRollingAverage(withTs)));
       })
       .catch(e => setError(e instanceof Error ? e.message : t('errorFallback')))
       .finally(() => setLoading(false));
@@ -338,11 +360,25 @@ export default function TempCorrPage() {
                       isAnimationActive={false}
                     />
                     <Line
+                      type="monotone"
                       dataKey="temp_c"
-                      stroke="none"
+                      stroke="var(--muted-foreground)"
+                      strokeOpacity={0.35}
+                      strokeWidth={1}
                       isAnimationActive={false}
+                      connectNulls
                       dot={{ r: 2, fill: 'var(--muted-foreground)', fillOpacity: 0.35, strokeWidth: 0 }}
                       activeDot={{ r: 5, fill: 'var(--primary)', stroke: 'var(--background)', strokeWidth: 2 }}
+                    />
+                    <Line
+                      type="stepAfter"
+                      dataKey="year_avg_temp_c"
+                      stroke="var(--chart-3)"
+                      strokeWidth={1.5}
+                      strokeDasharray="6,4"
+                      dot={false}
+                      activeDot={false}
+                      isAnimationActive={false}
                     />
                   </ComposedChart>
                 </ResponsiveContainer>
@@ -403,6 +439,19 @@ export default function TempCorrPage() {
                     {t('timeline.legendTrend')}
                   </span>
                   <span className="flex items-center gap-1.5">
+                    <span
+                      className="w-4 h-0.5 inline-block rounded"
+                      style={{ background: 'var(--muted-foreground)', opacity: 0.35 }}
+                    />
+                    {t('timeline.legendDaily')}
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <svg width="16" height="8" className="shrink-0">
+                      <line x1="0" y1="4" x2="16" y2="4" stroke="var(--chart-3)" strokeWidth={1.5} strokeDasharray="4,3" />
+                    </svg>
+                    {t('timeline.legendYearAvg')}
+                  </span>
+                  <span className="flex items-center gap-1.5">
                     <span className="w-2.5 h-2.5 rounded-sm inline-block" style={{ background: 'var(--chart-2)' }} />
                     {t('timeline.legendRain')}
                   </span>
@@ -411,6 +460,9 @@ export default function TempCorrPage() {
                     {t('timeline.legendWind')}
                   </span>
                 </div>
+                <p className="text-xs text-muted-foreground mt-2">
+                  {t('timeline.explanation')}
+                </p>
               </CardContent>
             </Card>
           )}

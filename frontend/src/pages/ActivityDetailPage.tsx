@@ -745,6 +745,13 @@ export default function ActivityDetailPage() {
               value={`${Math.round(activity.elevation_loss_m)} m`}
             />
           )}
+          {activity.recovery_h != null && (
+            <StatTileSecondary
+              label={t('stats.recovery')}
+              value={`~${activity.recovery_h} h`}
+              sub={t('stats.recoverySub')}
+            />
+          )}
         </div>
       )}
 

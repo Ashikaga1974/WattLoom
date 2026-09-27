@@ -5,7 +5,9 @@ Physikalisches Modell:
   P_gesamt = P_roll + P_steigung + P_aero
            = m·g·Crr·v  +  m·g·gradient·v  +  0.5·ρ·CdA·v³
 
-Genauigkeit: ±10–20 % bei guten Bedingungen (keine Windmessung, GPS-Höhenrauschen).
+Physikalisch basierte Schätzung, keine Messung – die Genauigkeit hängt insbesondere von
+Wind (keine Windmessung, nur Vorwärtsgeschwindigkeit), CdA, Crr, GPS-Höhenrauschen und
+Geschwindigkeitsgenauigkeit ab und schwankt dadurch je nach Bedingungen.
 Negative Leistung (Bergab/Freilauf) wird auf 0 geklammert.
 """
 import math
@@ -87,9 +89,15 @@ def _normalized_power(
 
     Zeitbasiertes Schiebefenster mit O(n) Zwei-Zeiger-Algorithmus.
     Falls keine Timestamps vorhanden: Index-basiertes Fallback (~1 Hz).
+
+    Wichtig: "n" ist die Punktanzahl, nicht zwangsläufig die Sekundenzahl (Aufzeichnung
+    kann z.B. mit 2 Hz oder 0,5 Hz statt 1 Hz laufen) – die Mindestlänge wird deshalb bei
+    vorhandenen Timestamps über die tatsächliche Zeitspanne geprüft, nicht über len(powers).
+    Ebenso gehen nur vollständige 30-Sekunden-Fenster in die Mittelung ein (die ersten
+    <30s der Fahrt liefern sonst verzerrte, zu kurze Fenster).
     """
     n = len(powers)
-    if n < window_s:
+    if n == 0:
         return None
 
     has_times = len(times) == n and any(t is not None and t > 0 for t in times)
@@ -100,24 +108,34 @@ def _normalized_power(
         prefix[i + 1] = prefix[i] + p
 
     if has_times:
-        # Timestamps vorhanden → echte 30-Sekunden-Fenster
+        # Timestamps vorhanden → echte 30-Sekunden-Fenster über die Zeitspanne prüfen,
+        # nicht über die Punktanzahl (unterschiedliche Aufzeichnungsraten möglich)
         ts = [t if t is not None else 0.0 for t in times]
+        if ts[-1] - ts[0] < window_s:
+            return None
         left = 0
         rolling = []
         for i in range(n):
             # Linken Rand vorschieben: ältere Punkte als t_i − 30 s ausblenden
             while ts[left] < ts[i] - window_s:
                 left += 1
+            if ts[i] - ts[0] < window_s:
+                # Noch kein vollständiges 30s-Fenster erreicht → nicht in NP-Mittel aufnehmen
+                continue
             count = i - left + 1
             avg = (prefix[i + 1] - prefix[left]) / count
             rolling.append(avg)
     else:
-        # Kein Timestamp → Index als Sekunden-Näherung
+        # Kein Timestamp → Index als Sekunden-Näherung (~1 Hz)
+        if n < window_s:
+            return None
         left = 0
         rolling = []
         for i in range(n):
             while i - left >= window_s:
                 left += 1
+            if i < window_s - 1:
+                continue
             count = i - left + 1
             avg = (prefix[i + 1] - prefix[left]) / count
             rolling.append(avg)
@@ -189,12 +207,22 @@ def estimate_power(
 
     powers: list[float] = []
     times:  list[float | None] = []
+    # Für avg_power_w getrennt erfasst: nur Bewegungs-Phasen, zeitgewichtet (siehe unten) –
+    # powers/times oben bleiben komplett (inkl. Stillstand als 0 W) für die NP-Fensterbildung.
+    moving_powers: list[float] = []
+    moving_weights: list[float] = []
 
     for i in range(1, len(pts)):
         v = pts[i]["v"]
 
+        # Zeitdifferenz zum Vorpunkt – Gewicht für die zeitbasierte avg_power-Mittelung
+        ts_prev, ts_cur = pts[i - 1]["ts"], pts[i]["ts"]
+        dt = (ts_cur - ts_prev) if (ts_prev is not None and ts_cur is not None and ts_cur > ts_prev) else None
+
         if v < MIN_SPEED_MS:
-            # Stillstand: Leistung = 0, Zeitstempel trotzdem aufzeichnen für NP-Fenster
+            # Stillstand: Leistung = 0, Zeitstempel trotzdem aufzeichnen für NP-Fenster;
+            # fließt bewusst NICHT in avg_power_w ein (das soll die Leistung während der
+            # Fahrt zeigen, nicht durch Ampeln/Pausen künstlich nach unten gezogen werden)
             powers.append(0.0)
             times.append(pts[i]["ts"])
             continue
@@ -219,13 +247,27 @@ def estimate_power(
         p_aero = 0.5 * rho * cda * v ** 3          # Luftwiderstand
 
         # Bergab/Freilauf → 0 (kein Antrieb)
-        powers.append(max(0.0, p_roll + p_grav + p_aero))
+        p = max(0.0, p_roll + p_grav + p_aero)
+        powers.append(p)
         times.append(pts[i]["ts"])
+
+        moving_powers.append(p)
+        moving_weights.append(dt if dt is not None else 1.0)
 
     if not powers:
         return None, None
 
-    avg_w  = sum(powers) / len(powers)
+    # avg_power_w zeitgewichtet über die Bewegungsphasen (nicht einfach über Punktanzahl –
+    # bei ungleichmäßiger Aufzeichnungsrate würde das sonst falsch gewichtet)
+    if moving_powers:
+        total_weight = sum(moving_weights)
+        avg_w = (
+            sum(p * w for p, w in zip(moving_powers, moving_weights)) / total_weight
+            if total_weight > 0 else sum(moving_powers) / len(moving_powers)
+        )
+    else:
+        avg_w = 0.0
+
     norm_w = _normalized_power(times, powers, NP_WINDOW_S) or avg_w
 
     return round(avg_w, 1), round(norm_w, 1)

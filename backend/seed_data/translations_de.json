@@ -110,7 +110,9 @@
       "elevationLoss": "Abstieg",
       "estPower": "~ Leistung",
       "maxSpeed": "Max. Geschw.",
-      "movingTime": "Fahrzeit"
+      "movingTime": "Fahrzeit",
+      "recovery": "Erholung",
+      "recoverySub": "grobe Schätzung, keine HRV-Messung"
     },
     "weather": {
       "noRain": "kein Regen",
@@ -1555,7 +1557,7 @@
       "backgroundSuffix": "– läuft im Hintergrund.",
       "estimateButton": "Leistung für alle Fahrten schätzen",
       "starting": "Startet…",
-      "subtitle": "Berechnet Durchschnittsleistung und Normalized Power aus GPS + Höhenprofil für alle Radtouren mit Track-Daten. Physikalisches Modell: Rollwiderstand (Crr 0.004), Luftwiderstand (CdA 0.32 m²), Steigungsarbeit. Genauigkeit ca. ±15 % – Wind wird nicht berücksichtigt. Setzt voraus, dass Körpergewicht gesetzt ist.",
+      "subtitle": "Berechnet Durchschnittsleistung und Normalized Power aus GPS + Höhenprofil für alle Radtouren mit Track-Daten. Physikalisches Modell: Rollwiderstand (Crr 0.004), Luftwiderstand (CdA 0.32 m²), Steigungsarbeit. Physikalisch basierte Schätzung, keine Messung – die Genauigkeit hängt insbesondere von Wind, CdA, Crr, GPS-Höhe und Geschwindigkeit ab. Setzt voraus, dass Körpergewicht gesetzt ist.",
       "title": "Leistung schätzen"
     },
     "reset": {
@@ -1784,15 +1786,19 @@
       "title": "Wind-Impact"
     },
     "timeline": {
-      "title": "Temperatur-, Wind- & Regenverlauf",
-      "subtitle": "(ein Wert je Tag)",
-      "temp": "{{value}}°C",
-      "rained": "Regen",
       "dry": "Trocken",
+      "explanation": "Dünne Linie: tatsächliche Tages-Ø-Temperatur. Dicke Linie: geglätteter 15-Tage-Trend. Gestrichelte Linie: Ø-Temperatur des jeweiligen Kalenderjahres.",
+      "legendDaily": "Tageswert",
       "legendRain": "Regen",
       "legendTrend": "Trend (gleitender Ø, 15 Tage)",
+      "legendWind": "Wind",
+      "legendYearAvg": "Jahres-Ø",
+      "rained": "Regen",
+      "subtitle": "(ein Wert je Tag)",
+      "temp": "{{value}}°C",
+      "title": "Temperatur-, Wind- & Regenverlauf",
       "wind": "{{value}} m/s Wind",
-      "legendWind": "Wind"
+      "yearAvg": "Jahres-Ø {{value}}°C"
     }
   },
   "weekend": {
@@ -1884,6 +1890,8 @@
       "maxCadence": "Max Kadenz",
       "maxHr": "Max Herzfrequenz",
       "minHr": "Min Herzfrequenz",
+      "recovery": "Erholung",
+      "recoverySub": "grobe Schätzung, keine HRV-Messung",
       "trainingEffect": "Trainingseffekt"
     },
     "notFound": "Workout nicht gefunden",

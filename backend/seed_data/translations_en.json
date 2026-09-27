@@ -110,7 +110,9 @@
       "elevationLoss": "Elevation loss",
       "estPower": "~ Power",
       "maxSpeed": "Max. speed",
-      "movingTime": "Moving time"
+      "movingTime": "Moving time",
+      "recovery": "Recovery",
+      "recoverySub": "rough estimate, no HRV measurement"
     },
     "weather": {
       "noRain": "no rain",
@@ -1555,7 +1557,7 @@
       "backgroundSuffix": "– running in the background.",
       "estimateButton": "Estimate power for all rides",
       "starting": "Starting…",
-      "subtitle": "Calculates average power and Normalized Power from GPS + elevation profile for all rides with track data. Physical model: rolling resistance (Crr 0.004), drag (CdA 0.32 m²), gradient work. Accuracy approx. ±15 % – wind is not taken into account. Requires body weight to be set.",
+      "subtitle": "Calculates average power and Normalized Power from GPS + elevation profile for all rides with track data. Physical model: rolling resistance (Crr 0.004), drag (CdA 0.32 m²), gradient work. Physically based estimate, not a measurement – accuracy depends in particular on wind, CdA, Crr, GPS elevation and speed. Requires body weight to be set.",
       "title": "Estimate Power"
     },
     "reset": {
@@ -1784,15 +1786,19 @@
       "title": "Wind impact"
     },
     "timeline": {
-      "title": "Temperature, wind & rain over time",
-      "subtitle": "(one value per day)",
-      "temp": "{{value}}°C",
-      "rained": "Rain",
       "dry": "Dry",
+      "explanation": "Thin line: actual daily average temperature. Thick line: smoothed 15-day trend. Dashed line: average temperature of the respective calendar year.",
+      "legendDaily": "Daily value",
       "legendRain": "Rain",
       "legendTrend": "Trend (rolling avg, 15 days)",
+      "legendWind": "Wind",
+      "legendYearAvg": "Year avg",
+      "rained": "Rain",
+      "subtitle": "(one value per day)",
+      "temp": "{{value}}°C",
+      "title": "Temperature, wind & rain over time",
       "wind": "{{value}} m/s wind",
-      "legendWind": "Wind"
+      "yearAvg": "Year avg {{value}}°C"
     }
   },
   "weekend": {
@@ -1884,6 +1890,8 @@
       "maxCadence": "Max Cadence",
       "maxHr": "Max heart rate",
       "minHr": "Min Heart Rate",
+      "recovery": "Recovery",
+      "recoverySub": "rough estimate, no HRV measurement",
       "trainingEffect": "Training Effect"
     },
     "notFound": "Workout not found",

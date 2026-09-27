@@ -347,7 +347,7 @@ export default function WorkoutDetailPage() {
   const hasIntensity = data.avg_hr != null && data.hr_max > 0;
   const hasHistory = data.history.length > 1;
   const hasExtraKpis = data.min_hr != null || data.avg_cadence != null || data.max_cadence != null
-    || data.training_effect != null || data.anaerobic_training_effect != null;
+    || data.training_effect != null || data.anaerobic_training_effect != null || data.recovery_h != null;
 
   return (
     <div className="space-y-6">
@@ -430,6 +430,9 @@ export default function WorkoutDetailPage() {
           )}
           {data.anaerobic_training_effect != null && (
             <KpiCard label={t('kpi.anaerobicTrainingEffect')} value={data.anaerobic_training_effect.toFixed(1)} />
+          )}
+          {data.recovery_h != null && (
+            <KpiCard label={t('kpi.recovery')} value={`~${data.recovery_h}`} unit="h" sub={t('kpi.recoverySub')} />
           )}
         </div>
       )}

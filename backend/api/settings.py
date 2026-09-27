@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException
-from pydantic import create_model
+from pydantic import Field, create_model
 from backend.api.translations import SUPPORTED_LANGUAGES
 from backend.database import db_connection
 
@@ -47,6 +47,11 @@ _FIELDS: dict[str, tuple[type, object]] = {
     # Ketten-Pflegeintervall (Reinigen/Ölen) – unabhängig vom Verschleiß-/Austausch-Intervall
     # (km_threshold der Komponente selbst)
     "chain_maintenance_km":  (float, 300.0),
+    # Erholungszeit-Schätzung pro Aktivität/Workout (grobe Heuristik, keine HRV-Messung):
+    # recovery_h = recovery_base_h × (hrTSS/100) × IF^recovery_if_exponent, siehe
+    # backend/api/analytics/_shared.py: estimate_recovery_hours()
+    "recovery_base_h":       (float, 6.0),
+    "recovery_if_exponent":  (float, 2.0),
     # Setup-Wizard beim allerersten Start (Profil + erstes Bike anlegen). Default 0 heißt
     # "Wizard noch nicht durchlaufen" – init_db() setzt das Flag für bereits bestehende
     # Installationen (vorhandene Aktivitäten/Bikes/Config) automatisch auf 1.
@@ -54,10 +59,26 @@ _FIELDS: dict[str, tuple[type, object]] = {
 }
 
 
+# Fachliche Wertegrenzen (inklusiv) für physikalisch/domänenmäßig unplausible Eingaben –
+# reine Typprüfung würde z.B. crr=100 oder weight_kg=-50 klaglos akzeptieren. Bewusst nur
+# für Felder mit einem echten physikalisch sinnvollen Bereich, nicht für jedes Setting.
+_CONSTRAINTS: dict[str, tuple[float, float]] = {
+    "weight_kg":  (30, 300),      # kg, Körpergewicht
+    "birth_year": (1920, 2015),   # analog zur Frontend-Validierung (PersonalDataCard.tsx)
+    "hr_max":     (100, 240),     # bpm, analog zur Frontend-Validierung
+    "crr":        (0.001, 0.02),  # Rollwiderstandskoeffizient, siehe power_estimator.py
+    "cda":        (0.1, 1.5),     # m², Luftwiderstandsfläche
+    "bike_kg":    (2, 40),        # kg, Fahrradgewicht inkl. Anbauteile
+}
+
 # Pydantic-Modell aus _FIELDS abgeleitet – Typen nur einmal definiert
 SettingsUpdate = create_model(
     "SettingsUpdate",
-    **{k: (t | None, None) for k, (t, _) in _FIELDS.items()},
+    **{
+        k: (t | None, Field(default=None, **({"ge": lo, "le": hi} if k in _CONSTRAINTS else {})))
+        for k, (t, _) in _FIELDS.items()
+        for (lo, hi) in [_CONSTRAINTS.get(k, (None, None))]
+    },
 )
 
 

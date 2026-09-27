@@ -756,6 +756,63 @@ def init_db() -> None:
             (json.dumps("Contains photos"),),
         )
 
+        # Neue Erholungszeit-Schätzung (grobe Heuristik, keine HRV-Messung; Session 2026-09-15,
+        # siehe backend/api/analytics/_shared.py: estimate_recovery_hours()) – Schlüssel für
+        # ActivityDetailPage (stats.*) und WorkoutDetailPage (kpi.*) nachtragen.
+        _RECOVERY_KEYS = {
+            "de": {
+                ("activitydetail", "stats.recovery"): "Erholung",
+                ("activitydetail", "stats.recoverySub"): "grobe Schätzung, keine HRV-Messung",
+                ("workoutdetail", "kpi.recovery"): "Erholung",
+                ("workoutdetail", "kpi.recoverySub"): "grobe Schätzung, keine HRV-Messung",
+            },
+            "en": {
+                ("activitydetail", "stats.recovery"): "Recovery",
+                ("activitydetail", "stats.recoverySub"): "rough estimate, no HRV measurement",
+                ("workoutdetail", "kpi.recovery"): "Recovery",
+                ("workoutdetail", "kpi.recoverySub"): "rough estimate, no HRV measurement",
+            },
+        }
+        for lang, keys in _RECOVERY_KEYS.items():
+            for (ns, key), value in keys.items():
+                conn.execute(
+                    "INSERT OR IGNORE INTO translations(lang, ns, key, value) VALUES (?, ?, ?, ?)",
+                    (lang, ns, key, json.dumps(value)),
+                )
+
+        # Neue tempcorr.timeline.legendDaily/yearAvg/explanation-Schlüssel (Session 2026-09-15):
+        # erklären die dünne graue Linie (rohe Tageswerte) und die gestrichelte Jahres-Ø-Linie
+        # im Temperaturverlauf neben der dicken Trendlinie – vorher gab es nur unverbundene
+        # Punkte ohne Legende/Erklärung.
+        _TEMPCORR_TIMELINE_KEYS = {
+            "de": {
+                "legendDaily": "Tageswert",
+                "legendYearAvg": "Jahres-Ø",
+                "yearAvg": "Jahres-Ø {{value}}°C",
+                "explanation": "Dünne Linie: tatsächliche Tages-Ø-Temperatur. Dicke Linie: geglätteter 15-Tage-Trend. Gestrichelte Linie: Ø-Temperatur des jeweiligen Kalenderjahres.",
+            },
+            "en": {
+                "legendDaily": "Daily value",
+                "legendYearAvg": "Year avg",
+                "yearAvg": "Year avg {{value}}°C",
+                "explanation": "Thin line: actual daily average temperature. Thick line: smoothed 15-day trend. Dashed line: average temperature of the respective calendar year.",
+            },
+        }
+        for lang, keys in _TEMPCORR_TIMELINE_KEYS.items():
+            for key, value in keys.items():
+                conn.execute(
+                    "INSERT OR IGNORE INTO translations(lang, ns, key, value) VALUES (?, 'tempcorr', ?, ?)",
+                    (lang, f"timeline.{key}", json.dumps(value)),
+                )
+        # explanation-Text wurde noch innerhalb derselben Session (Jahres-Ø-Linie ergänzt)
+        # erweitert – OR IGNORE hätte den älteren, schon eingefügten Wortlaut auf Saschas
+        # eigener Installation stehen lassen, deshalb hier gezielt überschrieben.
+        for lang, keys in _TEMPCORR_TIMELINE_KEYS.items():
+            conn.execute(
+                "UPDATE translations SET value = ? WHERE lang = ? AND ns = 'tempcorr' AND key = 'timeline.explanation'",
+                (json.dumps(keys["explanation"]), lang),
+            )
+
         conn.commit()
 
 

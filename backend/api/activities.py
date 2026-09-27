@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Query
-from backend.api.analytics._shared import _effective_hr_max
+from backend.api.analytics._shared import _effective_hr_max, estimate_recovery_hours
 from backend.api.errors import api_error
 from backend.api.zones import correction_pct_for_date, corrected_hr, get_hr_correction_settings
 from backend.cache import invalidate as invalidate_analytics_cache
@@ -230,6 +230,12 @@ def get_other_activity(workout_id: int):
         hr_max = _effective_hr_max(conn)
         correction = get_hr_correction_settings(conn)
         correction_pct = correction_pct_for_date(correction, row["start_date_local"][:10] if row["start_date_local"] else None)
+        recovery_h = estimate_recovery_hours(
+            conn,
+            row["moving_time_s"] or row["elapsed_time_s"],
+            row["avg_hr"],
+            row["start_date_local"],
+        )
 
     avg_time = None
     avg_kcal = None
@@ -247,6 +253,7 @@ def get_other_activity(workout_id: int):
         "hr_max": hr_max,
         "hr_correction_applied": correction_pct > 0,
         "avg_hr_corrected": corrected_hr(row["avg_hr"], hr_max, correction_pct) if row["avg_hr"] is not None else None,
+        "recovery_h": recovery_h,
     }
 
 
@@ -256,9 +263,16 @@ def get_activity(activity_id: int):
         row = conn.execute(
             "SELECT * FROM activities WHERE id = ?", (activity_id,)
         ).fetchone()
-    if row is None:
-        raise api_error(404, "activity_not_found", "Activity not found")
-    return dict(row)
+        if row is None:
+            raise api_error(404, "activity_not_found", "Activity not found")
+        result = dict(row)
+        result["recovery_h"] = estimate_recovery_hours(
+            conn,
+            row["moving_time_s"] or row["elapsed_time_s"],
+            row["avg_hr"],
+            row["start_date_local"],
+        )
+    return result
 
 
 @router.get("/{activity_id}/laps")

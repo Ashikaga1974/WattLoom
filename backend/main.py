@@ -1,4 +1,6 @@
 import logging
+from pathlib import Path
+
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
@@ -46,7 +48,10 @@ app.include_router(system.router)
 
 @app.get("/media/{filename}")
 def serve_media(filename: str):
-    path = MEDIA_DIR / filename
+    # Nur der reine Dateiname zählt (Media-Dateien liegen immer flach mit UUID-Namen in
+    # MEDIA_DIR, siehe CLAUDE.md) – verhindert Pfad-Traversal über z.B. "../../backend/main.py"
+    # oder URL-kodierte Varianten davon.
+    path = MEDIA_DIR / Path(filename).name
     if not path.exists() or not path.is_file():
         raise HTTPException(status_code=404, detail="Media not found")
     return FileResponse(path)

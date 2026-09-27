@@ -72,6 +72,7 @@ export interface ActivityDetail extends Activity {
   weather_precip_mm: number | null;
   est_avg_power_w: number | null;
   est_norm_power_w: number | null;
+  recovery_h: number | null;
 }
 
 export interface WeatherStatus {
@@ -305,6 +306,7 @@ export interface WorkoutDetail {
   hr_max: number;
   hr_correction_applied: boolean;
   avg_hr_corrected: number | null;
+  recovery_h: number | null;
 }
 
 export interface PmcResponse {
