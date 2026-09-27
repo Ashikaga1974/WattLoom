@@ -494,9 +494,6 @@ Snapshot aller `bike_components`-Felder zum Löschzeitpunkt plus `km_since_servi
 ### `pr_events` – erkannte neue Bestzeiten
 `distance_km`, `best_time_s`, `best_speed_kmh`, `activity_id`, `activity_name` (Snapshot, nicht live gejoint), `previous_time_s`, `created_at`. Wird von `pr_detection.py` per Snapshot-Diff auf `best_by_distance()` vor/nach jedem Import befüllt; erscheint als Dashboard-Kachel, bis sie per `DELETE /analytics/pr-events/{id}` verworfen wird.
 
-### `routes` / `route_points` – importierte GPX-Routen (keine Rides)
-`routes`: `name`, `description`, `distance_m`, `source_file`. `route_points`: `route_id` (FK), `seq`, `lat`, `lon`, `altitude_m`.
-
 ### `media` – Fotos zu Aktivitäten
 `activity_id` (FK), `filename` (UUID, Datei in `data/media/`), `taken_at`, `lat`, `lon`.
 
