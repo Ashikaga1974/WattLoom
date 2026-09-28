@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.1.1 – 2026-09-28
+
+App-Name auf "WattLoom Cycling" erweitert (UI, Onboarding, README, Landingpage)
+
 ## v1.1.0 – 2026-09-27
 
 - Erholungszeit-Schätzung nach Aktivitäten/Workouts (grobe Heuristik aus hrTSS/IF, keine HRV-Messung)
