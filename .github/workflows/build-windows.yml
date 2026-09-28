@@ -8,6 +8,9 @@ on:
     tags:
       - "v*"
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: windows-latest
@@ -40,3 +43,16 @@ jobs:
         with:
           name: WattLoom-windows
           path: dist/WattLoom/
+
+      - name: Zip fürs Release schnüren
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: Compress-Archive -Path dist/WattLoom/* -DestinationPath WattLoom-windows.zip
+
+      # Hängt die Zip als Asset an den bestehenden Tag-Release an, statt sie nur als
+      # (für unerfahrene Nutzer schwer auffindbares, login-pflichtiges) Actions-Artefakt
+      # liegen zu lassen – Releases sind über die Repo-Sidebar ohne Login erreichbar.
+      - name: Release-Asset hochladen
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: WattLoom-windows.zip
