@@ -1,4 +1,4 @@
-# WattLoom
+# WattLoom Cycling
 
 > 🇬🇧 [English README](README.md)
 
@@ -21,7 +21,7 @@ Einfach den ZIP-Export herunterladen, importieren, fertig.
 
 ---
 
-### Warum WattLoom?
+### Warum WattLoom Cycling?
 
 **Keine API.**
 Strava-ZIP-Export importieren, fertig.
@@ -37,7 +37,7 @@ Training, Performance, Wetter und Bike-Wartung an einem Ort.
 
 ### Vergleich mit bestehenden Lösungen
 
-| | WattLoom | Strava | GoldenCheetah | Intervals.icu |
+| | WattLoom Cycling | Strava | GoldenCheetah | Intervals.icu |
 |---|---|---|---|---|
 | Lokale Daten | ✅ | ❌ | ✅ | ❌ |
 | Strava-API nötig | ❌ | — | optional | optional |
@@ -48,7 +48,7 @@ Training, Performance, Wetter und Bike-Wartung an einem Ort.
 
 ---
 
-> ⚠️ **Sicherheitshinweis:** WattLoom hat bewusst **keine Authentifizierung** (Single-User-Design
+> ⚠️ **Sicherheitshinweis:** WattLoom Cycling hat bewusst **keine Authentifizierung** (Single-User-Design
 > für den lokalen Gebrauch). Nur lokal oder im eigenen LAN/VPN betreiben – niemals ungeschützt
 > ins offene Internet stellen.
 
@@ -56,7 +56,7 @@ Training, Performance, Wetter und Bike-Wartung an einem Ort.
 
 ## Inhaltsverzeichnis
 
-- [Warum WattLoom?](#warum-wattloom)
+- [Warum WattLoom Cycling?](#warum-wattloom-cycling)
 - [Sicherheitshinweis](#sicherheitshinweis)
 - [Features](#features)
 - [Voraussetzungen](#voraussetzungen)
@@ -108,7 +108,7 @@ Training, Performance, Wetter und Bike-Wartung an einem Ort.
 
 ## Sicherheitshinweis
 
-WattLoom ist als **Single-User-Anwendung für den lokalen Gebrauch** konzipiert: keine
+WattLoom Cycling ist als **Single-User-Anwendung für den lokalen Gebrauch** konzipiert: keine
 Authentifizierung, keine Benutzerverwaltung, keine Mandantentrennung – jede Installation ist für
 genau eine Person gedacht. Das ist eine bewusste Design-Entscheidung, keine Sicherheitslücke,
 solange folgende Regel eingehalten wird:
@@ -118,11 +118,11 @@ solange folgende Regel eingehalten wird:
   machen.
 - Für Fernzugriff (z. B. vom Handy unterwegs) einen **VPN-Tunnel** (z. B. WireGuard, Tailscale)
   ins eigene LAN nutzen statt den Port direkt zu exponieren.
-- Innerhalb des eigenen, vertrauenswürdigen LAN kann WattLoom bedenkenlos für mehrere eigene
+- Innerhalb des eigenen, vertrauenswürdigen LAN kann WattLoom Cycling bedenkenlos für mehrere eigene
   Geräte erreichbar gemacht werden (z. B. `0.0.0.0`-Bind statt `localhost`) – dort ist kein Auth
   nötig, da nur die eigenen Geräte im Netz Zugriff haben.
 
-Wer Multi-User-Betrieb, Auth oder öffentliches Hosting braucht, ist mit WattLoom in seiner
+Wer Multi-User-Betrieb, Auth oder öffentliches Hosting braucht, ist mit WattLoom Cycling in seiner
 jetzigen Architektur falsch bedient – siehe „Bekannte Eigenheiten" bzw. `CLAUDE.md` für den
 bewussten Single-User-Rahmen.
 
@@ -588,7 +588,7 @@ In [frontend/src/lib/config-context.tsx](frontend/src/lib/config-context.tsx):
 
 ## Unterstützen
 
-WattLoom ist kostenlos und Open Source, entwickelt und gepflegt in meiner Freizeit. Wenn es dir
+WattLoom Cycling ist kostenlos und Open Source, entwickelt und gepflegt in meiner Freizeit. Wenn es dir
 nützt, freue ich mich über eine Unterstützung – sie ist aber nie Voraussetzung. Kein Feature wird
 jemals hinter einer Bezahlschranke landen.
 

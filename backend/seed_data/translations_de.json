@@ -1208,7 +1208,7 @@
   },
   "onboarding": {
     "welcome": {
-      "title": "Willkommen bei WattLoom",
+      "title": "Willkommen bei WattLoom Cycling",
       "subtitle": "Ein paar kurze Schritte, damit die Auswertungen von Anfang an stimmen."
     },
     "steps": {
@@ -1231,7 +1231,7 @@
       "hint": "Optional: direkt eine erste Aktivität importieren. Der vollständige ZIP-Export-Import (Strava-Gesamtexport) steht später jederzeit über den Import-Bereich in der Sidebar zur Verfügung."
     },
     "done": {
-      "text": "Alles bereit. Viel Spaß mit WattLoom!",
+      "text": "Alles bereit. Viel Spaß mit WattLoom Cycling!",
       "button": "Los geht's",
       "finishing": "Wird abgeschlossen…"
     },

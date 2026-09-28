@@ -1,8 +1,8 @@
-# Contributing to WattLoom
+# Contributing to WattLoom Cycling
 
 > 🇩🇪 [Deutsche Version](CONTRIBUTING.de.md)
 
-WattLoom is a hobby project developed in spare time. Contributions are welcome,
+WattLoom Cycling is a hobby project developed in spare time. Contributions are welcome,
 but please keep expectations realistic: reviews and responses happen on a best-effort
 basis, not guaranteed within any fixed timeframe.
 
@@ -14,7 +14,7 @@ endpoint), the faster the issue can be narrowed down.
 
 ## Feature requests
 
-Also via GitHub Issues, using the "Feature Request" template. WattLoom is deliberately
+Also via GitHub Issues, using the "Feature Request" template. WattLoom Cycling is deliberately
 designed as a single-user application for Strava export data (see `CLAUDE.md`) –
 suggestions that require multi-user operation, auth, or a live Strava API connection
 don't fit the architecture and will likely be rejected.

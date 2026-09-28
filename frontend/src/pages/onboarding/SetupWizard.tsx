@@ -33,7 +33,7 @@ function LanguageStep({ onSelected }: { onSelected: () => void }) {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-xl font-semibold">Welcome to WattLoom</h1>
+        <h1 className="text-xl font-semibold">Welcome to WattLoom Cycling</h1>
         <p className="text-sm text-muted-foreground mt-1">Please choose your language to continue.</p>
       </div>
       <div className="rounded-lg border border-border p-5 space-y-3">

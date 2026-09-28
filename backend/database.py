@@ -678,7 +678,7 @@ def init_db() -> None:
 
         _ONBOARDING_KEYS = {
             "de": {
-                "welcome.title": "Willkommen bei WattLoom",
+                "welcome.title": "Willkommen bei WattLoom Cycling",
                 "welcome.subtitle": "Ein paar kurze Schritte, damit die Auswertungen von Anfang an stimmen.",
                 "steps.language": "Sprache",
                 "steps.profile": "Profil",
@@ -693,13 +693,13 @@ def init_db() -> None:
                 "bike.creating": "Wird angelegt…",
                 "bike.error": "Bike konnte nicht angelegt werden",
                 "import.hint": "Optional: direkt eine erste Aktivität importieren. Der vollständige ZIP-Export-Import (Strava-Gesamtexport) steht später jederzeit über den Import-Bereich in der Sidebar zur Verfügung.",
-                "done.text": "Alles bereit. Viel Spaß mit WattLoom!",
+                "done.text": "Alles bereit. Viel Spaß mit WattLoom Cycling!",
                 "done.button": "Los geht's",
                 "done.finishing": "Wird abgeschlossen…",
                 "actions.next": "Weiter",
             },
             "en": {
-                "welcome.title": "Welcome to WattLoom",
+                "welcome.title": "Welcome to WattLoom Cycling",
                 "welcome.subtitle": "A few quick steps so your stats are right from the start.",
                 "steps.language": "Language",
                 "steps.profile": "Profile",
@@ -714,7 +714,7 @@ def init_db() -> None:
                 "bike.creating": "Creating…",
                 "bike.error": "Bike could not be created",
                 "import.hint": "Optional: import a first activity right away. The full ZIP export import (complete Strava export) remains available anytime later via the Import section in the sidebar.",
-                "done.text": "All set. Enjoy WattLoom!",
+                "done.text": "All set. Enjoy WattLoom Cycling!",
                 "done.button": "Let's go",
                 "done.finishing": "Finishing…",
                 "actions.next": "Next",

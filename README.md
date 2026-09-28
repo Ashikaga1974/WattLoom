@@ -1,4 +1,4 @@
-# WattLoom
+# WattLoom Cycling
 
 > 🇩🇪 [Deutsche README](README.en.md)
 
@@ -21,7 +21,7 @@ Just download the ZIP export, import it, done.
 
 ---
 
-### Why WattLoom?
+### Why WattLoom Cycling?
 
 **No API.**
 Import your Strava ZIP export.
@@ -37,7 +37,7 @@ Training, performance, weather, and bike maintenance in one place.
 
 ### Comparison with existing solutions
 
-| | WattLoom | Strava | GoldenCheetah | Intervals.icu |
+| | WattLoom Cycling | Strava | GoldenCheetah | Intervals.icu |
 |---|---|---|---|---|
 | Local data | ✅ | ❌ | ✅ | ❌ |
 | Strava API required | ❌ | — | optional | optional |
@@ -48,14 +48,14 @@ Training, performance, weather, and bike maintenance in one place.
 
 ---
 
-> ⚠️ **Security note:** WattLoom deliberately has **no authentication** (single-user design for
+> ⚠️ **Security note:** WattLoom Cycling deliberately has **no authentication** (single-user design for
 > local use). Only run it locally or on your own LAN/VPN – never expose it to the open internet.
 
 ---
 
 ## Table of Contents
 
-- [Why WattLoom?](#why-wattloom)
+- [Why WattLoom Cycling?](#why-wattloom-cycling)
 - [Security note](#security-note)
 - [Features](#features)
 - [Prerequisites](#prerequisites)
@@ -107,7 +107,7 @@ Training, performance, weather, and bike maintenance in one place.
 
 ## Security note
 
-WattLoom is designed as a **single-user application for local use**: no authentication, no user
+WattLoom Cycling is designed as a **single-user application for local use**: no authentication, no user
 management, no tenant separation – each installation is meant for exactly one person. That's a
 deliberate design choice, not a security gap, as long as you follow this rule:
 
@@ -115,11 +115,11 @@ deliberate design choice, not a security gap, as long as you follow this rule:
   frontend port (5173/Docker port) publicly or via port forwarding.
 - For remote access (e.g. from your phone while out), use a **VPN tunnel** (e.g. WireGuard,
   Tailscale) into your own LAN instead of exposing the port directly.
-- Inside your own trusted LAN, WattLoom can safely be made reachable for your own devices (e.g.
+- Inside your own trusted LAN, WattLoom Cycling can safely be made reachable for your own devices (e.g.
   binding to `0.0.0.0` instead of `localhost`) – no auth is needed there since only your own
   devices on the network have access.
 
-If you need multi-user support, auth, or public hosting, WattLoom's current architecture isn't
+If you need multi-user support, auth, or public hosting, WattLoom Cycling's current architecture isn't
 the right fit – see "Known quirks" or `CLAUDE.md` for the deliberate single-user scope.
 
 ---
@@ -583,7 +583,7 @@ In [frontend/src/lib/config-context.tsx](frontend/src/lib/config-context.tsx):
 
 ## Support
 
-WattLoom is free and open source, developed and maintained in my spare time. If it's useful to
+WattLoom Cycling is free and open source, developed and maintained in my spare time. If it's useful to
 you, a contribution is welcome — but never required. No feature will ever be paywalled.
 
 [![Buy Me a Coffee](https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png)](https://buymeacoffee.com/saschalerst)

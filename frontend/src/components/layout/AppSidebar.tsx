@@ -146,7 +146,7 @@ export function AppSidebar() {
           <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary">
             <Bike size={15} className="text-primary-foreground" />
           </div>
-          <span className="font-semibold text-base tracking-tight">WattLoom</span>
+          <span className="font-semibold text-base tracking-tight">WattLoom Cycling</span>
         </Link>
       </SidebarHeader>
 

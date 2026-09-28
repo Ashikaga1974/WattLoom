@@ -34,7 +34,7 @@ def _update_package_json(version: str) -> None:
 
 def _update_main_py(version: str) -> None:
     text = MAIN_PY.read_text(encoding="utf-8")
-    new_text, n = re.subn(r'(FastAPI\(title="WattLoom API", version=)"[^"]*"', rf'\1"{version}"', text, count=1)
+    new_text, n = re.subn(r'(FastAPI\(title="WattLoom Cycling API", version=)"[^"]*"', rf'\1"{version}"', text, count=1)
     if n != 1:
         raise RuntimeError(f"FastAPI(version=...) in {MAIN_PY} nicht gefunden")
     MAIN_PY.write_text(new_text, encoding="utf-8")
