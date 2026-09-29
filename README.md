@@ -213,6 +213,25 @@ open internet.
 
 ---
 
+## Windows (desktop build)
+
+Download `WattLoom-windows.zip` from the GitHub Releases, extract it anywhere, and start
+`WattLoom.exe` – the browser opens automatically on **http://localhost:8000**.
+
+- Your data (database, photos, backups, log) lives in `%APPDATA%\WattLoom\data`, not in the
+  program folder – so it survives updates regardless of where you extract a new version.
+- Place your Strava export ZIP in the `download\` folder next to `WattLoom.exe`.
+
+**Updating:** extract the new version (into a new or the old folder) and start it – your data
+is picked up automatically.
+
+**Updating from v1.1.1 or older:** these versions stored `data\` next to the `.exe`. Before
+starting the new version for the first time, either extract it over the old folder or copy
+the old `data\` folder next to the new `WattLoom.exe`. On first start it is moved to
+`%APPDATA%\WattLoom\data` once (the old folder is kept as `data.migrated-<date>`).
+
+---
+
 ## Autostart via systemd (optional)
 
 For permanent operation without manual startup:
