@@ -1,8 +1,11 @@
 """
 Tests für power_estimator.py:
-- Physikalische Hilfsfunktionen (_air_density, _smooth, _parse_ts)
+- Physikalische Hilfsfunktionen (_air_density, _smooth)
 - Normalized-Power-Berechnung (_normalized_power)
 - Haupt-Schätzfunktion estimate_power (mit In-Memory-DB)
+
+Timestamp-Parsing (parse_iso_ts) lebt jetzt in backend/utils.py und wird in
+tests/test_utils.py getestet – wird auch von backend/segment_matching.py genutzt.
 """
 import math
 
@@ -12,7 +15,6 @@ from backend.importer.power_estimator import (
     DEFAULT_ALT_M,
     _air_density,
     _normalized_power,
-    _parse_ts,
     _smooth,
     estimate_power,
 )
@@ -68,33 +70,6 @@ class TestSmooth:
         # Trend bleibt aufsteigend
         assert smoothed[-1] > smoothed[0]
 
-
-# ── Timestamp-Parsing ─────────────────────────────────────────────────────────
-
-class TestParseTs:
-    def test_none_returns_none(self):
-        assert _parse_ts(None) is None
-
-    def test_empty_string_returns_none(self):
-        assert _parse_ts("") is None
-
-    def test_z_suffix(self):
-        ts = _parse_ts("2024-01-15T08:00:00Z")
-        assert ts is not None and ts > 0
-
-    def test_plus_utc_offset(self):
-        ts1 = _parse_ts("2024-01-15T08:00:00Z")
-        ts2 = _parse_ts("2024-01-15T08:00:00+00:00")
-        assert math.isclose(ts1, ts2, rel_tol=1e-6)
-
-    def test_invalid_string_returns_none(self):
-        assert _parse_ts("kein-datum") is None
-
-    def test_ordering(self):
-        # Späterer Zeitstempel → größerer Unix-Wert
-        ts_early = _parse_ts("2024-01-15T08:00:00Z")
-        ts_late  = _parse_ts("2024-01-15T09:00:00Z")
-        assert ts_late > ts_early
 
 
 # ── Normalized Power ──────────────────────────────────────────────────────────

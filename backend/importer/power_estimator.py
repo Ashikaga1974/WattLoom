@@ -13,9 +13,8 @@ Negative Leistung (Bergab/Freilauf) wird auf 0 geklammert.
 import math
 import sqlite3
 import logging
-from datetime import datetime, timezone
 
-from backend.utils import haversine_m
+from backend.utils import haversine_m, parse_iso_ts
 
 logger = logging.getLogger(__name__)
 
@@ -62,19 +61,6 @@ def _smooth(values: list[float], window: int) -> list[float]:
         result.append(sum(values[lo:hi]) / (hi - lo))
     return result
 
-
-# ── Timestamp-Parsing ────────────────────────────────────────────────────────
-
-def _parse_ts(ts_str: str | None) -> float | None:
-    """ISO8601-String → Unix-Sekunden; None wenn leer oder ungültig."""
-    if not ts_str:
-        return None
-    try:
-        s = ts_str if "+" in ts_str or ts_str.endswith("Z") else ts_str + "+00:00"
-        s = s.replace("Z", "+00:00")
-        return datetime.fromisoformat(s).timestamp()
-    except (ValueError, AttributeError):
-        return None
 
 
 # ── Normalized Power (Coggan) ────────────────────────────────────────────────
@@ -149,9 +135,8 @@ def _normalized_power(
 
 # ── Kern-Berechnung ──────────────────────────────────────────────────────────
 
-def estimate_power(
-    conn: sqlite3.Connection,
-    activity_id: int,
+def estimate_power_from_points(
+    pts: list[dict],
     weight_kg: float,
     bike_kg: float = DEFAULT_BIKE_KG,
     crr: float = DEFAULT_CRR,
@@ -159,44 +144,14 @@ def estimate_power(
     temp_c: float = 15.0,
 ) -> tuple[float | None, float | None]:
     """
-    Berechnet (est_avg_power_w, est_norm_power_w) für eine Aktivität.
-
-    Liest track_points und (optional) weather_temp_c aus der DB.
-    Gibt (None, None) zurück wenn zu wenig Daten vorhanden.
+    Berechnet (avg_power_w, norm_power_w) aus einer bereits geladenen Punktliste
+    ({ts, lat, lon, alt, v}, chronologisch sortiert) – reiner Rechenkern ohne DB-Zugriff.
+    Aus estimate_power() extrahiert, damit auch backend/segment_matching.py denselben
+    physikalischen Ablauf auf einem Track-Ausschnitt (Segment) anwenden kann, ohne Duplikat.
+    Gibt (None, None) zurück wenn zu wenig Punkte vorhanden.
     """
-    rows = conn.execute(
-        """SELECT timestamp, lat, lon, altitude_m, speed_ms
-           FROM track_points
-           WHERE activity_id = ?
-           ORDER BY timestamp""",
-        (activity_id,),
-    ).fetchall()
-
-    # Validiere Punkte: lat/lon/speed Pflicht; altitude_m optional (Fallback: Flachland)
-    pts = []
-    for r in rows:
-        if (r["lat"] is not None and r["lon"] is not None
-                and r["speed_ms"] is not None
-                and r["speed_ms"] >= 0):
-            pts.append({
-                "ts":  _parse_ts(r["timestamp"]),
-                "lat": r["lat"],
-                "lon": r["lon"],
-                "alt": r["altitude_m"],  # kann None sein (z.B. Amazfit ohne Barometer)
-                "v":   r["speed_ms"],
-            })
-
     if len(pts) < MIN_POINTS:
-        logger.debug("activity %s: nur %d gültige Track-Punkte – Schätzung übersprungen",
-                     activity_id, len(pts))
         return None, None
-
-    # Wetter-Temperatur nutzen wenn vorhanden
-    wx = conn.execute(
-        "SELECT weather_temp_c FROM activities WHERE id = ?", (activity_id,)
-    ).fetchone()
-    if wx and wx["weather_temp_c"] is not None:
-        temp_c = wx["weather_temp_c"]
 
     total_mass = weight_kg + bike_kg
 
@@ -271,6 +226,59 @@ def estimate_power(
     norm_w = _normalized_power(times, powers, NP_WINDOW_S) or avg_w
 
     return round(avg_w, 1), round(norm_w, 1)
+
+
+def estimate_power(
+    conn: sqlite3.Connection,
+    activity_id: int,
+    weight_kg: float,
+    bike_kg: float = DEFAULT_BIKE_KG,
+    crr: float = DEFAULT_CRR,
+    cda: float = DEFAULT_CDA,
+    temp_c: float = 15.0,
+) -> tuple[float | None, float | None]:
+    """
+    Berechnet (est_avg_power_w, est_norm_power_w) für eine Aktivität.
+
+    Liest track_points und (optional) weather_temp_c aus der DB, delegiert die eigentliche
+    Berechnung an estimate_power_from_points(). Gibt (None, None) zurück wenn zu wenig Daten
+    vorhanden.
+    """
+    rows = conn.execute(
+        """SELECT timestamp, lat, lon, altitude_m, speed_ms
+           FROM track_points
+           WHERE activity_id = ?
+           ORDER BY timestamp""",
+        (activity_id,),
+    ).fetchall()
+
+    # Validiere Punkte: lat/lon/speed Pflicht; altitude_m optional (Fallback: Flachland)
+    pts = []
+    for r in rows:
+        if (r["lat"] is not None and r["lon"] is not None
+                and r["speed_ms"] is not None
+                and r["speed_ms"] >= 0):
+            pts.append({
+                "ts":  parse_iso_ts(r["timestamp"]),
+                "lat": r["lat"],
+                "lon": r["lon"],
+                "alt": r["altitude_m"],  # kann None sein (z.B. Amazfit ohne Barometer)
+                "v":   r["speed_ms"],
+            })
+
+    if len(pts) < MIN_POINTS:
+        logger.debug("activity %s: nur %d gültige Track-Punkte – Schätzung übersprungen",
+                     activity_id, len(pts))
+        return None, None
+
+    # Wetter-Temperatur nutzen wenn vorhanden
+    wx = conn.execute(
+        "SELECT weather_temp_c FROM activities WHERE id = ?", (activity_id,)
+    ).fetchone()
+    if wx and wx["weather_temp_c"] is not None:
+        temp_c = wx["weather_temp_c"]
+
+    return estimate_power_from_points(pts, weight_kg, bike_kg=bike_kg, crr=crr, cda=cda, temp_c=temp_c)
 
 
 # ── High-Level-Helfer (für Importer und Bulk-Endpoint) ──────────────────────

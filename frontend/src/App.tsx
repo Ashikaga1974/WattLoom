@@ -20,6 +20,8 @@ import HeatmapPage from '@/pages/HeatmapPage';
 import HrCurvePage from '@/pages/HrCurvePage';
 import ImportPage from '@/pages/ImportPage';
 import ProgressPage from '@/pages/ProgressPage';
+import SegmentsPage from '@/pages/SegmentsPage';
+import SegmentDetailPage from '@/pages/SegmentDetailPage';
 import SettingsPage from '@/pages/SettingsPage';
 import StreckenPage from '@/pages/StreckenPage';
 import TempCorrPage from '@/pages/TempCorrPage';
@@ -59,6 +61,8 @@ function AppRoutes() {
                 <Route path="/hrcurve" element={<HrCurvePage />} />
                 <Route path="/import" element={<ImportPage />} />
                 <Route path="/progress" element={<ProgressPage />} />
+                <Route path="/segments" element={<SegmentsPage />} />
+                <Route path="/segments/:id" element={<SegmentDetailPage />} />
                 <Route path="/settings" element={<SettingsPage />} />
                 <Route path="/routes" element={<Navigate to="/strecken" replace />} />
                 <Route path="/speedhr" element={<Navigate to="/hrcurve?tab=effizienz" replace />} />

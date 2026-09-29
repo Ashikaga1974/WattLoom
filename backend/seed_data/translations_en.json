@@ -132,6 +132,17 @@
         "threshold": "Threshold",
         "vo2max": "VO2max"
       }
+    },
+    "segment": {
+      "markButton": "Mark route section",
+      "pickStart": "Click the route section's start point",
+      "pickEnd": "Click the route section's end point",
+      "confirmDistance": "Length: {{km}} km",
+      "namePlaceholder": "Route section name",
+      "save": "Save",
+      "saving": "Saving …",
+      "saved": "Route section saved – matches are being calculated in the background",
+      "viewSegment": "View route section"
     }
   },
   "berechnungen": {
@@ -762,7 +773,8 @@
       "weekdayAnalysis": "Weekday analysis",
       "yearOverview": "Year overview",
       "yearWrapped": "Year in review",
-      "zoneDistribution": "Training distribution"
+      "zoneDistribution": "Training distribution",
+      "segments": "Route Sections"
     },
     "position": {
       "front": "Front",
@@ -1992,6 +2004,30 @@
       "tempo": "Tempo",
       "threshold": "Threshold",
       "vo2max": "VO2max"
+    }
+  },
+  "segments": {
+    "title": "Route Sections",
+    "subtitle": "Self-defined route sections – best times across all your rides",
+    "empty": "No route sections yet. Mark a section on an activity detail page.",
+    "deleteConfirm": "Really delete this route section?",
+    "deleting": "Deleting …",
+    "notFound": "Route section not found",
+    "noEfforts": "No matches for this route section yet.",
+    "table": {
+      "name": "Name",
+      "distance": "Distance",
+      "efforts": "Efforts",
+      "bestTime": "Best time"
+    },
+    "effortsTable": {
+      "rank": "#",
+      "activity": "Activity",
+      "date": "Date",
+      "time": "Time",
+      "speed": "Avg speed",
+      "hr": "Avg HR",
+      "power": "Avg power"
     }
   }
 }

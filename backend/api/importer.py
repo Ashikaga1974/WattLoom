@@ -88,6 +88,47 @@ def _invalidate_analytics_cache() -> None:
     invalidate()
 
 
+def _match_segments_for_activity(activity_id: int) -> None:
+    """Prüft eine einzelne (neu importierte) Aktivität gegen alle bestehenden Segmente
+    (siehe backend/segment_matching.py). Fehler werden nur geloggt, brechen den Import nicht ab."""
+    import json
+    from backend.database import db_connection
+    from backend.segment_matching import match_segment_in_activity, store_effort
+
+    try:
+        with db_connection() as conn:
+            segments = conn.execute("SELECT * FROM custom_segments").fetchall()
+            for seg in segments:
+                seg_points = json.loads(seg["points"])
+                result = match_segment_in_activity(conn, seg_points, seg["distance_m"], activity_id)
+                if result is None:
+                    continue
+                store_effort(conn, seg["id"], activity_id, result)
+    except Exception as exc:
+        logger.error("Segment-Matching für activity %s fehlgeschlagen: %s", activity_id, exc)
+
+
+def _match_segments_after_zip_import() -> None:
+    """Rescan aller Segmente über alle Aktivitäten (bbox-vorgefiltert) nach einem
+    ZIP-Bulk-Import – einfacher als die neuen/geänderten Aktivitäts-IDs aus run_import()
+    durchzureichen, und dank ON CONFLICT-Upsert in custom_segment_efforts idempotent."""
+    from backend.database import db_connection
+    from backend.segment_matching import match_segment_against_all
+
+    try:
+        with db_connection() as conn:
+            segments = conn.execute("SELECT * FROM custom_segments").fetchall()
+        total = 0
+        for seg in segments:
+            with db_connection() as conn:
+                total += match_segment_against_all(conn, dict(seg))
+        if segments:
+            print(f"  Segmente: {total} Treffer über {len(segments)} Segment(e)")
+            logger.info("Segment-Matching nach ZIP-Import: %d Treffer über %d Segmente", total, len(segments))
+    except Exception as exc:
+        logger.error("Segment-Matching nach ZIP-Import fehlgeschlagen: %s", exc)
+
+
 def _check_new_prs(baseline: dict, activity_ids: list[int] | None = None) -> None:
     """Vergleicht den Best-by-Distance-Snapshot von vor dem Import mit dem aktuellen
     Stand und meldet neue persönliche Bestzeiten (siehe backend/pr_detection.py).
@@ -134,6 +175,9 @@ def _run_import() -> None:
 
         print("→ Bestzeiten prüfen …")
         _check_new_prs(baseline)
+
+        print("→ Segmente abgleichen …")
+        _match_segments_after_zip_import()
 
         with _lock:
             _state["status"] = "done"
@@ -203,6 +247,7 @@ async def import_fit_file(
         _run_weather_and_power_async(result["activity_id"])
         _invalidate_analytics_cache()
         _check_new_prs(baseline, activity_ids=[result["activity_id"]])
+        _match_segments_for_activity(result["activity_id"])
 
     return result
 
@@ -300,6 +345,7 @@ async def import_tcx_file(
         _run_weather_and_power_async(result["activity_id"])
         _invalidate_analytics_cache()
         _check_new_prs(baseline, activity_ids=[result["activity_id"]])
+        _match_segments_for_activity(result["activity_id"])
 
     return result
 
@@ -336,6 +382,7 @@ async def import_gpx_file(
         _run_weather_and_power_async(result["activity_id"])
         _invalidate_analytics_cache()
         _check_new_prs(baseline, activity_ids=[result["activity_id"]])
+        _match_segments_for_activity(result["activity_id"])
 
     return result
 
@@ -489,6 +536,14 @@ def reset_db():
             DELETE FROM laps WHERE activity_id > 0;
             DELETE FROM segment_efforts WHERE activity_id > 0;
             DELETE FROM media WHERE activity_id > 0;
+            -- Segmente, deren Quell-Aktivität aus dem ZIP-Import stammt, können nach dem
+            -- Reset nicht mehr sinnvoll rekonstruiert werden (Quell-Track ist weg) -> mit
+            -- allen ihren Efforts löschen. Übrige Segmente (Quelle = Einzelimport) verlieren
+            -- nur ihre Efforts gegen ZIP-Aktivitäten; werden beim nächsten Import neu gematcht.
+            DELETE FROM custom_segment_efforts WHERE segment_id IN
+                (SELECT id FROM custom_segments WHERE source_activity_id > 0);
+            DELETE FROM custom_segments WHERE source_activity_id > 0;
+            DELETE FROM custom_segment_efforts WHERE activity_id > 0;
             DELETE FROM activities WHERE id > 0;
             DELETE FROM other_activities;
         """)

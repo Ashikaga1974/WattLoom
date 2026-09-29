@@ -450,6 +450,44 @@ export default function ActivityDetailPage() {
   const [weightKg, setWeightKg] = useState<number | null>(null);
   const navigate = useNavigate();
 
+  // Segment-Markierungsflow: zwei Klicks auf der Karte (Start/Ende), dann Name eingeben.
+  const [segmentMode, setSegmentMode] = useState<'idle' | 'pick-start' | 'pick-end' | 'confirm'>('idle');
+  const [segmentStart, setSegmentStart] = useState<number | null>(null); // distance_m
+  const [segmentEnd, setSegmentEnd] = useState<number | null>(null);     // distance_m
+  const [segmentName, setSegmentName] = useState('');
+  const [segmentSaving, setSegmentSaving] = useState(false);
+  const [segmentError, setSegmentError] = useState<string | null>(null);
+  const [segmentSavedId, setSegmentSavedId] = useState<number | null>(null);
+
+  function resetSegmentFlow() {
+    setSegmentMode('idle');
+    setSegmentStart(null);
+    setSegmentEnd(null);
+    setSegmentName('');
+    setSegmentError(null);
+    setSegmentSavedId(null);
+  }
+
+  async function handleSaveSegment() {
+    if (segmentStart == null || segmentEnd == null || !segmentName.trim()) return;
+    setSegmentSaving(true);
+    setSegmentError(null);
+    try {
+      const result = await api.createSegment({
+        name: segmentName.trim(),
+        activity_id: activityId,
+        start_distance_m: Math.min(segmentStart, segmentEnd),
+        end_distance_m: Math.max(segmentStart, segmentEnd),
+      });
+      setSegmentSavedId(result.id);
+      setSegmentMode('idle');
+    } catch (e) {
+      setSegmentError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setSegmentSaving(false);
+    }
+  }
+
   useEffect(() => {
     api.getSettings().then(s => setWeightKg(s.weight_kg)).catch(() => {});
   }, []);
@@ -464,11 +502,24 @@ export default function ActivityDetailPage() {
   // Sync-Update im Render-Body – immer aktuell wenn onMapClick aufgerufen wird
   const trackPointsRef = useRef<TrackPoint[]>(trackPoints);
   trackPointsRef.current = trackPoints;
+  const segmentModeRef = useRef(segmentMode);
+  segmentModeRef.current = segmentMode;
 
   const onMapClick = useCallback((lat: number, lon: number) => {
     const pts = trackPointsRef.current;
     const idx = closestTrackPointIdx(pts, lat, lon);
     const pt = pts[idx];
+
+    // Segment-Markierungsflow: erster Klick = Start, zweiter Klick = Ende, dann Namensabfrage.
+    // Nutzt bewusst denselben Snap-auf-nächsten-Track-Punkt wie der normale Karten-Klick.
+    if (segmentModeRef.current === 'pick-start' && pt?.distance_m != null) {
+      setSegmentStart(pt.distance_m);
+      setSegmentMode('pick-end');
+    } else if (segmentModeRef.current === 'pick-end' && pt?.distance_m != null) {
+      setSegmentEnd(pt.distance_m);
+      setSegmentMode('confirm');
+    }
+
     if (pt?.distance_m != null) {
       setActiveDistKm(Math.round(pt.distance_m / 100) / 10);
     }
@@ -568,6 +619,14 @@ export default function ActivityDetailPage() {
                 {t('header.compareSimilar')}
               </Link>
             )}
+            {hasTrack && segmentMode === 'idle' && (
+              <button
+                onClick={() => setSegmentMode('pick-start')}
+                className="text-xs px-3 py-1 rounded-lg bg-muted text-foreground hover:bg-muted/80 transition-colors"
+              >
+                {t('segment.markButton')}
+              </button>
+            )}
             {confirmDelete ? (
               <span className="flex items-center gap-2">
                 <span className="text-xs text-muted-foreground">{t('header.confirmDeleteQuestion')}</span>
@@ -603,6 +662,68 @@ export default function ActivityDetailPage() {
           {activity.trainer === 1 && <Badge variant="secondary" className="text-xs">{t('header.trainerBadge')}</Badge>}
         </div>
       </div>
+
+      {/* Segment-Markierungsflow */}
+      {segmentMode === 'pick-start' && (
+        <div className="flex items-center justify-between rounded-lg bg-muted px-4 py-2 text-sm">
+          <span>{t('segment.pickStart')}</span>
+          <button onClick={resetSegmentFlow} className="text-xs text-muted-foreground hover:text-foreground transition-colors">
+            {t('common:actions.cancel')}
+          </button>
+        </div>
+      )}
+      {segmentMode === 'pick-end' && (
+        <div className="flex items-center justify-between rounded-lg bg-muted px-4 py-2 text-sm">
+          <span>{t('segment.pickEnd')}</span>
+          <button onClick={resetSegmentFlow} className="text-xs text-muted-foreground hover:text-foreground transition-colors">
+            {t('common:actions.cancel')}
+          </button>
+        </div>
+      )}
+      {segmentMode === 'confirm' && segmentStart != null && segmentEnd != null && (
+        <div className="rounded-lg bg-muted px-4 py-3 space-y-2">
+          <p className="text-sm text-muted-foreground">
+            {t('segment.confirmDistance', { km: (Math.abs(segmentEnd - segmentStart) / 1000).toFixed(2) })}
+          </p>
+          <div className="flex items-center gap-2">
+            <input
+              type="text"
+              value={segmentName}
+              onChange={e => setSegmentName(e.target.value)}
+              placeholder={t('segment.namePlaceholder')}
+              className="flex-1 rounded-lg border border-border bg-background px-3 py-1.5 text-sm"
+              autoFocus
+            />
+            <button
+              onClick={handleSaveSegment}
+              disabled={segmentSaving || !segmentName.trim()}
+              className="text-xs px-3 py-1.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary/80 transition-colors disabled:opacity-50"
+            >
+              {segmentSaving ? t('segment.saving') : t('segment.save')}
+            </button>
+            <button
+              onClick={resetSegmentFlow}
+              className="text-xs px-3 py-1.5 rounded-lg bg-background text-muted-foreground hover:bg-muted transition-colors"
+            >
+              {t('common:actions.cancel')}
+            </button>
+          </div>
+          {segmentError && <p className="text-destructive text-xs">{segmentError}</p>}
+        </div>
+      )}
+      {segmentSavedId != null && (
+        <div className="flex items-center justify-between rounded-lg bg-primary/10 border border-primary/30 px-4 py-2 text-sm">
+          <span>{t('segment.saved')}</span>
+          <div className="flex items-center gap-3">
+            <Link to={`/segments/${segmentSavedId}`} className="text-xs text-primary hover:underline">
+              {t('segment.viewSegment')}
+            </Link>
+            <button onClick={() => setSegmentSavedId(null)} className="text-xs text-muted-foreground hover:text-foreground transition-colors">
+              {t('common:actions.close')}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Karte */}
       {hasTrack && trackPoints.length > 0 && (

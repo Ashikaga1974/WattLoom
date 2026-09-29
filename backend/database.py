@@ -421,6 +421,37 @@ def init_db() -> None:
             # neueren Rekord derselben Distanz überholt – Zeile bleibt als Historie erhalten.
             conn.execute("ALTER TABLE pr_events ADD COLUMN dismissed_at TEXT")
 
+        # Selbst definierte Streckenabschnitte (Strava-Segmente, selbst gebaut) – Name bewusst
+        # "custom_segments" statt "segments", da "segment_efforts" bereits Stravas eigene,
+        # aus FIT-Dateien importierte (aber im Frontend ungenutzte) Segmentdaten enthält.
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS custom_segments (
+                id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+                name                TEXT NOT NULL,
+                source_activity_id  INTEGER NOT NULL REFERENCES activities(id),
+                distance_m          REAL NOT NULL,
+                points              TEXT NOT NULL,  -- JSON: [{dist_m, lat, lon}, ...], dist_m relativ zum Segmentstart
+                created_at          TEXT NOT NULL DEFAULT (datetime('now'))
+            )
+        """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS custom_segment_efforts (
+                id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                segment_id      INTEGER NOT NULL REFERENCES custom_segments(id),
+                activity_id     INTEGER NOT NULL REFERENCES activities(id),
+                time_s          REAL NOT NULL,
+                avg_speed_kmh   REAL,
+                avg_hr          REAL,
+                avg_power_w     REAL,
+                norm_power_w    REAL,
+                match_pct       REAL,
+                created_at      TEXT NOT NULL DEFAULT (datetime('now')),
+                UNIQUE(segment_id, activity_id)
+            )
+        """)
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_custom_seg_efforts_segment ON custom_segment_efforts(segment_id)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_custom_seg_efforts_activity ON custom_segment_efforts(activity_id)")
+
         # Migration: deutsche Klartext-Sport-/Komponenten-Werte → stabile, sprachneutrale Codes
         # (Grundlage für die Mehrsprachigkeit, DE/EN). Vorher schrieben die Importer German
         # Labels direkt in activities.activity_type/sport_type und other_activities.sport_type;
@@ -851,6 +882,80 @@ def init_db() -> None:
                     "INSERT OR IGNORE INTO translations(lang, ns, key, value) VALUES (?, 'common', ?, ?)",
                     (lang, f"nav.{key}", json.dumps(value)),
                 )
+
+        # Selbst definierte Streckenabschnitte (custom_segments, siehe oben) – neuer "segments"-
+        # Namespace + activitydetail.segment.* für den Markierungsflow + common.nav.segments.
+        # Nutzt _flatten_translations() wie der Erstseed, damit die verschachtelten Keys nicht
+        # einzeln von Hand ausgeschrieben werden müssen. ON CONFLICT DO UPDATE statt OR IGNORE:
+        # der ursprüngliche Text nannte die Funktion "Segment(e)" (Sascha-Feedback: anderer
+        # Name gewünscht) – ein Upsert überschreibt auch bereits (in derselben Session) über
+        # OR IGNORE gesetzte Zeilen, sonst bliebe der alte Wortlaut in bestehenden DBs hängen.
+        _SEGMENTS_KEYS = {
+            "de": {
+                "segments": {
+                    "title": "Strecken-Abschnitte",
+                    "subtitle": "Selbst definierte Streckenabschnitte – Bestzeiten über alle deine Fahrten",
+                    "empty": "Noch keine Strecken-Abschnitte angelegt. Markiere auf einer Aktivitäts-Detailseite ein Teilstück.",
+                    "deleteConfirm": "Strecken-Abschnitt wirklich löschen?",
+                    "deleting": "Lösche …",
+                    "notFound": "Strecken-Abschnitt nicht gefunden",
+                    "noEfforts": "Noch keine Treffer für diesen Strecken-Abschnitt.",
+                    "table": {"name": "Name", "distance": "Distanz", "efforts": "Treffer", "bestTime": "Bestzeit"},
+                    "effortsTable": {
+                        "rank": "#", "activity": "Aktivität", "date": "Datum", "time": "Zeit",
+                        "speed": "Ø Speed", "hr": "Ø HF", "power": "Ø Watt",
+                    },
+                },
+                "activitydetail": {"segment": {
+                    "markButton": "Strecken-Abschnitt markieren",
+                    "pickStart": "Klicke auf den Startpunkt des Strecken-Abschnitts",
+                    "pickEnd": "Klicke auf den Endpunkt des Strecken-Abschnitts",
+                    "confirmDistance": "Länge: {{km}} km",
+                    "namePlaceholder": "Name des Strecken-Abschnitts",
+                    "save": "Speichern",
+                    "saving": "Speichere …",
+                    "saved": "Strecken-Abschnitt gespeichert – Treffer werden im Hintergrund berechnet",
+                    "viewSegment": "Strecken-Abschnitt ansehen",
+                }},
+                "common": {"nav": {"segments": "Strecken-Abschnitte"}},
+            },
+            "en": {
+                "segments": {
+                    "title": "Route Sections",
+                    "subtitle": "Self-defined route sections – best times across all your rides",
+                    "empty": "No route sections yet. Mark a section on an activity detail page.",
+                    "deleteConfirm": "Really delete this route section?",
+                    "deleting": "Deleting …",
+                    "notFound": "Route section not found",
+                    "noEfforts": "No matches for this route section yet.",
+                    "table": {"name": "Name", "distance": "Distance", "efforts": "Efforts", "bestTime": "Best time"},
+                    "effortsTable": {
+                        "rank": "#", "activity": "Activity", "date": "Date", "time": "Time",
+                        "speed": "Avg speed", "hr": "Avg HR", "power": "Avg power",
+                    },
+                },
+                "activitydetail": {"segment": {
+                    "markButton": "Mark route section",
+                    "pickStart": "Click the route section's start point",
+                    "pickEnd": "Click the route section's end point",
+                    "confirmDistance": "Length: {{km}} km",
+                    "namePlaceholder": "Route section name",
+                    "save": "Save",
+                    "saving": "Saving …",
+                    "saved": "Route section saved – matches are being calculated in the background",
+                    "viewSegment": "View route section",
+                }},
+                "common": {"nav": {"segments": "Route Sections"}},
+            },
+        }
+        for lang, namespaces in _SEGMENTS_KEYS.items():
+            for ns, nested in namespaces.items():
+                for key, value in _flatten_translations(nested).items():
+                    conn.execute(
+                        """INSERT INTO translations(lang, ns, key, value) VALUES (?, ?, ?, ?)
+                           ON CONFLICT(lang, ns, key) DO UPDATE SET value=excluded.value""",
+                        (lang, ns, key, json.dumps(value)),
+                    )
 
         conn.commit()
 

@@ -132,6 +132,17 @@
         "threshold": "Schwelle",
         "vo2max": "VO2max"
       }
+    },
+    "segment": {
+      "markButton": "Strecken-Abschnitt markieren",
+      "pickStart": "Klicke auf den Startpunkt des Strecken-Abschnitts",
+      "pickEnd": "Klicke auf den Endpunkt des Strecken-Abschnitts",
+      "confirmDistance": "Länge: {{km}} km",
+      "namePlaceholder": "Name des Strecken-Abschnitts",
+      "save": "Speichern",
+      "saving": "Speichere …",
+      "saved": "Strecken-Abschnitt gespeichert – Treffer werden im Hintergrund berechnet",
+      "viewSegment": "Strecken-Abschnitt ansehen"
     }
   },
   "berechnungen": {
@@ -762,7 +773,8 @@
       "weekdayAnalysis": "Wochentag-Analyse",
       "yearOverview": "Jahresübersicht",
       "yearWrapped": "Jahresrückblick",
-      "zoneDistribution": "Trainingsverteilung"
+      "zoneDistribution": "Trainingsverteilung",
+      "segments": "Strecken-Abschnitte"
     },
     "position": {
       "front": "Vorne",
@@ -1992,6 +2004,30 @@
       "tempo": "Tempo",
       "threshold": "Schwelle",
       "vo2max": "VO2max"
+    }
+  },
+  "segments": {
+    "title": "Strecken-Abschnitte",
+    "subtitle": "Selbst definierte Streckenabschnitte – Bestzeiten über alle deine Fahrten",
+    "empty": "Noch keine Strecken-Abschnitte angelegt. Markiere auf einer Aktivitäts-Detailseite ein Teilstück.",
+    "deleteConfirm": "Strecken-Abschnitt wirklich löschen?",
+    "deleting": "Lösche …",
+    "notFound": "Strecken-Abschnitt nicht gefunden",
+    "noEfforts": "Noch keine Treffer für diesen Strecken-Abschnitt.",
+    "table": {
+      "name": "Name",
+      "distance": "Distanz",
+      "efforts": "Treffer",
+      "bestTime": "Bestzeit"
+    },
+    "effortsTable": {
+      "rank": "#",
+      "activity": "Aktivität",
+      "date": "Datum",
+      "time": "Zeit",
+      "speed": "Ø Speed",
+      "hr": "Ø HF",
+      "power": "Ø Watt"
     }
   }
 }

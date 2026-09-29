@@ -467,6 +467,15 @@ def delete_activity(activity_id: int):
         conn.execute("DELETE FROM media WHERE activity_id = ?", (activity_id,))
         conn.execute("DELETE FROM laps WHERE activity_id = ?", (activity_id,))
         conn.execute("DELETE FROM segment_efforts WHERE activity_id = ?", (activity_id,))
+        # Selbst definierte Segmente (custom_segments), deren Quell-Track diese Aktivität war,
+        # können ohne ihn nicht mehr sinnvoll bestehen – mitsamt allen ihren Efforts löschen.
+        conn.execute(
+            "DELETE FROM custom_segment_efforts WHERE segment_id IN "
+            "(SELECT id FROM custom_segments WHERE source_activity_id = ?)",
+            (activity_id,),
+        )
+        conn.execute("DELETE FROM custom_segments WHERE source_activity_id = ?", (activity_id,))
+        conn.execute("DELETE FROM custom_segment_efforts WHERE activity_id = ?", (activity_id,))
         conn.execute("DELETE FROM activities WHERE id = ?", (activity_id,))
         conn.commit()
 

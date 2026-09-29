@@ -2,7 +2,35 @@ import math
 
 import pytest
 
-from backend.utils import haversine_km, haversine_m
+from backend.utils import haversine_km, haversine_m, parse_iso_ts
+
+
+# ── Timestamp-Parsing ─────────────────────────────────────────────────────────
+
+class TestParseIsoTs:
+    def test_none_returns_none(self):
+        assert parse_iso_ts(None) is None
+
+    def test_empty_string_returns_none(self):
+        assert parse_iso_ts("") is None
+
+    def test_z_suffix(self):
+        ts = parse_iso_ts("2024-01-15T08:00:00Z")
+        assert ts is not None and ts > 0
+
+    def test_plus_utc_offset(self):
+        ts1 = parse_iso_ts("2024-01-15T08:00:00Z")
+        ts2 = parse_iso_ts("2024-01-15T08:00:00+00:00")
+        assert math.isclose(ts1, ts2, rel_tol=1e-6)
+
+    def test_invalid_string_returns_none(self):
+        assert parse_iso_ts("kein-datum") is None
+
+    def test_ordering(self):
+        # Späterer Zeitstempel → größerer Unix-Wert
+        ts_early = parse_iso_ts("2024-01-15T08:00:00Z")
+        ts_late  = parse_iso_ts("2024-01-15T09:00:00Z")
+        assert ts_late > ts_early
 
 
 def test_same_point_returns_zero():

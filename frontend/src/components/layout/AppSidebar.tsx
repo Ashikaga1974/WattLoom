@@ -37,6 +37,7 @@ import {
   ChevronDown,
   Layers,
   Upload,
+  Flag,
 } from 'lucide-react';
 
 interface NavSubItem {
@@ -77,10 +78,11 @@ const navGroups: NavGroup[] = [
     href: '/heatmap',
     label: 'nav.map',
     icon: <Map size={16} />,
-    prefixes: ['/heatmap', '/strecken'],
+    prefixes: ['/heatmap', '/strecken', '/segments'],
     children: [
       { href: '/heatmap',  label: 'nav.heatmap', icon: <Map size={13} /> },
       { href: '/strecken', label: 'nav.routeComparison', icon: <GitCompare size={13} /> },
+      { href: '/segments', label: 'nav.segments', icon: <Flag size={13} /> },
     ],
   },
   {

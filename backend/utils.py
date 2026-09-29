@@ -7,6 +7,18 @@ from datetime import datetime
 _R_KM = 6_371.0
 MS_TO_KMH = 3.6
 
+
+def parse_iso_ts(ts_str: str | None) -> float | None:
+    """ISO8601-String (mit/ohne 'Z'/Offset) → Unix-Sekunden; None wenn leer oder ungültig."""
+    if not ts_str:
+        return None
+    try:
+        s = ts_str if "+" in ts_str or ts_str.endswith("Z") else ts_str + "+00:00"
+        s = s.replace("Z", "+00:00")
+        return datetime.fromisoformat(s).timestamp()
+    except (ValueError, AttributeError):
+        return None
+
 # Zeitintervalle unter diesem Schwellwert (m/s) gelten als Pause und fließen
 # nicht in die Moving Time ein – analog zu Stravas Logik (~1.4 m/s für Rad)
 MOVING_THRESHOLD_MS = 1.0  # ≈ 3.6 km/h

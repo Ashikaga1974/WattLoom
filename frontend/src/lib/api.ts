@@ -360,6 +360,44 @@ export interface PrEvent {
   created_at: string;
 }
 
+export interface SegmentSummary {
+  id: number;
+  name: string;
+  distance_m: number;
+  created_at: string;
+  effort_count: number;
+  best_time_s: number | null;
+}
+
+export interface SegmentPoint {
+  dist_m: number;
+  lat: number;
+  lon: number;
+}
+
+export interface SegmentDetail {
+  id: number;
+  name: string;
+  source_activity_id: number;
+  distance_m: number;
+  points: SegmentPoint[];
+  created_at: string;
+}
+
+export interface SegmentEffort {
+  id: number;
+  activity_id: number;
+  time_s: number;
+  avg_speed_kmh: number | null;
+  avg_hr: number | null;
+  avg_power_w: number | null;
+  norm_power_w: number | null;
+  match_pct: number | null;
+  created_at: string;
+  activity_name: string | null;
+  activity_date: string | null;
+}
+
 
 export interface CadenceStats {
   rides_with_cadence: number;
@@ -946,4 +984,19 @@ export const api = {
   importTranslations: (lang: string, translations: Record<string, Record<string, unknown>>): Promise<void> =>
     fetch(`${BASE}/translations/import`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ lang, translations }) })
       .then(r => { if (!r.ok) return r.json().then(j => { throw new Error(errorMessage(j.detail, r.status)); }); }),
+
+  segments: (): Promise<SegmentSummary[]> => get('/segments'),
+
+  segment: (id: number): Promise<SegmentDetail> => get(`/segments/${id}`),
+
+  segmentEfforts: (id: number): Promise<SegmentEffort[]> => get(`/segments/${id}/efforts`),
+
+  createSegment: (data: { name: string; activity_id: number; start_distance_m: number; end_distance_m: number }): Promise<{ id: number; name: string; distance_m: number }> =>
+    post('/segments', data),
+
+  deleteSegment: (id: number): Promise<{ ok: boolean; deleted_id: number }> =>
+    fetch(`${BASE}/segments/${id}`, { method: 'DELETE' }).then(r => {
+      if (!r.ok) return r.json().then(j => { throw new Error(errorMessage(j.detail, r.status)); });
+      return r.json() as Promise<{ ok: boolean; deleted_id: number }>;
+    }),
 };

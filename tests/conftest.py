@@ -219,6 +219,29 @@ CREATE TABLE deleted_components (
     purchase_item_id  INTEGER REFERENCES purchase_items(id),
     deleted_at        TEXT
 );
+
+CREATE TABLE custom_segments (
+    id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+    name                TEXT NOT NULL,
+    source_activity_id  INTEGER NOT NULL REFERENCES activities(id),
+    distance_m          REAL NOT NULL,
+    points              TEXT NOT NULL,
+    created_at          TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE custom_segment_efforts (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    segment_id      INTEGER NOT NULL REFERENCES custom_segments(id),
+    activity_id     INTEGER NOT NULL REFERENCES activities(id),
+    time_s          REAL NOT NULL,
+    avg_speed_kmh   REAL,
+    avg_hr          REAL,
+    avg_power_w     REAL,
+    norm_power_w    REAL,
+    match_pct       REAL,
+    created_at      TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE(segment_id, activity_id)
+);
 """
 
 
