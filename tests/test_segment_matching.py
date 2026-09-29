@@ -117,6 +117,107 @@ class TestMatchSegmentInActivity:
         assert fast is not None and slow is not None
         assert fast["time_s"] < slow["time_s"]
 
+    def test_wait_before_segment_start_is_not_counted(self, db):
+        # Regression (Segment „Nach Apweiler"): Track beginnt 40m vor dem Segment-Start,
+        # nach 30m stehen 300s Wartezeit (Ampel/Kreuzung) im Track. Früher begann die
+        # Messung am ersten Punkt im 50m-Radius -> Wartezeit zählte zur Segmentzeit.
+        _insert_ride(db, 8, "Ampel vor Start")
+        rows = []
+        from datetime import datetime, timedelta
+        t0 = datetime.fromisoformat("2026-05-01T08:00:00")
+        t = 0.0
+        for i in range(0, 105):
+            d = -40.0 + i * 10.0  # 10m-Schritte, 2 s je Schritt = 5 m/s
+            if d == -10.0:
+                t += 300.0  # Stillstand vor dem Segment-Start
+            rows.append((8, (t0 + timedelta(seconds=t)).isoformat(), _lat_at(d), _LON, 200.0, d + 40.0, 5.0, 140))
+            t += 2.0
+        db.executemany(
+            """INSERT INTO track_points (activity_id, timestamp, lat, lon, altitude_m, distance_m, speed_ms, hr)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+            rows,
+        )
+        seg_points = _make_segment_points(length_m=1000.0, step_m=10.0)
+
+        result = match_segment_in_activity(db, seg_points, 1000.0, 8)
+
+        assert result is not None
+        # 1000m bei 5 m/s -> 200s, ohne die 300s Wartezeit
+        assert abs(result["time_s"] - 200) <= 5
+        assert result["match_pct"] == pytest.approx(100.0)
+
+    def test_standstill_at_segment_start_is_not_counted(self, db):
+        # Stillstand exakt am Segment-Start (mehrere Punkte mit gleicher Distanz)
+        _insert_ride(db, 9, "Stillstand am Start")
+        from datetime import datetime, timedelta
+        t0 = datetime.fromisoformat("2026-05-01T08:00:00")
+        rows = [(9, (t0 + timedelta(seconds=s)).isoformat(), _lat_at(0.0), _LON, 200.0, 0.0, 0.0, 140)
+                for s in range(0, 120, 10)]
+        for i in range(1, 101):
+            d = i * 10.0
+            rows.append((9, (t0 + timedelta(seconds=110 + i * 2)).isoformat(), _lat_at(d), _LON, 200.0, d, 5.0, 140))
+        db.executemany(
+            """INSERT INTO track_points (activity_id, timestamp, lat, lon, altitude_m, distance_m, speed_ms, hr)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+            rows,
+        )
+        seg_points = _make_segment_points(length_m=1000.0, step_m=10.0)
+
+        result = match_segment_in_activity(db, seg_points, 1000.0, 9)
+
+        assert result is not None
+        assert abs(result["time_s"] - 200) <= 5
+
+    def test_auto_pause_gap_at_segment_start_is_not_counted(self, db):
+        # Auto-Pause: im Stand werden keine Punkte aufgezeichnet -> nur eine Zeitlücke
+        # zwischen Startpunkt und nächstem Punkt, kein Stillstand als Punktfolge
+        _insert_ride(db, 11, "Auto-Pause am Start")
+        from datetime import datetime, timedelta
+        t0 = datetime.fromisoformat("2026-05-01T08:00:00")
+        rows, t = [], 0.0
+        for i in range(0, 101):
+            d = i * 10.0
+            if i == 1:
+                t += 300.0
+            rows.append((11, (t0 + timedelta(seconds=t)).isoformat(), _lat_at(d), _LON, 200.0, d, 5.0, 140))
+            t += 2.0
+        db.executemany(
+            """INSERT INTO track_points (activity_id, timestamp, lat, lon, altitude_m, distance_m, speed_ms, hr)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+            rows,
+        )
+        seg_points = _make_segment_points(length_m=1000.0, step_m=10.0)
+
+        result = match_segment_in_activity(db, seg_points, 1000.0, 11)
+
+        assert result is not None
+        assert abs(result["time_s"] - 200) <= 5
+
+    def test_wait_just_before_segment_end_is_not_counted(self, db):
+        # Ampel 20m vor dem Segment-Ende: 180s Stillstand darf nicht zur Segmentzeit zählen
+        _insert_ride(db, 10, "Ampel vor Ende")
+        from datetime import datetime, timedelta
+        t0 = datetime.fromisoformat("2026-05-01T08:00:00")
+        rows, t = [], 0.0
+        for i in range(0, 111):
+            d = i * 10.0  # 10m-Schritte, 2 s je Schritt = 5 m/s
+            if d == 990.0:
+                t += 180.0
+            rows.append((10, (t0 + timedelta(seconds=t)).isoformat(), _lat_at(d), _LON, 200.0, d, 5.0, 140))
+            t += 2.0
+        db.executemany(
+            """INSERT INTO track_points (activity_id, timestamp, lat, lon, altitude_m, distance_m, speed_ms, hr)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+            rows,
+        )
+        seg_points = _make_segment_points(length_m=1000.0, step_m=10.0)
+
+        result = match_segment_in_activity(db, seg_points, 1000.0, 10)
+
+        assert result is not None
+        assert abs(result["time_s"] - 200) <= 5
+        assert result["avg_speed_kmh"] == pytest.approx(18.0, abs=0.5)
+
     def test_avg_hr_computed_from_track(self, db):
         _insert_ride(db, 7, "Mit HF")
         _insert_track(db, 7, length_m=1000.0, hr=150)

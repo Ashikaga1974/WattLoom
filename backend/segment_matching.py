@@ -37,6 +37,12 @@ MIN_COVERAGE_FRACTION = 0.9
 # Grenzwert, ab dem eine Kandidaten-Häufung als neuer, unabhängiger Durchgang zählt
 # (statt derselben GPS-Passage) – 5 Punkte Abstand in der sortierten Trefferliste
 CLUSTER_GAP_POINTS = 5
+# Weniger Distanzzuwachs zwischen zwei Track-Punkten gilt am Segment-Start als Stillstand
+STANDSTILL_M = 1.0
+# Stillstandserkennung kurz vor dem Segment-Ende (siehe _trim_end_standstill)
+END_WINDOW_M = 50.0
+STOP_GAP_S = 10.0
+MIN_MOVING_SPEED_MS = 1.0
 
 
 def _load_activity_points(conn: sqlite3.Connection, activity_id: int) -> list[dict]:
@@ -47,7 +53,7 @@ def _load_activity_points(conn: sqlite3.Connection, activity_id: int) -> list[di
            FROM track_points
            WHERE activity_id = ? AND lat IS NOT NULL AND lon IS NOT NULL
                  AND distance_m IS NOT NULL AND timestamp IS NOT NULL
-           ORDER BY distance_m""",
+           ORDER BY distance_m, timestamp""",
         (activity_id,),
     ).fetchall()
     return [dict(r) for r in rows]
@@ -66,6 +72,46 @@ def _cluster_candidate_indices(indices: list[int]) -> list[list[int]]:
         else:
             clusters.append([idx])
     return clusters
+
+
+def _segment_entry_index(points: list[dict], cluster: list[int], seg_start_lat: float, seg_start_lon: float) -> int:
+    """Einstiegspunkt eines Durchgangs: der Cluster-Punkt, der dem Segment-Start am
+    nächsten liegt – nicht der erste Punkt im START_RADIUS_M. Sonst beginnt die Messung
+    bis zu 50m zu früh: Wartezeit an einer Ampel/Kreuzung vor dem Start zählt mit, und die
+    Distanz-Marken sind um diesen Versatz verschoben (Segment matchte so nicht einmal mit
+    seiner eigenen Quell-Aktivität). Steht die Fahrt genau am Start, wird der letzte
+    Punkt des Stillstands genommen (Losfahren), damit die Standzeit nicht mitzählt."""
+    idx = min(cluster, key=lambda i: haversine_m(points[i]["lat"], points[i]["lon"], seg_start_lat, seg_start_lon))
+    while idx + 1 < len(points) and _is_standstill(points[idx], points[idx + 1]):
+        idx += 1
+    return idx
+
+
+def _is_standstill(prev: dict, cur: dict) -> bool:
+    """Stillstand zwischen zwei Track-Punkten: entweder praktisch kein Distanzzuwachs, oder
+    eine Zeitlücke ohne nennenswerte Bewegung (Auto-Pause – Geräte zeichnen im Stand oft
+    gar keine Punkte auf, dann fehlt der Stillstand als Punktfolge)."""
+    dd = cur["distance_m"] - prev["distance_m"]
+    if dd < STANDSTILL_M:
+        return True
+    t_prev, t_cur = parse_iso_ts(prev["timestamp"]), parse_iso_ts(cur["timestamp"])
+    if t_prev is None or t_cur is None:
+        return False
+    dt = t_cur - t_prev
+    return dt > STOP_GAP_S and dd / dt < MIN_MOVING_SPEED_MS
+
+
+def _trim_end_standstill(sub: list[dict], rel_dists: list[float], end_i: int, segment_distance_m: float) -> int:
+    """Gegenstück zu _segment_entry_index() am Segment-Ende: liegt der Endpunkt an einer
+    Ampel/Kreuzung, steht die Fahrt oft wenige Meter davor – diese Wartezeit ist keine
+    Segmentleistung. Findet innerhalb der letzten END_WINDOW_M einen Stillstand
+    (_is_standstill) und gibt den Index davor zurück; die Rest-
+    strecke rechnet der Aufrufer mit dem Segment-Tempo hoch. Ohne Stillstand: end_i."""
+    window_start = bisect.bisect_left(rel_dists, segment_distance_m - END_WINDOW_M)
+    for k in range(max(window_start, 1), end_i + 1):
+        if _is_standstill(sub[k - 1], sub[k]):
+            return k - 1
+    return end_i
 
 
 def _nearest_relative_index(rel_dists: list[float], target_m: float) -> int:
@@ -115,7 +161,7 @@ def match_segment_in_activity(
     best: dict | None = None
 
     for cluster in _cluster_candidate_indices(candidate_indices):
-        start_idx = cluster[0]
+        start_idx = _segment_entry_index(points, cluster, seg_start_lat, seg_start_lon)
         base_dist = points[start_idx]["distance_m"]
 
         # Nur den für dieses Segment relevanten Ausschnitt betrachten (Segmentlänge + Puffer)
@@ -141,17 +187,24 @@ def match_segment_in_activity(
 
         rel_dists = [p["distance_m"] - base_dist for p in sub]
         end_i = _nearest_relative_index(rel_dists, segment_distance_m)
+        end_i = _trim_end_standstill(sub, rel_dists, end_i, segment_distance_m)
 
         start_ts = parse_iso_ts(sub[0]["timestamp"])
         end_ts = parse_iso_ts(sub[end_i]["timestamp"])
         if start_ts is None or end_ts is None:
             continue
-        time_s = end_ts - start_ts
-        if time_s <= 0:
+        moving_s = end_ts - start_ts
+        if moving_s <= 0:
             continue
 
         actual_dist_m = sub[end_i]["distance_m"] - sub[0]["distance_m"]
-        avg_speed_kmh = actual_dist_m / time_s * MS_TO_KMH
+        if actual_dist_m <= 0:
+            continue
+        avg_speed_ms = actual_dist_m / moving_s
+        avg_speed_kmh = avg_speed_ms * MS_TO_KMH
+        # Reststrecke bis zum Segmentende mit Segment-Tempo hochrechnen – nur nennenswert,
+        # wenn _trim_end_standstill() einen Stillstand kurz vor dem Ende abgeschnitten hat
+        time_s = moving_s + max(0.0, segment_distance_m - rel_dists[end_i]) / avg_speed_ms
 
         hr_values = [p["hr"] for p in sub[:end_i + 1] if p["hr"] is not None]
         avg_hr = sum(hr_values) / len(hr_values) if hr_values else None
