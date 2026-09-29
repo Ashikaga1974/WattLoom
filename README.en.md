@@ -198,7 +198,9 @@ Im Browser: **Einstellungen → Import starten** – der Importer liest die ZIP,
 
 ## Docker (Alternative zur manuellen Installation)
 
-Voraussetzung: [Docker Desktop](https://www.docker.com/products/docker-desktop/) (Windows/macOS/Linux).
+Voraussetzung: [Docker Desktop](https://www.docker.com/products/docker-desktop/) (Windows/macOS) oder
+Docker Engine mit Compose-Plugin (Linux, z. B. `docker` + `docker-compose` aus dem Paketmanager der
+Distribution).
 
 ```bash
 docker compose up --build

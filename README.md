@@ -194,7 +194,9 @@ In the browser: **Settings → Start import** – the importer reads the ZIP, pa
 
 ## Docker (alternative to manual install)
 
-Requires: [Docker Desktop](https://www.docker.com/products/docker-desktop/) (Windows/macOS/Linux).
+Requires: [Docker Desktop](https://www.docker.com/products/docker-desktop/) (Windows/macOS) or
+Docker Engine with the Compose plugin (Linux, e.g. `docker` + `docker-compose` from your distro's
+package manager).
 
 ```bash
 docker compose up --build
