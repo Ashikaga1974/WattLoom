@@ -41,7 +41,8 @@ mybiking-mobile/
 # Dokumentation
 *.md
 !README.md
-!README.en.md
+!README.de.md
+!documentation/*.md
 !CONTRIBUTING.md
 !CONTRIBUTING.de.md
 !CHANGELOG.md

@@ -31,7 +31,7 @@ don't fit the architecture and will likely be rejected.
 
 ## Setting up a dev environment
 
-See [README.md](README.md#installation--start) for the full guide
+See [documentation/DEVELOPMENT.md](documentation/DEVELOPMENT.md) for the full guide
 (backend/frontend manually or via Docker).
 
 ## License

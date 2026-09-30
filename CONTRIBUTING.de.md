@@ -31,7 +31,7 @@ Architektur und werden wahrscheinlich abgelehnt.
 
 ## Entwicklungsumgebung einrichten
 
-Siehe [README.en.md](README.en.md#installation--start) für die vollständige Anleitung
+Siehe [documentation/DEVELOPMENT.md](documentation/DEVELOPMENT.md) (Englisch) für die vollständige Anleitung
 (Backend/Frontend manuell oder per Docker).
 
 ## Lizenz
