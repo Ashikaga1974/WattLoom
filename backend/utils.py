@@ -174,3 +174,11 @@ def path_match_fraction(
     if max_run > max_consecutive_miss:
         return 0.0
     return hits / len(marks)
+
+
+def is_path_under(path: str, prefixes: tuple[str, ...]) -> bool:
+    """True, wenn `path` exakt einem Präfix entspricht oder darunter liegt (Segmentgrenze).
+
+    "/docs" und "/docs/oauth2-redirect" treffen "/docs", "/docsfoo" dagegen nicht.
+    """
+    return any(path == p or path.startswith(p.rstrip("/") + "/") for p in prefixes)

@@ -9,6 +9,7 @@ from fastapi.staticfiles import StaticFiles
 from backend.api import activities, tracks, bikes, heatmap, analytics, settings, importer, zones, weather, purchases, storage_locations, translations, system, segments
 from backend.database import db_connection, init_db
 from backend.paths import FRONTEND_DIST_DIR, LOG_FILE, MEDIA_DIR
+from backend.utils import is_path_under
 
 _LOG_FILE = LOG_FILE
 logging.basicConfig(
@@ -22,6 +23,9 @@ logging.basicConfig(
 )
 
 app = FastAPI(title="WattLoom Cycling API", version="1.1.1")
+# Swagger/ReDoc/OpenAPI-Schema werden direkt im Browser aufgerufen – der SPA-Navigations-
+# Fallback weiter unten darf sie nicht auf index.html umbiegen.
+_API_DOCS_PATHS = tuple(p for p in (app.docs_url, app.redoc_url, app.openapi_url) if p)
 init_db()
 
 app.add_middleware(
@@ -84,6 +88,7 @@ if FRONTEND_DIST_DIR.is_dir():
             request.method == "GET"
             and request.headers.get("sec-fetch-mode") == "navigate"
             and not request.url.path.startswith(("/assets/", "/media/"))
+            and not is_path_under(request.url.path, _API_DOCS_PATHS)
         ):
             return FileResponse(FRONTEND_DIST_DIR / "index.html")
         return await call_next(request)

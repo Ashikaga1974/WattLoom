@@ -2,7 +2,7 @@ import math
 
 import pytest
 
-from backend.utils import haversine_km, haversine_m, parse_iso_ts
+from backend.utils import haversine_km, haversine_m, is_path_under, parse_iso_ts
 
 
 # ── Timestamp-Parsing ─────────────────────────────────────────────────────────
@@ -74,3 +74,24 @@ def test_short_distance_positive():
 def test_quarter_earth_approx_10000km(lat1, lon1, lat2, lon2):
     dist = haversine_km(lat1, lon1, lat2, lon2)
     assert 9_990 < dist < 10_020
+
+
+class TestIsPathUnder:
+    _DOCS = ("/docs", "/redoc", "/openapi.json")
+
+    def test_exact_match(self):
+        assert is_path_under("/docs", self._DOCS)
+        assert is_path_under("/openapi.json", self._DOCS)
+
+    def test_sub_path_matches(self):
+        # Swagger lädt nach OAuth-Login /docs/oauth2-redirect nach
+        assert is_path_under("/docs/oauth2-redirect", self._DOCS)
+
+    def test_same_prefix_without_segment_boundary_does_not_match(self):
+        assert not is_path_under("/docsfoo", self._DOCS)
+
+    def test_spa_route_does_not_match(self):
+        assert not is_path_under("/bikes", self._DOCS)
+
+    def test_empty_prefixes(self):
+        assert not is_path_under("/docs", ())
