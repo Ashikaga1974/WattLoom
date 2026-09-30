@@ -15,7 +15,8 @@ Endpunkt), desto schneller lässt sich der Fehler eingrenzen.
 ## Feature-Wünsche
 
 Ebenfalls über GitHub Issues mit dem "Feature Request"-Template. WattLoom Cycling ist bewusst als
-Single-User-Anwendung für Strava-Exportdaten konzipiert (siehe `CLAUDE.md`) – Vorschläge, die
+Single-User-Anwendung für Strava-Exportdaten konzipiert (siehe
+[Sicherheitshinweis](README.de.md#sicherheitshinweis)) – Vorschläge, die
 Multi-User-Betrieb, Auth oder eine Live-Strava-API-Anbindung voraussetzen, passen nicht zur
 Architektur und werden wahrscheinlich abgelehnt.
 
@@ -24,9 +25,9 @@ Architektur und werden wahrscheinlich abgelehnt.
 - Kleine, fokussierte PRs bevorzugt – ein PR, eine Änderung.
 - Backend-Änderungen: bitte mit passenden Tests (`pytest`, siehe `tests/`).
 - Frontend-Änderungen: `cd frontend && npx tsc --noEmit -p tsconfig.app.json` muss sauber
-  durchlaufen (nicht `tsconfig.json` direkt – das prüft nichts, siehe `CLAUDE.md`).
-- Bestehenden Code-Stil beibehalten (siehe `CLAUDE.md` für Konventionen: viele kleine
-  Funktionen, Kommentare nur wo der WHY nicht offensichtlich ist).
+  durchlaufen (nicht `tsconfig.json` direkt – das prüft nichts, siehe [DEVELOPMENT.md](documentation/DEVELOPMENT.md#tests--checks)).
+- Bestehenden Code-Stil beibehalten: viele kleine, fokussierte Funktionen, Kommentare nur
+  dort, wo das WARUM nicht offensichtlich ist.
 - Commit-Messages kurz und beschreibend, kein festes Schema erzwungen.
 
 ## Entwicklungsumgebung einrichten

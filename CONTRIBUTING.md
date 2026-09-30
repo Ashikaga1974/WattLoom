@@ -15,7 +15,8 @@ endpoint), the faster the issue can be narrowed down.
 ## Feature requests
 
 Also via GitHub Issues, using the "Feature Request" template. WattLoom Cycling is deliberately
-designed as a single-user application for Strava export data (see `CLAUDE.md`) –
+designed as a single-user application for Strava export data (see the
+[security note](README.md#security-note)) –
 suggestions that require multi-user operation, auth, or a live Strava API connection
 don't fit the architecture and will likely be rejected.
 
@@ -24,9 +25,9 @@ don't fit the architecture and will likely be rejected.
 - Small, focused PRs preferred – one PR, one change.
 - Backend changes: please include matching tests (`pytest`, see `tests/`).
 - Frontend changes: `cd frontend && npx tsc --noEmit -p tsconfig.app.json` must pass
-  cleanly (not `tsconfig.json` directly – that checks nothing, see `CLAUDE.md`).
-- Keep the existing code style (see `CLAUDE.md` for conventions: many small,
-  focused functions, comments only where the WHY isn't obvious).
+  cleanly (not `tsconfig.json` directly – that checks nothing, see [DEVELOPMENT.md](documentation/DEVELOPMENT.md#tests--checks)).
+- Keep the existing code style: many small, focused functions, comments only where
+  the WHY isn't obvious.
 - Commit messages short and descriptive, no fixed schema enforced.
 
 ## Setting up a dev environment

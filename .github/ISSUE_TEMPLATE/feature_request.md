@@ -20,5 +20,5 @@ Screenshots, Mockups, Links zu ähnlichen Features in anderen Tools.
 
 ---
 Hinweis: WattLoom ist bewusst als Single-User-Anwendung für lokale Strava-Exportdaten
-konzipiert (siehe `CLAUDE.md`). Vorschläge, die Multi-User-Betrieb, Auth oder eine
+konzipiert. Vorschläge, die Multi-User-Betrieb, Auth oder eine
 Live-Strava-API-Anbindung voraussetzen, passen nicht zur Architektur.
