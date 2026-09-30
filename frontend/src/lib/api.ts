@@ -367,6 +367,7 @@ export interface SegmentSummary {
   created_at: string;
   effort_count: number;
   best_time_s: number | null;
+  best_moving_time_s: number | null;
 }
 
 export interface SegmentPoint {
@@ -389,6 +390,8 @@ export interface SegmentEffort {
   activity_id: number;
   time_s: number;
   avg_speed_kmh: number | null;
+  moving_time_s: number | null;
+  moving_speed_kmh: number | null;
   avg_hr: number | null;
   avg_power_w: number | null;
   norm_power_w: number | null;

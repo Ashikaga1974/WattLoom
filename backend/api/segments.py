@@ -11,7 +11,7 @@ from pydantic import BaseModel
 
 from backend.api.errors import api_error
 from backend.database import db_connection
-from backend.segment_matching import match_segment_against_all
+from backend.segment_matching import match_segment_against_all, rescan_segment
 
 router = APIRouter(prefix="/segments", tags=["segments"])
 
@@ -62,7 +62,8 @@ def list_segments():
             SELECT
                 s.id, s.name, s.distance_m, s.created_at,
                 COUNT(e.id) AS effort_count,
-                MIN(e.time_s) AS best_time_s
+                MIN(e.time_s) AS best_time_s,
+                MIN(e.moving_time_s) AS best_moving_time_s
             FROM custom_segments s
             LEFT JOIN custom_segment_efforts e ON e.segment_id = s.id
             GROUP BY s.id
@@ -102,6 +103,24 @@ def create_segment(payload: SegmentCreate):
     return {"id": segment_id, "name": payload.name, "distance_m": distance_m}
 
 
+@router.post("/rescan")
+def rescan_segments():
+    """
+    Gleicht alle Segmente neu gegen sämtliche Aktivitäten ab und ersetzt die gespeicherten
+    Efforts (inkl. Entfernen nicht mehr passender Treffer). Nötig nach Änderungen am
+    Matching-Algorithmus, da bestehende Efforts sonst mit der alten Logik berechnet bleiben.
+    Bewusst synchron statt Hintergrund-Thread: bei einer Handvoll Segmenten dauert das nur
+    wenige Sekunden, und der Aufrufer bekommt direkt das Ergebnis zurück.
+    """
+    with db_connection() as conn:
+        segments = conn.execute("SELECT * FROM custom_segments ORDER BY id").fetchall()
+        results = [
+            {"id": seg["id"], "name": seg["name"], "effort_count": rescan_segment(conn, dict(seg))}
+            for seg in segments
+        ]
+    return {"segments": results, "total_efforts": sum(r["effort_count"] for r in results)}
+
+
 @router.get("/{segment_id}")
 def get_segment(segment_id: int):
     with db_connection() as conn:
@@ -133,7 +152,8 @@ def list_efforts(segment_id: int):
             raise api_error(404, "segment_not_found", "Segment not found")
         rows = conn.execute("""
             SELECT
-                e.id, e.activity_id, e.time_s, e.avg_speed_kmh, e.avg_hr,
+                e.id, e.activity_id, e.time_s, e.avg_speed_kmh,
+                e.moving_time_s, e.moving_speed_kmh, e.avg_hr,
                 e.avg_power_w, e.norm_power_w, e.match_pct, e.created_at,
                 a.name AS activity_name, a.start_date_local AS activity_date
             FROM custom_segment_efforts e

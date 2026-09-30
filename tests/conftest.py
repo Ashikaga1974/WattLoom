@@ -240,6 +240,8 @@ CREATE TABLE custom_segment_efforts (
     norm_power_w    REAL,
     match_pct       REAL,
     created_at      TEXT NOT NULL DEFAULT (datetime('now')),
+    moving_time_s   REAL,
+    moving_speed_kmh REAL,
     UNIQUE(segment_id, activity_id)
 );
 """

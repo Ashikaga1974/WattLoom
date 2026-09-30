@@ -5,6 +5,8 @@ import { api, type SegmentDetail, type SegmentEffort, type TrackPoint } from '@/
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { fmtDate, fmtTimeShort } from '@/lib/format';
+import { useSegmentTimeMode } from '@/lib/segment-time-mode';
+import { SegmentTimeModeToggle } from '@/components/SegmentTimeModeToggle';
 
 const LeafletMap = lazy(() => import('@/components/LeafletMap'));
 
@@ -20,6 +22,7 @@ export default function SegmentDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [timeMode, setTimeMode] = useSegmentTimeMode();
 
   useEffect(() => {
     if (!segmentId) return;
@@ -33,6 +36,17 @@ export default function SegmentDetailPage() {
       .catch(e => setError(e instanceof Error ? e.message : String(e)))
       .finally(() => setLoading(false));
   }, [segmentId]);
+
+  // Fahrzeit fehlt bei Efforts, die vor der Fahrzeit-Variante berechnet und noch nicht
+  // neu abgeglichen wurden – dann auf die Gesamtzeit zurückfallen statt die Zeile zu verlieren
+  const rankedEfforts = useMemo(() => {
+    const view = efforts.map(e => ({
+      ...e,
+      shownTime: timeMode === 'moving' ? (e.moving_time_s ?? e.time_s) : e.time_s,
+      shownSpeed: timeMode === 'moving' ? (e.moving_speed_kmh ?? e.avg_speed_kmh) : e.avg_speed_kmh,
+    }));
+    return view.sort((a, b) => a.shownTime - b.shownTime);
+  }, [efforts, timeMode]);
 
   const mapPoints: TrackPoint[] = useMemo(() => {
     if (!segment) return [];
@@ -101,8 +115,13 @@ export default function SegmentDetailPage() {
             </button>
           )}
         </div>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">{segment.name}</h1>
-        <p className="text-sm text-muted-foreground mt-1">{(segment.distance_m / 1000).toFixed(2)} km</p>
+        <div className="flex items-end justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight text-foreground">{segment.name}</h1>
+            <p className="text-sm text-muted-foreground mt-1">{(segment.distance_m / 1000).toFixed(2)} km</p>
+          </div>
+          <SegmentTimeModeToggle mode={timeMode} onChange={setTimeMode} />
+        </div>
       </div>
 
       {mapPoints.length > 0 && (
@@ -129,7 +148,7 @@ export default function SegmentDetailPage() {
                 </tr>
               </thead>
               <tbody>
-                {efforts.map((e, i) => (
+                {rankedEfforts.map((e, i) => (
                   <tr key={e.id} className="border-b border-border last:border-0 hover:bg-muted/40 transition-colors">
                     <td className="px-4 py-3 tabular-nums text-muted-foreground">{i + 1}.</td>
                     <td className="px-4 py-3">
@@ -138,8 +157,8 @@ export default function SegmentDetailPage() {
                       </Link>
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">{e.activity_date ? fmtDate(e.activity_date) : '–'}</td>
-                    <td className="px-4 py-3 text-right tabular-nums font-medium">{fmtTimeShort(e.time_s)}</td>
-                    <td className="px-4 py-3 text-right tabular-nums">{e.avg_speed_kmh != null ? `${e.avg_speed_kmh.toFixed(1)} km/h` : '–'}</td>
+                    <td className="px-4 py-3 text-right tabular-nums font-medium">{fmtTimeShort(e.shownTime)}</td>
+                    <td className="px-4 py-3 text-right tabular-nums">{e.shownSpeed != null ? `${e.shownSpeed.toFixed(1)} km/h` : '–'}</td>
                     <td className="px-4 py-3 text-right tabular-nums">{e.avg_hr != null ? Math.round(e.avg_hr) : '–'}</td>
                     <td className="px-4 py-3 text-right tabular-nums">{e.avg_power_w != null ? `${Math.round(e.avg_power_w)} W` : '–'}</td>
                   </tr>

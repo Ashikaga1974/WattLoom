@@ -43,6 +43,8 @@ STANDSTILL_M = 1.0
 END_WINDOW_M = 50.0
 STOP_GAP_S = 10.0
 MIN_MOVING_SPEED_MS = 1.0
+# Fahrzeit-Variante: kürzere Standphasen gelten nicht als Stopp (siehe _standstill_seconds)
+MIN_STOP_S = 5.0
 
 
 def _load_activity_points(conn: sqlite3.Connection, activity_id: int) -> list[dict]:
@@ -112,6 +114,28 @@ def _trim_end_standstill(sub: list[dict], rel_dists: list[float], end_i: int, se
         if _is_standstill(sub[k - 1], sub[k]):
             return k - 1
     return end_i
+
+
+def _standstill_seconds(sub: list[dict], end_i: int) -> float:
+    """Summe aller Stopps zwischen Segment-Start und end_i – Differenz zwischen Gesamtzeit
+    und Fahrzeit eines Efforts. Als Stopp zählt nur eine zusammenhängende Folge von
+    Stillstand-Intervallen (_is_standstill) mit mindestens MIN_STOP_S Dauer: manche Sensoren
+    (z.B. SuperCycle) schreiben jede Sekunde einen Punkt, aktualisieren die Distanz aber nur
+    alle 2–3 s – einzelne 0-m-Schritte während der Fahrt sind deshalb kein Stillstand."""
+    total = 0.0
+    run_s = 0.0
+    for k in range(1, end_i + 1):
+        if not _is_standstill(sub[k - 1], sub[k]):
+            if run_s >= MIN_STOP_S:
+                total += run_s
+            run_s = 0.0
+            continue
+        t_prev, t_cur = parse_iso_ts(sub[k - 1]["timestamp"]), parse_iso_ts(sub[k]["timestamp"])
+        if t_prev is not None and t_cur is not None and t_cur > t_prev:
+            run_s += t_cur - t_prev
+    if run_s >= MIN_STOP_S:
+        total += run_s
+    return total
 
 
 def _nearest_relative_index(rel_dists: list[float], target_m: float) -> int:
@@ -206,12 +230,23 @@ def match_segment_in_activity(
         # wenn _trim_end_standstill() einen Stillstand kurz vor dem Ende abgeschnitten hat
         time_s = moving_s + max(0.0, segment_distance_m - rel_dists[end_i]) / avg_speed_ms
 
+        # Fahrzeit-Variante: Stillstand-Intervalle innerhalb des Segments abziehen
+        stopped_s = _standstill_seconds(sub, end_i)
+        moving_only_s = moving_s - stopped_s
+        if moving_only_s > 0:
+            moving_speed_ms = actual_dist_m / moving_only_s
+            moving_time_s = moving_only_s + max(0.0, segment_distance_m - rel_dists[end_i]) / moving_speed_ms
+        else:
+            moving_speed_ms, moving_time_s = avg_speed_ms, time_s
+
         hr_values = [p["hr"] for p in sub[:end_i + 1] if p["hr"] is not None]
         avg_hr = sum(hr_values) / len(hr_values) if hr_values else None
 
         result = {
             "time_s": round(time_s),
             "avg_speed_kmh": round(avg_speed_kmh, 1),
+            "moving_time_s": round(moving_time_s),
+            "moving_speed_kmh": round(moving_speed_ms * MS_TO_KMH, 1),
             "avg_hr": round(avg_hr, 1) if avg_hr is not None else None,
             "avg_power_w": None,
             "norm_power_w": None,
@@ -262,17 +297,26 @@ def store_effort(conn: sqlite3.Connection, segment_id: int, activity_id: int, re
     dem Einzelimport-Hook in backend/api/importer.py, damit die Upsert-SQL nicht doppelt
     gepflegt werden muss."""
     with conn:
-        conn.execute(
-            """INSERT INTO custom_segment_efforts
-                   (segment_id, activity_id, time_s, avg_speed_kmh, avg_hr, avg_power_w, norm_power_w, match_pct)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-               ON CONFLICT(segment_id, activity_id) DO UPDATE SET
-                   time_s=excluded.time_s, avg_speed_kmh=excluded.avg_speed_kmh,
-                   avg_hr=excluded.avg_hr, avg_power_w=excluded.avg_power_w,
-                   norm_power_w=excluded.norm_power_w, match_pct=excluded.match_pct""",
-            (segment_id, activity_id, result["time_s"], result["avg_speed_kmh"],
-             result["avg_hr"], result["avg_power_w"], result["norm_power_w"], result["match_pct"]),
-        )
+        _upsert_effort(conn, segment_id, activity_id, result)
+
+
+def _upsert_effort(conn: sqlite3.Connection, segment_id: int, activity_id: int, result: dict) -> None:
+    """Upsert ohne eigenen Commit – für Aufrufer, die mehrere Efforts in einer gemeinsamen
+    Transaktion schreiben (store_effort(), rescan_segment())."""
+    conn.execute(
+        """INSERT INTO custom_segment_efforts
+               (segment_id, activity_id, time_s, avg_speed_kmh, moving_time_s, moving_speed_kmh,
+                avg_hr, avg_power_w, norm_power_w, match_pct)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+           ON CONFLICT(segment_id, activity_id) DO UPDATE SET
+               time_s=excluded.time_s, avg_speed_kmh=excluded.avg_speed_kmh,
+               moving_time_s=excluded.moving_time_s, moving_speed_kmh=excluded.moving_speed_kmh,
+               avg_hr=excluded.avg_hr, avg_power_w=excluded.avg_power_w,
+               norm_power_w=excluded.norm_power_w, match_pct=excluded.match_pct""",
+        (segment_id, activity_id, result["time_s"], result["avg_speed_kmh"],
+         result["moving_time_s"], result["moving_speed_kmh"],
+         result["avg_hr"], result["avg_power_w"], result["norm_power_w"], result["match_pct"]),
+    )
 
 
 def match_segment_against_all(conn: sqlite3.Connection, segment: dict, activity_ids: list[int] | None = None) -> int:
@@ -300,3 +344,29 @@ def match_segment_against_all(conn: sqlite3.Connection, segment: dict, activity_
         store_effort(conn, segment["id"], activity_id, result)
         stored += 1
     return stored
+
+
+def rescan_segment(conn: sqlite3.Connection, segment: dict) -> int:
+    """
+    Berechnet alle Efforts eines Segments komplett neu (z.B. nach einer Änderung am
+    Matching-Algorithmus). Anders als match_segment_against_all() werden dabei auch
+    Efforts entfernt, die mit dem aktuellen Algorithmus nicht mehr matchen – ein reiner
+    Upsert würde sie als veraltete Einträge stehen lassen.
+    Erst alle Treffer berechnen, dann Löschen + Neuschreiben in einer Transaktion: bricht
+    das Matching ab, bleiben die bisherigen Efforts unverändert erhalten.
+    Gibt die Anzahl der danach gespeicherten Efforts zurück.
+    """
+    segment_points = json.loads(segment["points"])
+    activity_ids = _segment_bbox_activity_ids(conn, segment_points[0]["lat"], segment_points[0]["lon"])
+
+    results = []
+    for activity_id in activity_ids:
+        result = match_segment_in_activity(conn, segment_points, segment["distance_m"], activity_id)
+        if result is not None:
+            results.append((activity_id, result))
+
+    with conn:
+        conn.execute("DELETE FROM custom_segment_efforts WHERE segment_id = ?", (segment["id"],))
+        for activity_id, result in results:
+            _upsert_effort(conn, segment["id"], activity_id, result)
+    return len(results)

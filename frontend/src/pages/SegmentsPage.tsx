@@ -6,12 +6,15 @@ import { PageHeader } from '@/components/ui/page-header';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { fmtTimeShort } from '@/lib/format';
+import { useSegmentTimeMode } from '@/lib/segment-time-mode';
+import { SegmentTimeModeToggle } from '@/components/SegmentTimeModeToggle';
 
 export default function SegmentsPage() {
   const { t } = useTranslation(['segments', 'common']);
   const [segments, setSegments] = useState<SegmentSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [timeMode, setTimeMode] = useSegmentTimeMode();
 
   useEffect(() => {
     api.segments()
@@ -22,7 +25,10 @@ export default function SegmentsPage() {
 
   return (
     <div>
-      <PageHeader title={t('title')} subtitle={t('subtitle')} />
+      <div className="flex items-start justify-between gap-4">
+        <PageHeader title={t('title')} subtitle={t('subtitle')} />
+        {segments.length > 0 && <SegmentTimeModeToggle mode={timeMode} onChange={setTimeMode} />}
+      </div>
 
       {loading && (
         <div className="space-y-2">
@@ -63,7 +69,10 @@ export default function SegmentsPage() {
                     <td className="px-4 py-3 text-right tabular-nums">{(s.distance_m / 1000).toFixed(2)} km</td>
                     <td className="px-4 py-3 text-right tabular-nums">{s.effort_count}</td>
                     <td className="px-4 py-3 text-right tabular-nums">
-                      {s.best_time_s != null ? fmtTimeShort(s.best_time_s) : '–'}
+                      {(() => {
+                        const best = timeMode === 'moving' ? (s.best_moving_time_s ?? s.best_time_s) : s.best_time_s;
+                        return best != null ? fmtTimeShort(best) : '–';
+                      })()}
                     </td>
                   </tr>
                 ))}

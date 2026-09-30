@@ -4,10 +4,12 @@ Berechnung für selbst definierte Segmente (custom_segments/custom_segment_effor
 in tests/conftest.py).
 """
 import json
+from contextlib import contextmanager
 
 import pytest
 
-from backend.segment_matching import match_segment_against_all, match_segment_in_activity
+from backend.api import segments as segments_api
+from backend.segment_matching import match_segment_against_all, match_segment_in_activity, rescan_segment
 
 _LAT0 = 50.0
 _LON = 6.0
@@ -279,3 +281,156 @@ class TestMatchSegmentAgainstAll:
         ).fetchall()
         assert len(rows) == 1
         assert rows[0]["time_s"] != first_time
+
+
+def _insert_segment(conn, segment_id=1, length_m=1000.0):
+    conn.execute(
+        "INSERT INTO custom_segments (id, name, source_activity_id, distance_m, points) VALUES (?, ?, ?, ?, ?)",
+        (segment_id, f"Segment {segment_id}", 1, length_m, json.dumps(_make_segment_points(length_m=length_m))),
+    )
+    conn.commit()
+    return dict(conn.execute("SELECT * FROM custom_segments WHERE id = ?", (segment_id,)).fetchone())
+
+
+def _insert_stale_effort(conn, segment_id, activity_id, time_s=999.0):
+    conn.execute(
+        """INSERT INTO custom_segment_efforts (segment_id, activity_id, time_s, avg_speed_kmh, match_pct)
+           VALUES (?, ?, ?, 1.0, 50.0)""",
+        (segment_id, activity_id, time_s),
+    )
+    conn.commit()
+
+
+class TestRescanSegment:
+    def test_removes_efforts_that_no_longer_match(self, db):
+        _insert_ride(db, 1, "Quelle")
+        _insert_track(db, 1, length_m=1000.0)
+        _insert_ride(db, 2, "Andere Strecke")
+        _insert_track(db, 2, length_m=1000.0, lat_offset_m=500.0)
+        segment = _insert_segment(db)
+        # Altlast eines früheren Algorithmus: Aktivität 2 matcht heute nicht mehr
+        _insert_stale_effort(db, 1, 2)
+
+        stored = rescan_segment(db, segment)
+
+        assert stored == 1
+        rows = db.execute("SELECT activity_id FROM custom_segment_efforts WHERE segment_id = 1").fetchall()
+        assert {r["activity_id"] for r in rows} == {1}
+
+    def test_replaces_outdated_values(self, db):
+        _insert_ride(db, 1, "Quelle")
+        _insert_track(db, 1, length_m=1000.0, seconds_per_step=10.0)
+        segment = _insert_segment(db)
+        _insert_stale_effort(db, 1, 1, time_s=999.0)
+
+        rescan_segment(db, segment)
+
+        rows = db.execute("SELECT time_s FROM custom_segment_efforts WHERE segment_id = 1").fetchall()
+        assert len(rows) == 1
+        assert rows[0]["time_s"] != 999.0
+
+    def test_leaves_other_segments_untouched(self, db):
+        _insert_ride(db, 1, "Quelle")
+        _insert_track(db, 1, length_m=1000.0)
+        segment = _insert_segment(db, segment_id=1)
+        _insert_segment(db, segment_id=2)
+        _insert_stale_effort(db, 2, 1, time_s=999.0)
+
+        rescan_segment(db, segment)
+
+        other = db.execute("SELECT time_s FROM custom_segment_efforts WHERE segment_id = 2").fetchall()
+        assert [r["time_s"] for r in other] == [999.0]
+
+
+class TestRescanEndpoint:
+    def test_rescans_all_segments(self, db, monkeypatch):
+        @contextmanager
+        def fake_db_connection():
+            yield db
+        monkeypatch.setattr(segments_api, "db_connection", fake_db_connection)
+
+        _insert_ride(db, 1, "Quelle")
+        _insert_track(db, 1, length_m=1000.0)
+        _insert_segment(db, segment_id=1)
+        _insert_segment(db, segment_id=2)
+        _insert_stale_effort(db, 1, 1, time_s=999.0)
+
+        response = segments_api.rescan_segments()
+
+        assert [s["id"] for s in response["segments"]] == [1, 2]
+        assert all(s["effort_count"] == 1 for s in response["segments"])
+        assert response["total_efforts"] == 2
+        times = [r["time_s"] for r in db.execute("SELECT time_s FROM custom_segment_efforts").fetchall()]
+        assert 999.0 not in times
+
+
+class TestMovingTime:
+    def _insert_track_with_stop(self, conn, activity_id, stop_at_m=500.0, stop_s=120):
+        """Gerader Track wie _insert_track (50 m / 10 s), aber mit einer Wartepause mitten im
+        Segment: an stop_at_m steht die Fahrt stop_s Sekunden (gleiche Distanz, späterer Zeitstempel)."""
+        from datetime import datetime, timedelta
+        t = datetime.fromisoformat("2026-05-01T08:00:00")
+        rows = []
+        for i in range(21):
+            d = i * 50.0
+            rows.append((activity_id, t.isoformat(), _lat_at(d), _LON, 200.0, d, 5.0, 140))
+            if d == stop_at_m:
+                t += timedelta(seconds=stop_s)
+                rows.append((activity_id, t.isoformat(), _lat_at(d), _LON, 200.0, d, 0.0, 140))
+            t += timedelta(seconds=10)
+        conn.executemany(
+            """INSERT INTO track_points (activity_id, timestamp, lat, lon, altitude_m, distance_m, speed_ms, hr)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+            rows,
+        )
+
+    def test_stop_mid_segment_counts_only_in_elapsed_time(self, db):
+        _insert_ride(db, 1, "Mit Ampelstopp")
+        self._insert_track_with_stop(db, 1, stop_at_m=500.0, stop_s=120)
+
+        result = match_segment_in_activity(db, _make_segment_points(length_m=1000.0), 1000.0, 1)
+
+        assert result is not None
+        assert result["time_s"] == 320        # 20 × 10 s Fahrt + 120 s Stopp
+        assert result["moving_time_s"] == 200  # nur die Fahrt
+        assert result["moving_speed_kmh"] > result["avg_speed_kmh"]
+
+    def test_without_stop_both_times_are_equal(self, db):
+        _insert_ride(db, 1, "Ohne Stopp")
+        _insert_track(db, 1, length_m=1000.0, seconds_per_step=10.0)
+
+        result = match_segment_in_activity(db, _make_segment_points(length_m=1000.0), 1000.0, 1)
+
+        assert result["moving_time_s"] == result["time_s"]
+        assert result["moving_speed_kmh"] == result["avg_speed_kmh"]
+
+    def test_sensor_with_delayed_distance_updates_is_not_a_stop(self, db):
+        """SuperCycle-Muster: 1 Punkt/s, Distanz springt aber nur jede 2. Sekunde weiter –
+        die 0-m-Zwischenschritte dürfen nicht als Stillstand von der Fahrzeit abgehen."""
+        from datetime import datetime, timedelta
+        _insert_ride(db, 1, "SuperCycle")
+        t0 = datetime.fromisoformat("2026-05-01T08:00:00")
+        rows = []
+        for i in range(201):
+            d = (i // 2) * 10.0  # je 2 Punkte dieselbe Distanz, dann +10 m
+            rows.append((1, (t0 + timedelta(seconds=i)).isoformat(), _lat_at(d), _LON, 200.0, d, 5.0, 140))
+        db.executemany(
+            """INSERT INTO track_points (activity_id, timestamp, lat, lon, altitude_m, distance_m, speed_ms, hr)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+            rows,
+        )
+
+        result = match_segment_in_activity(db, _make_segment_points(length_m=1000.0), 1000.0, 1)
+
+        assert result is not None
+        assert result["moving_time_s"] == result["time_s"]
+
+    def test_rescan_stores_moving_time(self, db):
+        _insert_ride(db, 1, "Mit Ampelstopp")
+        self._insert_track_with_stop(db, 1)
+        segment = _insert_segment(db)
+
+        rescan_segment(db, segment)
+
+        row = db.execute("SELECT time_s, moving_time_s FROM custom_segment_efforts WHERE segment_id = 1").fetchone()
+        assert row["moving_time_s"] < row["time_s"]

@@ -2028,6 +2028,11 @@
       "speed": "Avg speed",
       "hr": "Avg HR",
       "power": "Avg power"
+    },
+    "timeMode": {
+      "elapsed": "Elapsed time",
+      "moving": "Moving time",
+      "movingHint": "Moving time: stops within the section are not counted"
     }
   }
 }

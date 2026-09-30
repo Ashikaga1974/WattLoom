@@ -198,7 +198,10 @@ against it using the same distance-mark principle as the route comparison:
 
 - The effort starts at the track point **nearest** to the segment start.
 - Standstill at the start and in the last 50 m before the end is excluded.
-- Stops in the middle of the segment count (elapsed time, like Strava).
+- **Elapsed time** (default, like Strava): stops in the middle of the segment count.
+- **Moving time** (toggle on the segment pages): stops are subtracted. A stop is a standstill
+  of at least 5 s in a row – shorter "zero-distance" steps are ignored, because some sensors
+  update the distance only every 2–3 s while still riding.
 - Direction matters – riding the same road the other way does not match.
 - Power per effort uses the estimated power model above.
 

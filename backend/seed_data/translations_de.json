@@ -2028,6 +2028,11 @@
       "speed": "Ø Speed",
       "hr": "Ø HF",
       "power": "Ø Watt"
+    },
+    "timeMode": {
+      "elapsed": "Gesamtzeit",
+      "moving": "Fahrzeit",
+      "movingHint": "Fahrzeit: Stopps innerhalb des Abschnitts zählen nicht mit"
     }
   }
 }

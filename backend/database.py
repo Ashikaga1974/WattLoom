@@ -451,6 +451,7 @@ def init_db() -> None:
         """)
         conn.execute("CREATE INDEX IF NOT EXISTS idx_custom_seg_efforts_segment ON custom_segment_efforts(segment_id)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_custom_seg_efforts_activity ON custom_segment_efforts(activity_id)")
+        _migrate_segment_moving_time(conn)
 
         # Migration: deutsche Klartext-Sport-/Komponenten-Werte → stabile, sprachneutrale Codes
         # (Grundlage für die Mehrsprachigkeit, DE/EN). Vorher schrieben die Importer German
@@ -957,7 +958,42 @@ def init_db() -> None:
                         (lang, ns, key, json.dumps(value)),
                     )
 
+        _seed_segment_time_mode_translations(conn)
+
         conn.commit()
+
+
+def _migrate_segment_moving_time(conn) -> None:
+    """Fahrzeit-Variante für Segment-Efforts (Session 2026-09-30): Stopps innerhalb des
+    Segments zählen in time_s mit (Elapsed Time, wie Strava), in moving_time_s nicht.
+    Bestehende Efforts bleiben NULL, bis sie per POST /segments/rescan neu berechnet werden."""
+    cols = [r[1] for r in conn.execute("PRAGMA table_info(custom_segment_efforts)").fetchall()]
+    for col in ("moving_time_s", "moving_speed_kmh"):
+        if col not in cols:
+            conn.execute(f"ALTER TABLE custom_segment_efforts ADD COLUMN {col} REAL")
+
+
+def _seed_segment_time_mode_translations(conn) -> None:
+    """Texte für den Umschalter Gesamtzeit/Fahrzeit auf den Segment-Seiten. OR IGNORE, damit
+    eigene Anpassungen/importierte Übersetzungen nicht überschrieben werden."""
+    keys = {
+        "de": {
+            "timeMode.elapsed": "Gesamtzeit",
+            "timeMode.moving": "Fahrzeit",
+            "timeMode.movingHint": "Fahrzeit: Stopps innerhalb des Abschnitts zählen nicht mit",
+        },
+        "en": {
+            "timeMode.elapsed": "Elapsed time",
+            "timeMode.moving": "Moving time",
+            "timeMode.movingHint": "Moving time: stops within the section are not counted",
+        },
+    }
+    for lang, entries in keys.items():
+        for key, value in entries.items():
+            conn.execute(
+                "INSERT OR IGNORE INTO translations(lang, ns, key, value) VALUES (?, 'segments', ?, ?)",
+                (lang, key, json.dumps(value)),
+            )
 
 
 def _migrate_onboarding_flag(conn) -> None:
