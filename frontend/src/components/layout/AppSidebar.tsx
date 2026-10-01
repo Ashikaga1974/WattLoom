@@ -16,6 +16,7 @@ import {
   SidebarMenuSub,
   SidebarMenuSubButton,
   SidebarMenuSubItem,
+  useSidebar,
 } from '@/components/ui/sidebar';
 import {
   LayoutDashboard,
@@ -119,6 +120,7 @@ const navGroups: NavGroup[] = [
 export function AppSidebar() {
   const { t } = useTranslation('common');
   const location = useLocation();
+  const { isMobile, setOpenMobile } = useSidebar();
   const p = location.pathname;
 
   // Untermenüs standardmäßig aufgeklappt, einzeln zuklappbar
@@ -141,9 +143,14 @@ export function AppSidebar() {
     return p === href || p.startsWith(href + '/');
   }
 
+  // Klick auf einen Menülink schließt das mobile Overlay – sonst wechselt die Seite unsichtbar darunter
+  function closeMobileOnNavigate(e: React.MouseEvent) {
+    if (isMobile && (e.target as HTMLElement).closest('a')) setOpenMobile(false);
+  }
+
   return (
     <Sidebar>
-      <SidebarHeader className="border-b border-sidebar-border">
+      <SidebarHeader onClick={closeMobileOnNavigate} className="border-b border-sidebar-border">
         <Link to="/" className="flex items-center gap-2 px-2 py-3">
           <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary">
             <Bike size={15} className="text-primary-foreground" />
@@ -152,7 +159,7 @@ export function AppSidebar() {
         </Link>
       </SidebarHeader>
 
-      <SidebarContent>
+      <SidebarContent onClick={closeMobileOnNavigate}>
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>
@@ -207,7 +214,7 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="border-t border-sidebar-border">
+      <SidebarFooter onClick={closeMobileOnNavigate} className="border-t border-sidebar-border">
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton
