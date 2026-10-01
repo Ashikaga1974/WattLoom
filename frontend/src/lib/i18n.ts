@@ -43,7 +43,7 @@ i18next.on('languageChanged', (lng) => {
 });
 
 // In App.tsx (innerhalb von ConfigProvider) aufrufen: hält i18next in Sync mit der aus
-// /settings geladenen Sprache. Lebt hier statt in config-context.tsx, weil dieses Modul
+// /settings geladenen Sprache. Lebt hier statt in config-context.ts, weil dieses Modul
 // bereits config-context importiert (CONFIG_DEFAULTS) – der umgekehrte Import würde einen
 // Zirkelbezug erzeugen.
 export function useSyncLanguage(): void {

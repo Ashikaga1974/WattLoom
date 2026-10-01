@@ -10,7 +10,8 @@ import {
 } from 'recharts';
 import { ChartTooltip } from '@/components/ui/chart-tooltip';
 
-import { PALETTE, MONTHS, StatTile, type MonthlyEntry } from './shared';
+import { PALETTE, MONTHS, type MonthlyEntry } from './shared';
+import { StatTile } from './StatTile';
 
 function YearComparisonTooltip({ active, payload, label, years }: { active?: boolean; payload?: any[]; label?: string; years: number[] }) {
   if (!active || !payload?.length) return null;

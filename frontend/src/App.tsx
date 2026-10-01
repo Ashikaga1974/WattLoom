@@ -3,8 +3,9 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation, useParams } from '
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { AppSidebar } from '@/components/layout/AppSidebar';
-import { ConfigProvider, useOnboarding } from '@/lib/config-context';
-import { ThemeProvider } from '@/lib/theme-context';
+import { ConfigProvider } from '@/lib/ConfigProvider';
+import { useOnboarding } from '@/lib/config-context';
+import { ThemeProvider } from '@/lib/ThemeProvider';
 import { useSyncLanguage } from '@/lib/i18n';
 import SetupWizard from '@/pages/onboarding/SetupWizard';
 

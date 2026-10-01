@@ -19,4 +19,12 @@ export default defineConfig([
       globals: globals.browser,
     },
   },
+  {
+    // shadcn-generierte Dateien exportieren bewusst ihre cva-Variants neben der Komponente –
+    // aufteilen würde beim nächsten `shadcn add` wieder überschrieben.
+    files: ['src/components/ui/**/*.tsx'],
+    rules: {
+      'react-refresh/only-export-components': 'off',
+    },
+  },
 ])

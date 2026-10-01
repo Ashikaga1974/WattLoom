@@ -16,7 +16,7 @@ import { fmtTime } from '@/lib/format';
 import { ChartTooltip } from '@/components/ui/chart-tooltip';
 import type { Insight } from '@/lib/insights';
 
-import { StatTile } from './shared';
+import { StatTile } from './StatTile';
 
 function VolumeTooltip({ active, payload }: { active?: boolean; payload?: any[] }) {
   const { t } = useTranslation('progress');

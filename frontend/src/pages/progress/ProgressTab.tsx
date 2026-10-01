@@ -15,7 +15,8 @@ import { fmtTime } from '@/lib/format';
 import { ChartTooltip } from '@/components/ui/chart-tooltip';
 import type { Insight } from '@/lib/insights';
 
-import { PALETTE, MONTHS, MONTH_DOYS, StatTile, type MonthlyEntry } from './shared';
+import { PALETTE, MONTHS, MONTH_DOYS, type MonthlyEntry } from './shared';
+import { StatTile } from './StatTile';
 
 // ─── Custom Tooltips ─────────────────────────────────────────────────────────
 

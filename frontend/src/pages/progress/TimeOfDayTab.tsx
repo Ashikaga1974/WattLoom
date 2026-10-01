@@ -12,7 +12,7 @@ import {
 import { fmtNum, fmtTime } from '@/lib/format';
 import type { Insight } from '@/lib/insights';
 
-import { StatTile } from './shared';
+import { StatTile } from './StatTile';
 
 // Zeitblöcke statt 24 Einzelstunden – deutlich lesbarer. Standard 3h → 8 benannte Blöcke;
 // bei abweichender block_hours-Einstellung dient der Stundenbereich selbst als Label.

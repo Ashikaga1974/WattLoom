@@ -1,6 +1,5 @@
-import { createContext, useCallback, useContext, useEffect, useState } from 'react';
-
-export type ThemeChoice = 'light' | 'dark' | 'system';
+import { useCallback, useEffect, useState } from 'react';
+import { ThemeContext, type ThemeChoice } from './theme-context';
 
 const STORAGE_KEY = 'wattloom-theme';
 
@@ -16,16 +15,6 @@ function readStoredChoice(): ThemeChoice {
   const stored = localStorage.getItem(STORAGE_KEY);
   return stored === 'light' || stored === 'dark' || stored === 'system' ? stored : 'system';
 }
-
-interface ThemeContextValue {
-  theme: ThemeChoice;
-  setTheme: (choice: ThemeChoice) => void;
-}
-
-const ThemeContext = createContext<ThemeContextValue>({
-  theme: 'system',
-  setTheme: () => {},
-});
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setThemeState] = useState<ThemeChoice>(() => {
@@ -56,8 +45,4 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       {children}
     </ThemeContext.Provider>
   );
-}
-
-export function useTheme(): ThemeContextValue {
-  return useContext(ThemeContext);
 }
