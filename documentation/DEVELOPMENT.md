@@ -101,14 +101,18 @@ database into the mounted volume `./wattloom-data`.
 
 ```bash
 cd frontend && npm ci && npm run build && cd ..
+pip install -r requirements-build.txt
 pyinstaller wattloom.spec --noconfirm
 ```
 
 Result in `dist/WattLoom/`. `launcher.py` starts uvicorn and opens the browser;
 `backend/paths.py` is the only place that distinguishes dev mode, frozen build and Docker.
+`requirements-build.txt` pins PyInstaller and its dependencies exactly, so release builds
+are reproducible.
 
 The Windows build runs on GitHub Actions (`.github/workflows/build-windows.yml`), triggered
-manually or by pushing a `v*` tag.
+manually or by pushing a `v*` tag. It first runs the full test workflow (`tests.yml`, via
+`workflow_call`) and only builds if the tests pass.
 
 ## Releases
 

@@ -1,0 +1,12 @@
+# Build-Werkzeuge für die Desktop-Version (PyInstaller), exakt gepinnt inkl. transitiver Pakete –
+# sonst holt der Release-Build bei jedem Tag die jeweils neueste PyInstaller-Version.
+# Updates: Versionen hier anheben, Windows-Build manuell anstoßen und testen.
+-r backend/requirements.txt
+pyinstaller==6.22.2
+pyinstaller-hooks-contrib==2026.6
+altgraph==0.17.5
+packaging==26.2
+setuptools==84.0.0
+pefile==2024.8.26; sys_platform == "win32"
+pywin32-ctypes==0.2.3; sys_platform == "win32"
+macholib==1.16.4; sys_platform == "darwin"

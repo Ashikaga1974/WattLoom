@@ -4,6 +4,13 @@ on:
   push:
     branches: [main]
   pull_request:
+  # Vom Windows-Build vor dem Release aufgerufen, damit kein Tag auf kaputtem Stand gebaut wird
+  workflow_call:
+
+# Neuer Push auf denselben Branch/PR macht den älteren Lauf überflüssig
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   pytest:
@@ -14,6 +21,10 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            requirements-dev.txt
+            backend/requirements.txt
 
       - name: Abhängigkeiten installieren
         run: pip install -r requirements-dev.txt
