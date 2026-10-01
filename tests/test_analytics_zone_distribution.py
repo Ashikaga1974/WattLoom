@@ -166,3 +166,33 @@ class TestZoneDistribution:
         assert result["total_seconds"] == 0
         assert result["easy_pct"] == 0.0
         assert all(z["pct"] == 0.0 for z in result["zones"])
+
+
+class TestZoneDistributionCache:
+    def test_second_call_is_served_from_cache(self, db, monkeypatch):
+        _patch_db(monkeypatch, db)
+        _insert_activity(db, 1, "2026-05-01T08:00:00")
+        _insert_points(db, 1, [("2026-05-01T08:00:00", 100), ("2026-05-01T08:00:10", 100)])
+        db.commit()
+        first = analytics.zone_distribution(year=None)
+
+        # Neue Trackpunkte ohne Cache-Invalidierung bleiben unsichtbar – beweist den Cache-Treffer
+        _insert_points(db, 1, [("2026-05-01T08:00:20", 100)])
+        db.commit()
+
+        assert analytics.zone_distribution(year=None) == first
+
+    def test_changed_hr_correction_bypasses_cached_result(self, db, monkeypatch):
+        # 160 bpm / 185 = 86 % → Zone 4; mit +8 Prozentpunkten Korrektur 94 % → Zone 5
+        _patch_db(monkeypatch, db)
+        _insert_activity(db, 1, "2026-05-01T08:00:00")
+        _insert_points(db, 1, [("2026-05-01T08:00:00", 160), ("2026-05-01T08:00:10", 160)])
+        db.commit()
+        without = analytics.zone_distribution(year=None)
+
+        db.execute("INSERT INTO config (key, value) VALUES ('hr_correction_enabled', '1')")
+        db.commit()
+        with_correction = analytics.zone_distribution(year=None)
+
+        assert with_correction["hr_correction_applied"] is True
+        assert with_correction["zones"] != without["zones"]

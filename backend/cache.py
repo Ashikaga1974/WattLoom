@@ -1,7 +1,7 @@
 """
 Minimaler In-Prozess-Cache für teure, rein DB-abgeleitete Analytics-Antworten
-(aktuell best_by_distance + heatmap – beide laden bei jedem Request alle
-Trackpunkte neu, siehe CLAUDE.md "Live-Full-Table-Scans über track_points").
+(aktuell best_by_distance, heatmap und zone_distribution – alle laden ohne Cache bei
+jedem Request alle Trackpunkte neu, siehe CLAUDE.md "Live-Full-Table-Scans über track_points").
 
 Bewusst kein TTL: die einzige Quelle für Änderungen ist ein Import/Reset, und
 genau dort wird explizit invalidate() aufgerufen (siehe backend/api/importer.py) –

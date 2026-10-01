@@ -1,5 +1,6 @@
 from datetime import datetime
 from fastapi import APIRouter, Query
+from backend.cache import get_or_set
 from backend.database import db_connection
 from backend.api.zones import (
     HR_ZONES, _assign_hr_zone, MAX_DELTA_SECONDS,
@@ -17,7 +18,22 @@ def zone_distribution(year: int = Query(None)):
     alle Aktivitäten mit Track-Daten, um polarisiertes Training (viel Grundlage,
     wenig "Grauzone") sichtbar zu machen. easy = Zone 1+2, moderate = Zone 3 (Grauzone),
     hard = Zone 4+5.
+
+    Ergebnis wird gecacht (siehe backend/cache.py), da jeder Aufruf alle Trackpunkte mit HF lädt.
+    HFmax und HF-Korrektur stecken im Schlüssel: ändert der Nutzer sie in den Einstellungen,
+    entsteht ein neuer Eintrag statt einer veralteten Anzeige. Track-Änderungen (Import, Löschen)
+    leeren den Cache ohnehin komplett.
     """
+    with db_connection() as conn:
+        hr_max = _effective_hr_max(conn)
+        correction = get_hr_correction_settings(conn)
+
+    cache_key = f"zone_distribution:{year}:{hr_max}:{correction['enabled']}:{correction['pct']}:{correction['since']}"
+    return get_or_set(cache_key, lambda: _compute_zone_distribution(year, hr_max, correction))
+
+
+def _compute_zone_distribution(year: int | None, hr_max: float, correction: dict) -> dict:
+    """Eigentliche Berechnung von zone_distribution(), ohne Cache."""
     year_filter = "AND strftime('%Y', a.start_date_local) >= '2000'"
     params: list = []
     if year:
@@ -25,9 +41,6 @@ def zone_distribution(year: int = Query(None)):
         params.append(str(year))
 
     with db_connection() as conn:
-        hr_max = _effective_hr_max(conn)
-        correction = get_hr_correction_settings(conn)
-
         rows = conn.execute(f"""
             SELECT a.id AS activity_id,
                    strftime('%Y-%m', a.start_date_local) AS month,
