@@ -524,6 +524,7 @@ def reset_db():
     import shutil
     from datetime import datetime
     from backend.database import db_connection, init_db, DB_PATH
+    from backend.pr_detection import remove_events_for_zip_activities
 
     backup_dir = DB_PATH.parent / "backups"
     backup_dir.mkdir(exist_ok=True)
@@ -531,6 +532,9 @@ def reset_db():
     shutil.copy2(DB_PATH, backup_dir / backup_name)
 
     with db_connection() as conn:
+        # Vor executescript: das committet die offene Transaktion zuerst, die PR-Bereinigung
+        # wird also mit persistiert (db_connection() committet selbst nicht)
+        remove_events_for_zip_activities(conn)
         conn.executescript("""
             DELETE FROM track_points WHERE activity_id > 0;
             DELETE FROM laps WHERE activity_id > 0;

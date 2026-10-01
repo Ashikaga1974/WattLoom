@@ -99,12 +99,36 @@ def remove_events_for_activity(conn, activity_id: int) -> None:
     bewusst weg. Vor dem neuen PR manuell verworfene Vorgänger bleiben ebenfalls weg,
     da nur Events mit dismissed_at ab created_at des gelöschten Events zurückkommen.
     """
-    active_events = conn.execute(
-        "SELECT distance_km, created_at FROM pr_events WHERE activity_id = ? AND dismissed_at IS NULL",
-        (activity_id,),
+    _remove_events(conn, "activity_id = ?", (activity_id,))
+
+
+def remove_events_for_zip_activities(conn) -> None:
+    """
+    Gegenstück zu remove_events_for_activity() für /import/reset, das alle ZIP-Aktivitäten
+    (id > 0) löscht. Einzelimport-PRs, die nur durch ZIP-PRs überholt waren, werden wieder
+    aktiv. Committet nicht.
+    """
+    _remove_events(conn, "activity_id > 0", ())
+
+
+def _remove_events(conn, where_sql: str, params: tuple) -> None:
+    """
+    Löscht die per where_sql gewählten pr_events einzeln in absteigender ID-Reihenfolge;
+    war ein Event aktiv, wird sein direkter Vorgänger derselben Distanz reaktiviert.
+    Die Reihenfolge löst Ketten korrekt auf: wird ein reaktivierter Vorgänger selbst
+    gelöscht, ist er beim Bearbeiten aktiv und reicht die Reaktivierung weiter.
+    """
+    events = conn.execute(
+        f"SELECT id FROM pr_events WHERE {where_sql} ORDER BY id DESC", params
     ).fetchall()
-    conn.execute("DELETE FROM pr_events WHERE activity_id = ?", (activity_id,))
-    for event in active_events:
+    for (event_id,) in events:
+        # Status frisch lesen – kann durch eine vorherige Iteration reaktiviert worden sein
+        event = conn.execute(
+            "SELECT distance_km, created_at, dismissed_at FROM pr_events WHERE id = ?", (event_id,)
+        ).fetchone()
+        conn.execute("DELETE FROM pr_events WHERE id = ?", (event_id,))
+        if event[2] is not None:
+            continue
         conn.execute(
             """UPDATE pr_events SET dismissed_at = NULL
                WHERE id = (
@@ -112,5 +136,5 @@ def remove_events_for_activity(conn, activity_id: int) -> None:
                    WHERE distance_km = ? AND dismissed_at >= datetime(?, ?)
                    ORDER BY id DESC LIMIT 1
                )""",
-            (event['distance_km'], event['created_at'], _SUPERSEDE_TOLERANCE),
+            (event[0], event[1], _SUPERSEDE_TOLERANCE),
         )

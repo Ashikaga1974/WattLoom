@@ -4,7 +4,9 @@ Tests für backend/pr_detection.py – insbesondere den inkrementellen Scan-Pfad
 nur die neu importierte Aktivität statt aller Aktivitäten neu scannt (siehe
 backend/api/analytics/best_by_distance.py: _best_by_distance_map activity_ids/start).
 """
-from backend.pr_detection import detect_and_record, snapshot
+import sqlite3
+
+from backend.pr_detection import detect_and_record, remove_events_for_zip_activities, snapshot
 
 _PR_EVENTS_SCHEMA = """
 CREATE TABLE IF NOT EXISTS pr_events (
@@ -124,3 +126,64 @@ class TestDetectAndRecordIncremental:
         events_full = detect_and_record(db, before)
 
         assert events_incremental == events_full
+
+
+def _insert_event(conn, activity_id, distance_km, created_at, dismissed_at=None):
+    return conn.execute(
+        "INSERT INTO pr_events (distance_km, best_time_s, activity_id, previous_time_s, created_at, dismissed_at) "
+        "VALUES (?, 600.0, ?, 700.0, ?, ?)",
+        (distance_km, activity_id, created_at, dismissed_at),
+    ).lastrowid
+
+
+def _dismissed_at(conn, event_id):
+    row = conn.execute("SELECT dismissed_at FROM pr_events WHERE id = ?", (event_id,)).fetchone()
+    return row[0] if row else "deleted"
+
+
+class TestRemoveEventsForZipActivities:
+    def test_zip_events_removed_single_import_events_kept(self, db):
+        zip_event = _insert_event(db, 100, 5.0, "2026-09-01 10:00:00")
+        single_event = _insert_event(db, -1, 10.0, "2026-09-01 10:00:00")
+
+        remove_events_for_zip_activities(db)
+
+        assert _dismissed_at(db, zip_event) == "deleted"
+        assert _dismissed_at(db, single_event) is None
+
+    def test_chain_of_zip_events_reactivates_single_import_event(self, db):
+        # Einzelimport-PR → überholt von ZIP-PR 1 → überholt von ZIP-PR 2
+        single = _insert_event(db, -1, 10.0, "2026-08-01 10:00:00", dismissed_at="2026-09-01 10:00:00")
+        _insert_event(db, 100, 10.0, "2026-09-01 10:00:00", dismissed_at="2026-10-01 10:00:00")
+        _insert_event(db, 200, 10.0, "2026-10-01 10:00:00")
+
+        remove_events_for_zip_activities(db)
+
+        assert _dismissed_at(db, single) is None
+        assert db.execute("SELECT COUNT(*) FROM pr_events").fetchone()[0] == 1
+
+    def test_user_dismissed_single_import_event_stays_dismissed(self, db):
+        single = _insert_event(db, -1, 10.0, "2026-08-01 10:00:00", dismissed_at="2026-08-02 10:00:00")
+        _insert_event(db, 100, 10.0, "2026-09-01 10:00:00")
+
+        remove_events_for_zip_activities(db)
+
+        assert _dismissed_at(db, single) == "2026-08-02 10:00:00"
+
+    def test_cleanup_is_persisted_by_following_executescript(self, tmp_path):
+        # reset_db() verlässt sich darauf, dass executescript die offene Transaktion
+        # committet – db_connection() committet selbst nicht.
+        path = tmp_path / "reset.db"
+        conn = sqlite3.connect(path)
+        conn.execute(_PR_EVENTS_SCHEMA)
+        conn.commit()
+        _insert_event(conn, 100, 5.0, "2026-09-01 10:00:00")
+        conn.commit()
+
+        remove_events_for_zip_activities(conn)
+        conn.executescript("SELECT 1;")
+        conn.close()
+
+        conn = sqlite3.connect(path)
+        assert conn.execute("SELECT COUNT(*) FROM pr_events").fetchone()[0] == 0
+        conn.close()

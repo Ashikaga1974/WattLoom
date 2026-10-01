@@ -51,6 +51,9 @@ mybiking-mobile/
 # Persönliche Vorgehens-/Planungsnotizen, nie fürs Repo gedacht
 Vorgehen/
 
+# Einmalige Analyse auf Saschas eigenen Daten (feste Aktivitäts-IDs/Gewicht), siehe .claude/CLAUDE.md
+scripts/analyze_wind_power.py
+
 # OS
 .DS_Store
 Thumbs.db
