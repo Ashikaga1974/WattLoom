@@ -82,20 +82,24 @@ export default function CaloriesPage() {
   const { t } = useTranslation('calories');
   const config = useConfig();
   const [data, setData]             = useState<CaloriesData | null>(null);
-  const [loading, setLoading]       = useState(true);
+  // Jahr der zuletzt geladenen Daten (undefined = noch nichts geladen) – loading wird daraus abgeleitet
+  const [loadedYear, setLoadedYear] = useState<string | null | undefined>(undefined);
   const [error, setError]           = useState<string | null>(null);
   const [selectedYear, setSelectedYear] = useState<string | null>(null);
 
   const currentYear = new Date().getFullYear();
 
   useEffect(() => {
-    setLoading(true);
+    // ignore verhindert, dass eine langsamere Antwort für ein vorher gewähltes Jahr gewinnt
+    let ignore = false;
     const year = selectedYear && selectedYear !== 'all' ? Number(selectedYear) : null;
     api.calories(year)
-      .then(setData)
-      .catch(e => setError(e instanceof Error ? e.message : t('errorFallback')))
-      .finally(() => setLoading(false));
+      .then(d => { if (!ignore) setData(d); })
+      .catch(e => { if (!ignore) setError(e instanceof Error ? e.message : t('errorFallback')); })
+      .finally(() => { if (!ignore) setLoadedYear(selectedYear); });
+    return () => { ignore = true; };
   }, [selectedYear]);
+  const loading = loadedYear !== selectedYear;
 
   const availableYears = useMemo(() => {
     if (!data) return [];

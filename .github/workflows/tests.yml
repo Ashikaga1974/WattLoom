@@ -42,7 +42,6 @@ jobs:
       - name: TypeScript prüfen
         run: npx tsc --noEmit -p tsconfig.app.json
 
-      # Vorerst nicht blockierend: Bestand von 67 ESLint-Fehlern, wird separat abgebaut
+      # Blockierend für Fehler; die verbliebenen exhaustive-deps-Warnungen lassen den Job nicht scheitern
       - name: ESLint
         run: npm run lint
-        continue-on-error: true

@@ -6,7 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 export function AdvancedCard({ bikes }: { bikes: Bike[] }) {
   const { t } = useTranslation('common');
   const { t: ts } = useTranslation('settings');
-  const [defaultBikeIdInput, setDefaultBikeIdInput] = useState('');
+  // null = vom Nutzer noch nicht geändert → gespeicherter Wert bzw. Bikes-Fallback (siehe unten)
+  const [defaultBikeIdEdit, setDefaultBikeIdEdit] = useState<string | null>(null);
   // null = Settings noch nicht geladen – verhindert, dass der Bikes-Fallback (unten) vor dem
   // eigentlichen gespeicherten Wert greift, unabhängig davon welcher Fetch zuerst zurückkommt.
   const [settingsDefaultBikeId, setSettingsDefaultBikeId] = useState<string | null>(null);
@@ -38,10 +39,8 @@ export function AdvancedCard({ bikes }: { bikes: Bike[] }) {
 
   // Gespeicherter default_bike_id gewinnt, sonst Fallback auf das erste Bike – erst anwendbar,
   // sobald die Settings tatsächlich geladen sind (unabhängig davon, welcher Fetch zuerst landet).
-  useEffect(() => {
-    if (settingsDefaultBikeId === null) return;
-    setDefaultBikeIdInput(settingsDefaultBikeId || (bikes[0]?.id ?? ''));
-  }, [settingsDefaultBikeId, bikes]);
+  const defaultBikeIdInput = defaultBikeIdEdit
+    ?? (settingsDefaultBikeId === null ? '' : settingsDefaultBikeId || (bikes[0]?.id ?? ''));
 
   async function saveAdvanced() {
     const crr = parseFloat(crrInput.replace(',', '.'));
@@ -124,7 +123,7 @@ export function AdvancedCard({ bikes }: { bikes: Bike[] }) {
             </label>
             <select
               value={defaultBikeIdInput}
-              onChange={e => setDefaultBikeIdInput(e.target.value)}
+              onChange={e => setDefaultBikeIdEdit(e.target.value)}
               className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-colors"
             >
               {bikes.map(b => (

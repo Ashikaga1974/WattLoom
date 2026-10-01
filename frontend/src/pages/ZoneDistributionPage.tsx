@@ -180,7 +180,8 @@ export default function ZoneDistributionPage() {
     : new Date().getFullYear();
 
   const [data, setData] = useState<ZoneDistributionData | null>(null);
-  const [loading, setLoading] = useState(true);
+  // Jahr der zuletzt geladenen Daten – loading wird daraus abgeleitet statt synchron im Effect gesetzt
+  const [loadedYear, setLoadedYear] = useState<number | undefined | null>(null);
   const [availableYears, setAvailableYears] = useState<number[]>([]);
 
   useEffect(() => {
@@ -190,12 +191,15 @@ export default function ZoneDistributionPage() {
   }, []);
 
   useEffect(() => {
-    setLoading(true);
+    // ignore verhindert, dass eine langsamere Antwort für ein vorher gewähltes Jahr gewinnt
+    let ignore = false;
     api.zoneDistribution(filterYear)
-      .then(setData)
-      .catch(() => setData(null))
-      .finally(() => setLoading(false));
+      .then(d => { if (!ignore) setData(d); })
+      .catch(() => { if (!ignore) setData(null); })
+      .finally(() => { if (!ignore) setLoadedYear(filterYear); });
+    return () => { ignore = true; };
   }, [filterYear]);
+  const loading = loadedYear !== filterYear;
 
   function onYearChange(year: string | null) {
     if (year && year !== 'all') setSearchParams({ year }, { replace: true });

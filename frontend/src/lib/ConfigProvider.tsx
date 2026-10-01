@@ -33,6 +33,7 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
     finally { setLoading(false); }
   }, []);
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- Fehlalarm: setzt State erst nach await
   useEffect(() => { reload(); }, [reload]);
 
   return (

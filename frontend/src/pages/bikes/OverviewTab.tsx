@@ -8,7 +8,8 @@ import { MaintenanceQueue } from './MaintenanceQueue';
 export function OverviewTab() {
   const { t } = useTranslation(['bikes', 'common']);
   const [bikes, setBikes] = useState<Bike[]>([]);
-  const [loading, setLoading] = useState(true);
+  // refreshKey der zuletzt geladenen Daten – loading wird daraus abgeleitet statt synchron im Effect gesetzt
+  const [loadedKey, setLoadedKey] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [stockItems, setStockItems] = useState<Purchase[]>([]);
@@ -34,13 +35,13 @@ export function OverviewTab() {
   }
 
   useEffect(() => {
-    setLoading(true);
     api.bikes()
       .then(setBikes)
       .catch(e => setError(e instanceof Error ? e.message : t('common:genericError')))
-      .finally(() => setLoading(false));
+      .finally(() => setLoadedKey(refreshKey));
     api.listPurchases().then(setStockItems).catch(() => {});
   }, [refreshKey]);
+  const loading = loadedKey !== refreshKey;
 
   if (error) {
     return <EmptyState message={error} />;

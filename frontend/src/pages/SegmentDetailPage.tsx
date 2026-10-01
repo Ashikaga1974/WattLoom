@@ -18,7 +18,8 @@ export default function SegmentDetailPage() {
 
   const [segment, setSegment] = useState<SegmentDetail | null>(null);
   const [efforts, setEfforts] = useState<SegmentEffort[]>([]);
-  const [loading, setLoading] = useState(true);
+  // ID des zuletzt geladenen Segments – loading wird daraus abgeleitet statt synchron im Effect gesetzt
+  const [loadedId, setLoadedId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -26,16 +27,20 @@ export default function SegmentDetailPage() {
 
   useEffect(() => {
     if (!segmentId) return;
-    setLoading(true);
-    setError(null);
+    // ignore verhindert, dass beim Segmentwechsel eine langsamere alte Antwort gewinnt
+    let ignore = false;
     Promise.all([api.segment(segmentId), api.segmentEfforts(segmentId)])
       .then(([seg, effs]) => {
+        if (ignore) return;
+        setError(null);
         setSegment(seg);
         setEfforts(effs);
       })
-      .catch(e => setError(e instanceof Error ? e.message : String(e)))
-      .finally(() => setLoading(false));
+      .catch(e => { if (!ignore) setError(e instanceof Error ? e.message : String(e)); })
+      .finally(() => { if (!ignore) setLoadedId(segmentId); });
+    return () => { ignore = true; };
   }, [segmentId]);
+  const loading = loadedId !== segmentId;
 
   // Fahrzeit fehlt bei Efforts, die vor der Fahrzeit-Variante berechnet und noch nicht
   // neu abgeglichen wurden – dann auf die Gesamtzeit zurückfallen statt die Zeile zu verlieren

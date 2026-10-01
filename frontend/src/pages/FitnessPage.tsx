@@ -15,26 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ChartTooltip } from '@/components/ui/chart-tooltip';
 import { EmptyState } from '@/components/ui/empty-state';
-
-// Zählt von 0 auf target hoch (cubic ease-out)
-function useCountUp(target: number, duration = 1400): number {
-  const [value, setValue] = useState(0);
-  useEffect(() => {
-    if (!target) { setValue(0); return; }
-    let raf: number;
-    const start = performance.now();
-    function tick(now: number) {
-      const t = Math.min(1, (now - start) / duration);
-      const eased = 1 - Math.pow(1 - t, 3);
-      setValue(Math.round(eased * target));
-      if (t < 1) raf = requestAnimationFrame(tick);
-      else setValue(target);
-    }
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [target, duration]);
-  return value;
-}
+import { useCountUp } from '@/hooks/use-count-up';
 
 const LEVEL_CONFIG: Record<string, { color: string; bg: string; border: string; text: string }> = {
   'Einsteiger':      { color: '#ef4444', bg: 'bg-red-900/20',     border: 'border-red-700/40',     text: 'text-red-400' },

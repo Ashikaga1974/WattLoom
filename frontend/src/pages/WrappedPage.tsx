@@ -114,6 +114,7 @@ export default function WrappedPage() {
     }
   }
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- load wird auch vom Jahreswechsel genutzt und setzt dort loading/error zurück; beim Mount redundant, aber harmlos
   useEffect(() => { load(); }, []);
 
   if (loading) {

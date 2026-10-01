@@ -35,6 +35,7 @@ export function WeatherCard() {
   }
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Fehlalarm: setzt State erst nach await
     refreshWeatherStatus();
     return () => stopWeatherPolling();
   }, []);

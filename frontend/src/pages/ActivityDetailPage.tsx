@@ -430,6 +430,19 @@ function windArrow(deg: number): string {
   return ARROWS[Math.round(deg / 45) % 8];
 }
 
+// Lädt Aktivität, Medien, ähnliche Fahrten und (falls vorhanden) den Track – bewusst ohne
+// State-Zugriff, damit der Effect das Ergebnis per .then übernehmen und veraltete Antworten
+// (Wechsel zu einer ähnlichen Aktivität) verwerfen kann.
+async function fetchActivityBundle(activityId: number, trackSimplifyM: number) {
+  const activity = await api.activity(activityId);
+  const [media, similar, track] = await Promise.all([
+    api.activityMedia(activityId),
+    api.similarActivities(activityId),
+    activity.has_track ? api.activityTrack(activityId, trackSimplifyM) : Promise.resolve(null),
+  ]);
+  return { activity, mediaFiles: media.files, similar: similar.similar, trackPoints: track?.points ?? null };
+}
+
 // --- Hauptseite ---
 
 export default function ActivityDetailPage() {
@@ -443,7 +456,8 @@ export default function ActivityDetailPage() {
   const [zones, setZones] = useState<ActivityZones | null>(null);
   const [mediaFiles, setMediaFiles] = useState<string[]>([]);
   const [similar, setSimilar] = useState<SimilarActivity[]>([]);
-  const [loading, setLoading] = useState(true);
+  // ID der zuletzt geladenen Aktivität – loading wird daraus abgeleitet statt synchron im Effect gesetzt
+  const [loadedId, setLoadedId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [activeDistKm, setActiveDistKm] = useState<number | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -532,43 +546,27 @@ export default function ActivityDetailPage() {
     }
   }, []);
 
-  async function load() {
-    setLoading(true);
-    setError(null);
-    try {
-      const act = await api.activity(activityId);
-      setActivity(act);
-
-      const basePromises: Promise<unknown>[] = [
-        api.activityMedia(activityId),
-        api.similarActivities(activityId),
-      ];
-      if (act.has_track) {
-        basePromises.push(api.activityTrack(activityId, config.track_simplify_m));
-      }
-
-      const results = await Promise.all(basePromises);
-      setMediaFiles((results[0] as { files: string[] }).files);
-      setSimilar((results[1] as { similar: SimilarActivity[] }).similar);
-      if (act.has_track) {
-        setTrackPoints((results[2] as { points: TrackPoint[] }).points);
-      }
-
-      // Zonen nicht-blockierend nachladen
-      api.activityZones(activityId)
-        .then(z => setZones(z))
-        .catch(() => {/* Zonen optional */});
-    } catch (e) {
-      setError(e instanceof Error ? e.message : t('errors.loadFailed'));
-    } finally {
-      setLoading(false);
-    }
-  }
-
   useEffect(() => {
     if (!activityId) return;
-    load();
+    let ignore = false;
+    fetchActivityBundle(activityId, config.track_simplify_m)
+      .then(bundle => {
+        if (ignore) return;
+        setError(null);
+        setActivity(bundle.activity);
+        setMediaFiles(bundle.mediaFiles);
+        setSimilar(bundle.similar);
+        if (bundle.trackPoints) setTrackPoints(bundle.trackPoints);
+        // Zonen nicht-blockierend nachladen
+        api.activityZones(activityId)
+          .then(z => { if (!ignore) setZones(z); })
+          .catch(() => {/* Zonen optional */});
+      })
+      .catch(e => { if (!ignore) setError(e instanceof Error ? e.message : t('errors.loadFailed')); })
+      .finally(() => { if (!ignore) setLoadedId(activityId); });
+    return () => { ignore = true; };
   }, [activityId]);
+  const loading = loadedId !== activityId;
 
   if (error) {
     return <p className="text-destructive text-sm">{error}</p>;

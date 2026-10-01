@@ -90,16 +90,6 @@ export default function ActivitiesPage() {
     avg_speed_ms: t('sort.speed'), elevation_gain_m: t('sort.elevation'),
   };
 
-  async function loadMeta() {
-    try {
-      const [s, b] = await Promise.all([api.activityStats(), api.bikes()]);
-      setAvailableYears(s.available_years);
-      setBikes(b);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : t('errors.loadFilters'));
-    }
-  }
-
   async function load(newOffset = offset) {
     setLoading(true);
     setError(null);
@@ -133,10 +123,17 @@ export default function ActivitiesPage() {
   }
 
   useEffect(() => {
-    loadMeta().then(() => {
-      load(0);
-      loadWorkouts();
-    });
+    Promise.all([api.activityStats(), api.bikes()])
+      .then(([s, b]) => {
+        setAvailableYears(s.available_years);
+        setBikes(b);
+      })
+      .catch(e => setError(e instanceof Error ? e.message : t('errors.loadFilters')))
+      // Liste auch laden, wenn die Filter-Metadaten fehlschlagen
+      .then(() => {
+        load(0);
+        loadWorkouts();
+      });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation, useParams } from '
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { AppSidebar } from '@/components/layout/AppSidebar';
+import { SidebarToggleBar } from '@/components/layout/SidebarToggleBar';
 import { ConfigProvider } from '@/lib/ConfigProvider';
 import { useOnboarding } from '@/lib/config-context';
 import { ThemeProvider } from '@/lib/ThemeProvider';
@@ -50,6 +51,7 @@ function AppRoutes() {
       <SidebarProvider>
         <AppSidebar />
         <SidebarInset>
+          <SidebarToggleBar />
           <main className="p-6 min-h-screen">
             {/* i18next-http-backend lädt den Namespace jeder Seite erst beim ersten Mount nach
                 (siehe lib/i18n.ts) – ohne Suspense-Boundary würden Seiten mit synchronem

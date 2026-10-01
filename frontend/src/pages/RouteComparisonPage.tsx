@@ -187,6 +187,7 @@ export default function RouteComparisonPage() {
   // Referenz laden wenn ID bekannt
   useEffect(() => {
     if (!refId) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Reset von Auswahl/Tracks/Karte beim Referenzwechsel gewollt, sonst bleibt die alte Referenz sichtbar
     loadReference(refId);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refId]);

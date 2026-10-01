@@ -6,26 +6,7 @@ import type { ActivityStats } from '@/lib/api';
 import { fmtTime, fmtNum } from '@/lib/format';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-
-// Zählt cubic-ease-out von 0 zum Zielwert hoch
-function useCountUp(target: number, duration = 1400): number {
-  const [value, setValue] = useState(0);
-  useEffect(() => {
-    if (!target) { setValue(0); return; }
-    let raf: number;
-    const start = performance.now();
-    function tick(now: number) {
-      const t = Math.min(1, (now - start) / duration);
-      const eased = 1 - Math.pow(1 - t, 3);
-      setValue(Math.round(eased * target));
-      if (t < 1) raf = requestAnimationFrame(tick);
-      else setValue(target);
-    }
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [target, duration]);
-  return value;
-}
+import { useCountUp } from '@/hooks/use-count-up';
 
 // Einzelne animierte KPI-Kachel
 function KpiTile({
@@ -41,9 +22,13 @@ function KpiTile({
 }) {
   const [started, setStarted] = useState(false);
   useEffect(() => {
-    if (loading) { setStarted(false); return; }
+    if (loading) return;
     const t = setTimeout(() => setStarted(true), 100);
-    return () => clearTimeout(t);
+    // Reset im Cleanup: sobald wieder geladen wird, startet die Animation danach neu
+    return () => {
+      clearTimeout(t);
+      setStarted(false);
+    };
   }, [loading]);
 
   const animated = useCountUp(started ? Math.round(target) : 0);

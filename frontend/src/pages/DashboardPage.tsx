@@ -75,6 +75,7 @@ export default function DashboardPage() {
     }
   }
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- load wird auch vom Jahresfilter genutzt und setzt dort loading/error zurück; beim Mount redundant, aber harmlos
   useEffect(() => { load(null); }, []);
   // PMC einmalig laden – unabhängig vom Jahresfilter
   useEffect(() => {
