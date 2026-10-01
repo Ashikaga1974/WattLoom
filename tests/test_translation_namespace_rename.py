@@ -3,7 +3,7 @@ import sqlite3
 
 import pytest
 
-from backend.database import _migrate_german_translation_namespaces
+from backend.database import _migration_001_rename_german_translation_namespaces
 
 
 @pytest.fixture
@@ -38,7 +38,7 @@ def test_renames_german_namespaces(conn):
     _insert(conn, "en", "berechnungen", "title", "Calculations")
     _insert(conn, "de", "common", "nav.home", "Start")
 
-    _migrate_german_translation_namespaces(conn)
+    _migration_001_rename_german_translation_namespaces(conn)
 
     assert _rows(conn) == [
         ("de", "common", "nav.home", json.dumps("Start")),
@@ -52,7 +52,7 @@ def test_existing_new_namespace_key_wins_and_old_row_is_removed(conn):
     _insert(conn, "de", "strecken", "title", "Alt")
     _insert(conn, "de", "strecken", "subtitle", "Nur alt")
 
-    _migrate_german_translation_namespaces(conn)
+    _migration_001_rename_german_translation_namespaces(conn)
 
     assert _rows(conn) == [
         ("de", "routecomparison", "subtitle", json.dumps("Nur alt")),
@@ -63,7 +63,7 @@ def test_existing_new_namespace_key_wins_and_old_row_is_removed(conn):
 def test_is_noop_without_old_namespaces(conn):
     _insert(conn, "en", "calculations", "title", "Calculations")
 
-    _migrate_german_translation_namespaces(conn)
-    _migrate_german_translation_namespaces(conn)
+    _migration_001_rename_german_translation_namespaces(conn)
+    _migration_001_rename_german_translation_namespaces(conn)
 
     assert _rows(conn) == [("en", "calculations", "title", json.dumps("Calculations"))]

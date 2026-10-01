@@ -76,7 +76,7 @@ WattLoom/
 
 ## Database schema
 
-SQLite file at `data/mybiking.db`, schema defined in `backend/database.py` (`init_db()`, additive migrations via `ALTER TABLE`/`PRAGMA table_info` checks). Distances are stored in **meters** throughout, speeds in **m/s** (the UI converts to km/h resp. km). Timestamps are ISO8601 text without a timezone (see "Known quirks" – effectively UTC).
+SQLite file at `data/mybiking.db`, schema defined in `backend/database.py` (`init_db()`; older migrations are additive `ALTER TABLE`/`PRAGMA table_info` checks, new ones are numbered functions in `_MIGRATIONS`, tracked via `PRAGMA user_version`). Distances are stored in **meters** throughout, speeds in **m/s** (the UI converts to km/h resp. km). Timestamps are ISO8601 text without a timezone (see "Known quirks" – effectively UTC).
 
 ### `activities` – imported rides
 | Field | Meaning |

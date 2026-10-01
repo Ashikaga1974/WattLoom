@@ -959,9 +959,13 @@ def init_db() -> None:
                     )
 
         _seed_segment_time_mode_translations(conn)
-        _migrate_german_translation_namespaces(conn)
 
         conn.commit()
+
+        # Ab Session 2026-10-01 kommen neue Migrationen nur noch als nummerierte Funktionen in
+        # _MIGRATIONS – nicht mehr linear oben anhängen. Läuft bewusst als Letztes, damit jede
+        # Migration das vollständige Schema samt Seed-Übersetzungen vorfindet.
+        _run_migrations(conn)
 
 
 def _migrate_segment_moving_time(conn) -> None:
@@ -1004,7 +1008,7 @@ _RENAMED_TRANSLATION_NAMESPACES = {
 }
 
 
-def _migrate_german_translation_namespaces(conn) -> None:
+def _migration_001_rename_german_translation_namespaces(conn) -> None:
     """Benennt die deutschen i18n-Namespaces in bestehenden DBs um. OR IGNORE + anschließendes
     DELETE: existiert ein Schlüssel unter dem neuen Namespace schon, gewinnt dieser, der alte
     Eintrag wird verworfen statt eine PK-Kollision auszulösen. Bei frischen Installationen
@@ -1012,6 +1016,36 @@ def _migrate_german_translation_namespaces(conn) -> None:
     for old_ns, new_ns in _RENAMED_TRANSLATION_NAMESPACES.items():
         conn.execute("UPDATE OR IGNORE translations SET ns = ? WHERE ns = ?", (new_ns, old_ns))
         conn.execute("DELETE FROM translations WHERE ns = ?", (old_ns,))
+
+
+# Reihenfolge = Versionsnummer. Nur anhängen, nie umnummerieren oder entfernen – PRAGMA user_version
+# bestehender DBs zeigt auf diese Nummern.
+_MIGRATIONS = [
+    (1, _migration_001_rename_german_translation_namespaces),
+]
+
+
+def _run_migrations(conn, migrations=_MIGRATIONS) -> None:
+    """Führt alle Migrationen mit einer Nummer größer als PRAGMA user_version aus, aufsteigend.
+    Jede Migration läuft samt Versions-Update in einer eigenen Transaktion: schlägt sie fehl,
+    wird sie zurückgerollt, user_version bleibt auf dem letzten erfolgreichen Stand und der
+    nächste Start versucht es erneut. Der Fehler wird weitergereicht, damit das Backend nicht mit
+    halb migriertem Schema startet."""
+    current_version = conn.execute("PRAGMA user_version").fetchone()[0]
+    for version, migration in sorted(migrations, key=lambda m: m[0]):
+        if version <= current_version:
+            continue
+        # Explizites BEGIN: sqlite3 öffnet implizit nur vor DML eine Transaktion, ALTER TABLE & Co.
+        # liefen sonst im Autocommit und ließen sich bei einem Fehler nicht zurückrollen
+        conn.execute("BEGIN")
+        try:
+            migration(conn)
+            # PRAGMA akzeptiert keine Parameter-Platzhalter – version ist ein int aus _MIGRATIONS
+            conn.execute(f"PRAGMA user_version = {int(version)}")
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
 
 
 def _migrate_onboarding_flag(conn) -> None:
