@@ -112,6 +112,8 @@ extract it anywhere and start `WattLoom.exe` – the browser opens automatically
 
 - Your data lives in `%APPDATA%\WattLoom\data`, not in the program folder – it survives updates.
 - Put your Strava export ZIP in the `download\` folder next to `WattLoom.exe`.
+- Automatic import: FIT/TCX/GPX files placed in the `sync\` folder next to `WattLoom.exe`
+  (e.g. by your watch's companion app) are imported while WattLoom is running.
 
 **Updating from v1.1.1 or older:** these versions stored `data\` next to the `.exe`. Before
 starting the new version for the first time, either extract it over the old folder or copy

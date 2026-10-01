@@ -113,6 +113,8 @@ sich automatisch auf **http://localhost:8000**.
 
 - Deine Daten liegen unter `%APPDATA%\WattLoom\data`, nicht im Programmordner – sie bleiben bei Updates erhalten.
 - Den Strava-Export-ZIP in den Ordner `download\` neben `WattLoom.exe` legen.
+- Automatischer Import: FIT/TCX/GPX-Dateien im Ordner `sync\` neben `WattLoom.exe` (z.B. von der
+  Companion-App der Uhr abgelegt) werden importiert, solange WattLoom läuft.
 
 **Update von v1.1.1 oder älter:** diese Versionen haben `data\` neben der `.exe` abgelegt. Vor
 dem ersten Start der neuen Version entweder über den alten Ordner entpacken oder den alten

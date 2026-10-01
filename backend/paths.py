@@ -108,6 +108,9 @@ MEDIA_DIR = DATA_DIR / "media"
 BIKE_IMAGES_DIR = DATA_DIR / "bike_images"
 BACKUPS_DIR = DATA_DIR / "backups"
 DOWNLOAD_DIR = DATA_BASE_DIR / "download"
+# sync/ liegt wie download/ sichtbar neben der .exe: dorthin zeigt der Nutzer seine
+# Companion-App, der Ordner-Watcher (backend/folder_watcher.py) importiert neue Dateien daraus.
+SYNC_DIR = DATA_BASE_DIR / "sync"
 DB_PATH = DATA_DIR / "mybiking.db"
 LOG_FILE = DATA_DIR / "mybiking.log"
 
@@ -117,5 +120,5 @@ FRONTEND_DIST_DIR = RESOURCE_DIR / "frontend" / "dist"
 def ensure_data_dirs() -> None:
     """Legt alle Datenverzeichnisse an, falls sie fehlen (z.B. beim allerersten Start
     einer frisch installierten .exe, wo es noch kein data/-Verzeichnis gibt)."""
-    for d in (DATA_DIR, MEDIA_DIR, BIKE_IMAGES_DIR, BACKUPS_DIR, DOWNLOAD_DIR):
+    for d in (DATA_DIR, MEDIA_DIR, BIKE_IMAGES_DIR, BACKUPS_DIR, DOWNLOAD_DIR, SYNC_DIR):
         d.mkdir(parents=True, exist_ok=True)

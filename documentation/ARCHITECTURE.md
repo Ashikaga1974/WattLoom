@@ -69,9 +69,10 @@ WattLoom/
 │   └── pages/               # one file per page; larger pages split into subfolders
 │                            #   (bikes/, dashboard/, progress/, settings/, onboarding/)
 ├── tests/                   # pytest
-├── scripts/                 # bump_version.py, folder_watcher.py, maintenance scripts
+├── scripts/                 # bump_version.py, folder_watcher.py (systemd entry point), maintenance scripts
 ├── data/                    # SQLite DB, media, bike images, backups (created at runtime)
-└── download/                # place the Strava export ZIP here
+├── download/                # place the Strava export ZIP here
+└── sync/                    # auto-import folder for FIT/TCX/GPX (backend/folder_watcher.py)
 ```
 
 ## Database schema

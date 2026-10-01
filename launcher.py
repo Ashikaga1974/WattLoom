@@ -11,6 +11,7 @@ import webbrowser
 
 import uvicorn
 
+from backend import folder_watcher
 from backend.main import app
 
 HOST = "127.0.0.1"
@@ -27,4 +28,6 @@ def _open_browser() -> None:
 
 if __name__ == "__main__":
     threading.Thread(target=_open_browser, daemon=True).start()
+    # Kein systemd im gebündelten Build – Watcher läuft deshalb im selben Prozess mit
+    folder_watcher.start_in_background()
     uvicorn.run(app, host=HOST, port=PORT, log_level="info")
