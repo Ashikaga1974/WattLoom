@@ -1,6 +1,32 @@
-fastapi>=0.111
-uvicorn[standard]>=0.29
-python-multipart>=0.0.9
-fitparse>=1.2
-lxml>=5.2
-certifi>=2024.0
+# Exakt gepinnt (inkl. transitiver Abhängigkeiten), damit Docker-, Windows- und lokale Builds
+# reproduzierbar sind. Bewusst kein pip freeze der .venv – die enthält Build-/Testwerkzeuge
+# (pyinstaller, playwright), und Plattform-Pakete brauchen Marker (uvloop gibt es nicht für Windows).
+# Updates: Versionen hier anheben, Tests laufen lassen.
+fastapi==0.136.3
+uvicorn[standard]==0.48.0
+python-multipart==0.0.30
+fitparse==1.2.0
+lxml==6.1.1
+certifi==2026.7.22
+
+# Transitiv: fastapi / starlette / pydantic
+annotated-doc==0.0.4
+annotated-types==0.7.0
+anyio==4.13.0
+idna==3.16
+pydantic==2.13.4
+pydantic_core==2.46.4
+starlette==1.1.0
+typing-inspection==0.4.2
+typing_extensions==4.15.0
+
+# Transitiv: uvicorn[standard]
+click==8.4.1
+colorama==0.4.6; sys_platform == "win32"
+h11==0.16.0
+httptools==0.8.0
+python-dotenv==1.2.2
+PyYAML==6.0.3
+uvloop==0.22.1; sys_platform != "win32" and sys_platform != "cygwin" and platform_python_implementation != "PyPy"
+watchfiles==1.2.0
+websockets==16.0
