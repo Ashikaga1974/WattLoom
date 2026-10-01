@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 
 // Kategorial-Palette für Jahresvergleiche (mehr als 2-3 Serien) – fixe Hex-Werte statt
-// var(--chart-N), analog zu comparison_colors (StreckenPage): --chart-N wird im Dark-Theme
+// var(--chart-N), analog zu comparison_colors (RouteComparisonPage): --chart-N wird im Dark-Theme
 // zu einer Graustufen-Rampe (siehe index.css), das würde die Jahres-Unterscheidbarkeit dort
 // zerstören. Diese Palette ist bewusst themeunabhängig fix.
 export const PALETTE = ['#fc4c02', '#60a5fa', '#4ade80', '#c084fc', '#f472b6', '#facc15'];

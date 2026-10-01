@@ -62,7 +62,9 @@ npx tsc --noEmit -p tsconfig.app.json
 Use `tsconfig.app.json` explicitly – the root `tsconfig.json` only contains project references,
 so `npx tsc --noEmit -p .` checks nothing and always reports success.
 
-CI (`.github/workflows/tests.yml`) runs the backend tests on every push/PR to `main`.
+CI (`.github/workflows/tests.yml`) runs on every push to `main` and on every PR, with two jobs:
+the backend tests (`pytest`) and the frontend checks (`tsc` with `tsconfig.app.json`, plus ESLint).
+ESLint is non-blocking for now (`continue-on-error`) until the existing lint errors are fixed.
 
 ## Autostart via systemd (optional, Linux)
 

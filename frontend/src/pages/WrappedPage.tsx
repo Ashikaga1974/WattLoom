@@ -106,7 +106,7 @@ export default function WrappedPage() {
       const result = await api.wrapped(year, tzOffset);
       setData(result);
       setSelectedYear(result.year);
-    } catch (e) {
+    } catch {
       setError(t('errorLoading'));
     } finally {
       setLoading(false);

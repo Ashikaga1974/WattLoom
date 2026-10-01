@@ -449,7 +449,7 @@ export default function ActivitiesPage() {
                             <span className="inline-flex items-center gap-1">
                               {!!act.has_track && (
                                 <button
-                                  onClick={() => navigate(`/strecken?ref=${act.id}`)}
+                                  onClick={() => navigate(`/route-comparison?ref=${act.id}`)}
                                   className="text-muted-foreground/30 hover:text-primary transition-colors p-1 rounded hover:bg-primary/10"
                                   title={t('actions.compareRoute')}
                                 >

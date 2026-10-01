@@ -78,10 +78,10 @@ const navGroups: NavGroup[] = [
     href: '/heatmap',
     label: 'nav.map',
     icon: <Map size={16} />,
-    prefixes: ['/heatmap', '/strecken', '/segments'],
+    prefixes: ['/heatmap', '/route-comparison', '/segments'],
     children: [
       { href: '/heatmap',  label: 'nav.heatmap', icon: <Map size={13} /> },
-      { href: '/strecken', label: 'nav.routeComparison', icon: <GitCompare size={13} /> },
+      { href: '/route-comparison', label: 'nav.routeComparison', icon: <GitCompare size={13} /> },
       { href: '/segments', label: 'nav.segments', icon: <Flag size={13} /> },
     ],
   },
@@ -211,8 +211,8 @@ export function AppSidebar() {
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton
-              render={<Link to="/berechnungen" />}
-              isActive={p === '/berechnungen'}
+              render={<Link to="/calculations" />}
+              isActive={p === '/calculations'}
             >
               <HelpCircle size={16} />
               <span>{t('nav.calculations')}</span>

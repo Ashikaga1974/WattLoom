@@ -145,7 +145,7 @@
       "viewSegment": "Strecken-Abschnitt ansehen"
     }
   },
-  "berechnungen": {
+  "calculations": {
     "bezier": {
       "controlPointsLabel": "Kontrollpunkte",
       "endpointsLabel": "Endpunkte",
@@ -1715,7 +1715,7 @@
       "title": "Jahresvergleich"
     }
   },
-  "strecken": {
+  "routecomparison": {
     "emptyState": {
       "hintButton": "Ähnliche vergleichen",
       "hintPrefix": "Auf einer Aktivitäts-Detailseite auf",

@@ -118,8 +118,8 @@ interface TrackEntry {
   points: TrackPoint[];
 }
 
-export default function StreckenPage() {
-  const { t } = useTranslation(['strecken', 'common']);
+export default function RouteComparisonPage() {
+  const { t } = useTranslation(['routecomparison', 'common']);
   const config = useConfig();
   const { id: paramId } = useParams<{ id?: string }>();
   const [searchParams] = useSearchParams();
@@ -155,13 +155,6 @@ export default function StreckenPage() {
     };
   }, []);
 
-  // Referenz laden wenn ID bekannt
-  useEffect(() => {
-    if (!refId) return;
-    loadReference(refId);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [refId]);
-
   async function loadReference(id: number) {
     setLoading(true);
     setError(null);
@@ -190,6 +183,13 @@ export default function StreckenPage() {
       setLoading(false);
     }
   }
+
+  // Referenz laden wenn ID bekannt
+  useEffect(() => {
+    if (!refId) return;
+    loadReference(refId);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refId]);
 
   async function toggleSelect(id: number) {
     if (selectedIds.includes(id)) {
@@ -245,6 +245,50 @@ export default function StreckenPage() {
   const bestEfficiencyRow = effRows.length >= 2
     ? effRows.reduce((best, r) => (r.eff > best.eff ? r : best))
     : null;
+
+  async function syncMapPolylines(tracks: TrackEntry[]) {
+    if (!leafletRef.current) {
+      leafletRef.current = (await import('leaflet')).default;
+      await import('leaflet/dist/leaflet.css');
+      delete (leafletRef.current.Icon.Default.prototype as unknown as Record<string, unknown>)._getIconUrl;
+    }
+    const L = leafletRef.current;
+    const container = mapContainerRef.current;
+    if (!container) return;
+
+    if (!mapRef.current) {
+      mapRef.current = L.map(container);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap',
+        maxZoom: 18,
+      }).addTo(mapRef.current);
+    }
+
+    // Veraltete Polylines entfernen
+    const newIds = new Set(tracks.map(t => t.id));
+    for (const idStr of Object.keys(polylineMapRef.current)) {
+      const numId = Number(idStr);
+      if (!newIds.has(numId)) {
+        polylineMapRef.current[numId].remove();
+        delete polylineMapRef.current[numId];
+      }
+    }
+
+    // Neue Polylines hinzufügen
+    const allLatLngs: [number, number][] = [];
+    for (const track of tracks) {
+      const valid = track.points.filter(p => p.lat != null && p.lon != null);
+      if (valid.length === 0) continue;
+      const latlngs = valid.map(p => [p.lat, p.lon] as [number, number]);
+      allLatLngs.push(...latlngs);
+      if (!polylineMapRef.current[track.id]) {
+        polylineMapRef.current[track.id] = L.polyline(latlngs, { color: track.color, weight: 3, opacity: 0.85 }).addTo(mapRef.current);
+      }
+    }
+    if (allLatLngs.length > 0) {
+      mapRef.current.fitBounds(L.polyline(allLatLngs).getBounds(), { padding: [20, 20] });
+    }
+  }
 
   // Karte synchronisieren wenn Tracks sich ändern
   const chartTrackIds = chartTracks.map(t => t.id).join(',');
@@ -313,50 +357,6 @@ export default function StreckenPage() {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hoverDistKm, chartTrackIds]);
-
-  async function syncMapPolylines(tracks: TrackEntry[]) {
-    if (!leafletRef.current) {
-      leafletRef.current = (await import('leaflet')).default;
-      await import('leaflet/dist/leaflet.css');
-      delete (leafletRef.current.Icon.Default.prototype as unknown as Record<string, unknown>)._getIconUrl;
-    }
-    const L = leafletRef.current;
-    const container = mapContainerRef.current;
-    if (!container) return;
-
-    if (!mapRef.current) {
-      mapRef.current = L.map(container);
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenStreetMap',
-        maxZoom: 18,
-      }).addTo(mapRef.current);
-    }
-
-    // Veraltete Polylines entfernen
-    const newIds = new Set(tracks.map(t => t.id));
-    for (const idStr of Object.keys(polylineMapRef.current)) {
-      const numId = Number(idStr);
-      if (!newIds.has(numId)) {
-        polylineMapRef.current[numId].remove();
-        delete polylineMapRef.current[numId];
-      }
-    }
-
-    // Neue Polylines hinzufügen
-    const allLatLngs: [number, number][] = [];
-    for (const track of tracks) {
-      const valid = track.points.filter(p => p.lat != null && p.lon != null);
-      if (valid.length === 0) continue;
-      const latlngs = valid.map(p => [p.lat, p.lon] as [number, number]);
-      allLatLngs.push(...latlngs);
-      if (!polylineMapRef.current[track.id]) {
-        polylineMapRef.current[track.id] = L.polyline(latlngs, { color: track.color, weight: 3, opacity: 0.85 }).addTo(mapRef.current);
-      }
-    }
-    if (allLatLngs.length > 0) {
-      mapRef.current.fitBounds(L.polyline(allLatLngs).getBounds(), { padding: [20, 20] });
-    }
-  }
 
   return (
     <div className="space-y-6">
@@ -517,7 +517,7 @@ export default function StreckenPage() {
                     </p>
                     <ResponsiveContainer width="100%" height={config.chart_height}>
                       <LineChart data={speedProfileData} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}
-                        syncId="strecken-profil" syncMethod="value"
+                        syncId="route-profile" syncMethod="value"
                         onMouseMove={handleChartHover} onMouseLeave={handleChartLeave}>
                         <XAxis dataKey="dist" type="number" domain={[0, 'dataMax']} tick={{ fontSize: 11 }} unit=" km" />
                         <YAxis tick={{ fontSize: 11 }} width={40} />
@@ -535,7 +535,7 @@ export default function StreckenPage() {
                     </p>
                     <ResponsiveContainer width="100%" height={config.chart_height_compact}>
                       <LineChart data={elevationProfileData} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}
-                        syncId="strecken-profil" syncMethod="value"
+                        syncId="route-profile" syncMethod="value"
                         onMouseMove={handleChartHover} onMouseLeave={handleChartLeave}>
                         <XAxis dataKey="dist" type="number" domain={[0, 'dataMax']} tick={{ fontSize: 11 }} unit=" km" />
                         <YAxis tick={{ fontSize: 11 }} width={40} />
@@ -554,7 +554,7 @@ export default function StreckenPage() {
                       </p>
                       <ResponsiveContainer width="100%" height={config.chart_height_compact}>
                         <LineChart data={hrProfileData} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}
-                          syncId="strecken-profil" syncMethod="value"
+                          syncId="route-profile" syncMethod="value"
                           onMouseMove={handleChartHover} onMouseLeave={handleChartLeave}>
                           <XAxis dataKey="dist" type="number" domain={[0, 'dataMax']} tick={{ fontSize: 11 }} unit=" km" />
                           <YAxis tick={{ fontSize: 11 }} width={40} />

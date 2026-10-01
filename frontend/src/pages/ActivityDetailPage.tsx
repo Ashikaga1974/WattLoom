@@ -175,7 +175,7 @@ function closestTrackPointIdx(points: TrackPoint[], lat: number, lon: number): n
   return bestIdx;
 }
 
-function useChartHover(
+function buildChartHoverHandlers(
   data: { origIdx: number }[],
   points: TrackPoint[],
   onHover?: HoverFn
@@ -202,7 +202,7 @@ function ElevationChart({ points, onHover, activeDist }: { points: TrackPoint[];
     origIdx: i,
   }));
 
-  const { handleMouseMove, handleMouseLeave } = useChartHover(data, points, onHover);
+  const { handleMouseMove, handleMouseLeave } = buildChartHoverHandlers(data, points, onHover);
 
   return (
     <div>
@@ -242,7 +242,7 @@ function HRChart({ points, onHover, activeDist }: { points: TrackPoint[]; onHove
     origIdx: i,
   }));
 
-  const { handleMouseMove, handleMouseLeave } = useChartHover(data, points, onHover);
+  const { handleMouseMove, handleMouseLeave } = buildChartHoverHandlers(data, points, onHover);
 
   return (
     <div>
@@ -283,7 +283,7 @@ function CadenceChart({ points, onHover, activeDist }: { points: TrackPoint[]; o
     origIdx: i,
   }));
 
-  const { handleMouseMove, handleMouseLeave } = useChartHover(data, points, onHover);
+  const { handleMouseMove, handleMouseLeave } = buildChartHoverHandlers(data, points, onHover);
 
   return (
     <div>
@@ -323,7 +323,7 @@ function GradeChart({ points, onHover, activeDist }: { points: TrackPoint[]; onH
     origIdx: i,
   }));
 
-  const { handleMouseMove, handleMouseLeave } = useChartHover(data, points, onHover);
+  const { handleMouseMove, handleMouseLeave } = buildChartHoverHandlers(data, points, onHover);
 
   return (
     <div>
@@ -383,7 +383,7 @@ function SpeedChart({ points, onHover, activeDist }: { points: TrackPoint[]; onH
       color: speedHue(d.speed, minSpd, maxSpd),
     }));
 
-  const { handleMouseMove, handleMouseLeave } = useChartHover(data, points, onHover);
+  const { handleMouseMove, handleMouseLeave } = buildChartHoverHandlers(data, points, onHover);
 
   return (
     <div>
@@ -499,11 +499,13 @@ export default function ActivityDetailPage() {
     setHoverFnRef.current?.(pt);
   }, []);
 
-  // Sync-Update im Render-Body – immer aktuell wenn onMapClick aufgerufen wird
+  // Refs statt Deps, damit onMapClick stabil bleibt und LeafletMap den Handler nicht neu bindet
   const trackPointsRef = useRef<TrackPoint[]>(trackPoints);
-  trackPointsRef.current = trackPoints;
   const segmentModeRef = useRef(segmentMode);
-  segmentModeRef.current = segmentMode;
+  useEffect(() => {
+    trackPointsRef.current = trackPoints;
+    segmentModeRef.current = segmentMode;
+  }, [trackPoints, segmentMode]);
 
   const onMapClick = useCallback((lat: number, lon: number) => {
     const pts = trackPointsRef.current;
@@ -528,11 +530,6 @@ export default function ActivityDetailPage() {
       setHoverFnRef.current?.({ lat: pt.lat, lon: pt.lon });
     }
   }, []);
-
-  useEffect(() => {
-    if (!activityId) return;
-    load();
-  }, [activityId]);
 
   async function load() {
     setLoading(true);
@@ -566,6 +563,11 @@ export default function ActivityDetailPage() {
       setLoading(false);
     }
   }
+
+  useEffect(() => {
+    if (!activityId) return;
+    load();
+  }, [activityId]);
 
   if (error) {
     return <p className="text-destructive text-sm">{error}</p>;
@@ -613,7 +615,7 @@ export default function ActivityDetailPage() {
           <div className="flex items-center gap-2">
             {hasTrack && (
               <Link
-                to={`/strecken?ref=${activity.id}`}
+                to={`/route-comparison?ref=${activity.id}`}
                 className="text-xs px-3 py-1 rounded-lg bg-primary text-primary-foreground hover:bg-primary/80 transition-colors"
               >
                 {t('header.compareSimilar')}

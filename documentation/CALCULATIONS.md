@@ -4,7 +4,7 @@ WattLoom derives many values from your recorded data. Some of them look like mea
 are **models or heuristics**. This page explains how each value is computed, so you can judge
 how much to trust it.
 
-The in-app page **Calculations** (`/berechnungen`) shows the same formulas together with your
+The in-app page **Calculations** (`/calculations`) shows the same formulas together with your
 current parameter values.
 
 Parameters marked ⚙️ can be changed in **Settings**.

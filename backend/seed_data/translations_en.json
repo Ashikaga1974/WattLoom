@@ -145,7 +145,7 @@
       "viewSegment": "View route section"
     }
   },
-  "berechnungen": {
+  "calculations": {
     "bezier": {
       "controlPointsLabel": "Control points",
       "endpointsLabel": "Endpoints",
@@ -1715,7 +1715,7 @@
       "title": "Year Comparison"
     }
   },
-  "strecken": {
+  "routecomparison": {
     "emptyState": {
       "hintButton": "Compare similar",
       "hintPrefix": "On an activity detail page click",

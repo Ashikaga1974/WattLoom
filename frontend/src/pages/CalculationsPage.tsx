@@ -62,9 +62,9 @@ const HR_ZONES = [
   { key: 'z5', range: '90–100 %', color: '#ef4444' },
 ];
 
-export default function BerechnungenPage() {
+export default function CalculationsPage() {
   const config = useConfig();
-  const { t } = useTranslation('berechnungen');
+  const { t } = useTranslation('calculations');
   return (
     <div className="space-y-10 max-w-3xl">
       <div>

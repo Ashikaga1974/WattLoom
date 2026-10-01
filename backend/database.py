@@ -959,6 +959,7 @@ def init_db() -> None:
                     )
 
         _seed_segment_time_mode_translations(conn)
+        _migrate_german_translation_namespaces(conn)
 
         conn.commit()
 
@@ -994,6 +995,23 @@ def _seed_segment_time_mode_translations(conn) -> None:
                 "INSERT OR IGNORE INTO translations(lang, ns, key, value) VALUES (?, 'segments', ?, ?)",
                 (lang, key, json.dumps(value)),
             )
+
+
+# Alt → neu (Session 2026-10-01): Seiten/Namespaces auf englische Namen umgestellt
+_RENAMED_TRANSLATION_NAMESPACES = {
+    "strecken": "routecomparison",
+    "berechnungen": "calculations",
+}
+
+
+def _migrate_german_translation_namespaces(conn) -> None:
+    """Benennt die deutschen i18n-Namespaces in bestehenden DBs um. OR IGNORE + anschließendes
+    DELETE: existiert ein Schlüssel unter dem neuen Namespace schon, gewinnt dieser, der alte
+    Eintrag wird verworfen statt eine PK-Kollision auszulösen. Bei frischen Installationen
+    (Seed liefert schon die neuen Namen) ein No-op."""
+    for old_ns, new_ns in _RENAMED_TRANSLATION_NAMESPACES.items():
+        conn.execute("UPDATE OR IGNORE translations SET ns = ? WHERE ns = ?", (new_ns, old_ns))
+        conn.execute("DELETE FROM translations WHERE ns = ?", (old_ns,))
 
 
 def _migrate_onboarding_flag(conn) -> None:

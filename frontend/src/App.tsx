@@ -1,5 +1,5 @@
 import { Suspense } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom';
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { AppSidebar } from '@/components/layout/AppSidebar';
@@ -23,10 +23,10 @@ import ProgressPage from '@/pages/ProgressPage';
 import SegmentsPage from '@/pages/SegmentsPage';
 import SegmentDetailPage from '@/pages/SegmentDetailPage';
 import SettingsPage from '@/pages/SettingsPage';
-import StreckenPage from '@/pages/StreckenPage';
+import RouteComparisonPage from '@/pages/RouteComparisonPage';
 import TempCorrPage from '@/pages/TempCorrPage';
 import WrappedPage from '@/pages/WrappedPage';
-import BerechnungenPage from '@/pages/BerechnungenPage';
+import CalculationsPage from '@/pages/CalculationsPage';
 import CadencePage from '@/pages/CadencePage';
 import CaloriesPage from '@/pages/CaloriesPage';
 import SpeedTrendPage from '@/pages/SpeedTrendPage';
@@ -34,6 +34,14 @@ import WorkoutDetailPage from '@/pages/WorkoutDetailPage';
 import WeekendPage from '@/pages/WeekendPage';
 import FitnessPage from '@/pages/FitnessPage';
 import ZoneDistributionPage from '@/pages/ZoneDistributionPage';
+
+// Alte deutsche URLs (vor der Umbenennung) auf die neuen umleiten – inkl. :id und Query (?ref=),
+// damit Lesezeichen und Links aus "Ähnliche vergleichen" weiter funktionieren
+function RenamedRouteRedirect({ to }: { to: string }) {
+  const { id } = useParams<{ id?: string }>();
+  const { search } = useLocation();
+  return <Navigate to={`${to}${id ? `/${id}` : ''}${search}`} replace />;
+}
 
 function AppRoutes() {
   return (
@@ -64,15 +72,18 @@ function AppRoutes() {
                 <Route path="/segments" element={<SegmentsPage />} />
                 <Route path="/segments/:id" element={<SegmentDetailPage />} />
                 <Route path="/settings" element={<SettingsPage />} />
-                <Route path="/routes" element={<Navigate to="/strecken" replace />} />
+                <Route path="/routes" element={<Navigate to="/route-comparison" replace />} />
                 <Route path="/speedhr" element={<Navigate to="/hrcurve?tab=effizienz" replace />} />
-                <Route path="/strecken" element={<StreckenPage />} />
-                <Route path="/strecken/:id" element={<StreckenPage />} />
+                <Route path="/route-comparison" element={<RouteComparisonPage />} />
+                <Route path="/route-comparison/:id" element={<RouteComparisonPage />} />
+                <Route path="/strecken" element={<RenamedRouteRedirect to="/route-comparison" />} />
+                <Route path="/strecken/:id" element={<RenamedRouteRedirect to="/route-comparison" />} />
                 <Route path="/tempcorr" element={<TempCorrPage />} />
                 <Route path="/timeheatmap" element={<Navigate to="/progress?tab=tageszeit" replace />} />
                 <Route path="/training" element={<Navigate to="/progress?tab=volumen" replace />} />
                 <Route path="/wrapped" element={<WrappedPage />} />
-                <Route path="/berechnungen" element={<BerechnungenPage />} />
+                <Route path="/calculations" element={<CalculationsPage />} />
+                <Route path="/berechnungen" element={<Navigate to="/calculations" replace />} />
                 <Route path="/cadence" element={<CadencePage />} />
                 <Route path="/calories" element={<CaloriesPage />} />
                 <Route path="/speed-trend" element={<SpeedTrendPage />} />
