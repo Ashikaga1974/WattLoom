@@ -153,7 +153,10 @@ not per ride.
 | Form (TSB) | 0–20 | 20 at TSB 5–20, 16 at 20–30, 14 at 0–5, 10 above 30, 9 at −10–0, 4 at −20…−10, otherwise 0 |
 | Consistency | 0–20 | active weeks (≥ 1 ride) out of the last 8 weeks × 2.5 |
 
-Levels: Beginner < 30 ≤ Active < 45 ≤ Enthusiast < 60 ≤ Advanced < 75 ≤ Amateur < 90 ≤ Elite.
+The UI shows the score and its change versus the same month one year earlier. The API
+still returns a `level` field (Beginner < 30 ≤ Active < 45 ≤ Enthusiast < 60 ≤ Advanced < 75 ≤
+Amateur < 90 ≤ Elite), but it is no longer displayed, because such labels read like an objective
+rating.
 
 The score is a **personal index** for tracking your own development. The thresholds are
 WattLoom's own choice, not a scientific standard, and the efficiency part is relative to your

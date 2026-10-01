@@ -43,8 +43,11 @@ Training, Performance, Wetter und Bike-Wartung an einem Ort.
 | Strava-API nötig | ❌ | — | optional | optional |
 | Cloud-Account nötig | ❌ | ✅ | ❌ | ✅ |
 | Web-UI | ✅ | ✅ | ❌ (Desktop-App) | ✅ |
-| Bike-Wartung | ✅ | Limited | Limited (nur manuell) | nicht gefunden |
-| Wetteranalyse | ✅ (kostenlos) | Limited | nicht gefunden | ✅ (nur Bezahl-Tarif) |
+| Open Source | ✅ | ❌ | ✅ | ❌ |
+
+Der Funktionsumfang der anderen Tools ändert sich laufend – dazu bitte deren aktuelle Doku
+prüfen. WattLoom bringt mit: Bike-Wartung (Verschleiß, Teilelager, Kosten pro km) und
+Wetteranalyse für jede Fahrt, beides kostenlos.
 
 
 ---
@@ -104,6 +107,10 @@ docker compose up --build
 
 **http://localhost:8000** öffnen. Deine Daten liegen im lokalen Ordner `wattloom-data/` und
 bleiben über Container-Neustarts erhalten. Den Strava-Export-ZIP nach `wattloom-data/download/` legen.
+
+Der Port ist standardmäßig nur an `127.0.0.1` gebunden, WattLoom ist also nur von diesem Rechner
+aus erreichbar. Für Zugriff von anderen Geräten im LAN mit
+`WATTLOOM_BIND=0.0.0.0 docker compose up --build` starten.
 
 ### Windows (Desktop-Version)
 

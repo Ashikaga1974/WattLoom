@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, ReferenceLine,
+  ResponsiveContainer,
   RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
 } from 'recharts';
 import type { TooltipPayloadEntry } from 'recharts';
@@ -17,37 +17,22 @@ import { ChartTooltip } from '@/components/ui/chart-tooltip';
 import { EmptyState } from '@/components/ui/empty-state';
 import { useCountUp } from '@/hooks/use-count-up';
 
-const LEVEL_CONFIG: Record<string, { color: string; bg: string; border: string; text: string }> = {
-  'Einsteiger':      { color: '#ef4444', bg: 'bg-red-900/20',     border: 'border-red-700/40',     text: 'text-red-400' },
-  'Aktiv':           { color: '#f97316', bg: 'bg-orange-900/20',  border: 'border-orange-700/40',  text: 'text-orange-400' },
-  'Enthusiast':      { color: '#eab308', bg: 'bg-yellow-900/20',  border: 'border-yellow-700/40',  text: 'text-yellow-400' },
-  'Fortgeschritten': { color: '#3b82f6', bg: 'bg-blue-900/20',    border: 'border-blue-700/40',    text: 'text-blue-400' },
-  'Amateur':         { color: '#8b5cf6', bg: 'bg-violet-900/20',  border: 'border-violet-700/40',  text: 'text-violet-400' },
-  'Elite':           { color: '#10b981', bg: 'bg-emerald-900/20', border: 'border-emerald-700/40', text: 'text-emerald-400' },
-};
+// Bewusst eine Farbe statt Level-Farben: die Level-Schwellen sind selbst definierte WattLoom-Regeln,
+// farbige Stufen wie "Elite" wirkten wie eine objektive Einstufung. Das Backend liefert `level` weiter.
+const SCORE_COLOR = 'var(--primary)';
 
-// Score-Schwellen für ReferenceLine-Marker im History-Chart
-const LEVEL_THRESHOLDS = [
-  { y: 30, label: 'Aktiv',           color: '#f97316' },
-  { y: 45, label: 'Enthusiast',      color: '#eab308' },
-  { y: 60, label: 'Fortgeschritten', color: '#3b82f6' },
-  { y: 75, label: 'Amateur',         color: '#8b5cf6' },
-];
-
-// Rohe Level-Werte kommen so vom Backend (Deutsch) – Mapping auf die i18n-Keys
-// unter "levels.*" für die angezeigten Labels.
-const LEVEL_I18N_KEY: Record<string, string> = {
-  'Einsteiger':      'levels.beginner',
-  'Aktiv':           'levels.active',
-  'Enthusiast':      'levels.enthusiast',
-  'Fortgeschritten': 'levels.advanced',
-  'Amateur':         'levels.amateur',
-  'Elite':           'levels.elite',
-};
-
-function levelLabel(t: (key: string) => string, level: string | undefined | null): string {
-  if (!level) return '';
-  return t(LEVEL_I18N_KEY[level] ?? level);
+/**
+ * Score-Veränderung gegenüber demselben Monat ein Jahr zuvor.
+ * @param history Monatliche Scores (month = "YYYY-MM"), aufsteigend sortiert
+ * @returns Differenz in Punkten oder null, wenn für den Vorjahresmonat kein Score vorliegt
+ */
+function scoreDeltaVsLastYear(history: { month: string; score: number }[]): number | null {
+  const latest = history[history.length - 1];
+  if (!latest) return null;
+  const [year, month] = latest.month.split('-');
+  const previousYearMonth = `${parseInt(year) - 1}-${month}`;
+  const previous = history.find(h => h.month === previousYearMonth);
+  return previous ? latest.score - previous.score : null;
 }
 
 function fmtMonth(m: string, months: string[]): string {
@@ -182,7 +167,6 @@ function HistoryTooltip({ active, payload }: { active?: boolean; payload?: reado
   const { t } = useTranslation('fitness');
   if (!active || !payload?.length) return null;
   const d = payload[0]?.payload;
-  const cfg = LEVEL_CONFIG[d?.level] ?? LEVEL_CONFIG['Einsteiger'];
   const months = t('months', { returnObjects: true }) as string[];
   return (
     <ChartTooltip
@@ -192,11 +176,7 @@ function HistoryTooltip({ active, payload }: { active?: boolean; payload?: reado
         {
           label: t('history.tooltipScore'),
           value: `${d?.score} / 100`,
-          color: cfg.color,
-        },
-        {
-          label: t('history.tooltipLevel'),
-          value: levelLabel(t, d?.level),
+          color: SCORE_COLOR,
         },
       ]}
     />
@@ -243,7 +223,7 @@ export default function FitnessPage() {
     );
   }
 
-  const { score, level, components, trend, insight_parts, history } = data;
+  const { score, components, trend, insight_parts, history } = data;
 
   // Frische Installation ohne Aktivitäten: Backend liefert components: {} (siehe pmc.py),
   // ohne diese Prüfung crasht der Zugriff auf components.ctl.score etc. weiter unten.
@@ -258,7 +238,7 @@ export default function FitnessPage() {
   }
 
   const insight = insight_parts.map(code => t(`insights.${code}`)).join(' ');
-  const cfg = LEVEL_CONFIG[level] ?? LEVEL_CONFIG['Einsteiger'];
+  const deltaVsLastYear = scoreDeltaVsLastYear(history);
 
   // Radar-Daten: alle Achsen auf 0-100% normiert
   const radarData = [
@@ -309,27 +289,30 @@ export default function FitnessPage() {
         {/* Gauge-Karte */}
         <Card className="lg:col-span-3">
           <CardContent className="pt-6 flex flex-col items-center gap-4">
-            <ArcGauge score={score} color={cfg.color} />
+            <ArcGauge score={score} color={SCORE_COLOR} />
 
-            {/* Level-Badge + Trend */}
+            {/* Veränderung zum Vorjahr + Trend */}
             <div className="flex items-center gap-3">
-              <span
-                className={`text-sm font-semibold px-4 py-1.5 rounded-full border ${cfg.bg} ${cfg.text} ${cfg.border}`}
-              >
-                {levelLabel(t, level)}
-              </span>
+              {deltaVsLastYear !== null && (
+                <span
+                  className="text-sm font-semibold px-4 py-1.5 rounded-full border border-border bg-muted/40 cursor-help"
+                  title={t('vsLastYearHint')}
+                >
+                  {t('vsLastYear', { delta: `${deltaVsLastYear >= 0 ? '+' : '−'}${Math.abs(deltaVsLastYear)}` })}
+                </span>
+              )}
               {trend === 'up' && (
-                <span className="flex items-center gap-1 text-green-400 text-sm font-medium">
+                <span className="flex items-center gap-1 text-green-400 text-sm font-medium cursor-help" title={t('trendHint')}>
                   <TrendingUp size={14} /> {t('trend.up')}
                 </span>
               )}
               {trend === 'down' && (
-                <span className="flex items-center gap-1 text-orange-400 text-sm font-medium">
+                <span className="flex items-center gap-1 text-orange-400 text-sm font-medium cursor-help" title={t('trendHint')}>
                   <TrendingDown size={14} /> {t('trend.down')}
                 </span>
               )}
               {trend === 'neutral' && (
-                <span className="flex items-center gap-1 text-muted-foreground text-sm">
+                <span className="flex items-center gap-1 text-muted-foreground text-sm cursor-help" title={t('trendHint')}>
                   <Minus size={14} /> {t('trend.neutral')}
                 </span>
               )}
@@ -362,8 +345,8 @@ export default function FitnessPage() {
                 />
                 <Radar
                   dataKey="value"
-                  stroke={cfg.color}
-                  fill={cfg.color}
+                  stroke={SCORE_COLOR}
+                  fill={SCORE_COLOR}
                   fillOpacity={0.18}
                   strokeWidth={2}
                 />
@@ -435,29 +418,13 @@ export default function FitnessPage() {
                   width={28}
                 />
                 <Tooltip content={<HistoryTooltip />} />
-                {/* Level-Schwellen als gestrichelte Linien */}
-                {LEVEL_THRESHOLDS.map(th => (
-                  <ReferenceLine
-                    key={th.y}
-                    y={th.y}
-                    stroke={th.color}
-                    strokeDasharray="4 4"
-                    strokeOpacity={0.5}
-                    label={{
-                      value: levelLabel(t, th.label),
-                      position: 'insideTopRight',
-                      fontSize: 10,
-                      fill: th.color,
-                    }}
-                  />
-                ))}
                 <Line
                   type="monotone"
                   dataKey="score"
-                  stroke={cfg.color}
+                  stroke={SCORE_COLOR}
                   strokeWidth={2.5}
-                  dot={{ r: 3, fill: cfg.color, stroke: 'var(--background)', strokeWidth: 2 }}
-                  activeDot={{ r: 5, fill: cfg.color }}
+                  dot={{ r: 3, fill: SCORE_COLOR, stroke: 'var(--background)', strokeWidth: 2 }}
+                  activeDot={{ r: 5, fill: SCORE_COLOR }}
                 />
               </LineChart>
             </ResponsiveContainer>
@@ -489,17 +456,7 @@ export default function FitnessPage() {
               <span>{t('legend.consistencyPoints')}</span>
             </div>
           </div>
-          <div className="mt-4 flex flex-wrap gap-3">
-            {Object.entries(LEVEL_CONFIG).map(([lv, lc]) => (
-              <span
-                key={lv}
-                className={`text-xs px-2.5 py-0.5 rounded-full border ${lc.bg} ${lc.text} ${lc.border}`}
-              >
-                {levelLabel(t, lv)}
-              </span>
-            ))}
-          </div>
-          <p className="mt-3 text-xs text-muted-foreground leading-relaxed">
+          <p className="mt-4 text-xs text-muted-foreground leading-relaxed">
             {t('legend.explanation')}
           </p>
         </CardContent>

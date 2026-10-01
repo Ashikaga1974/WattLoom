@@ -108,7 +108,7 @@
       "distance": "Distance",
       "elevationGain": "Elevation gain",
       "elevationLoss": "Elevation loss",
-      "estPower": "~ Power",
+      "estPower": "Est. power",
       "maxSpeed": "Max. speed",
       "movingTime": "Moving time",
       "recovery": "Recovery",
@@ -918,8 +918,7 @@
       "outOf100": "out of 100 points"
     },
     "history": {
-      "title": "Score History (last 13 months)",
-      "tooltipLevel": "Level",
+      "title": "Score History (all time)",
       "tooltipScore": "Score"
     },
     "insights": {
@@ -943,14 +942,6 @@
       "explanation": "CTL = 42-day EMA from hrTSS. Efficiency = avg. speed (km/h) / avg. HR × 100, last 3-month average, scored as a percentile of your personal history. Form = CTL − ATL (7-day EMA). Consistency = weeks with at least 1 ride in the last 8 weeks.",
       "formPoints": "up to 20 points",
       "title": "Score Calculation"
-    },
-    "levels": {
-      "active": "Active",
-      "advanced": "Advanced",
-      "amateur": "Competitive",
-      "beginner": "Beginner",
-      "elite": "Elite",
-      "enthusiast": "Enthusiast"
     },
     "months": [
       "Jan",
@@ -979,10 +970,13 @@
       "title": "Strengths Profile"
     },
     "trend": {
-      "down": "Downward trend",
-      "neutral": "Stable",
-      "up": "Upward trend"
-    }
+      "down": "Downward trend (3 mo.)",
+      "neutral": "Stable (3 mo.)",
+      "up": "Upward trend (3 mo.)"
+    },
+    "vsLastYear": "{{delta}} vs. last year",
+    "trendHint": "Average score of the last 3 months compared with the 3 months before",
+    "vsLastYearHint": "Current score compared with the same month last year"
   },
   "form": {
     "chartLegend": {
@@ -1015,7 +1009,7 @@
       "veryFresh": "You're very fresh – little fatigue, a great time for a hard or long ride."
     },
     "header": {
-      "subtitle": "PMC · hrTSS = duration × (avg HR / threshold HR)² × 100",
+      "subtitle": "Heart-rate based training load (PMC) · hrTSS = duration × (avg HR / threshold HR)² × 100",
       "subtitleExtra": " · HRmax {{hrMax}} bpm · threshold {{threshold}} bpm",
       "title": "Form & Fitness"
     },
@@ -1266,9 +1260,9 @@
       "forecastBasis": "based on ⌀ {{rate}} km/day",
       "forecastYearEnd": "Forecast Year-End",
       "insights": {
-        "fitnessDown": "Fitness score has recently trended downward: currently {{score}} points ({{level}}).",
-        "fitnessFlat": "Fitness score stable at {{score}} points ({{level}}).",
-        "fitnessUp": "Fitness score confirms the upward trend: currently {{score}} points ({{level}}).",
+        "fitnessDown": "Fitness score has recently trended downward: currently {{score}} points.",
+        "fitnessFlat": "Fitness score stable at {{score}} points.",
+        "fitnessUp": "Fitness score confirms the upward trend: currently {{score}} points.",
         "longTermDown": "Long-term decline: {{first}} still {{firstKm}} km, {{last}} only {{lastKm}} km ({{pct}}%).",
         "longTermFlat": "Long-term at a similar level: {{first}} {{firstKm}} km, {{last}} {{lastKm}} km.",
         "longTermUp": "Clear long-term increase: {{first}} {{firstKm}} km, {{last}} already {{lastKm}} km (+{{pct}}%).",

@@ -43,8 +43,11 @@ Training, performance, weather, and bike maintenance in one place.
 | Strava API required | ❌ | — | optional | optional |
 | Cloud account required | ❌ | ✅ | ❌ | ✅ |
 | Web UI | ✅ | ✅ | ❌ (desktop app) | ✅ |
-| Bike maintenance | ✅ | Limited | Limited (manual only) | not found |
-| Weather analysis | ✅ (free) | Limited | not found | ✅ (paid tier only) |
+| Open source | ✅ | ❌ | ✅ | ❌ |
+
+Feature sets of the other tools change over time – check their current documentation. What
+WattLoom brings out of the box: bike maintenance (wear, parts stock, cost per km) and weather
+analysis for every ride, both free.
 
 ---
 
@@ -103,6 +106,10 @@ docker compose up --build
 
 Open **http://localhost:8000**. Your data lives in the local `wattloom-data/` folder and
 survives container restarts. Put your Strava export ZIP in `wattloom-data/download/`.
+
+By default the port is bound to `127.0.0.1` only, so WattLoom is reachable from this computer
+alone. To use it from other devices in your LAN, start it with
+`WATTLOOM_BIND=0.0.0.0 docker compose up --build`.
 
 ### Windows (desktop build)
 

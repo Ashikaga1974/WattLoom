@@ -181,11 +181,11 @@ function buildTrendInsights(
   // Fitness-Score als dritte, unabhängige Perspektive (CTL/Form/Effizienz/Kontinuität)
   if (fitness && fitness.score > 0) {
     if (fitness.trend === 'up') {
-      insights.push({ text: t('progressTab.insights.fitnessUp', { score: fitness.score, level: fitness.level }), type: 'positive' });
+      insights.push({ text: t('progressTab.insights.fitnessUp', { score: fitness.score }), type: 'positive' });
     } else if (fitness.trend === 'down') {
-      insights.push({ text: t('progressTab.insights.fitnessDown', { score: fitness.score, level: fitness.level }), type: 'warning' });
+      insights.push({ text: t('progressTab.insights.fitnessDown', { score: fitness.score }), type: 'warning' });
     } else {
-      insights.push({ text: t('progressTab.insights.fitnessFlat', { score: fitness.score, level: fitness.level }), type: 'neutral' });
+      insights.push({ text: t('progressTab.insights.fitnessFlat', { score: fitness.score }), type: 'neutral' });
     }
   }
 

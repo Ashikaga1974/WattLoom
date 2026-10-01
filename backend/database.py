@@ -1018,10 +1018,109 @@ def _migration_001_rename_german_translation_namespaces(conn) -> None:
         conn.execute("DELETE FROM translations WHERE ns = ?", (old_ns,))
 
 
+# (lang, ns, key) → (alter Seed-Wert, neuer Wert). Geschätzte Werte und Modelle sollen in der UI
+# als solche erkennbar sein (Leistung ohne Powermeter, HF-basierte Trainingslast, Fitness-Score
+# ohne Level-Einstufung).
+_TRANSLATION_UPDATES_002 = {
+    ("de", "activitydetail", "stats.estPower"): ("~ Leistung", "Geschätzte Leistung"),
+    ("en", "activitydetail", "stats.estPower"): ("~ Power", "Est. power"),
+    ("de", "form", "header.subtitle"): (
+        "PMC · hrTSS = Dauer × (avg_HR / Schwellen-HR)² × 100",
+        "HF-basierte Trainingslast (PMC) · hrTSS = Dauer × (avg_HR / Schwellen-HR)² × 100",
+    ),
+    ("en", "form", "header.subtitle"): (
+        "PMC · hrTSS = duration × (avg HR / threshold HR)² × 100",
+        "Heart-rate based training load (PMC) · hrTSS = duration × (avg HR / threshold HR)² × 100",
+    ),
+    ("de", "progress", "progressTab.insights.fitnessUp"): (
+        "Fitness-Score bestätigt den Aufwärtstrend: aktuell {{score}} Punkte ({{level}}).",
+        "Fitness-Score bestätigt den Aufwärtstrend: aktuell {{score}} Punkte.",
+    ),
+    ("de", "progress", "progressTab.insights.fitnessDown"): (
+        "Fitness-Score zeigt zuletzt eher abwärts: aktuell {{score}} Punkte ({{level}}).",
+        "Fitness-Score zeigt zuletzt eher abwärts: aktuell {{score}} Punkte.",
+    ),
+    ("de", "progress", "progressTab.insights.fitnessFlat"): (
+        "Fitness-Score stabil bei {{score}} Punkten ({{level}}).",
+        "Fitness-Score stabil bei {{score}} Punkten.",
+    ),
+    ("en", "progress", "progressTab.insights.fitnessUp"): (
+        "Fitness score confirms the upward trend: currently {{score}} points ({{level}}).",
+        "Fitness score confirms the upward trend: currently {{score}} points.",
+    ),
+    ("en", "progress", "progressTab.insights.fitnessDown"): (
+        "Fitness score has recently trended downward: currently {{score}} points ({{level}}).",
+        "Fitness score has recently trended downward: currently {{score}} points.",
+    ),
+    ("en", "progress", "progressTab.insights.fitnessFlat"): (
+        "Fitness score stable at {{score}} points ({{level}}).",
+        "Fitness score stable at {{score}} points.",
+    ),
+}
+
+_TRANSLATION_INSERTS_002 = {
+    ("de", "fitness", "vsLastYear"): "{{delta}} ggü. Vorjahr",
+    ("en", "fitness", "vsLastYear"): "{{delta}} vs. last year",
+}
+
+
+def _apply_translation_changes(conn, updates: dict, inserts: dict) -> None:
+    """Aktualisiert Übersetzungen, die noch dem alten Seed-Wert entsprechen, und legt neue Schlüssel an.
+    Selbst angepasste Übersetzungen bleiben unangetastet; bei frischen Installationen (Seed liefert
+    schon die neuen Texte) ein No-op.
+    updates: (lang, ns, key) → (alter Seed-Wert, neuer Wert); inserts: (lang, ns, key) → Wert."""
+    for (lang, ns, key), (old_value, new_value) in updates.items():
+        conn.execute(
+            "UPDATE translations SET value = ? WHERE lang = ? AND ns = ? AND key = ? AND value = ?",
+            (json.dumps(new_value), lang, ns, key, json.dumps(old_value)),
+        )
+    for (lang, ns, key), value in inserts.items():
+        conn.execute(
+            "INSERT OR IGNORE INTO translations(lang, ns, key, value) VALUES (?, ?, ?, ?)",
+            (lang, ns, key, json.dumps(value)),
+        )
+
+
+def _migration_002_mark_estimates_and_drop_fitness_levels(conn) -> None:
+    """Passt Labels für Schätzwerte/Modelle an und entfernt die Level-Texte des Fitness-Fingerprints."""
+    _apply_translation_changes(conn, _TRANSLATION_UPDATES_002, _TRANSLATION_INSERTS_002)
+    conn.execute(
+        "DELETE FROM translations WHERE ns = 'fitness' AND (key LIKE 'levels.%' OR key = 'history.tooltipLevel')"
+    )
+
+
+# Trend und Vorjahres-Delta auf der Fitness-Seite messen verschiedene Zeiträume – ohne Angabe wirkte
+# "−5 ggü. Vorjahr" neben "Aufwärtstrend" widersprüchlich. Der Verlauf zeigt die gesamte Historie.
+_TRANSLATION_UPDATES_003 = {
+    ("de", "fitness", "trend.up"): ("Aufwärtstrend", "Aufwärtstrend (3 Mon.)"),
+    ("de", "fitness", "trend.down"): ("Abwärtstrend", "Abwärtstrend (3 Mon.)"),
+    ("de", "fitness", "trend.neutral"): ("Stabil", "Stabil (3 Mon.)"),
+    ("en", "fitness", "trend.up"): ("Upward trend", "Upward trend (3 mo.)"),
+    ("en", "fitness", "trend.down"): ("Downward trend", "Downward trend (3 mo.)"),
+    ("en", "fitness", "trend.neutral"): ("Stable", "Stable (3 mo.)"),
+    ("de", "fitness", "history.title"): ("Score-Verlauf (letzte 13 Monate)", "Score-Verlauf (gesamter Zeitraum)"),
+    ("en", "fitness", "history.title"): ("Score History (last 13 months)", "Score History (all time)"),
+}
+
+_TRANSLATION_INSERTS_003 = {
+    ("de", "fitness", "trendHint"): "Ø-Score der letzten 3 Monate im Vergleich zu den 3 Monaten davor",
+    ("en", "fitness", "trendHint"): "Average score of the last 3 months compared with the 3 months before",
+    ("de", "fitness", "vsLastYearHint"): "Aktueller Score im Vergleich zum selben Monat im Vorjahr",
+    ("en", "fitness", "vsLastYearHint"): "Current score compared with the same month last year",
+}
+
+
+def _migration_003_clarify_fitness_periods(conn) -> None:
+    """Ergänzt Zeitraum-Angaben an Trend, Vorjahres-Delta und Score-Verlauf des Fitness-Fingerprints."""
+    _apply_translation_changes(conn, _TRANSLATION_UPDATES_003, _TRANSLATION_INSERTS_003)
+
+
 # Reihenfolge = Versionsnummer. Nur anhängen, nie umnummerieren oder entfernen – PRAGMA user_version
 # bestehender DBs zeigt auf diese Nummern.
 _MIGRATIONS = [
     (1, _migration_001_rename_german_translation_namespaces),
+    (2, _migration_002_mark_estimates_and_drop_fitness_levels),
+    (3, _migration_003_clarify_fitness_periods),
 ]
 
 
