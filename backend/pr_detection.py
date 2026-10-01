@@ -80,3 +80,37 @@ def detect_and_record(conn, before: dict, activity_ids: list[int] | None = None)
                 ],
             )
     return new_events
+
+
+# Toleranz zwischen dismissed_at der überholten und created_at der neuen Events:
+# detect_and_record() setzt beide per datetime('now') in zwei getrennten Statements,
+# an einer Sekundengrenze können sie daher leicht auseinanderliegen.
+_SUPERSEDE_TOLERANCE = '-5 seconds'
+
+
+def remove_events_for_activity(conn, activity_id: int) -> None:
+    """
+    Löscht alle pr_events einer Aktivität (beim Löschen der Aktivität aufrufen, sonst
+    zeigt das Dashboard PRs einer nicht mehr existierenden Fahrt) und reaktiviert pro
+    Distanz das jüngste Event, das durch ein noch aktives Event dieser Aktivität
+    überholt wurde. Committet nicht – Teil der Lösch-Transaktion des Aufrufers.
+
+    Vom Nutzer verworfene Events dieser Aktivität reaktivieren nichts: die Kachel war
+    bewusst weg. Vor dem neuen PR manuell verworfene Vorgänger bleiben ebenfalls weg,
+    da nur Events mit dismissed_at ab created_at des gelöschten Events zurückkommen.
+    """
+    active_events = conn.execute(
+        "SELECT distance_km, created_at FROM pr_events WHERE activity_id = ? AND dismissed_at IS NULL",
+        (activity_id,),
+    ).fetchall()
+    conn.execute("DELETE FROM pr_events WHERE activity_id = ?", (activity_id,))
+    for event in active_events:
+        conn.execute(
+            """UPDATE pr_events SET dismissed_at = NULL
+               WHERE id = (
+                   SELECT id FROM pr_events
+                   WHERE distance_km = ? AND dismissed_at >= datetime(?, ?)
+                   ORDER BY id DESC LIMIT 1
+               )""",
+            (event['distance_km'], event['created_at'], _SUPERSEDE_TOLERANCE),
+        )

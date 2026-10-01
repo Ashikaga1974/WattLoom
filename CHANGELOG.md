@@ -2,35 +2,35 @@
 
 ## v1.1.1 – 2026-09-28
 
-App-Name auf "WattLoom Cycling" erweitert (UI, Onboarding, README, Landingpage)
+- App name extended to "WattLoom Cycling" (UI, onboarding, README, landing page)
 
 ## v1.1.0 – 2026-09-27
 
-- Erholungszeit-Schätzung nach Aktivitäten/Workouts (grobe Heuristik aus hrTSS/IF, keine HRV-Messung)
-- Jahres-Ø-Temperaturlinie im Wetterverlauf (/tempcorr)
-- Rundenbasierte Trittfrequenz-Kadenz-Auswertung + Kadenz-Chart auf der Aktivitäts-Detailseite
-- Dark-Mode-Umschalter in den Einstellungen
-- GitHub-Pages-Landingpage
-- Leistungsschätzung: zeitbasierte NP-Fensterlogik statt Punktanzahl, avg_power_w zeitgewichtet über Bewegungsphasen (Stillstand ausgeklammert)
-- Settings: Domänen-Validierung (weight_kg, birth_year, hr_max, crr, cda, bike_kg)
-- Genauigkeitsangabe zur Leistungsschätzung entschärft, media-Endpoint abgesichert
+- Recovery time estimate after activities/workouts (rough heuristic based on hrTSS/IF, no HRV measurement)
+- Yearly average temperature line in the weather history (/tempcorr)
+- Lap-based cadence analysis + cadence chart on the activity detail page
+- Dark mode toggle in settings
+- GitHub Pages landing page
+- Power estimate: time-based NP window logic instead of point count, avg_power_w time-weighted over moving phases (standstill excluded)
+- Settings: domain validation (weight_kg, birth_year, hr_max, crr, cda, bike_kg)
+- Toned down the accuracy claim for the power estimate, hardened the media endpoint
 
 ## v1.0.2 – 2026-09-13
 
-Setup-Wizard, Import-Seite ausgelagert, has_media-Label
+Setup wizard, import page split out, has_media label
 
 ## v1.0.1 – 2026-09-12
 
-- Wahoo-FIT-Import repariert (Geräteerkennung, Löschen von Aktivitäten mit Segmenten)
-- Neuer Steigungs-Chart (grade_pct) auf der Aktivitäts-Detailseite
-- Segment-Daten (segment_efforts) um UUID/Koordinaten erweitert, Dauer-Erfassung für Wahoo-Geräte gefixt
+- Fixed Wahoo FIT import (device detection, deleting activities with segments)
+- New gradient chart (grade_pct) on the activity detail page
+- Segment data (segment_efforts) extended with UUID/coordinates, fixed duration tracking for Wahoo devices
 
 ## v1.0.0 – 2026-09-10
 
-Erstes Open-Source-Release (Git-Tag `v1.0.0`).
+First open-source release (Git tag `v1.0.0`).
 
-- AGPL-3.0-Lizenz, Sicherheitshinweis, Contributing-Grundausstattung
-- Docker-Paketierung (Multi-Stage-Build, `docker-compose.yml`)
-- README (DE+EN) aktualisiert, Demo-Video/GIF ergänzt
-- PR-Events werden beim Verwerfen/Überholen nur noch inaktiv markiert statt gelöscht (Historie bleibt erhalten)
-- Versionsnummer im Sidebar-Footer sichtbar, `scripts/bump_version.py` für künftige Releases
+- AGPL-3.0 license, security notice, basic contributing setup
+- Docker packaging (multi-stage build, `docker-compose.yml`)
+- README (DE+EN) updated, demo video/GIF added
+- PR events are now only marked inactive when dismissed/superseded instead of being deleted (history is preserved)
+- Version number visible in the sidebar footer, `scripts/bump_version.py` for future releases

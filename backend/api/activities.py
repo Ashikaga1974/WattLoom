@@ -5,6 +5,7 @@ from backend.api.zones import correction_pct_for_date, corrected_hr, get_hr_corr
 from backend.cache import invalidate as invalidate_analytics_cache
 from backend.database import db_connection
 from backend.paths import MEDIA_DIR
+from backend.pr_detection import remove_events_for_activity
 from backend.utils import (
     haversine_km as _haversine_km,
     track_distance_index,
@@ -476,6 +477,7 @@ def delete_activity(activity_id: int):
         )
         conn.execute("DELETE FROM custom_segments WHERE source_activity_id = ?", (activity_id,))
         conn.execute("DELETE FROM custom_segment_efforts WHERE activity_id = ?", (activity_id,))
+        remove_events_for_activity(conn, activity_id)
         conn.execute("DELETE FROM activities WHERE id = ?", (activity_id,))
         conn.commit()
 

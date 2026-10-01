@@ -51,7 +51,7 @@ def _update_version_ts(version: str, release_date: str) -> None:
 
 def _prepend_changelog(version: str, release_date: str, notes: str | None) -> None:
     text = CHANGELOG.read_text(encoding="utf-8")
-    body = notes.strip() if notes else "- TODO: Änderungen eintragen"
+    body = notes.strip() if notes else "- TODO: describe changes"
     entry = f"## v{version} – {release_date}\n\n{body}\n\n"
     header, _, rest = text.partition("\n\n")
     CHANGELOG.write_text(f"{header}\n\n{entry}{rest}", encoding="utf-8")

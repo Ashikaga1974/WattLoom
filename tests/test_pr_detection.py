@@ -7,7 +7,7 @@ backend/api/analytics/best_by_distance.py: _best_by_distance_map activity_ids/st
 from backend.pr_detection import detect_and_record, snapshot
 
 _PR_EVENTS_SCHEMA = """
-CREATE TABLE pr_events (
+CREATE TABLE IF NOT EXISTS pr_events (
     id                INTEGER PRIMARY KEY AUTOINCREMENT,
     distance_km       REAL NOT NULL,
     best_time_s       REAL NOT NULL,

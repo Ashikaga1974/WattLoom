@@ -244,6 +244,19 @@ CREATE TABLE custom_segment_efforts (
     moving_speed_kmh REAL,
     UNIQUE(segment_id, activity_id)
 );
+
+CREATE TABLE pr_events (
+    id                INTEGER PRIMARY KEY AUTOINCREMENT,
+    distance_km       REAL NOT NULL,
+    best_time_s       REAL NOT NULL,
+    best_speed_kmh    REAL,
+    activity_id       INTEGER NOT NULL,
+    activity_name     TEXT,
+    activity_date     TEXT,
+    previous_time_s   REAL NOT NULL,
+    created_at        TEXT NOT NULL DEFAULT (datetime('now')),
+    dismissed_at      TEXT
+);
 """
 
 
