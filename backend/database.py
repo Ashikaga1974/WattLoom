@@ -1115,12 +1115,156 @@ def _migration_003_clarify_fitness_periods(conn) -> None:
     _apply_translation_changes(conn, _TRANSLATION_UPDATES_003, _TRANSLATION_INSERTS_003)
 
 
+# Texte für "Was hat sich verändert?" im Fortschritts-Tab (backend/api/analytics/period_comparison.py
+# liefert die insights-Codes, das Frontend übersetzt sie unter progress.changeSummary.insights.<code>)
+_CHANGE_SUMMARY_TRANSLATIONS = {
+    "de": {
+        "title": "Was hat sich verändert?",
+        "subtitleLastYear": "Letzte {{days}} Tage im Vergleich zu denselben Tagen im Vorjahr",
+        "subtitlePrevious": "Letzte {{days}} Tage im Vergleich zu den {{days}} Tagen davor",
+        "daysOption": "{{days}} Tage",
+        "baselineLastYear": "Vorjahr",
+        "baselinePrevious": "Davor",
+        "caveat": "Tempo und Effizienz hängen auch von Streckenwahl, Wind und Wetter ab.",
+        "insightsTitle": "Das fällt auf",
+        "insightsSubtitle": "Nur Veränderungen oberhalb fester Schwellen",
+        "table": {"metric": "Kennzahl", "current": "Jetzt", "previous": "Vorher", "change": "Δ"},
+        "metrics": {
+            "rides": "Fahrten",
+            "km": "Distanz",
+            "hours": "Fahrzeit",
+            "elevation": "Höhenmeter",
+            "speed": "Ø Tempo",
+            "hr": "Ø HF",
+            "efficiency": "Effizienz (Tempo/HF)",
+            "activeWeeks": "Aktive Wochen",
+            "ctl": "Fitness (CTL)",
+            "bestEffort": "Bestzeit {{km}} km",
+        },
+        "insights": {
+            "not_enough_rides": "Zu wenig Fahrten für eine Aussage – nötig sind mindestens {{min}} je Zeitraum.",
+            "no_notable_change": "Keine deutliche Veränderung.",
+            "volume_up": "Du bist {{pct}} % mehr gefahren.",
+            "volume_down": "Du bist {{pct}} % weniger gefahren.",
+            "faster_similar_hr": "Du fährst {{delta}} km/h schneller bei ähnlicher Herzfrequenz.",
+            "slower_similar_hr": "Du fährst {{delta}} km/h langsamer bei ähnlicher Herzfrequenz.",
+            "faster": "Dein Ø-Tempo ist um {{delta}} km/h gestiegen.",
+            "slower": "Dein Ø-Tempo ist um {{delta}} km/h gesunken.",
+            "efficiency_up": "Deine Effizienz (Tempo pro Herzschlag) ist um {{pct}} % gestiegen.",
+            "efficiency_down": "Deine Effizienz (Tempo pro Herzschlag) ist um {{pct}} % gesunken.",
+            "best_efforts_improved": "Schnellere Bestzeiten über {{distances}} km.",
+            "best_efforts_worse": "Langsamere Bestzeiten über {{distances}} km.",
+            "fitness_up": "Deine Fitness (CTL) liegt {{delta}} Punkte höher.",
+            "fitness_down": "Deine Fitness (CTL) liegt {{delta}} Punkte niedriger.",
+            "consistency_up": "Du warst in {{delta}} Wochen mehr aktiv.",
+            "consistency_down": "Du warst in {{delta}} Wochen weniger aktiv.",
+        },
+    },
+    "en": {
+        "title": "What changed?",
+        "subtitleLastYear": "Last {{days}} days compared with the same days last year",
+        "subtitlePrevious": "Last {{days}} days compared with the {{days}} days before",
+        "daysOption": "{{days}} days",
+        "baselineLastYear": "Last year",
+        "baselinePrevious": "Before",
+        "caveat": "Speed and efficiency also depend on route choice, wind and weather.",
+        "insightsTitle": "What stands out",
+        "insightsSubtitle": "Only changes above fixed thresholds",
+        "table": {"metric": "Metric", "current": "Now", "previous": "Before", "change": "Δ"},
+        "metrics": {
+            "rides": "Rides",
+            "km": "Distance",
+            "hours": "Riding time",
+            "elevation": "Elevation",
+            "speed": "Avg speed",
+            "hr": "Avg HR",
+            "efficiency": "Efficiency (speed/HR)",
+            "activeWeeks": "Active weeks",
+            "ctl": "Fitness (CTL)",
+            "bestEffort": "Best {{km}} km",
+        },
+        "insights": {
+            "not_enough_rides": "Not enough rides for a statement – at least {{min}} per period are needed.",
+            "no_notable_change": "No notable change.",
+            "volume_up": "You rode {{pct}} % more.",
+            "volume_down": "You rode {{pct}} % less.",
+            "faster_similar_hr": "You ride {{delta}} km/h faster at a similar heart rate.",
+            "slower_similar_hr": "You ride {{delta}} km/h slower at a similar heart rate.",
+            "faster": "Your average speed went up by {{delta}} km/h.",
+            "slower": "Your average speed went down by {{delta}} km/h.",
+            "efficiency_up": "Your efficiency (speed per heartbeat) went up by {{pct}} %.",
+            "efficiency_down": "Your efficiency (speed per heartbeat) went down by {{pct}} %.",
+            "best_efforts_improved": "Faster best efforts over {{distances}} km.",
+            "best_efforts_worse": "Slower best efforts over {{distances}} km.",
+            "fitness_up": "Your fitness (CTL) is {{delta}} points higher.",
+            "fitness_down": "Your fitness (CTL) is {{delta}} points lower.",
+            "consistency_up": "You were active in {{delta}} more weeks.",
+            "consistency_down": "You were active in {{delta}} fewer weeks.",
+        },
+    },
+}
+
+
+def _migration_004_add_change_summary_translations(conn) -> None:
+    """Legt die Texte für "Was hat sich verändert?" an; bestehende Schlüssel bleiben unangetastet."""
+    inserts = {
+        (lang, "progress", f"changeSummary.{key}"): value
+        for lang, nested in _CHANGE_SUMMARY_TRANSLATIONS.items()
+        for key, value in _flatten_translations(nested).items()
+    }
+    _apply_translation_changes(conn, {}, inserts)
+
+
+# Monatlicher Gesamtverlauf im Fortschritts-Tab: gleitender 12-Monats-Schnitt, bester Monat, Fahrten im Tooltip
+_MONTHLY_OVERVIEW_TRANSLATIONS = {
+    "de": {
+        "monthlyOverviewSubtitle": "Die Linie gleicht die Saison aus und zeigt, ob du übers Jahr gesehen mehr oder weniger fährst.",
+        "monthlySeries": "km pro Monat",
+        "rolling12Series": "Ø letzte 12 Monate",
+        "bestMonth": "Bester Monat: {{km}} km",
+        "tooltip": {"rides": "Fahrten", "rolling12": "Ø letzte 12 Monate"},
+    },
+    "en": {
+        "monthlyOverviewSubtitle": "The line evens out the seasons and shows whether you ride more or less over the year.",
+        "monthlySeries": "km per month",
+        "rolling12Series": "Avg last 12 months",
+        "bestMonth": "Best month: {{km}} km",
+        "tooltip": {"rides": "Rides", "rolling12": "Avg last 12 months"},
+    },
+}
+
+
+def _migration_005_add_monthly_overview_translations(conn) -> None:
+    """Legt die Texte für den erweiterten monatlichen Gesamtverlauf an; bestehende Schlüssel bleiben."""
+    inserts = {
+        (lang, "progress", f"progressTab.{key}"): value
+        for lang, nested in _MONTHLY_OVERVIEW_TRANSLATIONS.items()
+        for key, value in _flatten_translations(nested).items()
+    }
+    _apply_translation_changes(conn, {}, inserts)
+
+
+# Tooltip für den gestrichelten Anlauf des 12-Monats-Schnitts (erste 11 Monate)
+_TRANSLATION_INSERTS_006 = {
+    ("de", "progress", "progressTab.tooltip.rollingPartial"): "Ø der ersten {{count}} Monate",
+    ("en", "progress", "progressTab.tooltip.rollingPartial"): "Avg of the first {{count}} months",
+}
+
+
+def _migration_006_add_rolling_partial_tooltip(conn) -> None:
+    """Legt den Tooltip-Text für den Anlauf des 12-Monats-Schnitts an."""
+    _apply_translation_changes(conn, {}, _TRANSLATION_INSERTS_006)
+
+
 # Reihenfolge = Versionsnummer. Nur anhängen, nie umnummerieren oder entfernen – PRAGMA user_version
 # bestehender DBs zeigt auf diese Nummern.
 _MIGRATIONS = [
     (1, _migration_001_rename_german_translation_namespaces),
     (2, _migration_002_mark_estimates_and_drop_fitness_levels),
     (3, _migration_003_clarify_fitness_periods),
+    (4, _migration_004_add_change_summary_translations),
+    (5, _migration_005_add_monthly_overview_translations),
+    (6, _migration_006_add_rolling_partial_tooltip),
 ]
 
 

@@ -9,7 +9,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { InsightCard } from '@/components/ui/insight-card';
 import {
   ComposedChart, Line, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
-  ReferenceLine, ResponsiveContainer, BarChart, Bar, AreaChart,
+  ReferenceLine, ReferenceDot, ResponsiveContainer, BarChart, Bar,
 } from 'recharts';
 import type { TooltipPayloadEntry } from 'recharts';
 import { fmtTime } from '@/lib/format';
@@ -18,6 +18,7 @@ import type { Insight } from '@/lib/insights';
 
 import { PALETTE, MONTHS, MONTH_DOYS, type MonthlyEntry } from './shared';
 import { StatTile } from './StatTile';
+import { ChangeSummary } from './ChangeSummary';
 
 // ─── Custom Tooltips ─────────────────────────────────────────────────────────
 
@@ -55,13 +56,19 @@ function YearBarTooltip({ active, payload }: { active?: boolean; payload?: reado
 function MonthlyTrendTooltip({ active, payload, label }: { active?: boolean; payload?: readonly TooltipPayloadEntry[]; label?: string }) {
   const { t } = useTranslation('progress');
   if (!active || !payload?.length) return null;
-  const km = payload.find(p => p.dataKey === 'km');
+  const d = payload[0]?.payload as MonthlyPoint;
   return (
     <ChartTooltip
       active={active}
       label={label}
       rows={[
-        { label: t('progressTab.tooltip.distance'), value: km?.value != null ? `${Number(km.value).toFixed(0)} km` : null },
+        { label: t('progressTab.tooltip.distance'), value: `${d.km.toFixed(0)} km`, color: MONTHLY_COLOR },
+        { label: t('progressTab.tooltip.rides'), value: String(d.rides) },
+        ...(d.rolling12 != null
+          ? [{ label: t('progressTab.tooltip.rolling12'), value: `${d.rolling12.toFixed(0)} km`, color: ROLLING_COLOR }]
+          : d.rollingPartial != null
+            ? [{ label: t('progressTab.tooltip.rollingPartial', { count: d.windowMonths }), value: `${d.rollingPartial.toFixed(0)} km`, color: ROLLING_COLOR }]
+            : []),
       ]}
     />
   );
@@ -70,6 +77,39 @@ function MonthlyTrendTooltip({ active, payload, label }: { active?: boolean; pay
 // ─── Shared ──────────────────────────────────────────────────────────────────
 
 type YearData = Record<string, [number, number][]>;
+
+type MonthlyPoint = { label: string; km: number; rides: number; rolling12: number | null; rollingPartial: number | null; windowMonths: number };
+
+const MONTHLY_COLOR = '#fc4c02';
+const ROLLING_COLOR = 'var(--foreground)';
+const ROLLING_MONTHS = 12;
+
+/**
+ * Monatswerte plus gleitender Durchschnitt der letzten 12 Monate (km/Monat). Vor dem 12. Monat
+ * gibt es nur den Schnitt über alle bisherigen Monate (rollingPartial) – der enthält noch nicht
+ * jede Jahreszeit genau einmal und wird deshalb gestrichelt gezeichnet. Der 12. Monat trägt
+ * beide Werte, damit die Linien nahtlos ineinander übergehen.
+ * @param monthly Lückenlose, chronologische Monatsliste (Backend füllt leere Monate mit 0)
+ */
+function buildMonthlyPoints(monthly: MonthlyEntry[]): MonthlyPoint[] {
+  return monthly.map((d, i) => {
+    const window = monthly.slice(Math.max(0, i - ROLLING_MONTHS + 1), i + 1);
+    const average = window.reduce((sum, m) => sum + m.distance_km, 0) / window.length;
+    const isFullWindow = window.length === ROLLING_MONTHS;
+    return {
+      label: `${d.year}-${String(d.month).padStart(2, '0')}`,
+      km: d.distance_km,
+      rides: d.count,
+      rolling12: isFullWindow ? average : null,
+      rollingPartial: i <= ROLLING_MONTHS - 1 ? average : null,
+      windowMonths: window.length,
+    };
+  });
+}
+
+function bestMonth(points: MonthlyPoint[]): MonthlyPoint | null {
+  return points.reduce<MonthlyPoint | null>((best, p) => (best === null || p.km > best.km ? p : best), null);
+}
 
 function todayDoy(): number {
   const n = new Date();
@@ -254,10 +294,8 @@ export function ProgressTab() {
     [years, yearData, currentYear, doy, projection]
   );
 
-  const areaData = useMemo(() =>
-    monthlyAll.map(d => ({ label: `${d.year}-${String(d.month).padStart(2, '0')}`, km: d.distance_km, year: d.year })),
-    [monthlyAll]
-  );
+  const areaData = useMemo(() => buildMonthlyPoints(monthlyAll), [monthlyAll]);
+  const bestMonthPoint = useMemo(() => bestMonth(areaData), [areaData]);
 
   const trendInsights = useMemo(
     () => buildTrendInsights(t, years, yearData, currentYear, weeklyData, fitness),
@@ -272,6 +310,8 @@ export function ProgressTab() {
 
   return (
     <div className="space-y-6">
+      <ChangeSummary />
+
       {vsLastYear && (
         <div className="flex flex-wrap gap-3">
           <StatTile
@@ -394,21 +434,26 @@ export function ProgressTab() {
         <Card className="shadow-sm border">
           <CardHeader className="pb-2">
             <CardTitle className="text-base font-semibold">🗓️ {t('progressTab.monthlyOverviewTitle')}</CardTitle>
+            <p className="text-xs text-muted-foreground mt-0.5">{t('progressTab.monthlyOverviewSubtitle')}</p>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={config.chart_height_dense}>
-              <AreaChart data={areaData} margin={{ top: 8, right: 16, bottom: 8, left: 8 }}>
+              <ComposedChart data={areaData} margin={{ top: 20, right: 16, bottom: 8, left: 8 }}>
                 <defs>
                   <linearGradient id="monthGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#fc4c02" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#fc4c02" stopOpacity={0.02} />
+                    <stop offset="5%" stopColor={MONTHLY_COLOR} stopOpacity={0.3} />
+                    <stop offset="95%" stopColor={MONTHLY_COLOR} stopOpacity={0.02} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                {/* Jahresgrenzen: der Januar jedes Jahres, die Jahreszahl steht direkt darunter an der Achse */}
+                {areaData.filter(p => p.label.endsWith('-01')).map(p => (
+                  <ReferenceLine key={p.label} x={p.label} stroke="var(--muted-foreground)" strokeOpacity={0.35} />
+                ))}
                 <XAxis
                   dataKey="label"
                   tick={{ fontSize: 10 }}
-                  interval="preserveStartEnd"
+                  interval={0}
                   tickFormatter={v => { const [, m] = v.split('-'); return m === '01' ? v.slice(0, 4) : ''; }}
                 />
                 <YAxis
@@ -417,8 +462,22 @@ export function ProgressTab() {
                   width={48}
                 />
                 <Tooltip content={<MonthlyTrendTooltip />} />
-                <Area type="monotone" dataKey="km" stroke="#fc4c02" strokeWidth={1.5} fill="url(#monthGrad)" dot={false} isAnimationActive={false} />
-              </AreaChart>
+                <Legend wrapperStyle={{ fontSize: 11 }} />
+                <Area type="monotone" dataKey="km" name={t('progressTab.monthlySeries')} stroke={MONTHLY_COLOR} strokeWidth={1.5} fill="url(#monthGrad)" dot={false} isAnimationActive={false} />
+                <Line type="monotone" dataKey="rolling12" name={t('progressTab.rolling12Series')} stroke={ROLLING_COLOR} strokeWidth={2} dot={false} connectNulls={false} isAnimationActive={false} />
+                <Line type="monotone" dataKey="rollingPartial" legendType="none" stroke={ROLLING_COLOR} strokeWidth={2} strokeDasharray="5,4" dot={false} connectNulls={false} isAnimationActive={false} />
+                {bestMonthPoint && (
+                  <ReferenceDot
+                    x={bestMonthPoint.label}
+                    y={bestMonthPoint.km}
+                    r={4}
+                    fill={MONTHLY_COLOR}
+                    stroke="var(--background)"
+                    strokeWidth={2}
+                    label={{ value: t('progressTab.bestMonth', { km: Math.round(bestMonthPoint.km) }), position: 'left', fontSize: 10, fill: 'var(--muted-foreground)' }}
+                  />
+                )}
+              </ComposedChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>

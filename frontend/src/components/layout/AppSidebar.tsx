@@ -93,7 +93,6 @@ const navGroups: NavGroup[] = [
     prefixes: ['/progress', '/hrcurve', '/cadence', '/form', '/tempcorr', '/stats', '/wrapped', '/calories', '/speed-trend', '/weekend', '/fitness', '/zone-distribution'],
     children: [
       { href: '/fitness',       label: 'nav.fitnessScore',    icon: <Fingerprint size={13} /> },
-      { href: '/progress',      label: 'nav.yearOverview', icon: <TrendingUp size={13} /> },
       { href: '/hrcurve',       label: 'nav.hrAnalysis', icon: <Heart size={13} /> },
       { href: '/cadence',       label: 'nav.cadence', icon: <Activity size={13} /> },
       { href: '/zone-distribution', label: 'nav.zoneDistribution', icon: <Layers size={13} /> },
@@ -102,6 +101,7 @@ const navGroups: NavGroup[] = [
       { href: '/calories',      label: 'nav.calories', icon: <Cookie size={13} /> },
       { href: '/speed-trend',   label: 'nav.speedTrend', icon: <TrendingUp size={13} /> },
       { href: '/weekend',       label: 'nav.weekdayAnalysis', icon: <SunMoon size={13} /> },
+      { href: '/progress',      label: 'nav.yearOverview', icon: <TrendingUp size={13} /> },
       { href: '/wrapped',       label: 'nav.yearWrapped', icon: <Trophy size={13} /> },
     ],
   },

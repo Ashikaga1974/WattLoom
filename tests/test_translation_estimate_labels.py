@@ -7,6 +7,7 @@ import pytest
 from backend.database import (
     _TRANSLATION_INSERTS_002,
     _TRANSLATION_INSERTS_003,
+    _TRANSLATION_INSERTS_006,
     _TRANSLATION_UPDATES_002,
     _TRANSLATION_UPDATES_003,
     _migration_002_mark_estimates_and_drop_fitness_levels,
@@ -98,6 +99,7 @@ def test_adds_period_to_fitness_trend_and_history_title(conn):
 @pytest.mark.parametrize("updates, inserts", [
     (_TRANSLATION_UPDATES_002, _TRANSLATION_INSERTS_002),
     (_TRANSLATION_UPDATES_003, _TRANSLATION_INSERTS_003),
+    ({}, _TRANSLATION_INSERTS_006),
 ])
 def test_seed_files_already_contain_new_values(updates, inserts):
     # Frische Installationen bekommen die Texte aus dem Seed, nicht aus der Migration
@@ -111,3 +113,27 @@ def test_seed_files_contain_no_fitness_levels():
     for lang in ("de", "en"):
         assert _seed_value(lang, "fitness", "levels") is None
         assert _seed_value(lang, "fitness", "history.tooltipLevel") is None
+
+
+def test_change_summary_texts_are_inserted_and_match_seed(conn):
+    from backend.database import _CHANGE_SUMMARY_TRANSLATIONS, _migration_004_add_change_summary_translations
+
+    _insert(conn, "de", "progress", "changeSummary.title", "Eigener Titel")
+
+    _migration_004_add_change_summary_translations(conn)
+
+    assert _value(conn, "de", "progress", "changeSummary.title") == "Eigener Titel"
+    assert _value(conn, "en", "progress", "changeSummary.insights.volume_up") == "You rode {{pct}} % more."
+    for lang in ("de", "en"):
+        assert _seed_value(lang, "progress", "changeSummary") == _CHANGE_SUMMARY_TRANSLATIONS[lang]
+
+
+def test_monthly_overview_texts_are_inserted_and_match_seed(conn):
+    from backend.database import _MONTHLY_OVERVIEW_TRANSLATIONS, _migration_005_add_monthly_overview_translations
+
+    _migration_005_add_monthly_overview_translations(conn)
+
+    assert _value(conn, "de", "progress", "progressTab.tooltip.rides") == "Fahrten"
+    for lang, nested in _MONTHLY_OVERVIEW_TRANSLATIONS.items():
+        assert _seed_value(lang, "progress", "progressTab.bestMonth") == nested["bestMonth"]
+        assert _seed_value(lang, "progress", "progressTab.tooltip.rolling12") == nested["tooltip"]["rolling12"]

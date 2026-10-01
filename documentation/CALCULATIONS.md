@@ -210,6 +210,39 @@ against it using the same distance-mark principle as the route comparison:
 
 ---
 
+## What changed? (period comparison)
+
+*Source: `backend/api/analytics/period_comparison.py` → `period_comparison()`*
+
+Compares the last 30, 90 or 365 days with either the same days one year earlier (default,
+because cycling is strongly seasonal) or the same number of days right before. Rides only.
+
+| Metric | Rule |
+|--------|------|
+| Avg speed | total distance / total moving time – long rides weigh more than short ones |
+| Avg HR | time-weighted, rides with HR only |
+| Efficiency | speed of the rides with HR / avg HR × 100 – no beta-blocker correction (measured value) |
+| Active weeks | ISO weeks with at least one ride |
+| Fitness (CTL) | CTL from the PMC on the last day of each window |
+| Best efforts | fastest 10/20/30/50 km segment, only within the rides of that window |
+
+Statements appear only if both windows have at least 5 rides (HR statements: 5 rides with HR)
+and the change exceeds a fixed threshold:
+
+| Statement | Threshold |
+|-----------|-----------|
+| More / less volume | distance ±10 % |
+| Faster / slower | avg speed ±0.5 km/h; "at a similar heart rate" if avg HR differs by ≤ 3 bpm |
+| Efficiency up / down | ±3 % (skipped if "faster/slower at a similar heart rate" already says it) |
+| Best efforts | ±1 % per distance, only distances with a value in both windows |
+| Fitness | CTL ±3 |
+| Consistency | active weeks ±2 |
+
+Speed and efficiency also reflect route choice, wind and weather – the comparison shows a
+tendency over many rides, not a cause.
+
+---
+
 ## Year-end forecast
 
 ```
@@ -217,3 +250,16 @@ forecast_km = (km_so_far / day_of_year) × 365
 ```
 
 A simple linear projection – assumes you keep riding at your average pace so far this year.
+
+---
+
+## Monthly overview (12-month average)
+
+```
+avg_12m(month) = (km of this month + km of the 11 months before) / 12
+```
+
+Before the 12th month the chart shows the average of all months so far as a dashed line – it
+does not yet contain every season exactly once, so it does not fully even out the seasons. Months without rides count as 0 km (the backend fills
+gaps between the first and the last month with data).
+

@@ -85,7 +85,7 @@ Wetteranalyse für jede Fahrt, beides kostenlos.
 | **Strecken** | Heatmap aller Tracks, ähnliche Fahrten über echte Streckenübereinstimmung finden, eigene Segmente mit Vergleich aller Durchgänge |
 | **Wetter** | Speed vs. Temperatur und Wind, Wetterverlauf über alle Jahre (kostenlos über Open-Meteo) |
 | **Bikes** | Verschleiß je Komponente, Wartungsliste, Teilelager, Unterhaltskosten pro 100 km, Bike-Vergleich |
-| **Übersichten** | Jahresfortschritt mit Prognose, Jahresvergleich, Kalender, Werktag vs. Wochenende, Kalorien, „Wrapped"-Jahresrückblick |
+| **Übersichten** | „Was hat sich verändert?“-Vergleich der letzten 30/90/365 Tage, Jahresfortschritt mit Prognose, Jahresvergleich, Kalender, Werktag vs. Wochenende, Kalorien, „Wrapped"-Jahresrückblick |
 | **Import** | Strava-ZIP-Export plus einzelne FIT/TCX/GPX-Dateien (z. B. direkt von der Uhr) |
 | **Sonstiges** | Optionale Betablocker-HF-Korrektur, Oberfläche auf Deutsch/Englisch, 5 Themes |
 

@@ -606,6 +606,34 @@ export interface FitnessComponent {
   label: string;
 }
 
+export interface PeriodSummary {
+  start: string;
+  end: string;
+  rides: number;
+  km: number;
+  hours: number;
+  elevation_m: number;
+  avg_speed_kmh: number | null;
+  hr_rides: number;
+  avg_hr: number | null;
+  efficiency: number | null;
+  active_weeks: number;
+  ctl: number | null;
+  /** Schnellste Zeit in Sekunden je Distanz ("10", "20", "30", "50" km) innerhalb des Fensters */
+  best_efforts: Record<string, number | null>;
+}
+
+export type ComparisonBaseline = 'last_year' | 'previous';
+
+export interface PeriodComparison {
+  days: number;
+  baseline: ComparisonBaseline;
+  current: PeriodSummary;
+  previous: PeriodSummary;
+  /** Übersetzung über progress:changeSummary.insights.<code> */
+  insights: { code: string; values: Record<string, string | number> }[];
+}
+
 export interface FitnessFingerprint {
   score: number;
   level: string;
@@ -857,6 +885,9 @@ export const api = {
 
   fitnessFingerprint: (): Promise<FitnessFingerprint> =>
     get('/analytics/fitness-fingerprint'),
+
+  periodComparison: (days: number, baseline: ComparisonBaseline): Promise<PeriodComparison> =>
+    get(`/analytics/period-comparison${buildQuery({ days, baseline })}`),
 
   importFitFile: (file: File, bikeId?: string): Promise<SingleImportResult> => {
     const form = new FormData();

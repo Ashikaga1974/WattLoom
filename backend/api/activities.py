@@ -136,9 +136,30 @@ def weekly_stats(weeks: int = Query(8, ge=1, le=52)):
     return result
 
 
+def fill_missing_months(rows: list[dict]) -> list[dict]:
+    """
+    Ergänzt Monate ohne Fahrten zwischen erstem und letztem Monat mit 0 – sonst zeichnet ein
+    Linien-/Flächenchart eine Pause als schräge Linie zwischen den Nachbarmonaten statt als Einbruch.
+    Nach dem letzten Monat mit Daten wird bewusst nichts angehängt (laufender Monat ohne Fahrt wäre
+    sonst ein scheinbarer Absturz auf 0).
+    @param rows Chronologisch sortierte Dicts mit year, month, distance_km, count
+    @return Lückenlose Monatsliste
+    """
+    if not rows:
+        return []
+    by_month = {(r["year"], r["month"]): r for r in rows}
+    year, month = rows[0]["year"], rows[0]["month"]
+    last = (rows[-1]["year"], rows[-1]["month"])
+    filled = []
+    while (year, month) <= last:
+        filled.append(by_month.get((year, month), {"year": year, "month": month, "distance_km": 0.0, "count": 0}))
+        year, month = (year + 1, 1) if month == 12 else (year, month + 1)
+    return filled
+
+
 @router.get("/monthly-all")
 def monthly_all():
-    """Monatliche km über den gesamten Zeitraum, chronologisch sortiert."""
+    """Monatliche km über den gesamten Zeitraum, chronologisch sortiert, ohne Lücken."""
     with db_connection() as conn:
         rows = conn.execute(
             """
@@ -148,11 +169,12 @@ def monthly_all():
                 SUM(distance_m) / 1000.0 AS distance_km,
                 COUNT(*) AS count
             FROM activities
+            WHERE strftime('%Y', start_date) >= '2000'
             GROUP BY year, month
             ORDER BY year, month
             """
         ).fetchall()
-    return [dict(r) for r in rows]
+    return fill_missing_months([dict(r) for r in rows])
 
 
 @router.get("/monthly")

@@ -8,7 +8,7 @@ und re-exportiert die Namen, die außerhalb des Pakets gebraucht werden.
 """
 from fastapi import APIRouter
 
-from . import overview, pmc, best_by_distance, zone_distribution
+from . import overview, pmc, best_by_distance, zone_distribution, period_comparison
 from ._shared import RIDE_TYPES, _hr_max_fallback, _effective_hr_max, _threshold_hr_pct, _ctl_atl_k
 from .best_by_distance import (
     _best_by_distance_map,
@@ -24,3 +24,4 @@ router.include_router(overview.router)
 router.include_router(pmc.router)
 router.include_router(best_by_distance.router)
 router.include_router(zone_distribution.router)
+router.include_router(period_comparison.router)

@@ -1280,10 +1280,17 @@
       "tooltip": {
         "actual": "Ist",
         "distance": "Distanz",
-        "forecast": "Prognose"
+        "forecast": "Prognose",
+        "rides": "Fahrten",
+        "rolling12": "Ø letzte 12 Monate",
+        "rollingPartial": "Ø der ersten {{count}} Monate"
       },
       "vsYear": "vs. {{year}} ({{km}} km)",
-      "yearForecastTitle": "Jahresprognose {{year}}"
+      "yearForecastTitle": "Jahresprognose {{year}}",
+      "monthlyOverviewSubtitle": "Die Linie gleicht die Saison aus und zeigt, ob du übers Jahr gesehen mehr oder weniger fährst.",
+      "monthlySeries": "km pro Monat",
+      "rolling12Series": "Ø letzte 12 Monate",
+      "bestMonth": "Bester Monat: {{km}} km"
     },
     "tabs": {
       "progress": "Fortschritt",
@@ -1377,6 +1384,53 @@
     "yearComparisonTab": {
       "activeMonthsStat": "{{count}} aktive Monate · ⌀ {{avg}} km/M",
       "chartTitle": "Monatsvergleich"
+    },
+    "changeSummary": {
+      "title": "Was hat sich verändert?",
+      "subtitleLastYear": "Letzte {{days}} Tage im Vergleich zu denselben Tagen im Vorjahr",
+      "subtitlePrevious": "Letzte {{days}} Tage im Vergleich zu den {{days}} Tagen davor",
+      "daysOption": "{{days}} Tage",
+      "baselineLastYear": "Vorjahr",
+      "baselinePrevious": "Davor",
+      "caveat": "Tempo und Effizienz hängen auch von Streckenwahl, Wind und Wetter ab.",
+      "insightsTitle": "Das fällt auf",
+      "insightsSubtitle": "Nur Veränderungen oberhalb fester Schwellen",
+      "table": {
+        "metric": "Kennzahl",
+        "current": "Jetzt",
+        "previous": "Vorher",
+        "change": "Δ"
+      },
+      "metrics": {
+        "rides": "Fahrten",
+        "km": "Distanz",
+        "hours": "Fahrzeit",
+        "elevation": "Höhenmeter",
+        "speed": "Ø Tempo",
+        "hr": "Ø HF",
+        "efficiency": "Effizienz (Tempo/HF)",
+        "activeWeeks": "Aktive Wochen",
+        "ctl": "Fitness (CTL)",
+        "bestEffort": "Bestzeit {{km}} km"
+      },
+      "insights": {
+        "not_enough_rides": "Zu wenig Fahrten für eine Aussage – nötig sind mindestens {{min}} je Zeitraum.",
+        "no_notable_change": "Keine deutliche Veränderung.",
+        "volume_up": "Du bist {{pct}} % mehr gefahren.",
+        "volume_down": "Du bist {{pct}} % weniger gefahren.",
+        "faster_similar_hr": "Du fährst {{delta}} km/h schneller bei ähnlicher Herzfrequenz.",
+        "slower_similar_hr": "Du fährst {{delta}} km/h langsamer bei ähnlicher Herzfrequenz.",
+        "faster": "Dein Ø-Tempo ist um {{delta}} km/h gestiegen.",
+        "slower": "Dein Ø-Tempo ist um {{delta}} km/h gesunken.",
+        "efficiency_up": "Deine Effizienz (Tempo pro Herzschlag) ist um {{pct}} % gestiegen.",
+        "efficiency_down": "Deine Effizienz (Tempo pro Herzschlag) ist um {{pct}} % gesunken.",
+        "best_efforts_improved": "Schnellere Bestzeiten über {{distances}} km.",
+        "best_efforts_worse": "Langsamere Bestzeiten über {{distances}} km.",
+        "fitness_up": "Deine Fitness (CTL) liegt {{delta}} Punkte höher.",
+        "fitness_down": "Deine Fitness (CTL) liegt {{delta}} Punkte niedriger.",
+        "consistency_up": "Du warst in {{delta}} Wochen mehr aktiv.",
+        "consistency_down": "Du warst in {{delta}} Wochen weniger aktiv."
+      }
     }
   },
   "settings": {

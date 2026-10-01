@@ -84,7 +84,7 @@ analysis for every ride, both free.
 | **Routes** | Heatmap of all tracks, find similar rides by real track overlap, custom segments with all your efforts compared |
 | **Weather** | Speed vs. temperature and wind, weather timeline over all years (free via Open-Meteo) |
 | **Bikes** | Wear tracking per component, maintenance queue, parts inventory, maintenance cost per 100 km, bike comparison |
-| **Overviews** | Year progress and forecast, year comparison, calendar, weekday vs. weekend, calories, "Wrapped" year in review |
+| **Overviews** | "What changed?" comparison of the last 30/90/365 days, year progress and forecast, year comparison, calendar, weekday vs. weekend, calories, "Wrapped" year in review |
 | **Import** | Strava ZIP export plus single FIT/TCX/GPX files (e.g. straight from your watch) |
 | **Other** | Optional beta-blocker HR correction, UI in German/English, 5 themes |
 
