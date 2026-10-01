@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.2.0 – 2026-10-01
+
+- "What changed?" on the progress tab: compares the last 30/90/365 days with the same days last year or the days before (volume, speed, HR, efficiency, fitness, best efforts) and highlights notable changes
+- Monthly overview: 12-month average line, year markers and best month; empty months now count as 0 km, bogus pre-2000 dates are skipped
+- Estimated power and HR-based training load are labelled as such
+- Fitness score shows the change vs. last year instead of level labels; the trend states its 3-month period
+- Faster zone distribution (cached like best efforts and heatmap)
+- Docker binds to localhost by default. **If you access WattLoom from other devices in your LAN**, start it with `WATTLOOM_BIND=0.0.0.0 docker compose up --build`
+
 ## v1.1.1 – 2026-09-28
 
 - App name extended to "WattLoom Cycling" (UI, onboarding, README, landing page)

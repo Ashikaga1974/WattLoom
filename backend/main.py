@@ -22,7 +22,7 @@ logging.basicConfig(
     ],
 )
 
-app = FastAPI(title="WattLoom Cycling API", version="1.1.1")
+app = FastAPI(title="WattLoom Cycling API", version="1.2.0")
 # Swagger/ReDoc/OpenAPI-Schema werden direkt im Browser aufgerufen – der SPA-Navigations-
 # Fallback weiter unten darf sie nicht auf index.html umbiegen.
 _API_DOCS_PATHS = tuple(p for p in (app.docs_url, app.redoc_url, app.openapi_url) if p)
