@@ -5,6 +5,7 @@ import {
   ResponsiveContainer, ReferenceLine,
   RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
 } from 'recharts';
+import type { TooltipPayloadEntry } from 'recharts';
 import { TrendingUp, Zap, Wind, Calendar, TrendingDown, Minus } from 'lucide-react';
 
 import { api, type FitnessFingerprint } from '@/lib/api';
@@ -196,7 +197,7 @@ function tsbColor(tsb: number): string {
 }
 
 // Tooltip für History-Chart
-function HistoryTooltip({ active, payload }: { active?: boolean; payload?: any[] }) {
+function HistoryTooltip({ active, payload }: { active?: boolean; payload?: readonly TooltipPayloadEntry[] }) {
   const { t } = useTranslation('fitness');
   if (!active || !payload?.length) return null;
   const d = payload[0]?.payload;

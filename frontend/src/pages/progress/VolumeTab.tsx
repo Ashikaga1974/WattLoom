@@ -12,13 +12,14 @@ import {
   ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
   ReferenceLine, ResponsiveContainer,
 } from 'recharts';
+import type { TooltipPayloadEntry } from 'recharts';
 import { fmtTime } from '@/lib/format';
 import { ChartTooltip } from '@/components/ui/chart-tooltip';
 import type { Insight } from '@/lib/insights';
 
 import { StatTile } from './StatTile';
 
-function VolumeTooltip({ active, payload }: { active?: boolean; payload?: any[] }) {
+function VolumeTooltip({ active, payload }: { active?: boolean; payload?: readonly TooltipPayloadEntry[] }) {
   const { t } = useTranslation('progress');
   if (!active || !payload?.length) return null;
   const d = payload[0]?.payload as { label: string; week_start?: string; Radfahren: number; Workout: number; Kraft: number; Trend?: number };

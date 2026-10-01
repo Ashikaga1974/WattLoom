@@ -8,6 +8,7 @@ import {
   ResponsiveContainer,
   CartesianGrid,
 } from 'recharts';
+import type { TooltipPayloadEntry } from 'recharts';
 
 import { fmtNum } from '@/lib/format';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -15,7 +16,7 @@ import { ChartTooltip } from '@/components/ui/chart-tooltip';
 
 interface ChartPoint { label: string; km: number; count: number; hm: number }
 
-function DistanzSparkTooltip({ active, payload, label }: { active?: boolean; payload?: any[]; label?: string }) {
+function DistanzSparkTooltip({ active, payload, label }: { active?: boolean; payload?: readonly TooltipPayloadEntry[]; label?: string }) {
   const { t } = useTranslation('dashboard');
   if (!active || !payload?.length) return null;
   const d = payload[0]?.payload;

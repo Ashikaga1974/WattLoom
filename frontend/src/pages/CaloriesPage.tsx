@@ -10,6 +10,7 @@ import {
   ComposedChart, BarChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Cell, Legend,
 } from 'recharts';
+import type { TooltipPayloadEntry } from 'recharts';
 import { useConfig } from '@/lib/config-context';
 
 interface CaloriesData {
@@ -40,7 +41,7 @@ function fmtKcal(v: number, millionLabel: string): string {
 const COLOR_RIDES    = 'var(--primary)';
 const COLOR_WORKOUTS = 'var(--chart-2)';
 
-function MonthTooltip({ active, payload, label }: { active?: boolean; payload?: any[]; label?: string }) {
+function MonthTooltip({ active, payload, label }: { active?: boolean; payload?: readonly TooltipPayloadEntry[]; label?: string }) {
   const { t } = useTranslation('calories');
   if (!active || !payload?.length) return null;
   const d = payload[0]?.payload;
@@ -59,7 +60,7 @@ function MonthTooltip({ active, payload, label }: { active?: boolean; payload?: 
   );
 }
 
-function YearTooltip({ active, payload, label }: { active?: boolean; payload?: any[]; label?: string }) {
+function YearTooltip({ active, payload, label }: { active?: boolean; payload?: readonly TooltipPayloadEntry[]; label?: string }) {
   const { t } = useTranslation('calories');
   if (!active || !payload?.length) return null;
   const d = payload[0]?.payload;

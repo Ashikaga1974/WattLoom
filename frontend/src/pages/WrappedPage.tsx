@@ -10,6 +10,7 @@ import {
   ResponsiveContainer,
   Cell,
 } from 'recharts';
+import type { TooltipPayloadEntry } from 'recharts';
 
 import { api, type WrappedData } from '@/lib/api';
 import { fmtDate, fmtNum } from '@/lib/format';
@@ -55,7 +56,7 @@ function BigStatCard({ label, value, unit, delta }: { label: string; value: stri
   );
 }
 
-function MonthlyKmTooltip({ active, payload, label }: { active?: boolean; payload?: any[]; label?: string }) {
+function MonthlyKmTooltip({ active, payload, label }: { active?: boolean; payload?: readonly TooltipPayloadEntry[]; label?: string }) {
   const { t } = useTranslation('wrapped');
   if (!active || !payload?.length) return null;
   const d = payload[0]?.payload;

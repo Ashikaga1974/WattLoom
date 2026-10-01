@@ -7,6 +7,7 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, ReferenceDot,
 } from 'recharts';
+import type { TooltipPayloadEntry } from 'recharts';
 import { api, type WorkoutDetail } from '@/lib/api';
 import { fmtTime } from '@/lib/format';
 import { workoutTitle } from '@/lib/activity-display';
@@ -212,7 +213,7 @@ function Delta({ label, current, avg, unit, isTime = false, t }: {
 
 type ChartMetric = 'dauer' | 'kalorien';
 
-function VerlaufTooltip({ active, payload, metric, t }: { active?: boolean; payload?: readonly any[]; metric: ChartMetric; t: TFunction<'workoutdetail'> }) {
+function VerlaufTooltip({ active, payload, metric, t }: { active?: boolean; payload?: readonly TooltipPayloadEntry[]; metric: ChartMetric; t: TFunction<'workoutdetail'> }) {
   if (!active || !payload?.length) return null;
   const d = payload[0]?.payload;
   const value = metric === 'dauer'

@@ -5,6 +5,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Cell, LineChart, Line, Legend,
 } from 'recharts';
+import type { TooltipPayloadEntry } from 'recharts';
 import { api } from '@/lib/api';
 import { PageHeader } from '@/components/ui/page-header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -118,7 +119,7 @@ function DuelCard({ data }: { data: WwData }) {
 
 // ─── Custom Tooltips ──────────────────────────────────────────────────────────
 
-function WochentagTooltip({ active, payload, label }: { active?: boolean; payload?: any[]; label?: string }) {
+function WochentagTooltip({ active, payload, label }: { active?: boolean; payload?: readonly TooltipPayloadEntry[]; label?: string }) {
   const { t } = useTranslation('weekend');
   if (!active || !payload?.length) return null;
   const d = payload[0]?.payload;
@@ -135,7 +136,7 @@ function WochentagTooltip({ active, payload, label }: { active?: boolean; payloa
   );
 }
 
-function DistanzTooltip({ active, payload, label }: { active?: boolean; payload?: any[]; label?: string }) {
+function DistanzTooltip({ active, payload, label }: { active?: boolean; payload?: readonly TooltipPayloadEntry[]; label?: string }) {
   const { t } = useTranslation('weekend');
   if (!active || !payload?.length) return null;
   const d = payload[0]?.payload;
@@ -151,18 +152,18 @@ function DistanzTooltip({ active, payload, label }: { active?: boolean; payload?
   );
 }
 
-function MonatsverlaufTooltip({ active, payload, label }: { active?: boolean; payload?: any[]; label?: string }) {
+function MonatsverlaufTooltip({ active, payload, label }: { active?: boolean; payload?: readonly TooltipPayloadEntry[]; label?: string }) {
   const { t } = useTranslation('weekend');
   if (!active || !payload?.length) return null;
-  const weekday = payload.find((p: any) => p.dataKey === 'weekday_km');
-  const weekend = payload.find((p: any) => p.dataKey === 'weekend_km');
+  const weekday = payload.find((p) => p.dataKey === 'weekday_km');
+  const weekend = payload.find((p) => p.dataKey === 'weekend_km');
   return (
     <ChartTooltip
       active={active}
       label={label}
       rows={[
-        { label: t('tooltip.weekday'), value: weekday ? `${fmtNum(weekday.value, 0)} km` : null, color: COLOR_WEEKDAY },
-        { label: t('tooltip.weekend'), value: weekend ? `${fmtNum(weekend.value, 0)} km` : null, color: COLOR_WEEKEND },
+        { label: t('tooltip.weekday'), value: weekday ? `${fmtNum(Number(weekday.value), 0)} km` : null, color: COLOR_WEEKDAY },
+        { label: t('tooltip.weekend'), value: weekend ? `${fmtNum(Number(weekend.value), 0)} km` : null, color: COLOR_WEEKEND },
       ]}
     />
   );

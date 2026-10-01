@@ -11,6 +11,7 @@ import {
   ComposedChart, Line, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
   ReferenceLine, ResponsiveContainer, BarChart, Bar, AreaChart,
 } from 'recharts';
+import type { TooltipPayloadEntry } from 'recharts';
 import { fmtTime } from '@/lib/format';
 import { ChartTooltip } from '@/components/ui/chart-tooltip';
 import type { Insight } from '@/lib/insights';
@@ -20,7 +21,7 @@ import { StatTile } from './StatTile';
 
 // ─── Custom Tooltips ─────────────────────────────────────────────────────────
 
-function YearProgressTooltip({ active, payload, label }: { active?: boolean; payload?: any[]; label?: string }) {
+function YearProgressTooltip({ active, payload, label }: { active?: boolean; payload?: readonly TooltipPayloadEntry[]; label?: string }) {
   if (!active || !payload?.length) return null;
   return (
     <ChartTooltip
@@ -35,7 +36,7 @@ function YearProgressTooltip({ active, payload, label }: { active?: boolean; pay
   );
 }
 
-function YearBarTooltip({ active, payload }: { active?: boolean; payload?: any[] }) {
+function YearBarTooltip({ active, payload }: { active?: boolean; payload?: readonly TooltipPayloadEntry[] }) {
   const { t } = useTranslation('progress');
   if (!active || !payload?.length) return null;
   const d = payload[0]?.payload as { year: string; km: number; projected?: number };
@@ -51,7 +52,7 @@ function YearBarTooltip({ active, payload }: { active?: boolean; payload?: any[]
   );
 }
 
-function MonthlyTrendTooltip({ active, payload, label }: { active?: boolean; payload?: any[]; label?: string }) {
+function MonthlyTrendTooltip({ active, payload, label }: { active?: boolean; payload?: readonly TooltipPayloadEntry[]; label?: string }) {
   const { t } = useTranslation('progress');
   if (!active || !payload?.length) return null;
   const km = payload.find(p => p.dataKey === 'km');

@@ -10,6 +10,7 @@ import {
   ReferenceLine,
   ResponsiveContainer,
 } from 'recharts';
+import type { TooltipPayloadEntry } from 'recharts';
 
 import { api, type ActivityDetail, type TrackPoint, type ActivityZones, type SimilarActivity } from '@/lib/api';
 import { fmtKm, fmtTime, fmtDate, fmtSpeed, fmtHm } from '@/lib/format';
@@ -95,7 +96,7 @@ type HoverFn = (pt: { lat: number; lon: number } | null) => void;
 
 // Custom Tooltips für die Profil-Charts
 
-function ElevationTooltip({ active, payload }: { active?: boolean; payload?: any[] }) {
+function ElevationTooltip({ active, payload }: { active?: boolean; payload?: readonly TooltipPayloadEntry[] }) {
   const { t } = useTranslation('activitydetail');
   if (!active || !payload?.length) return null;
   const d = payload[0]?.payload;
@@ -108,7 +109,7 @@ function ElevationTooltip({ active, payload }: { active?: boolean; payload?: any
   );
 }
 
-function HRTooltip({ active, payload }: { active?: boolean; payload?: any[] }) {
+function HRTooltip({ active, payload }: { active?: boolean; payload?: readonly TooltipPayloadEntry[] }) {
   const { t } = useTranslation('activitydetail');
   if (!active || !payload?.length) return null;
   const d = payload[0]?.payload;
@@ -121,7 +122,7 @@ function HRTooltip({ active, payload }: { active?: boolean; payload?: any[] }) {
   );
 }
 
-function CadenceTooltip({ active, payload }: { active?: boolean; payload?: any[] }) {
+function CadenceTooltip({ active, payload }: { active?: boolean; payload?: readonly TooltipPayloadEntry[] }) {
   const { t } = useTranslation('activitydetail');
   if (!active || !payload?.length) return null;
   const d = payload[0]?.payload;
@@ -134,7 +135,7 @@ function CadenceTooltip({ active, payload }: { active?: boolean; payload?: any[]
   );
 }
 
-function GradeTooltip({ active, payload }: { active?: boolean; payload?: any[] }) {
+function GradeTooltip({ active, payload }: { active?: boolean; payload?: readonly TooltipPayloadEntry[] }) {
   const { t } = useTranslation('activitydetail');
   if (!active || !payload?.length) return null;
   const d = payload[0]?.payload;
@@ -147,7 +148,7 @@ function GradeTooltip({ active, payload }: { active?: boolean; payload?: any[] }
   );
 }
 
-function SpeedTooltip({ active, payload }: { active?: boolean; payload?: any[] }) {
+function SpeedTooltip({ active, payload }: { active?: boolean; payload?: readonly TooltipPayloadEntry[] }) {
   const { t } = useTranslation('activitydetail');
   if (!active || !payload?.length) return null;
   const d = payload[0]?.payload;

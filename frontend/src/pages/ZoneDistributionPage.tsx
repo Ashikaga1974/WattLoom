@@ -5,6 +5,7 @@ import type { TFunction } from 'i18next';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts';
+import type { TooltipPayloadEntry } from 'recharts';
 import { api, type ZoneDistributionData } from '@/lib/api';
 import { PageHeader } from '@/components/ui/page-header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -90,7 +91,7 @@ function ZoneBar({ label, pct, color, seconds }: { label: string; pct: number; c
 
 // ─── Monatlicher Zonen-Verlauf (gestapelt) ─────────────────────────────────────
 
-function MonatsTooltip({ active, payload, label }: { active?: boolean; payload?: any[]; label?: string }) {
+function MonatsTooltip({ active, payload, label }: { active?: boolean; payload?: readonly TooltipPayloadEntry[]; label?: string }) {
   const { t } = useTranslation('zonedist');
   if (!active || !payload?.length) return null;
   const d = payload[0]?.payload;

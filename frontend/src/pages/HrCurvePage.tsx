@@ -15,6 +15,7 @@ import {
   ComposedChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, ReferenceLine,
 } from 'recharts';
+import type { TooltipPayloadEntry } from 'recharts';
 
 // ─── Shared helpers ──────────────────────────────────────────────────────────
 
@@ -48,7 +49,7 @@ interface CurveData {
 
 // ─── Custom Tooltips ─────────────────────────────────────────────────────────
 
-function HrVerlaufTooltip({ active, payload, label }: { active?: boolean; payload?: any[]; label?: string }) {
+function HrVerlaufTooltip({ active, payload, label }: { active?: boolean; payload?: readonly TooltipPayloadEntry[]; label?: string }) {
   const { t } = useTranslation('hrcurve');
   if (!active || !payload?.length) return null;
   const d = payload[0]?.payload as TrendPoint;

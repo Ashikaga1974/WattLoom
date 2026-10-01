@@ -8,12 +8,13 @@ import { EmptyState } from '@/components/ui/empty-state';
 import {
   ComposedChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
 } from 'recharts';
+import type { TooltipPayloadEntry } from 'recharts';
 import { ChartTooltip } from '@/components/ui/chart-tooltip';
 
 import { PALETTE, MONTHS, type MonthlyEntry } from './shared';
 import { StatTile } from './StatTile';
 
-function YearComparisonTooltip({ active, payload, label, years }: { active?: boolean; payload?: any[]; label?: string; years: number[] }) {
+function YearComparisonTooltip({ active, payload, label, years }: { active?: boolean; payload?: readonly TooltipPayloadEntry[]; label?: string; years: number[] }) {
   if (!active || !payload?.length) return null;
   return (
     <ChartTooltip

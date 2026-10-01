@@ -16,6 +16,7 @@ import {
   LabelList,
   ResponsiveContainer,
 } from 'recharts';
+import type { DotItemDotProps, LabelProps, TooltipPayloadEntry } from 'recharts';
 import { api, type SpeedTrendData, type SpeedTrendMonth } from '@/lib/api';
 import { useConfig } from '@/lib/config-context';
 import { PageHeader } from '@/components/ui/page-header';
@@ -105,12 +106,12 @@ function buildInsights(data: SpeedTrendData, t: TFunction<'speedtrend'>): Insigh
 }
 
 // --- Custom Tooltip für Trend-Chart ---
-function TrendTooltip({ active, payload }: { active?: boolean; payload?: any[] }) {
+function TrendTooltip({ active, payload }: { active?: boolean; payload?: readonly TooltipPayloadEntry[] }) {
   const { t } = useTranslation('speedtrend');
   if (!active || !payload?.length) return null;
   const point = payload[0]?.payload;
   if (!point) return null;
-  const rolling = payload.find((p: any) => p.dataKey === 'rolling_kmh');
+  const rolling = payload.find((p) => p.dataKey === 'rolling_kmh');
 
   return (
     <ChartTooltip
@@ -127,7 +128,7 @@ function TrendTooltip({ active, payload }: { active?: boolean; payload?: any[] }
 }
 
 // --- Custom Tooltip für Jahresvergleich-Chart ---
-function YearTooltip({ active, payload, label }: { active?: boolean; payload?: any[]; label?: string }) {
+function YearTooltip({ active, payload, label }: { active?: boolean; payload?: readonly TooltipPayloadEntry[]; label?: string }) {
   const { t } = useTranslation('speedtrend');
   if (!active || !payload?.length) return null;
   const d = payload[0]?.payload;
@@ -349,7 +350,7 @@ export default function SpeedTrendPage() {
                 type="monotone"
                 dataKey="speed_kmh"
                 strokeWidth={0}
-                dot={(props: any) => {
+                dot={(props: DotItemDotProps) => {
                   const { cx, cy, index } = props;
                   if (cx == null || cy == null) return <g key={`sd-${index}`} />;
                   return (
@@ -426,9 +427,13 @@ export default function SpeedTrendPage() {
                   ))}
                   <LabelList
                     dataKey="avg_kmh"
-                    content={(props: any) => {
-                      const { x, y, width, value, index } = props;
-                      const yr = by_year[index];
+                    content={(props: LabelProps) => {
+                      const { value, index } = props;
+                      // Recharts typisiert Positionen als number | string (SVG-Attribute), liefert hier aber Zahlen
+                      const x = Number(props.x ?? 0);
+                      const y = Number(props.y ?? 0);
+                      const width = Number(props.width ?? 0);
+                      const yr = index != null ? by_year[index] : undefined;
                       const delta = yr?.delta_kmh;
                       const cx = x + width / 2;
                       return (
