@@ -122,7 +122,9 @@ python scripts/bump_version.py X.Y.Z --notes "..."
 
 Updates the version in `frontend/package.json`, `backend/main.py` and
 `frontend/src/lib/version.ts` and adds a `CHANGELOG.md` section. The script does not commit
-or tag – it prints the matching `git` commands. Pushing the tag starts the Windows build.
+or tag – it prints the matching `git` commands. Pushing the tag starts the Windows build, which
+creates the GitHub release with the matching `CHANGELOG.md` section as its description
+(`scripts/changelog_section.py`).
 
 Versioning follows SemVer: patch = bugfixes only, minor = new features, major = breaking
 changes (e.g. incompatible data/import format).
