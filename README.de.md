@@ -139,6 +139,8 @@ Python ≥ 3.11 und Node.js ≥ 20 – siehe [DEVELOPMENT.md](documentation/DEVE
 3. Beim ersten Start führt ein Einrichtungsassistent durch den Import. Spätere Importe und
    einzelne FIT/TCX/GPX-Dateien gibt es auf der Seite **Import**.
 
+**Testen ohne Strava-Export:** Möchtest du WattLoom ausprobieren, ohne eigene Daten zu importieren? Schalte unter **Einstellungen → Demo-Modus** auf einen realistischen Beispieldatensatz um. Deine eigenen Daten bleiben unberührt und sind nach dem Ausschalten wieder da.
+
 ---
 
 ## Sicherheitshinweis

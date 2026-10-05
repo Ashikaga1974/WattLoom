@@ -798,6 +798,10 @@
     "insightCard": {
       "title": "Insight",
       "subtitle": "Automatically derived from your data"
+    },
+    "demoBanner": {
+      "text": "Demo mode: you are looking at sample data, not your own.",
+      "disable": "Turn off"
     }
   },
   "dashboard": {
@@ -1686,6 +1690,16 @@
       "statusSuffix": "activities have weather data",
       "subtitle": "Temperature, wind and precipitation for every activity from Open-Meteo (free, no API key).",
       "title": "Fetch Weather Data"
+    },
+    "demoMode": {
+      "title": "Demo mode",
+      "subtitle": "Shows WattLoom with made-up sample data. Your own data stays untouched and is back as soon as you switch it off.",
+      "enable": "Turn on demo mode",
+      "disable": "Turn off demo mode",
+      "switching": "Switching…",
+      "activeHint": "Active: you are looking at sample data. Import is disabled. Changes only affect the sample data and are discarded the next time you turn it on.",
+      "genericError": "Switching failed",
+      "importBlocked": "Import is disabled in demo mode. Turn off demo mode in the settings to import your own data."
     }
   },
   "speedtrend": {

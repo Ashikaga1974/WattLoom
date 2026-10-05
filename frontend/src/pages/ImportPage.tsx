@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api, type Bike } from '@/lib/api';
+import { useDemoMode } from '@/hooks/use-demo-mode';
+import { Card, CardContent } from '@/components/ui/card';
 import { PageHeader } from '@/components/ui/page-header';
 import { ImportZipCard } from './settings/ImportZipCard';
 import { FitImportCard } from './settings/FitImportCard';
@@ -19,6 +21,7 @@ export default function ImportPage() {
   const [importZip, setImportZip] = useState<string | null>(null);
   const [importConfirm, setImportConfirm] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const isDemoMode = useDemoMode();
 
   function stopPolling() {
     if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
@@ -78,18 +81,28 @@ export default function ImportPage() {
     <div className="space-y-8">
       <PageHeader title={ts('tabs.imports')} />
 
-      <ImportZipCard
-        importStatus={importStatus}
-        importLog={importLog}
-        importZip={importZip}
-        importConfirm={importConfirm}
-        onImportClick={handleImportClick}
-        onStartImport={doStartImport}
-        onCancelConfirm={() => setImportConfirm(false)}
-      />
-      <FitImportCard bikes={bikes} />
-      <TcxImportCard bikes={bikes} />
-      <GpxImportCard bikes={bikes} />
+      {isDemoMode ? (
+        <Card>
+          <CardContent className="pt-5">
+            <p className="text-sm">{ts('demoMode.importBlocked')}</p>
+          </CardContent>
+        </Card>
+      ) : (
+        <>
+          <ImportZipCard
+            importStatus={importStatus}
+            importLog={importLog}
+            importZip={importZip}
+            importConfirm={importConfirm}
+            onImportClick={handleImportClick}
+            onStartImport={doStartImport}
+            onCancelConfirm={() => setImportConfirm(false)}
+          />
+          <FitImportCard bikes={bikes} />
+          <TcxImportCard bikes={bikes} />
+          <GpxImportCard bikes={bikes} />
+        </>
+      )}
       <WeatherCard />
       <PowerEstimationCard />
     </div>

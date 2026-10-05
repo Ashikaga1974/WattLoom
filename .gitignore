@@ -13,6 +13,9 @@ wattloom-data/
 data/mybiking.db
 data/mybiking.db-shm
 data/mybiking.db-wal
+# Demo-Modus (backend/demo_mode.py): Wegwerf-DB + Marker-Datei
+data/demo.db*
+data/demo_mode
 data/*.bak*
 data/mybiking.log
 data/media/*

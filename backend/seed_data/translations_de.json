@@ -798,6 +798,10 @@
     "insightCard": {
       "title": "Einschätzung",
       "subtitle": "Automatisch aus deinen Daten abgeleitet"
+    },
+    "demoBanner": {
+      "text": "Demo-Modus: Du siehst Beispieldaten, nicht deine eigenen.",
+      "disable": "Ausschalten"
     }
   },
   "dashboard": {
@@ -1686,6 +1690,16 @@
       "statusSuffix": "Aktivitäten haben Wetterdaten",
       "subtitle": "Temperatur, Wind und Niederschlag für jede Aktivität von Open-Meteo (kostenlos, kein API-Key).",
       "title": "Wetterdaten abrufen"
+    },
+    "demoMode": {
+      "title": "Demo-Modus",
+      "subtitle": "Zeigt WattLoom mit erfundenen Beispieldaten. Deine eigenen Daten bleiben unverändert und sind nach dem Ausschalten wieder da.",
+      "enable": "Demo-Modus einschalten",
+      "disable": "Demo-Modus ausschalten",
+      "switching": "Schalte um…",
+      "activeHint": "Aktiv: Du siehst gerade Beispieldaten. Import ist gesperrt. Änderungen landen nur in den Beispieldaten und werden beim nächsten Einschalten verworfen.",
+      "genericError": "Umschalten fehlgeschlagen",
+      "importBlocked": "Im Demo-Modus ist der Import gesperrt. Schalte den Demo-Modus in den Einstellungen aus, um deine eigenen Daten zu importieren."
     }
   },
   "speedtrend": {

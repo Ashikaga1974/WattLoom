@@ -6,8 +6,10 @@ Alle Tabellen werden hier angelegt; keine Migrations-Library – simples CREATE 
 import json
 import sqlite3
 from contextlib import contextmanager
+from pathlib import Path
 from typing import Generator
 
+from backend import demo_mode
 from backend.paths import DB_PATH, RESOURCE_DIR, ensure_data_dirs
 
 ensure_data_dirs()
@@ -16,8 +18,9 @@ SEED_DATA_DIR = RESOURCE_DIR / "backend" / "seed_data"
 
 
 @contextmanager
-def db_connection() -> Generator[sqlite3.Connection, None, None]:
-    conn = sqlite3.connect(DB_PATH)
+def db_connection(db_path: Path | None = None) -> Generator[sqlite3.Connection, None, None]:
+    """Verbindung zur aktiven DB (im Demo-Modus die Demo-DB) oder zu db_path, falls angegeben."""
+    conn = sqlite3.connect(db_path or demo_mode.active_db_path())
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA foreign_keys=ON")
@@ -27,8 +30,14 @@ def db_connection() -> Generator[sqlite3.Connection, None, None]:
         conn.close()
 
 
-def init_db() -> None:
-    with db_connection() as conn:
+def init_db(conn: sqlite3.Connection | None = None) -> None:
+    if conn is None:
+        # Ohne conn immer die echte DB – auch im Demo-Modus muss sie beim Start migriert werden
+        with db_connection(DB_PATH) as c:
+            init_db(c)
+        return
+
+    if True:
         conn.executescript("""
             CREATE TABLE IF NOT EXISTS activities (
                 id                  INTEGER PRIMARY KEY,  -- Strava Activity-ID
@@ -472,7 +481,9 @@ def init_db() -> None:
             # Workout einsortiert, ohne dass das je auffällt.
             from backend.importer.sport_codes import lookup_sport_code
 
-            if DB_PATH.exists():
+            db_info = conn.execute("PRAGMA database_list").fetchone()
+            curr_db_file = Path(db_info[2]).resolve() if db_info and db_info[2] else None
+            if curr_db_file == DB_PATH.resolve() and DB_PATH.exists():
                 backup_dir = DB_PATH.parent / "backups"
                 backup_dir.mkdir(exist_ok=True)
                 shutil.copy2(
@@ -1256,6 +1267,55 @@ def _migration_006_add_rolling_partial_tooltip(conn) -> None:
     _apply_translation_changes(conn, {}, _TRANSLATION_INSERTS_006)
 
 
+# Demo-Modus: Karte in den Einstellungen, Hinweis auf der Import-Seite, Banner über jeder Seite
+_DEMO_MODE_TRANSLATIONS = {
+    "de": {
+        "settings": {
+            "title": "Demo-Modus",
+            "subtitle": "Zeigt WattLoom mit erfundenen Beispieldaten. Deine eigenen Daten bleiben unverändert und sind nach dem Ausschalten wieder da.",
+            "enable": "Demo-Modus einschalten",
+            "disable": "Demo-Modus ausschalten",
+            "switching": "Schalte um…",
+            "activeHint": "Aktiv: Du siehst gerade Beispieldaten. Import ist gesperrt. Änderungen landen nur in den Beispieldaten und werden beim nächsten Einschalten verworfen.",
+            "genericError": "Umschalten fehlgeschlagen",
+            "importBlocked": "Im Demo-Modus ist der Import gesperrt. Schalte den Demo-Modus in den Einstellungen aus, um deine eigenen Daten zu importieren.",
+        },
+        "common": {
+            "text": "Demo-Modus: Du siehst Beispieldaten, nicht deine eigenen.",
+            "disable": "Ausschalten",
+        },
+    },
+    "en": {
+        "settings": {
+            "title": "Demo mode",
+            "subtitle": "Shows WattLoom with made-up sample data. Your own data stays untouched and is back as soon as you switch it off.",
+            "enable": "Turn on demo mode",
+            "disable": "Turn off demo mode",
+            "switching": "Switching…",
+            "activeHint": "Active: you are looking at sample data. Import is disabled. Changes only affect the sample data and are discarded the next time you turn it on.",
+            "genericError": "Switching failed",
+            "importBlocked": "Import is disabled in demo mode. Turn off demo mode in the settings to import your own data.",
+        },
+        "common": {
+            "text": "Demo mode: you are looking at sample data, not your own.",
+            "disable": "Turn off",
+        },
+    },
+}
+_DEMO_MODE_KEY_PREFIX = {"settings": "demoMode", "common": "demoBanner"}
+
+
+def _migration_007_add_demo_mode_translations(conn) -> None:
+    """Legt die Texte für den Demo-Modus an; bestehende Schlüssel bleiben unangetastet."""
+    inserts = {
+        (lang, ns, f"{_DEMO_MODE_KEY_PREFIX[ns]}.{key}"): value
+        for lang, namespaces in _DEMO_MODE_TRANSLATIONS.items()
+        for ns, texts in namespaces.items()
+        for key, value in texts.items()
+    }
+    _apply_translation_changes(conn, {}, inserts)
+
+
 # Reihenfolge = Versionsnummer. Nur anhängen, nie umnummerieren oder entfernen – PRAGMA user_version
 # bestehender DBs zeigt auf diese Nummern.
 _MIGRATIONS = [
@@ -1265,6 +1325,7 @@ _MIGRATIONS = [
     (4, _migration_004_add_change_summary_translations),
     (5, _migration_005_add_monthly_overview_translations),
     (6, _migration_006_add_rolling_partial_tooltip),
+    (7, _migration_007_add_demo_mode_translations),
 ]
 
 
@@ -1345,7 +1406,9 @@ def _seed_translations_if_empty(conn) -> None:
                 )
     conn.commit()
 
-    print(f"DB initialisiert: {DB_PATH}")
+    db_info = conn.execute("PRAGMA database_list").fetchone()
+    db_name = db_info[2] if db_info and db_info[2] else ":memory:"
+    print(f"DB initialisiert: {db_name}")
 
 
 if __name__ == "__main__":

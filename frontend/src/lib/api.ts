@@ -926,6 +926,10 @@ export const api = {
   getLog: (): Promise<{ lines: string[] }> =>
     get('/system/log'),
 
+  demoMode: () => get<{ active: boolean }>('/system/demo-mode'),
+
+  setDemoMode: (active: boolean) => put<{ active: boolean }>('/system/demo-mode', { active }),
+
   updateBike: (bikeId: string, name: string): Promise<{ ok: boolean }> =>
     fetch(`${BASE}/bikes/${bikeId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) })
       .then(r => { if (!r.ok) throw new Error(`Fehler ${r.status}`); return r.json(); }),

@@ -7,6 +7,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from backend.api import activities, tracks, bikes, heatmap, analytics, settings, importer, zones, weather, purchases, storage_locations, translations, system, segments
+from backend import demo_mode
 from backend.database import db_connection, init_db
 from backend.paths import FRONTEND_DIST_DIR, LOG_FILE, MEDIA_DIR
 from backend.utils import is_path_under
@@ -27,6 +28,7 @@ app = FastAPI(title="WattLoom Cycling API", version="1.2.0")
 # Fallback weiter unten darf sie nicht auf index.html umbiegen.
 _API_DOCS_PATHS = tuple(p for p in (app.docs_url, app.redoc_url, app.openapi_url) if p)
 init_db()
+demo_mode.refresh_on_startup()
 
 app.add_middleware(
     CORSMiddleware,

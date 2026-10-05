@@ -1,8 +1,9 @@
 import logging
 import threading
 import sys
-from fastapi import APIRouter, File, Form, UploadFile
+from fastapi import APIRouter, Depends, File, Form, UploadFile
 
+from backend import demo_mode
 from backend.api.errors import api_error
 
 router = APIRouter(prefix="/import", tags=["import"])
@@ -192,7 +193,18 @@ def _run_import() -> None:
         sys.stdout = old_stdout
 
 
-@router.post("/start")
+def _reject_in_demo_mode() -> None:
+    """Im Demo-Modus würden Importe in der Wegwerf-Demo-DB landen statt bei den echten Daten."""
+    if demo_mode.is_active():
+        raise api_error(409, "demo_mode_active", "Import ist im Demo-Modus gesperrt")
+
+
+def is_import_running() -> bool:
+    with _lock:
+        return _state["status"] == "running"
+
+
+@router.post("/start", dependencies=[Depends(_reject_in_demo_mode)])
 def start_import():
     with _lock:
         if _state["status"] == "running":
@@ -215,7 +227,7 @@ def import_status():
         }
 
 
-@router.post("/fit-file")
+@router.post("/fit-file", dependencies=[Depends(_reject_in_demo_mode)])
 async def import_fit_file(
     file: UploadFile = File(...),
     bike_id: str | None = Form(None),
@@ -313,7 +325,7 @@ def _fetch_weather_for_activity(activity_id: int) -> None:
         logger.error("Wetter-Fetch für activity %s fehlgeschlagen: %s", activity_id, exc)
 
 
-@router.post("/tcx-file")
+@router.post("/tcx-file", dependencies=[Depends(_reject_in_demo_mode)])
 async def import_tcx_file(
     file: UploadFile = File(...),
     bike_id: str | None = Form(None),
@@ -350,7 +362,7 @@ async def import_tcx_file(
     return result
 
 
-@router.post("/gpx-file")
+@router.post("/gpx-file", dependencies=[Depends(_reject_in_demo_mode)])
 async def import_gpx_file(
     file: UploadFile = File(...),
     bike_id: str | None = Form(None),
@@ -507,7 +519,7 @@ def recalculate_power():
     return {"ok": True, "message": "Leistungsschätzung gestartet"}
 
 
-@router.post("/reset")
+@router.post("/reset", dependencies=[Depends(_reject_in_demo_mode)])
 def reset_db():
     """Löscht Aktivitäten/Tracks/Laps, behält config, bikes und bike_components.
     bikes bleiben erhalten (nicht nur bike_components), da bike_components.bike_id

@@ -112,6 +112,8 @@ DOWNLOAD_DIR = DATA_BASE_DIR / "download"
 # Companion-App, der Ordner-Watcher (backend/folder_watcher.py) importiert neue Dateien daraus.
 SYNC_DIR = DATA_BASE_DIR / "sync"
 DB_PATH = DATA_DIR / "mybiking.db"
+# Demo-Modus (backend/demo_mode.py): eigene, bei jedem Einschalten neu erzeugte DB – die echte bleibt unberührt
+DEMO_DB_PATH = DATA_DIR / "demo.db"
 LOG_FILE = DATA_DIR / "mybiking.log"
 
 FRONTEND_DIST_DIR = RESOURCE_DIR / "frontend" / "dist"

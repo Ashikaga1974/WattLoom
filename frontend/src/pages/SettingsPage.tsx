@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { api, type Bike } from '@/lib/api';
+import { useDemoMode } from '@/hooks/use-demo-mode';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { LanguageCard } from './settings/LanguageCard';
 import { ThemeCard } from './settings/ThemeCard';
@@ -12,6 +13,7 @@ import { AdvancedCard } from './settings/AdvancedCard';
 import { HrCorrectionCard } from './settings/HrCorrectionCard';
 import { DisplayConfigCard } from './settings/DisplayConfigCard';
 import { ResetCard } from './settings/ResetCard';
+import { DemoModeCard } from './settings/DemoModeCard';
 import { LogCard } from './settings/LogCard';
 
 export default function SettingsPage() {
@@ -24,6 +26,7 @@ export default function SettingsPage() {
 
   // Bikes – zentral geladen, da die "Erweitert"-Karte sie braucht.
   const [bikes, setBikes] = useState<Bike[]>([]);
+  const isDemoMode = useDemoMode();
 
   useEffect(() => {
     api.bikes().then(setBikes).catch(() => {});
@@ -51,7 +54,9 @@ export default function SettingsPage() {
           <AdvancedCard bikes={bikes} />
           <HrCorrectionCard />
           <DisplayConfigCard />
-          <ResetCard />
+          <DemoModeCard />
+          {/* Zurücksetzen ist im Demo-Modus gesperrt (Backend antwortet 409) */}
+          {isDemoMode === false && <ResetCard />}
         </TabsContent>
 
         <TabsContent value="protokoll" className="mt-6 space-y-8">

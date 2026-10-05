@@ -100,6 +100,10 @@ def _import_file(path: Path, bike_id: str | None) -> bool:
         return True
     except urllib.error.HTTPError as exc:
         detail = exc.read().decode(errors="replace")
+        if exc.code == 409:
+            # Demo-Modus wurde gerade eingeschaltet – Datei liegen lassen, nicht als fehlgeschlagen verschieben
+            logger.info("%s: Backend nimmt gerade keine Importe an (%s) – später erneut", path.name, detail)
+            return False
         logger.error("Import fehlgeschlagen für %s (HTTP %s): %s", path.name, exc.code, detail)
         _move_to(path, FAILED_DIR)
         return True
@@ -117,9 +121,21 @@ def _find_candidates() -> list[Path]:
     ]
 
 
+def _is_demo_mode() -> bool:
+    """Im Demo-Modus bleiben Dateien in sync/ liegen und werden nach dem Ausschalten importiert.
+    Backend nicht erreichbar → False, der Import-Versuch läuft dann ohnehin in den Retry."""
+    try:
+        with urllib.request.urlopen(f"{API_BASE}/system/demo-mode", timeout=10) as resp:
+            return bool(json.loads(resp.read()).get("active"))
+    except Exception:
+        return False
+
+
 def _poll_once(default_bike_id: str | None) -> tuple[str | None, bool]:
     """Ein Durchlauf über sync/. Rückgabe: (ggf. nachgeladene default_bike_id, Backend war nicht erreichbar)."""
     candidates = _find_candidates()
+    if candidates and _is_demo_mode():
+        return default_bike_id, False
     if candidates and default_bike_id is None:
         default_bike_id = _fetch_default_bike_id()
 

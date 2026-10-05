@@ -34,6 +34,7 @@ WattLoom/
 │   ├── main.py              # FastAPI app, router setup, serves frontend/dist if present
 │   ├── database.py          # SQLite schema, init_db() with additive migrations
 │   ├── paths.py             # data/resource paths for dev, Docker (WATTLOOM_DATA_DIR) and frozen build
+│   ├── demo_mode.py         # demo mode: switches db_connection() to a freshly generated data/demo.db
 │   ├── cache.py             # minimal in-process cache (get_or_set / invalidate)
 │   ├── utils.py             # haversine_km/m, path_match_fraction, MS_TO_KMH
 │   ├── pr_detection.py      # best-effort snapshot diff before/after import → pr_events

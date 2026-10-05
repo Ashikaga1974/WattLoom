@@ -30,6 +30,24 @@ Place your Strava export ZIP in `download/` (the newest ZIP is detected automati
 download/export_XXXXXXXX.zip
 ```
 
+## Demo data (instant test dataset)
+
+To explore or develop WattLoom without importing your personal Strava export, you can generate a realistic synthetic dataset (~130 rides across 14 months, 2 bikes with component wear, GPS trackpoints around the Eifel/Rursee, custom segments, fitness curves):
+
+```bash
+# Populate default data/mybiking.db (fails safely if existing user data is detected)
+python scripts/generate_demo_data.py
+
+# Or specify a custom target path and duration
+python scripts/generate_demo_data.py --output data/demo.db --months 14
+```
+
+In the app, **Settings → Demo mode** does the same at runtime without touching the real database:
+`backend/demo_mode.py` regenerates `data/demo.db` on every switch-on (and on startup while active, so
+the dates stay current) and routes all `db_connection()` calls to it. The state is a marker file
+`data/demo_mode`. While active, all import endpoints and `/import/reset` return 409, and the folder
+watcher leaves files in `sync/` until demo mode is turned off.
+
 ## Running
 
 **Terminal 1 – Backend (port 8000):**

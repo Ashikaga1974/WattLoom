@@ -17,6 +17,8 @@ def sync_dir(tmp_path, monkeypatch):
     monkeypatch.setattr(folder_watcher, "SYNC_DIR", sync)
     monkeypatch.setattr(folder_watcher, "IMPORTED_DIR", sync / "imported")
     monkeypatch.setattr(folder_watcher, "FAILED_DIR", sync / "failed")
+    # Sonst fragt _poll_once() ein evtl. lokal laufendes Backend nach dem Demo-Modus
+    monkeypatch.setattr(folder_watcher, "_is_demo_mode", lambda: False)
     return sync
 
 
@@ -78,6 +80,18 @@ class TestImportFile:
         assert folder_watcher._import_file(path, None) is True
         assert (sync_dir / "failed" / "ride.tcx").exists()
 
+    def test_conflict_keeps_file_for_retry(self, sync_dir, monkeypatch):
+        """409 = Demo-Modus aktiv – Datei ist nicht kaputt und darf nicht nach failed/."""
+        def _conflict(*args, **kwargs):
+            raise urllib.error.HTTPError("u", 409, "conflict", {}, io.BytesIO(b"demo"))
+
+        monkeypatch.setattr(folder_watcher.urllib.request, "urlopen", _conflict)
+        path = _write_old(sync_dir / "ride.fit")
+
+        assert folder_watcher._import_file(path, None) is False
+        assert path.exists()
+        assert not (sync_dir / "failed").exists()
+
     def test_backend_down_keeps_file(self, sync_dir, monkeypatch):
         def _down(*args, **kwargs):
             raise urllib.error.URLError("refused")
@@ -116,6 +130,19 @@ class TestPollOnce:
         monkeypatch.setattr(folder_watcher, "_import_file", lambda path, bike_id: False)
 
         assert folder_watcher._poll_once(None) == ("b7", True)
+
+
+    def test_demo_mode_skips_import(self, sync_dir, monkeypatch):
+        _write_old(sync_dir / "a.fit")
+        monkeypatch.setattr(folder_watcher, "_is_demo_mode", lambda: True)
+
+        def _must_not_import(path, bike_id):
+            raise AssertionError("darf im Demo-Modus nicht importieren")
+
+        monkeypatch.setattr(folder_watcher, "_import_file", _must_not_import)
+
+        assert folder_watcher._poll_once("b1") == ("b1", False)
+        assert (sync_dir / "a.fit").exists()
 
 
 class TestNextSleep:
