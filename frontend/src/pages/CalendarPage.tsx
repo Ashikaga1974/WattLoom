@@ -178,7 +178,7 @@ export default function CalendarPage() {
           ) : (
             <>
               {tooltip.day.acts.length > 0 && (
-                <p className="text-primary">{tooltip.day.km.toFixed(1)} km · {t('rideCount', { count: tooltip.day.acts.length })}</p>
+                <p className="text-primary-strong">{tooltip.day.km.toFixed(1)} km · {t('rideCount', { count: tooltip.day.acts.length })}</p>
               )}
               {tooltip.day.acts.slice(0, 2).map(a => (
                 <p key={a.id} className="max-w-48 truncate text-muted-foreground">{rideTitle(a, t)}</p>

@@ -194,7 +194,7 @@ export function TimeOfDayTab() {
           ) : (
             <>
               {tooltip.cell.rideCount > 0 && (
-                <p className="text-primary mt-0.5">
+                <p className="text-primary-strong mt-0.5">
                   {t('timeOfDayTab.rideCount', { count: tooltip.cell.rideCount, time: fmtTime(tooltip.cell.rideMinutes * 60) })}
                 </p>
               )}
@@ -213,14 +213,14 @@ export function TimeOfDayTab() {
       ) : cells.length > 0 ? (
         <>
           <div className="flex flex-wrap gap-3">
-            <StatTile icon="⏱️" label={t('timeOfDayTab.stats.totalTrainingTime')} value={fmtTime(totalMinutes * 60)} valueColor="var(--primary)" />
-            <StatTile icon="🔢" label={t('timeOfDayTab.stats.activities')} value={fmtNum(totalCount)} valueColor="var(--primary)" />
-            <StatTile icon="📍" label={t('timeOfDayTab.stats.mostActiveTime')} value={`${daysShort[peakWd]} · ${BLOCKS[peakBlock].label}`} valueColor="var(--primary)" />
+            <StatTile icon="⏱️" label={t('timeOfDayTab.stats.totalTrainingTime')} value={fmtTime(totalMinutes * 60)} valueColor="var(--primary-strong)" />
+            <StatTile icon="🔢" label={t('timeOfDayTab.stats.activities')} value={fmtNum(totalCount)} valueColor="var(--primary-strong)" />
+            <StatTile icon="📍" label={t('timeOfDayTab.stats.mostActiveTime')} value={`${daysShort[peakWd]} · ${BLOCKS[peakBlock].label}`} valueColor="var(--primary-strong)" />
             <StatTile
               icon="⚖️"
               label={t('timeOfDayTab.stats.rideWorkoutSplit')}
               value={`${fmtNum(Math.round(totalRideMinutes / 60))}h / ${fmtNum(Math.round(totalWorkoutMinutes / 60))}h`}
-              valueColor="var(--primary)"
+              valueColor="var(--primary-strong)"
             />
           </div>
 
@@ -253,7 +253,7 @@ export function TimeOfDayTab() {
                           <div
                             key={b}
                             className={`h-11 rounded-lg flex items-center justify-center text-[11px] font-semibold cursor-default transition-[filter,transform] hover:brightness-110 hover:scale-[1.03] ${blockClasses(minutes, maxCellMinutes)} ${isPeak ? 'ring-2 ring-offset-1 ring-offset-card' : ''}`}
-                            style={isPeak ? { boxShadow: '0 0 0 2px var(--primary)' } : undefined}
+                            style={isPeak ? { boxShadow: '0 0 0 2px var(--primary-strong)' } : undefined}
                             onMouseEnter={e => setTooltip({ x: e.pageX, y: e.pageY, wd, block: b, cell })}
                             onMouseLeave={() => setTooltip(null)}
                           >

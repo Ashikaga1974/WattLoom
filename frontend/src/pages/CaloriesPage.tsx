@@ -38,7 +38,7 @@ function fmtKcal(v: number, millionLabel: string): string {
 }
 
 // Farben – konsistent in allen Charts
-const COLOR_RIDES    = 'var(--primary)';
+const COLOR_RIDES    = 'var(--primary-strong)';
 const COLOR_WORKOUTS = 'var(--chart-2)';
 
 function MonthTooltip({ active, payload, label }: { active?: boolean; payload?: readonly TooltipPayloadEntry[]; label?: string }) {

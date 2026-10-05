@@ -80,7 +80,7 @@ export function HrCorrectionCard() {
                 max="30"
                 value={hrCorrectionPctInput}
                 onChange={e => setHrCorrectionPctInput(e.target.value)}
-                className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-colors"
+                className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-ring/50 focus:border-ring transition-colors"
               />
               <span className="text-xs text-muted-foreground whitespace-nowrap">{ts('units.percentHrMax')}</span>
             </div>
@@ -95,7 +95,7 @@ export function HrCorrectionCard() {
               type="date"
               value={hrCorrectionSinceInput}
               onChange={e => setHrCorrectionSinceInput(e.target.value)}
-              className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-colors"
+              className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-ring/50 focus:border-ring transition-colors"
             />
             <p className="text-xs text-muted-foreground/50 mt-1.5">{ts('hrCorrection.sinceHint')}</p>
           </div>
@@ -105,7 +105,7 @@ export function HrCorrectionCard() {
           <button
             onClick={saveHrCorrection}
             disabled={hrCorrectionSaving}
-            className="rounded-md px-5 py-2 text-sm font-medium bg-orange-500 hover:bg-orange-600 disabled:opacity-50 transition-colors text-white cursor-pointer"
+            className="rounded-md px-5 py-2 text-sm font-medium bg-brand hover:bg-brand-hover disabled:opacity-50 transition-colors text-brand-foreground cursor-pointer"
           >
             {hrCorrectionSaving ? ts('common.saving') : t('actions.save')}
           </button>

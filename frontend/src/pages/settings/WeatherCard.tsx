@@ -73,7 +73,7 @@ export function WeatherCard() {
         <button
           onClick={startWeatherFetch}
           disabled={weatherFetching || weatherStatus?.running || weatherStatus?.without_weather === 0}
-          className="rounded-md px-5 py-2 text-sm font-medium bg-orange-500 hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-white cursor-pointer"
+          className="rounded-md px-5 py-2 text-sm font-medium bg-brand hover:bg-brand-hover disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-brand-foreground cursor-pointer"
         >
           {weatherFetching || weatherStatus?.running ? ts('weather.running') : ts('weather.fetchButton')}
         </button>

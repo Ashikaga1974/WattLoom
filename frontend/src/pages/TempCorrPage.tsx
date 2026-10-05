@@ -67,7 +67,7 @@ function WindTooltip({ active, payload, label }: { active?: boolean; payload?: {
     <div className="rounded-lg border border-border bg-background/95 px-3 py-2 text-sm shadow-md backdrop-blur">
       <p className="font-semibold mb-1.5">{label}</p>
       <div className="flex flex-col gap-1 text-xs">
-        <span style={{ color: 'var(--primary)' }}>{t('tooltip.avgSpeed', { value: d.avg_speed })}</span>
+        <span style={{ color: 'var(--primary-strong)' }}>{t('tooltip.avgSpeed', { value: d.avg_speed })}</span>
         <span style={{ color: 'var(--chart-2)' }}>{t('tooltip.avgHr', { value: d.avg_hr })}</span>
         <span className="text-muted-foreground">{t('tooltip.rides', { count: d.count })}</span>
       </div>
@@ -135,7 +135,7 @@ function TimelineTooltip({ active, payload }: { active?: boolean; payload?: { pa
     <div className="rounded-lg border border-border bg-background/95 px-3 py-2 text-sm shadow-md backdrop-blur">
       <p className="font-semibold mb-1.5">{fmtDayFull(d.day)}</p>
       <div className="flex flex-col gap-1 text-xs">
-        <span style={{ color: 'var(--primary)' }}>{t('timeline.temp', { value: d.temp_c })}</span>
+        <span style={{ color: 'var(--primary-strong)' }}>{t('timeline.temp', { value: d.temp_c })}</span>
         <span style={{ color: 'var(--chart-3)' }}>{t('timeline.yearAvg', { value: d.year_avg_temp_c })}</span>
         {d.wind_ms != null && (
           <span style={{ color: 'var(--chart-4)' }}>{t('timeline.wind', { value: d.wind_ms })}</span>
@@ -208,7 +208,7 @@ function MainTooltip({ active, payload, label }: { active?: boolean; payload?: {
     <div className="rounded-lg border border-border bg-background/95 px-3 py-2 text-sm shadow-md backdrop-blur">
       <p className="font-semibold mb-1.5">{label}</p>
       <div className="flex flex-col gap-1 text-xs">
-        <span style={{ color: 'var(--primary)' }}>{t('tooltip.avgSpeed', { value: d.avg_speed })}</span>
+        <span style={{ color: 'var(--primary-strong)' }}>{t('tooltip.avgSpeed', { value: d.avg_speed })}</span>
         <span style={{ color: 'var(--chart-2)' }}>{t('tooltip.avgHr', { value: d.avg_hr })}</span>
         <span className="text-muted-foreground">{t('tooltip.rides', { count: d.count })}</span>
       </div>
@@ -222,7 +222,7 @@ function EffTooltip({ active, payload, label }: { active?: boolean; payload?: { 
   return (
     <div className="rounded-lg border border-border bg-background/95 px-3 py-2 text-sm shadow-md backdrop-blur">
       <p className="font-semibold mb-1">{label}</p>
-      <p className="text-xs" style={{ color: 'var(--primary)' }}>{t('tooltip.efficiency', { value: Number(payload[0].value).toFixed(2) })}</p>
+      <p className="text-xs" style={{ color: 'var(--primary-strong)' }}>{t('tooltip.efficiency', { value: Number(payload[0].value).toFixed(2) })}</p>
     </div>
   );
 }
@@ -332,8 +332,8 @@ export default function TempCorrPage() {
                   <ComposedChart data={timelinePts} margin={{ top: 8, right: 10, bottom: 0, left: 0 }}>
                     <defs>
                       <linearGradient id="timelineTempGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.22} />
-                        <stop offset="95%" stopColor="var(--primary)" stopOpacity={0.01} />
+                        <stop offset="5%" stopColor="var(--primary-strong)" stopOpacity={0.22} />
+                        <stop offset="95%" stopColor="var(--primary-strong)" stopOpacity={0.01} />
                       </linearGradient>
                     </defs>
                     <CartesianGrid vertical={false} stroke="var(--border)" strokeOpacity={0.5} />
@@ -351,7 +351,7 @@ export default function TempCorrPage() {
                     <Area
                       type="monotone"
                       dataKey="rolling_temp_c"
-                      stroke="var(--primary)"
+                      stroke="var(--primary-strong)"
                       strokeWidth={2.5}
                       fill="url(#timelineTempGrad)"
                       dot={false}
@@ -368,7 +368,7 @@ export default function TempCorrPage() {
                       isAnimationActive={false}
                       connectNulls
                       dot={{ r: 2, fill: 'var(--muted-foreground)', fillOpacity: 0.35, strokeWidth: 0 }}
-                      activeDot={{ r: 5, fill: 'var(--primary)', stroke: 'var(--background)', strokeWidth: 2 }}
+                      activeDot={{ r: 5, fill: 'var(--primary-strong)', stroke: 'var(--background)', strokeWidth: 2 }}
                     />
                     <Line
                       type="stepAfter"
@@ -435,7 +435,7 @@ export default function TempCorrPage() {
 
                 <div className="flex items-center gap-5 justify-end text-xs text-muted-foreground mt-2 pr-1">
                   <span className="flex items-center gap-1.5">
-                    <span className="w-4 h-0.5 inline-block rounded" style={{ background: 'var(--primary)' }} />
+                    <span className="w-4 h-0.5 inline-block rounded" style={{ background: 'var(--primary-strong)' }} />
                     {t('timeline.legendTrend')}
                   </span>
                   <span className="flex items-center gap-1.5">
@@ -472,7 +472,7 @@ export default function TempCorrPage() {
             <Card className="ring-2 ring-primary/30">
               <CardContent className="pt-4 pb-4">
                 <p className="text-xs text-muted-foreground">{t('kpi.sweetSpot')}</p>
-                <p className="text-2xl font-bold mt-1" style={{ color: 'var(--primary)' }}>
+                <p className="text-2xl font-bold mt-1" style={{ color: 'var(--primary-strong)' }}>
                   {sweet?.label ?? '–'}
                 </p>
                 <p className="text-xs text-muted-foreground mt-0.5">
@@ -542,7 +542,7 @@ export default function TempCorrPage() {
                     {buckets.map((b, i) => (
                       <Cell
                         key={i}
-                        fill="var(--primary)"
+                        fill="var(--primary-strong)"
                         fillOpacity={b.isBest ? 1 : 0.45}
                       />
                     ))}
@@ -559,7 +559,7 @@ export default function TempCorrPage() {
               </ResponsiveContainer>
               <div className="flex gap-5 justify-end text-xs text-muted-foreground mt-3 pr-1">
                 <span className="flex items-center gap-1.5">
-                  <span className="w-3 h-3 rounded-sm inline-block" style={{ background: 'var(--primary)' }} />
+                  <span className="w-3 h-3 rounded-sm inline-block" style={{ background: 'var(--primary-strong)' }} />
                   {t('chart.legendSpeed')}
                 </span>
                 <span className="flex items-center gap-1.5">
@@ -567,7 +567,7 @@ export default function TempCorrPage() {
                   {t('chart.legendHeartRate')}
                 </span>
                 <span className="flex items-center gap-1.5">
-                  <span className="w-3 h-3 rounded-sm inline-block opacity-100" style={{ background: 'var(--primary)', opacity: 1 }} />
+                  <span className="w-3 h-3 rounded-sm inline-block opacity-100" style={{ background: 'var(--primary-strong)', opacity: 1 }} />
                   {t('chart.legendSweetSpot')}
                 </span>
               </div>
@@ -587,8 +587,8 @@ export default function TempCorrPage() {
                 <AreaChart data={buckets} margin={{ top: 8, right: 10, bottom: 0, left: 0 }}>
                   <defs>
                     <linearGradient id="effGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.35} />
-                      <stop offset="95%" stopColor="var(--primary)" stopOpacity={0.03} />
+                      <stop offset="5%" stopColor="var(--primary-strong)" stopOpacity={0.35} />
+                      <stop offset="95%" stopColor="var(--primary-strong)" stopOpacity={0.03} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid vertical={false} stroke="var(--border)" strokeOpacity={0.5} />
@@ -609,18 +609,18 @@ export default function TempCorrPage() {
                   {sweet && (
                     <ReferenceLine
                       x={sweet.label}
-                      stroke="var(--primary)"
+                      stroke="var(--primary-strong)"
                       strokeDasharray="4 3"
                       strokeOpacity={0.8}
-                      label={{ value: '★', position: 'insideTopRight', fill: 'var(--primary)', fontSize: 14 }}
+                      label={{ value: '★', position: 'insideTopRight', fill: 'var(--primary-strong)', fontSize: 14 }}
                     />
                   )}
                   <Area
                     dataKey="efficiency"
-                    stroke="var(--primary)"
+                    stroke="var(--primary-strong)"
                     strokeWidth={2.5}
                     fill="url(#effGrad)"
-                    dot={{ r: 4, fill: 'var(--primary)', strokeWidth: 0 }}
+                    dot={{ r: 4, fill: 'var(--primary-strong)', strokeWidth: 0 }}
                     activeDot={{ r: 6 }}
                   />
                 </AreaChart>
@@ -656,7 +656,7 @@ export default function TempCorrPage() {
                       >
                         <td className="py-2 font-medium">
                           <span className="flex items-center gap-1.5">
-                            {b.isBest && <span style={{ color: 'var(--primary)' }}>★</span>}
+                            {b.isBest && <span style={{ color: 'var(--primary-strong)' }}>★</span>}
                             {b.label}
                           </span>
                         </td>
@@ -665,7 +665,7 @@ export default function TempCorrPage() {
                         <td className="py-2 text-right">{b.avg_hr} bpm</td>
                         <td
                           className="py-2 text-right font-medium tabular-nums"
-                          style={b.isBest ? { color: 'var(--primary)' } : {}}
+                          style={b.isBest ? { color: 'var(--primary-strong)' } : {}}
                         >
                           {b.efficiency.toFixed(2)}
                         </td>
@@ -723,7 +723,7 @@ export default function TempCorrPage() {
                       <Tooltip content={<WindTooltip />} />
                       <Bar yAxisId="speed" dataKey="avg_speed" radius={[4, 4, 0, 0]} maxBarSize={52}>
                         {windBuckets.map((b, i) => (
-                          <Cell key={i} fill="var(--primary)" fillOpacity={b.isBest ? 1 : 0.45} />
+                          <Cell key={i} fill="var(--primary-strong)" fillOpacity={b.isBest ? 1 : 0.45} />
                         ))}
                       </Bar>
                       <Line

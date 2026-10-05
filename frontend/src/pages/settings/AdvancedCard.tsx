@@ -124,7 +124,7 @@ export function AdvancedCard({ bikes }: { bikes: Bike[] }) {
             <select
               value={defaultBikeIdInput}
               onChange={e => setDefaultBikeIdEdit(e.target.value)}
-              className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-colors"
+              className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-ring/50 focus:border-ring transition-colors"
             >
               {bikes.map(b => (
                 <option key={b.id} value={b.id}>{b.name}</option>
@@ -145,7 +145,7 @@ export function AdvancedCard({ bikes }: { bikes: Bike[] }) {
                 max="30"
                 value={bikeKgInput}
                 onChange={e => setBikeKgInput(e.target.value)}
-                className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-colors"
+                className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-ring/50 focus:border-ring transition-colors"
               />
               <span className="text-xs text-muted-foreground whitespace-nowrap">{ts('units.kg')}</span>
             </div>
@@ -163,7 +163,7 @@ export function AdvancedCard({ bikes }: { bikes: Bike[] }) {
               max="0.02"
               value={crrInput}
               onChange={e => setCrrInput(e.target.value)}
-              className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-colors"
+              className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-ring/50 focus:border-ring transition-colors"
             />
             <p className="text-xs text-muted-foreground/50 mt-1.5">{ts('advanced.crrHint')}</p>
           </div>
@@ -180,7 +180,7 @@ export function AdvancedCard({ bikes }: { bikes: Bike[] }) {
                 max="0.6"
                 value={cdaInput}
                 onChange={e => setCdaInput(e.target.value)}
-                className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-colors"
+                className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-ring/50 focus:border-ring transition-colors"
               />
               <span className="text-xs text-muted-foreground whitespace-nowrap">{ts('units.m2')}</span>
             </div>
@@ -199,7 +199,7 @@ export function AdvancedCard({ bikes }: { bikes: Bike[] }) {
                 max="100"
                 value={thresholdHrPctInput}
                 onChange={e => setThresholdHrPctInput(e.target.value)}
-                className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-colors"
+                className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-ring/50 focus:border-ring transition-colors"
               />
               <span className="text-xs text-muted-foreground whitespace-nowrap">{ts('units.percentHrMax')}</span>
             </div>
@@ -218,7 +218,7 @@ export function AdvancedCard({ bikes }: { bikes: Bike[] }) {
                 max="200"
                 value={maxSpeedKmhInput}
                 onChange={e => setMaxSpeedKmhInput(e.target.value)}
-                className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-colors"
+                className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-ring/50 focus:border-ring transition-colors"
               />
               <span className="text-xs text-muted-foreground whitespace-nowrap">{ts('units.kmh')}</span>
             </div>
@@ -237,7 +237,7 @@ export function AdvancedCard({ bikes }: { bikes: Bike[] }) {
                 max="90"
                 value={ctlDaysInput}
                 onChange={e => setCtlDaysInput(e.target.value)}
-                className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-colors"
+                className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-ring/50 focus:border-ring transition-colors"
               />
               <span className="text-xs text-muted-foreground whitespace-nowrap">{ts('units.days')}</span>
             </div>
@@ -256,7 +256,7 @@ export function AdvancedCard({ bikes }: { bikes: Bike[] }) {
                 max="21"
                 value={atlDaysInput}
                 onChange={e => setAtlDaysInput(e.target.value)}
-                className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-colors"
+                className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-ring/50 focus:border-ring transition-colors"
               />
               <span className="text-xs text-muted-foreground whitespace-nowrap">{ts('units.days')}</span>
             </div>
@@ -275,7 +275,7 @@ export function AdvancedCard({ bikes }: { bikes: Bike[] }) {
                 max="2000"
                 value={matchRadiusMInput}
                 onChange={e => setMatchRadiusMInput(e.target.value)}
-                className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-colors"
+                className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-ring/50 focus:border-ring transition-colors"
               />
               <span className="text-xs text-muted-foreground whitespace-nowrap">{ts('units.m')}</span>
             </div>
@@ -287,7 +287,7 @@ export function AdvancedCard({ bikes }: { bikes: Bike[] }) {
           <button
             onClick={saveAdvanced}
             disabled={advancedSaving}
-            className="rounded-md px-5 py-2 text-sm font-medium bg-orange-500 hover:bg-orange-600 disabled:opacity-50 transition-colors text-white cursor-pointer"
+            className="rounded-md px-5 py-2 text-sm font-medium bg-brand hover:bg-brand-hover disabled:opacity-50 transition-colors text-brand-foreground cursor-pointer"
           >
             {advancedSaving ? ts('common.saving') : t('actions.save')}
           </button>

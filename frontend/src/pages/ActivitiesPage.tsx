@@ -218,7 +218,7 @@ export default function ActivitiesPage() {
             <span className={cn(
               'text-xs px-2 py-0.5 rounded-full font-normal transition-colors',
               activeTab === tab
-                ? 'bg-primary/15 text-primary'
+                ? 'bg-primary/15 text-primary-strong'
                 : 'bg-muted text-muted-foreground',
             )}>
               {tab === 'rides'
@@ -447,7 +447,7 @@ export default function ActivitiesPage() {
                               {!!act.has_track && (
                                 <button
                                   onClick={() => navigate(`/route-comparison?ref=${act.id}`)}
-                                  className="text-muted-foreground/30 hover:text-primary transition-colors p-1 rounded hover:bg-primary/10"
+                                  className="text-muted-foreground/30 hover:text-primary-strong transition-colors p-1 rounded hover:bg-primary/10"
                                   title={t('actions.compareRoute')}
                                 >
                                   <GitCompare size={13} />

@@ -67,7 +67,7 @@ export function GoalsCard() {
                 onChange={(e) => setYearlyKmGoalInput(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && saveGoals()}
                 placeholder="3000"
-                className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-colors"
+                className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-ring/50 focus:border-ring transition-colors"
               />
               <span className="text-xs text-muted-foreground whitespace-nowrap">{ts('units.kmPerYear')}</span>
             </div>
@@ -86,7 +86,7 @@ export function GoalsCard() {
                 onChange={(e) => setWeeklyHoursGoalInput(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && saveGoals()}
                 placeholder="5"
-                className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-colors"
+                className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-ring/50 focus:border-ring transition-colors"
               />
               <span className="text-xs text-muted-foreground whitespace-nowrap">{ts('units.hoursPerWeek')}</span>
             </div>
@@ -98,7 +98,7 @@ export function GoalsCard() {
           <button
             onClick={saveGoals}
             disabled={goalSaving}
-            className="rounded-md px-5 py-2 text-sm font-medium bg-orange-500 hover:bg-orange-600 disabled:opacity-50 transition-colors text-white cursor-pointer"
+            className="rounded-md px-5 py-2 text-sm font-medium bg-brand hover:bg-brand-hover disabled:opacity-50 transition-colors text-brand-foreground cursor-pointer"
           >
             {goalSaving ? ts('common.saving') : t('actions.save')}
           </button>

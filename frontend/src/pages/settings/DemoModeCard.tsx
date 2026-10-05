@@ -31,7 +31,7 @@ export function DemoModeCard() {
         <p className="text-xs text-muted-foreground">{ts('demoMode.subtitle')}</p>
       </CardHeader>
       <CardContent className="pt-5 space-y-3">
-        {isActive && <p className="text-sm text-primary">{ts('demoMode.activeHint')}</p>}
+        {isActive && <p className="text-sm text-primary-strong">{ts('demoMode.activeHint')}</p>}
         {error && <p className="text-sm text-red-500">{error}</p>}
         <button
           onClick={toggle}

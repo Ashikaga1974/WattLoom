@@ -38,7 +38,7 @@ export function AddBikeForm({ onAdded }: { onAdded: () => void }) {
   }
 
   return (
-    <div className="w-full rounded-xl border p-4 space-y-3" style={{ borderColor: 'var(--primary)' }}>
+    <div className="w-full rounded-xl border p-4 space-y-3" style={{ borderColor: 'var(--primary-strong)' }}>
       <p className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">{t('addBikeForm.panelTitle')}</p>
       <label className="space-y-1 text-sm text-muted-foreground block">
         <span className="block">{t('addBikeForm.nameLabel')}</span>

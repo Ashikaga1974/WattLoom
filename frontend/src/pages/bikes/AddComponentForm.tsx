@@ -105,7 +105,7 @@ export function AddComponentForm({
   const labelCls = "space-y-1 text-sm text-muted-foreground";
 
   return (
-    <div className="rounded-xl border p-4 space-y-4" style={{ borderColor: 'var(--primary)' }}>
+    <div className="rounded-xl border p-4 space-y-4" style={{ borderColor: 'var(--primary-strong)' }}>
       <p className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">{t('addForm.panelTitle')}</p>
       <label className={labelCls}>
         <span className="block">{t('fields.stockItem')}</span>

@@ -19,6 +19,7 @@ import type { Insight } from '@/lib/insights';
 import { PALETTE, MONTHS, MONTH_DOYS, type MonthlyEntry } from './shared';
 import { StatTile } from './StatTile';
 import { ChangeSummary } from './ChangeSummary';
+import { BRAND_STRONG } from '@/lib/colors';
 
 // ─── Custom Tooltips ─────────────────────────────────────────────────────────
 
@@ -47,7 +48,7 @@ function YearBarTooltip({ active, payload }: { active?: boolean; payload?: reado
       label={d.year}
       rows={[
         { label: t('progressTab.tooltip.actual'), value: `${d.km.toFixed(0)} km` },
-        ...(d.projected != null ? [{ label: t('progressTab.tooltip.forecast'), value: `${d.projected.toFixed(0)} km`, color: '#fc4c02' }] : []),
+        ...(d.projected != null ? [{ label: t('progressTab.tooltip.forecast'), value: `${d.projected.toFixed(0)} km`, color: BRAND_STRONG }] : []),
       ]}
     />
   );
@@ -80,7 +81,7 @@ type YearData = Record<string, [number, number][]>;
 
 type MonthlyPoint = { label: string; km: number; rides: number; rolling12: number | null; rollingPartial: number | null; windowMonths: number };
 
-const MONTHLY_COLOR = '#fc4c02';
+const MONTHLY_COLOR = BRAND_STRONG;
 const ROLLING_COLOR = 'var(--foreground)';
 const ROLLING_MONTHS = 12;
 
@@ -318,7 +319,7 @@ export function ProgressTab() {
             icon="🚴"
             label={t('progressTab.sinceStartOfYear', { year: currentYear })}
             value={`${vsLastYear.curKm.toFixed(0)} km`}
-            valueColor="#fc4c02"
+            valueColor={BRAND_STRONG}
           />
           <StatTile
             icon="🕓"
@@ -418,12 +419,12 @@ export function ProgressTab() {
                   width={48}
                 />
                 <Tooltip content={<YearBarTooltip />} />
-                <Bar dataKey="km" name="km" radius={[3, 3, 0, 0]} fill="#fc4c02" isAnimationActive={false}>
+                <Bar dataKey="km" name="km" radius={[3, 3, 0, 0]} fill={BRAND_STRONG} isAnimationActive={false}>
                   {barData.map(entry => (
                     <rect key={entry.year} fill={entry.color} fillOpacity={entry.year === currentYear ? 1 : 0.65} />
                   ))}
                 </Bar>
-                <Bar dataKey="projected" name={t('progressTab.tooltip.forecast')} fill="#fc4c02" fillOpacity={0.2} radius={[3, 3, 0, 0]} isAnimationActive={false} />
+                <Bar dataKey="projected" name={t('progressTab.tooltip.forecast')} fill={BRAND_STRONG} fillOpacity={0.2} radius={[3, 3, 0, 0]} isAnimationActive={false} />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
@@ -496,7 +497,7 @@ export function ProgressTab() {
               icon="🏁"
               label={t('progressTab.forecastYearEnd')}
               value={`${projection.projEnd.toLocaleString('de-DE')} km`}
-              valueColor="#fc4c02"
+              valueColor={BRAND_STRONG}
             />
             <StatTile
               icon="⏳"

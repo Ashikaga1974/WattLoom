@@ -120,7 +120,7 @@ export function DisplayConfigCard() {
                 max="50"
                 value={comparisonSimplifyInput}
                 onChange={e => setComparisonSimplifyInput(e.target.value)}
-                className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-colors"
+                className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-ring/50 focus:border-ring transition-colors"
               />
               <span className="text-xs text-muted-foreground whitespace-nowrap">{ts('units.m')}</span>
             </div>
@@ -139,7 +139,7 @@ export function DisplayConfigCard() {
                 max="12"
                 value={blockHoursInput}
                 onChange={e => setBlockHoursInput(e.target.value)}
-                className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-colors"
+                className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-ring/50 focus:border-ring transition-colors"
               />
               <span className="text-xs text-muted-foreground whitespace-nowrap">{ts('units.hours')}</span>
             </div>
@@ -158,7 +158,7 @@ export function DisplayConfigCard() {
                 max="12"
                 value={volumeTrendWeeksInput}
                 onChange={e => setVolumeTrendWeeksInput(e.target.value)}
-                className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-colors"
+                className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-ring/50 focus:border-ring transition-colors"
               />
               <span className="text-xs text-muted-foreground whitespace-nowrap">{ts('units.weeks')}</span>
             </div>
@@ -177,7 +177,7 @@ export function DisplayConfigCard() {
                 max="200"
                 value={chartHeightMiniInput}
                 onChange={e => setChartHeightMiniInput(e.target.value)}
-                className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-colors"
+                className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-ring/50 focus:border-ring transition-colors"
               />
               <span className="text-xs text-muted-foreground whitespace-nowrap">{ts('units.px')}</span>
             </div>
@@ -196,7 +196,7 @@ export function DisplayConfigCard() {
                 max="260"
                 value={chartHeightCompactInput}
                 onChange={e => setChartHeightCompactInput(e.target.value)}
-                className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-colors"
+                className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-ring/50 focus:border-ring transition-colors"
               />
               <span className="text-xs text-muted-foreground whitespace-nowrap">{ts('units.px')}</span>
             </div>
@@ -215,7 +215,7 @@ export function DisplayConfigCard() {
                 max="320"
                 value={chartHeightInput}
                 onChange={e => setChartHeightInput(e.target.value)}
-                className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-colors"
+                className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-ring/50 focus:border-ring transition-colors"
               />
               <span className="text-xs text-muted-foreground whitespace-nowrap">{ts('units.px')}</span>
             </div>
@@ -234,7 +234,7 @@ export function DisplayConfigCard() {
                 max="360"
                 value={chartHeightDenseInput}
                 onChange={e => setChartHeightDenseInput(e.target.value)}
-                className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-colors"
+                className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-ring/50 focus:border-ring transition-colors"
               />
               <span className="text-xs text-muted-foreground whitespace-nowrap">{ts('units.px')}</span>
             </div>
@@ -266,7 +266,7 @@ export function DisplayConfigCard() {
           <button
             onClick={saveDisplayConfig}
             disabled={displaySaving}
-            className="rounded-md px-5 py-2 text-sm font-medium bg-orange-500 hover:bg-orange-600 disabled:opacity-50 transition-colors text-white cursor-pointer"
+            className="rounded-md px-5 py-2 text-sm font-medium bg-brand hover:bg-brand-hover disabled:opacity-50 transition-colors text-brand-foreground cursor-pointer"
           >
             {displaySaving ? ts('common.saving') : t('actions.save')}
           </button>

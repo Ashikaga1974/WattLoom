@@ -374,11 +374,11 @@ export default function RouteComparisonPage() {
           <p className="text-lg">{t('emptyState.noActivitySelected')}</p>
           <p className="mt-2 text-sm">
             {t('emptyState.hintPrefix')}{' '}
-            <span className="font-medium text-primary">{t('emptyState.hintButton')}</span> {t('emptyState.hintSuffix')}
+            <span className="font-medium text-primary-strong">{t('emptyState.hintButton')}</span> {t('emptyState.hintSuffix')}
           </p>
           <Link
             to="/activities"
-            className="mt-4 inline-block rounded-md border border-primary/40 px-4 py-2 text-sm font-medium text-primary hover:bg-primary/5 transition-colors"
+            className="mt-4 inline-block rounded-md border border-primary/40 px-4 py-2 text-sm font-medium text-primary-strong hover:bg-primary/5 transition-colors"
           >
             {t('emptyState.toActivities')}
           </Link>
@@ -400,14 +400,14 @@ export default function RouteComparisonPage() {
               <CardContent className="p-3">
                 <div className="mb-1 flex items-center gap-2">
                   <span className="inline-block h-3 w-3 shrink-0 rounded-full" style={{ background: config.comparison_colors[0] }} />
-                  <span className="text-xs font-medium uppercase tracking-wide text-primary">{t('list.referenceLabel')}</span>
+                  <span className="text-xs font-medium uppercase tracking-wide text-primary-strong">{t('list.referenceLabel')}</span>
                 </div>
                 <div className="flex items-start gap-3">
                   <RouteThumbnail activityId={refActivity.id} size={48} />
                   <div className="min-w-0">
                     <p className="text-sm font-semibold leading-snug">{rideTitle(refActivity, t)}</p>
                     <div className="mt-1.5 flex items-center gap-2 flex-wrap">
-                      <span className="rounded-full bg-primary/15 px-2.5 py-1 text-sm font-bold tabular-nums text-primary">
+                      <span className="rounded-full bg-primary/15 px-2.5 py-1 text-sm font-bold tabular-nums text-primary-strong">
                         {fmtKm(refActivity.distance_m)} km
                       </span>
                       <span className="text-xs text-muted-foreground">
@@ -424,7 +424,7 @@ export default function RouteComparisonPage() {
               <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 {t('list.similarLabel', { count: similarList.length })}
                 {selectedIds.length > 0 && (
-                  <span className="ml-1 text-primary">{t('list.selectedSuffix', { count: selectedIds.length })}</span>
+                  <span className="ml-1 text-primary-strong">{t('list.selectedSuffix', { count: selectedIds.length })}</span>
                 )}
               </p>
               {similarList.length === 0 && (
@@ -475,7 +475,7 @@ export default function RouteComparisonPage() {
                             )}
                           </div>
                           <p className="mt-0.5 flex items-baseline gap-1.5">
-                            <span className="text-sm font-bold tabular-nums text-primary">{fmtKm(act.distance_m)} km</span>
+                            <span className="text-sm font-bold tabular-nums text-primary-strong">{fmtKm(act.distance_m)} km</span>
                             <span className="text-xs text-muted-foreground">{fmtDate(act.start_date)}</span>
                           </p>
                           <p className="mt-0.5 text-xs text-muted-foreground">
@@ -596,12 +596,12 @@ export default function RouteComparisonPage() {
                     <tr className="border-b border-border/50 bg-primary/5">
                       <td className="flex items-center gap-2 px-3 py-2">
                         <span className="inline-block h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: config.comparison_colors[0] }} />
-                        <Link to={`/activities/${refActivity.id}`} className="max-w-[140px] truncate font-medium hover:text-primary">
+                        <Link to={`/activities/${refActivity.id}`} className="max-w-[140px] truncate font-medium hover:text-primary-strong">
                           {rideTitle(refActivity, t)}
                         </Link>
                       </td>
                       <td className="px-3 py-2 text-muted-foreground">{fmtDate(refActivity.start_date)}</td>
-                      <td className="px-3 py-2 font-bold tabular-nums text-primary">{fmtKm(refActivity.distance_m)} km</td>
+                      <td className="px-3 py-2 font-bold tabular-nums text-primary-strong">{fmtKm(refActivity.distance_m)} km</td>
                       <td className="px-3 py-2 text-muted-foreground">{fmtTime(refActivity.moving_time_s)}</td>
                       <td className="px-3 py-2 text-muted-foreground" title={t('table.referenceNoDeltaTooltip')}>–</td>
                       <td className="px-3 py-2 text-muted-foreground">
@@ -630,13 +630,13 @@ export default function RouteComparisonPage() {
                           <td className="px-3 py-2">
                             <div className="flex items-center gap-2">
                               <span className="inline-block h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: config.comparison_colors[(i + 1) % config.comparison_colors.length] }} />
-                              <Link to={`/activities/${act.id}`} className="max-w-[140px] truncate hover:text-primary">
+                              <Link to={`/activities/${act.id}`} className="max-w-[140px] truncate hover:text-primary-strong">
                                 {rideTitle(act, t)}
                               </Link>
                             </div>
                           </td>
                           <td className="px-3 py-2 text-muted-foreground">{fmtDate(act.start_date)}</td>
-                          <td className="px-3 py-2 font-bold tabular-nums text-primary">{fmtKm(act.distance_m)} km</td>
+                          <td className="px-3 py-2 font-bold tabular-nums text-primary-strong">{fmtKm(act.distance_m)} km</td>
                           <td className="px-3 py-2 text-muted-foreground">{fmtTime(act.moving_time_s)}</td>
                           <td className={`px-3 py-2 font-medium ${deltaTime < 0 ? 'text-green-600' : deltaTime > 0 ? 'text-orange-500' : 'text-muted-foreground'}`}>
                             {fmtDeltaTime(deltaTime)}

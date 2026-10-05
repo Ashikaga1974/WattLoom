@@ -81,7 +81,7 @@ export function FitImportCard({ bikes }: { bikes: Bike[] }) {
               <select
                 value={fitBikeId}
                 onChange={e => setFitBikeId(e.target.value)}
-                className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-colors"
+                className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-ring/50 focus:border-ring transition-colors"
               >
                 <option value="">{ts('importCommon.noBikeOption')}</option>
                 {bikes.map(b => (
@@ -95,7 +95,7 @@ export function FitImportCard({ bikes }: { bikes: Bike[] }) {
             <button
               type="submit"
               disabled={!fitFile || fitUploading}
-              className="rounded-md px-5 py-2 text-sm font-medium bg-orange-500 hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-white cursor-pointer"
+              className="rounded-md px-5 py-2 text-sm font-medium bg-brand hover:bg-brand-hover disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-brand-foreground cursor-pointer"
             >
               {fitUploading ? ts('importCommon.importing') : ts('importCommon.importButton')}
             </button>
@@ -109,7 +109,7 @@ export function FitImportCard({ bikes }: { bikes: Bike[] }) {
                   <button
                     type="button"
                     onClick={() => navigate(`/activities/${fitResult.activity_id}`)}
-                    className="text-xs text-orange-500 hover:text-orange-400 underline underline-offset-2 transition-colors"
+                    className="text-xs text-primary-strong hover:text-primary-strong/80 underline underline-offset-2 transition-colors"
                   >
                     {ts('importCommon.openActivity')}
                   </button>

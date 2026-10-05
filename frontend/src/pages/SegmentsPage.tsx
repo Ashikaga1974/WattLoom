@@ -62,7 +62,7 @@ export default function SegmentsPage() {
                 {segments.map(s => (
                   <tr key={s.id} className="border-b border-border last:border-0 hover:bg-muted/40 transition-colors">
                     <td className="px-4 py-3">
-                      <Link to={`/segments/${s.id}`} className="font-medium text-foreground hover:text-primary transition-colors">
+                      <Link to={`/segments/${s.id}`} className="font-medium text-foreground hover:text-primary-strong transition-colors">
                         {s.name}
                       </Link>
                     </td>

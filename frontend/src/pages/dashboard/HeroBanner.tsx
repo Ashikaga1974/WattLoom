@@ -12,7 +12,7 @@ function HeroStat({ value, label, primary = false }: { value: string; label: str
     <div>
       <p
         className={primary ? 'text-3xl font-black leading-none' : 'text-xl font-bold text-foreground leading-none'}
-        style={primary ? { color: 'var(--primary)' } : undefined}
+        style={primary ? { color: 'var(--primary-strong)' } : undefined}
       >
         {value}
       </p>
@@ -57,7 +57,7 @@ export function HeroBanner({ activity, loading }: { activity: Activity | null; l
             <div className="flex items-center gap-2">
               <span
                 className="w-2 h-2 rounded-full animate-pulse shrink-0"
-                style={{ background: 'var(--primary)' }}
+                style={{ background: 'var(--primary-strong)' }}
               />
               <span className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
                 {t('hero.lastRide')}
@@ -70,12 +70,12 @@ export function HeroBanner({ activity, loading }: { activity: Activity | null; l
 
           {/* Titel + Link */}
           <div className="flex items-start justify-between gap-4 mb-5">
-            <h2 className="text-xl md:text-2xl font-bold text-foreground leading-snug group-hover:text-primary transition-colors duration-200 truncate">
+            <h2 className="text-xl md:text-2xl font-bold text-foreground leading-snug group-hover:text-primary-strong transition-colors duration-200 truncate">
               {rideTitle(activity, t)}
             </h2>
             <span
               className="text-sm font-semibold shrink-0 mt-0.5 group-hover:translate-x-0.5 transition-transform duration-200"
-              style={{ color: 'var(--primary)' }}
+              style={{ color: 'var(--primary-strong)' }}
             >
               {t('hero.details')}
             </span>

@@ -46,7 +46,7 @@ function KpiTile({
     <div className="flex flex-col items-center py-8 px-4 text-center">
       <p
         className="text-5xl md:text-6xl font-black tabular-nums leading-none tracking-tight"
-        style={{ color: 'var(--primary)' }}
+        style={{ color: 'var(--primary-strong)' }}
       >
         {fmtNum(animated)}
       </p>
@@ -152,7 +152,7 @@ export function KpiSection({
       ) : (
         <CardContent className="py-12 text-center">
           <p className="text-muted-foreground mb-3">{t('kpi.noData')}</p>
-          <Link to="/settings" className="text-sm text-primary hover:underline">
+          <Link to="/settings" className="text-sm text-primary-strong hover:underline">
             {t('kpi.openSettings')}
           </Link>
         </CardContent>

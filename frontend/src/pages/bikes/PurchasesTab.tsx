@@ -213,7 +213,7 @@ export function PurchasesTab({ externalKey, onChanged }: { externalKey: number; 
                   ))}
                 </select>
                 <button type="button" onClick={() => setManageLocationsOpen(o => !o)}
-                  className="text-sm text-primary hover:underline mt-1">
+                  className="text-sm text-primary-strong hover:underline mt-1">
                   {t('purchases.fields.manageLocationsButton')}
                 </button>
               </div>
@@ -355,7 +355,7 @@ export function PurchasesTab({ externalKey, onChanged }: { externalKey: number; 
                       {p.notes && <div className="text-sm text-muted-foreground">{p.notes}</div>}
                       {p.url && (
                         <a href={p.url} target="_blank" rel="noopener noreferrer"
-                          className="text-sm text-primary hover:underline">{t('purchases.orderLinkText')}</a>
+                          className="text-sm text-primary-strong hover:underline">{t('purchases.orderLinkText')}</a>
                       )}
                       {p.returns.length > 0 && (
                         <div className="mt-0.5 space-y-0.5">

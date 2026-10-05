@@ -20,8 +20,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ChartTooltip } from '@/components/ui/chart-tooltip';
 import { EmptyState } from '@/components/ui/empty-state';
+import { BRAND_STRONG } from '@/lib/colors';
 
-const ORANGE = '#fc4c02';
 const BLUE = '#3b82f6';
 
 function fmtMovingTime(s: number): string {
@@ -65,7 +65,7 @@ function MonthlyKmTooltip({ active, payload, label }: { active?: boolean; payloa
       active={active}
       label={label}
       rows={[
-        { label: t('tooltip.distance'), value: `${Number(d?.km ?? 0).toFixed(0)} km`, color: d?.isBest ? ORANGE : BLUE },
+        { label: t('tooltip.distance'), value: `${Number(d?.km ?? 0).toFixed(0)} km`, color: d?.isBest ? BRAND_STRONG : BLUE },
       ]}
     />
   );
@@ -80,7 +80,7 @@ function HighlightCard({ label, headline, subline, linkId }: { label: string; he
       <CardContent>
         <p className="text-2xl font-bold text-foreground">{headline}</p>
         {linkId ? (
-          <Link to={`/activities/${linkId}`} className="text-sm text-orange-500 hover:underline">{subline}</Link>
+          <Link to={`/activities/${linkId}`} className="text-sm text-primary-strong hover:underline">{subline}</Link>
         ) : (
           <p className="text-sm text-muted-foreground">{subline}</p>
         )}
@@ -164,7 +164,7 @@ export default function WrappedPage() {
               onClick={() => load(yr)}
               className={`px-3 py-1 rounded text-sm font-medium transition-colors cursor-pointer ${
                 yr === selectedYear
-                  ? 'bg-orange-500 text-white'
+                  ? 'bg-brand text-brand-foreground'
                   : 'bg-muted text-muted-foreground hover:bg-accent'
               }`}
             >
@@ -268,7 +268,7 @@ export default function WrappedPage() {
               <Tooltip content={<MonthlyKmTooltip />} />
               <Bar dataKey="km" radius={[3, 3, 0, 0]}>
                 {monthlyChartData.map((entry, i) => (
-                  <Cell key={i} fill={entry.isBest ? ORANGE : BLUE} fillOpacity={entry.isBest ? 1 : 0.7} />
+                  <Cell key={i} fill={entry.isBest ? BRAND_STRONG : BLUE} fillOpacity={entry.isBest ? 1 : 0.7} />
                 ))}
               </Bar>
             </BarChart>
@@ -292,7 +292,7 @@ export default function WrappedPage() {
                   <div key={i} className="flex flex-col items-center flex-1 gap-1">
                     <div
                       className="w-full rounded-sm transition-all"
-                      style={{ height: `${h}px`, background: isMax ? ORANGE : BLUE }}
+                      style={{ height: `${h}px`, background: isMax ? BRAND_STRONG : BLUE }}
                       title={`${WEEKDAY_NAMES[i]}: ${count}`}
                     />
                     <span className="text-xs text-muted-foreground">{WEEKDAY_NAMES[i]}</span>
@@ -317,7 +317,7 @@ export default function WrappedPage() {
                   <div
                     key={i}
                     className="flex-1 rounded-sm"
-                    style={{ height: `${Math.max(h, 2)}px`, background: isMax ? ORANGE : BLUE }}
+                    style={{ height: `${Math.max(h, 2)}px`, background: isMax ? BRAND_STRONG : BLUE }}
                     title={`${i}:00 – ${count} ${t('subline.rides')}`}
                   />
                 );

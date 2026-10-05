@@ -34,7 +34,7 @@ export function RecentActivitiesList({ activities, loading }: { activities: Acti
                 style={{ background: `hsl(${220 - i * 28},75%,55%)` }}
               />
               <div className="flex-1 min-w-0">
-                <p className="font-semibold text-sm leading-snug truncate group-hover:text-primary transition-colors">
+                <p className="font-semibold text-sm leading-snug truncate group-hover:text-primary-strong transition-colors">
                   {rideTitle(act, t)}
                 </p>
                 <p className="text-xs text-muted-foreground">
@@ -54,7 +54,7 @@ export function RecentActivitiesList({ activities, loading }: { activities: Acti
           {activities.length === 0 && (
             <p className="text-sm text-muted-foreground px-1">{t('recent.empty')}</p>
           )}
-          <Link to="/activities" className="block pt-1 px-1 text-xs text-primary hover:underline">
+          <Link to="/activities" className="block pt-1 px-1 text-xs text-primary-strong hover:underline">
             {t('recent.viewAll')}
           </Link>
         </div>

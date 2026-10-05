@@ -82,7 +82,7 @@ export function BikeCard({
                   />
                 ) : (
                   <h2
-                    className="text-base font-bold truncate cursor-pointer hover:text-primary transition-colors"
+                    className="text-base font-bold truncate cursor-pointer hover:text-primary-strong transition-colors"
                     title={t('bikeCard.editNameTitle')}
                     onClick={() => onEditName({ bikeId: bike.id, value: bike.name })}
                   >

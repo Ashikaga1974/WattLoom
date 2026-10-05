@@ -46,7 +46,7 @@ export function DeletedTab() {
                 {c.url && (
                   <>
                     {' · '}
-                    <a href={c.url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{t('deleted.orderLinkText')}</a>
+                    <a href={c.url} target="_blank" rel="noopener noreferrer" className="text-primary-strong hover:underline">{t('deleted.orderLinkText')}</a>
                   </>
                 )}
               </td>

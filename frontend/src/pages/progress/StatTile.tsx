@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 
 /** Einheitliche Stat-Kachel für alle Progress-Tabs – farbiger Akzentbalken + Icon-Badge,
     große fette Zahl. `color-mix()` statt String-Konkatenation für die Icon-Tönung, damit sowohl
-    Hex-Farben (Jahres-Palette) als auch CSS-Variablen (var(--primary)) funktionieren. */
+    Hex-Farben (Jahres-Palette) als auch CSS-Variablen (var(--primary-strong)) funktionieren. */
 export function StatTile({
   icon,
   label,
@@ -20,7 +20,7 @@ export function StatTile({
   borderColor?: string;
   sub?: ReactNode;
 }) {
-  const accent = valueColor ?? 'var(--primary)';
+  const accent = valueColor ?? 'var(--primary-strong)';
   return (
     <div
       className="relative overflow-hidden rounded-2xl border px-4 py-3.5 min-w-40 flex-1"

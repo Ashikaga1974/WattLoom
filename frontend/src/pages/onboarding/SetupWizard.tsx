@@ -118,7 +118,7 @@ export default function SetupWizard() {
                   <span
                     className={
                       'rounded-full w-5 h-5 flex items-center justify-center border ' +
-                      (i <= stepIndex ? 'bg-orange-500 border-orange-500 text-white' : 'border-border')
+                      (i <= stepIndex ? 'bg-brand border-brand text-brand-foreground' : 'border-border')
                     }
                   >
                     {i + 1}
@@ -135,7 +135,7 @@ export default function SetupWizard() {
                 <div className="flex justify-end">
                   <button
                     onClick={() => setStep('bike')}
-                    className="rounded-md px-5 py-2 text-sm font-medium bg-orange-500 hover:bg-orange-600 text-white transition-colors cursor-pointer"
+                    className="rounded-md px-5 py-2 text-sm font-medium bg-brand hover:bg-brand-hover text-brand-foreground transition-colors cursor-pointer"
                   >
                     {t('actions.next')}
                   </button>
@@ -160,7 +160,7 @@ export default function SetupWizard() {
                       onChange={(e) => setBikeName(e.target.value)}
                       onKeyDown={(e) => e.key === 'Enter' && createFirstBike()}
                       placeholder={t('bike.namePlaceholder')}
-                      className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-colors"
+                      className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-ring/50 focus:border-ring transition-colors"
                     />
                   </div>
                   {bikeError && <p className="text-sm text-red-500">{bikeError}</p>}
@@ -168,7 +168,7 @@ export default function SetupWizard() {
                     <button
                       onClick={createFirstBike}
                       disabled={!bikeName.trim() || creatingBike}
-                      className="rounded-md px-5 py-2 text-sm font-medium bg-orange-500 hover:bg-orange-600 disabled:opacity-50 transition-colors text-white cursor-pointer"
+                      className="rounded-md px-5 py-2 text-sm font-medium bg-brand hover:bg-brand-hover disabled:opacity-50 transition-colors text-brand-foreground cursor-pointer"
                     >
                       {creatingBike ? t('bike.creating') : t('bike.createButton')}
                     </button>
@@ -186,7 +186,7 @@ export default function SetupWizard() {
                 <div className="flex justify-end">
                   <button
                     onClick={() => setStep('done')}
-                    className="rounded-md px-5 py-2 text-sm font-medium bg-orange-500 hover:bg-orange-600 text-white transition-colors cursor-pointer"
+                    className="rounded-md px-5 py-2 text-sm font-medium bg-brand hover:bg-brand-hover text-brand-foreground transition-colors cursor-pointer"
                   >
                     {t('actions.next')}
                   </button>
@@ -200,7 +200,7 @@ export default function SetupWizard() {
                 <button
                   onClick={finishOnboarding}
                   disabled={finishing}
-                  className="rounded-md px-6 py-2 text-sm font-medium bg-orange-500 hover:bg-orange-600 disabled:opacity-50 transition-colors text-white cursor-pointer"
+                  className="rounded-md px-6 py-2 text-sm font-medium bg-brand hover:bg-brand-hover disabled:opacity-50 transition-colors text-brand-foreground cursor-pointer"
                 >
                   {finishing ? t('done.finishing') : t('done.button')}
                 </button>

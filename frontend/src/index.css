@@ -33,6 +33,10 @@
     --color-secondary: var(--secondary);
     --color-primary-foreground: var(--primary-foreground);
     --color-primary: var(--primary);
+    --color-primary-strong: var(--primary-strong);
+    --color-brand: var(--brand);
+    --color-brand-hover: var(--brand-hover);
+    --color-brand-foreground: var(--brand-foreground);
     --color-popover-foreground: var(--popover-foreground);
     --color-popover: var(--popover);
     --color-card-foreground: var(--card-foreground);
@@ -55,21 +59,26 @@
     --card-foreground: oklch(0.145 0 0);
     --popover: oklch(1 0 0);
     --popover-foreground: oklch(0.145 0 0);
-    /* Strava orange #fc4c02 */
-    --primary: oklch(0.66 0.22 37);
-    --primary-foreground: oklch(1 0 0);
+    /* Markenfarbe #e3a895 – zu hell für weiße Schrift, daher dunkler Vordergrund */
+    --brand: oklch(0.782 0.075 38.6);
+    --brand-hover: oklch(0.72 0.09 38.6);
+    --brand-foreground: oklch(0.21 0.006 285.885);
+    /* Dunklere Stufe für Text, Linien und Fokusrahmen auf Weiß (#a7593f, 5:1 Kontrast) */
+    --primary-strong: oklch(0.55 0.11 38.6);
+    --primary: var(--brand);
+    --primary-foreground: var(--brand-foreground);
     --secondary: oklch(0.97 0 0);
     --secondary-foreground: oklch(0.205 0 0);
     --muted: oklch(0.97 0 0);
     --muted-foreground: oklch(0.50 0 0);
-    --accent: oklch(0.96 0.01 37);
-    --accent-foreground: oklch(0.66 0.22 37);
+    --accent: oklch(0.96 0.02 38.6);
+    --accent-foreground: var(--primary-strong);
     --destructive: oklch(0.577 0.245 27.325);
     --border: oklch(0.922 0 0);
     --input: oklch(0.922 0 0);
-    --ring: oklch(0.66 0.22 37);
+    --ring: var(--primary-strong);
     /* Lebhafte Chart-Farben */
-    --chart-1: oklch(0.66 0.22 37);
+    --chart-1: var(--primary-strong);
     --chart-2: oklch(0.62 0.19 254);
     --chart-3: oklch(0.74 0.19 142);
     --chart-4: oklch(0.72 0.14 285);
@@ -78,12 +87,12 @@
     /* Sidebar leicht abgesetzt */
     --sidebar: oklch(0.985 0 0);
     --sidebar-foreground: oklch(0.25 0 0);
-    --sidebar-primary: oklch(0.66 0.22 37);
-    --sidebar-primary-foreground: oklch(1 0 0);
-    --sidebar-accent: oklch(0.96 0.01 37);
-    --sidebar-accent-foreground: oklch(0.66 0.22 37);
+    --sidebar-primary: var(--brand);
+    --sidebar-primary-foreground: var(--brand-foreground);
+    --sidebar-accent: oklch(0.96 0.02 38.6);
+    --sidebar-accent-foreground: var(--primary-strong);
     --sidebar-border: oklch(0.912 0 0);
-    --sidebar-ring: oklch(0.66 0.22 37);
+    --sidebar-ring: var(--primary-strong);
 }
 
 .dark {
@@ -93,6 +102,10 @@
     --card-foreground: oklch(0.985 0 0);
     --popover: oklch(0.205 0 0);
     --popover-foreground: oklch(0.985 0 0);
+    --brand: oklch(0.782 0.075 38.6);
+    --brand-hover: oklch(0.72 0.09 38.6);
+    --brand-foreground: oklch(0.21 0.006 285.885);
+    --primary-strong: oklch(0.922 0 0);
     --primary: oklch(0.922 0 0);
     --primary-foreground: oklch(0.205 0 0);
     --secondary: oklch(0.269 0 0);

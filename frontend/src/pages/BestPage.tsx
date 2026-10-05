@@ -246,7 +246,7 @@ export default function BestPage() {
                               <td className="px-4 py-2 font-mono font-semibold text-amber-500">{fmtTime(b.best_time_s)}</td>
                               <td className="px-4 py-2 text-muted-foreground">Ø {b.best_speed_kmh} km/h</td>
                               <td className="px-4 py-2">
-                                <Link to={`/activities/${b.activity_id}`} className="block max-w-[240px] truncate text-muted-foreground hover:text-primary transition-colors">
+                                <Link to={`/activities/${b.activity_id}`} className="block max-w-[240px] truncate text-muted-foreground hover:text-primary-strong transition-colors">
                                   {rideTitleWithDevice({ name: b.activity_name, date: b.date ?? undefined, smart_device: b.smart_device }, t)}
                                 </Link>
                               </td>

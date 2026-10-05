@@ -93,7 +93,7 @@ export function PersonalDataCard() {
                     onChange={(e) => setWeightInput(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && save()}
                     placeholder="75.5"
-                    className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-colors"
+                    className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-ring/50 focus:border-ring transition-colors"
                   />
                   <span className="text-xs text-muted-foreground whitespace-nowrap">{ts('units.kg')}</span>
                 </div>
@@ -116,7 +116,7 @@ export function PersonalDataCard() {
                   onChange={(e) => setBirthYearInput(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && save()}
                   placeholder="1985"
-                  className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-colors"
+                  className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-ring/50 focus:border-ring transition-colors"
                 />
                 {saved?.birth_year != null && (
                   <p className="text-xs text-muted-foreground/60 mt-1.5">
@@ -140,7 +140,7 @@ export function PersonalDataCard() {
                     onChange={(e) => setHrMaxInput(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && save()}
                     placeholder="185"
-                    className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-colors"
+                    className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-ring/50 focus:border-ring transition-colors"
                   />
                   <span className="text-xs text-muted-foreground whitespace-nowrap">{ts('units.bpm')}</span>
                 </div>
@@ -155,7 +155,7 @@ export function PersonalDataCard() {
                 <select
                   value={tzInput}
                   onChange={(e) => setTzInput(e.target.value)}
-                  className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-colors"
+                  className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-ring/50 focus:border-ring transition-colors"
                 >
                   <option value="auto">{ts('personalData.timezoneAuto')}</option>
                   <option value="1">{ts('personalData.timezoneCet')}</option>
@@ -171,7 +171,7 @@ export function PersonalDataCard() {
               <button
                 onClick={save}
                 disabled={saving}
-                className="rounded-md px-5 py-2 text-sm font-medium bg-orange-500 hover:bg-orange-600 disabled:opacity-50 transition-colors text-white cursor-pointer"
+                className="rounded-md px-5 py-2 text-sm font-medium bg-brand hover:bg-brand-hover disabled:opacity-50 transition-colors text-brand-foreground cursor-pointer"
               >
                 {saving ? ts('common.saving') : t('actions.save')}
               </button>

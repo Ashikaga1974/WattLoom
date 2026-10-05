@@ -26,6 +26,7 @@ import { ChartTooltip } from '@/components/ui/chart-tooltip';
 import { EmptyState } from '@/components/ui/empty-state';
 import { fmtDate } from '@/lib/format';
 import type { Insight } from '@/lib/insights';
+import { BRAND_STRONG } from '@/lib/colors';
 
 // Farbskala blau → grün → orange (konsistent mit LeafletMap/SpeedChart)
 function speedColor(speed: number, min: number, max: number, lightness = 52): string {
@@ -121,7 +122,7 @@ function TrendTooltip({ active, payload }: { active?: boolean; payload?: readonl
         { label: t('tooltip.speed'), value: `${point.speed_kmh} km/h` },
         { label: t('tooltip.distance'), value: `${point.dist_km} km` },
         ...(point.elevation_m > 0 ? [{ label: t('tooltip.elevation'), value: `+${point.elevation_m} m` }] : []),
-        ...(rolling?.value != null ? [{ label: t('tooltip.rollingAvg'), value: `${Number(rolling.value).toFixed(1)} km/h`, color: 'var(--primary)', separator: true }] : []),
+        ...(rolling?.value != null ? [{ label: t('tooltip.rollingAvg'), value: `${Number(rolling.value).toFixed(1)} km/h`, color: 'var(--primary-strong)', separator: true }] : []),
       ]}
     />
   );
@@ -247,13 +248,13 @@ export default function SpeedTrendPage() {
         {/* Schnellste Fahrt */}
         <Card className="shadow-sm" style={{ borderColor: 'rgba(252,76,2,0.25)', background: 'rgba(252,76,2,0.05)' }}>
           <CardContent className="px-4 py-3 space-y-1">
-            <p className="text-[10px] uppercase tracking-wide" style={{ color: '#fc4c02' }}>{t('kpi.bestRide')}</p>
-            <p className="text-2xl font-bold" style={{ color: '#fc4c02' }}>{stats.best_kmh}</p>
+            <p className="text-[10px] uppercase tracking-wide" style={{ color: BRAND_STRONG }}>{t('kpi.bestRide')}</p>
+            <p className="text-2xl font-bold" style={{ color: BRAND_STRONG }}>{stats.best_kmh}</p>
             {stats.best_ride_id ? (
               <Link
                 to={`/activities/${stats.best_ride_id}`}
                 className="text-[10px] truncate block hover:underline"
-                style={{ color: '#fc4c02', opacity: 0.75 }}
+                style={{ color: BRAND_STRONG, opacity: 0.75 }}
               >
                 {stats.best_ride_name}
               </Link>
@@ -364,7 +365,7 @@ export default function SpeedTrendPage() {
                     />
                   );
                 }}
-                activeDot={{ r: 4, fill: 'var(--primary)', strokeWidth: 0 }}
+                activeDot={{ r: 4, fill: 'var(--primary-strong)', strokeWidth: 0 }}
                 isAnimationActive={false}
               />
 
@@ -372,7 +373,7 @@ export default function SpeedTrendPage() {
               <Line
                 type="monotone"
                 dataKey="rolling_kmh"
-                stroke="var(--primary)"
+                stroke="var(--primary-strong)"
                 strokeWidth={2.5}
                 dot={false}
                 activeDot={false}

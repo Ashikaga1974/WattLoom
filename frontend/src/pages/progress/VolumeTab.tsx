@@ -18,6 +18,7 @@ import { ChartTooltip } from '@/components/ui/chart-tooltip';
 import type { Insight } from '@/lib/insights';
 
 import { StatTile } from './StatTile';
+import { BRAND_STRONG } from '@/lib/colors';
 
 function VolumeTooltip({ active, payload }: { active?: boolean; payload?: readonly TooltipPayloadEntry[] }) {
   const { t } = useTranslation('progress');
@@ -29,7 +30,7 @@ function VolumeTooltip({ active, payload }: { active?: boolean; payload?: readon
     weekLabelStr = t('volumeTab.tooltip.weekLabel', { date: date.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' }) });
   }
   const rows = [
-    { label: t('volumeTab.tooltip.cycling'), value: fmtTime(d.Radfahren * 60), color: '#fc4c02' },
+    { label: t('volumeTab.tooltip.cycling'), value: fmtTime(d.Radfahren * 60), color: BRAND_STRONG },
     { label: t('volumeTab.tooltip.workout'), value: fmtTime(d.Workout * 60), color: '#60a5fa' },
     { label: t('volumeTab.tooltip.strength'), value: fmtTime(d.Kraft * 60), color: '#4ade80' },
   ];
@@ -164,7 +165,7 @@ export function VolumeTab() {
   if (error) return <EmptyState message={error} />;
 
   const tiles = [
-    { label: t('volumeTab.tiles.rideTotal'), value: fmtTime(stats.totalRide * 60), color: '#fc4c02', icon: '🚴' },
+    { label: t('volumeTab.tiles.rideTotal'), value: fmtTime(stats.totalRide * 60), color: BRAND_STRONG, icon: '🚴' },
     stats.totalWorkout > 0 ? { label: t('volumeTab.tiles.workoutTotal'), value: fmtTime(stats.totalWorkout * 60), color: '#60a5fa', icon: '🏃' } : null,
     stats.totalWeight > 0 ? { label: t('volumeTab.tiles.strengthTotal'), value: fmtTime(stats.totalWeight * 60), color: '#4ade80', icon: '🏋️' } : null,
     { label: t('volumeTab.tiles.activeWeeks'), value: `${stats.activeWeeks} / ${stats.total}`, color: 'var(--foreground)', icon: '📅' },
@@ -206,7 +207,7 @@ export function VolumeTab() {
                   label={{ value: t('volumeTab.currentLabel'), position: 'top', fontSize: 10, fill: 'var(--muted-foreground)' }}
                 />
               )}
-              <Bar dataKey="Radfahren" name={t('volumeTab.tooltip.cycling')} stackId="a" fill="#fc4c02" fillOpacity={0.85} isAnimationActive={false} />
+              <Bar dataKey="Radfahren" name={t('volumeTab.tooltip.cycling')} stackId="a" fill={BRAND_STRONG} fillOpacity={0.85} isAnimationActive={false} />
               <Bar dataKey="Workout" name={t('volumeTab.tooltip.workout')} stackId="a" fill="#60a5fa" fillOpacity={0.85} isAnimationActive={false} />
               <Bar dataKey="Kraft" name={t('volumeTab.tooltip.strength')} stackId="a" fill="#4ade80" fillOpacity={0.85} radius={[2, 2, 0, 0]} isAnimationActive={false} />
               <Line

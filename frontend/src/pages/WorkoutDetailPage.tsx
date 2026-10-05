@@ -278,13 +278,13 @@ function VerlaufChart({ history, currentId, t }: { history: WorkoutDetail['histo
             <Tooltip content={(props) => <VerlaufTooltip {...props} metric={metric} t={t} />} />
             <Line
               type="monotone" dataKey={yKey} dot={false}
-              stroke="hsl(var(--primary))" strokeWidth={2}
+              stroke="var(--primary-strong)" strokeWidth={2}
               connectNulls={false}
             />
             {currentVal != null && currentIdx >= 0 && (
               <ReferenceDot
                 x={data[currentIdx].date} y={currentVal}
-                r={5} fill="hsl(var(--primary))" stroke="white" strokeWidth={2}
+                r={5} fill="var(--primary-strong)" stroke="white" strokeWidth={2}
               />
             )}
           </LineChart>

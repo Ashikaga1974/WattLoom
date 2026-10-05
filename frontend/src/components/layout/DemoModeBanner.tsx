@@ -10,7 +10,7 @@ export function DemoModeBanner() {
   return (
     <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 border-b border-primary/30 bg-primary/10 px-4 py-2 text-sm">
       <span>{t('demoBanner.text')}</span>
-      <Link to="/settings" className="font-medium text-primary underline-offset-4 hover:underline">
+      <Link to="/settings" className="font-medium text-primary-strong underline-offset-4 hover:underline">
         {t('demoBanner.disable')}
       </Link>
     </div>

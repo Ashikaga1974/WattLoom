@@ -23,7 +23,7 @@ export function ThemeCard() {
               onClick={() => setTheme(option)}
               className={`px-4 py-2 text-sm transition-colors ${
                 theme === option
-                  ? 'bg-orange-500 text-white'
+                  ? 'bg-brand text-brand-foreground'
                   : 'bg-background hover:bg-muted text-foreground'
               }`}
             >

@@ -91,7 +91,7 @@ export default function SegmentDetailPage() {
     <div className="space-y-6">
       <div>
         <div className="flex items-center justify-between mb-1">
-          <Link to="/segments" className="text-sm text-muted-foreground hover:text-primary transition-colors">
+          <Link to="/segments" className="text-sm text-muted-foreground hover:text-primary-strong transition-colors">
             ← {t('title')}
           </Link>
           {confirmDelete ? (
@@ -157,7 +157,7 @@ export default function SegmentDetailPage() {
                   <tr key={e.id} className="border-b border-border last:border-0 hover:bg-muted/40 transition-colors">
                     <td className="px-4 py-3 tabular-nums text-muted-foreground">{i + 1}.</td>
                     <td className="px-4 py-3">
-                      <Link to={`/activities/${e.activity_id}`} className="text-foreground hover:text-primary transition-colors">
+                      <Link to={`/activities/${e.activity_id}`} className="text-foreground hover:text-primary-strong transition-colors">
                         {e.activity_name ?? `#${e.activity_id}`}
                       </Link>
                     </td>

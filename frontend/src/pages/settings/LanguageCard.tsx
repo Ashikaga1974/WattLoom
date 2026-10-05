@@ -73,7 +73,7 @@ export function LanguageCard() {
               onClick={() => changeLanguage(lang.code)}
               className={`px-4 py-2 text-sm transition-colors ${
                 languageInput === lang.code
-                  ? 'bg-orange-500 text-white'
+                  ? 'bg-brand text-brand-foreground'
                   : 'bg-background hover:bg-muted text-foreground'
               }`}
             >

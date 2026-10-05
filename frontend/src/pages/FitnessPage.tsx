@@ -19,7 +19,7 @@ import { useCountUp } from '@/hooks/use-count-up';
 
 // Bewusst eine Farbe statt Level-Farben: die Level-Schwellen sind selbst definierte WattLoom-Regeln,
 // farbige Stufen wie "Elite" wirkten wie eine objektive Einstufung. Das Backend liefert `level` weiter.
-const SCORE_COLOR = 'var(--primary)';
+const SCORE_COLOR = 'var(--primary-strong)';
 
 /**
  * Score-Veränderung gegenüber demselben Monat ein Jahr zuvor.

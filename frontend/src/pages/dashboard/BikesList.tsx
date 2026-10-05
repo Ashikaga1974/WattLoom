@@ -46,7 +46,7 @@ export function BikesList({ bikes, loading }: { bikes: Bike[]; loading: boolean 
               </div>
             );
           })}
-          <Link to="/bikes" className="block pt-1 px-1 text-xs text-primary hover:underline">
+          <Link to="/bikes" className="block pt-1 px-1 text-xs text-primary-strong hover:underline">
             {t('bikes.viewAll')}
           </Link>
         </div>

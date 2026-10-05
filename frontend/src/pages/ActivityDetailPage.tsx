@@ -214,17 +214,17 @@ function ElevationChart({ points, onHover, activeDist }: { points: TrackPoint[];
           onMouseMove={handleMouseMove} onMouseLeave={handleMouseLeave}>
           <defs>
             <linearGradient id="elevGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.4} />
-              <stop offset="95%" stopColor="var(--primary)" stopOpacity={0.05} />
+              <stop offset="5%" stopColor="var(--primary-strong)" stopOpacity={0.4} />
+              <stop offset="95%" stopColor="var(--primary-strong)" stopOpacity={0.05} />
             </linearGradient>
           </defs>
           <XAxis dataKey="dist" type="number" domain={[0, 'dataMax']} hide />
           <YAxis tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }} axisLine={false} tickLine={false} />
           <Tooltip content={<ElevationTooltip />} />
           {activeDist != null && (
-            <ReferenceLine x={activeDist} stroke="var(--primary)" strokeWidth={1.5} strokeDasharray="4 2" />
+            <ReferenceLine x={activeDist} stroke="var(--primary-strong)" strokeWidth={1.5} strokeDasharray="4 2" />
           )}
-          <Area type="monotone" dataKey="alt" stroke="var(--primary)" fill="url(#elevGrad)" strokeWidth={1.5} dot={false} />
+          <Area type="monotone" dataKey="alt" stroke="var(--primary-strong)" fill="url(#elevGrad)" strokeWidth={1.5} dot={false} />
         </AreaChart>
       </ResponsiveContainer>
     </div>
@@ -406,7 +406,7 @@ function SpeedChart({ points, onHover, activeDist }: { points: TrackPoint[]; onH
           <YAxis tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }} axisLine={false} tickLine={false} />
           <Tooltip content={<SpeedTooltip />} />
           {activeDist != null && (
-            <ReferenceLine x={activeDist} stroke="var(--primary)" strokeWidth={1.5} strokeDasharray="4 2" />
+            <ReferenceLine x={activeDist} stroke="var(--primary-strong)" strokeWidth={1.5} strokeDasharray="4 2" />
           )}
           <Area type="monotone" dataKey="speed" stroke="url(#speedLineGrad)" fill="url(#speedAreaGrad)" strokeWidth={2} dot={false} />
         </AreaChart>
@@ -608,7 +608,7 @@ export default function ActivityDetailPage() {
       {/* Header */}
       <div>
         <div className="flex items-center justify-between mb-1">
-          <Link to="/activities" className="text-sm text-muted-foreground hover:text-primary transition-colors">
+          <Link to="/activities" className="text-sm text-muted-foreground hover:text-primary-strong transition-colors">
             ← {t('common:nav.activities')}
           </Link>
           <div className="flex items-center gap-2">
@@ -716,7 +716,7 @@ export default function ActivityDetailPage() {
         <div className="flex items-center justify-between rounded-lg bg-primary/10 border border-primary/30 px-4 py-2 text-sm">
           <span>{t('segment.saved')}</span>
           <div className="flex items-center gap-3">
-            <Link to={`/segments/${segmentSavedId}`} className="text-xs text-primary hover:underline">
+            <Link to={`/segments/${segmentSavedId}`} className="text-xs text-primary-strong hover:underline">
               {t('segment.viewSegment')}
             </Link>
             <button onClick={() => setSegmentSavedId(null)} className="text-xs text-muted-foreground hover:text-foreground transition-colors">

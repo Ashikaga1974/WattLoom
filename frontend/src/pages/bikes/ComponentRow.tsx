@@ -146,7 +146,7 @@ export function ComponentRow({
 
   if (editing) {
     return (
-      <div className="rounded-xl border p-4 space-y-4" style={{ borderColor: 'var(--primary)' }}>
+      <div className="rounded-xl border p-4 space-y-4" style={{ borderColor: 'var(--primary-strong)' }}>
         <p className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">{t('componentRow.editTitle')}</p>
         <div className="grid grid-cols-2 gap-3">
           <label className={labelCls}>
@@ -209,7 +209,7 @@ export function ComponentRow({
         )}
         {comp.purchase_url && (
           <a href={comp.purchase_url} target="_blank" rel="noopener noreferrer"
-            className="text-sm text-primary hover:underline" title={t('componentRow.orderLinkTitle')}>
+            className="text-sm text-primary-strong hover:underline" title={t('componentRow.orderLinkTitle')}>
             {t('componentRow.orderLinkText')}
           </a>
         )}

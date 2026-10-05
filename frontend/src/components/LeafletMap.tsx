@@ -12,6 +12,7 @@ import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 
 import type { TrackPoint } from '@/lib/api';
+import { BRAND_STRONG } from '@/lib/colors';
 
 export type SetHoverFn = (pt: { lat: number; lon: number } | null) => void;
 
@@ -129,7 +130,7 @@ export default function LeafletMap({ points = [], multiPoints, speedColorBuckets
         const vp = track.filter(p => p.lat != null && p.lon != null);
         if (vp.length < 2) continue;
         const lls = vp.map(p => [p.lat, p.lon] as L.LatLngTuple);
-        colorLines.push(L.polyline(lls, { ...lineOpts, color: '#fc4c02', weight: 4, opacity: 0.55 }).addTo(map));
+        colorLines.push(L.polyline(lls, { ...lineOpts, color: BRAND_STRONG, weight: 4, opacity: 0.55 }).addTo(map));
       }
 
       requestAnimationFrame(() => {
@@ -153,7 +154,7 @@ export default function LeafletMap({ points = [], multiPoints, speedColorBuckets
 
       if (!hasSpeed) {
         const halo = L.polyline(latLngs, { ...lineOpts, color: '#1a1a1a', weight: lineWeight(map.getZoom()) + 4, opacity: 0.55 }).addTo(map);
-        const poly = L.polyline(latLngs, { ...lineOpts, color: '#fc4c02', weight: lineWeight(map.getZoom()), opacity: 1.0 }).addTo(map);
+        const poly = L.polyline(latLngs, { ...lineOpts, color: BRAND_STRONG, weight: lineWeight(map.getZoom()), opacity: 1.0 }).addTo(map);
         haloLines.push(halo);
         colorLines.push(poly);
       } else {
@@ -254,7 +255,7 @@ export default function LeafletMap({ points = [], multiPoints, speedColorBuckets
           hoverMarkerRef.current = L.circleMarker([pt.lat, pt.lon], {
             radius: 7,
             color: '#ffffff',
-            fillColor: '#fc4c02',
+            fillColor: BRAND_STRONG,
             fillOpacity: 1,
             weight: 2,
           }).addTo(map);

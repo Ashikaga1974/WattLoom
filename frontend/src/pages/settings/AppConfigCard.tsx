@@ -101,7 +101,7 @@ export function AppConfigCard() {
                 max="0.5"
                 value={bezierInput}
                 onChange={e => setBezierInput(e.target.value)}
-                className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-colors"
+                className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-ring/50 focus:border-ring transition-colors"
               />
             </div>
             <p className="text-xs text-muted-foreground/50 mt-1.5">{ts('appConfig.bezierHint')}</p>
@@ -118,7 +118,7 @@ export function AppConfigCard() {
               max="16"
               value={sparklineInput}
               onChange={e => setSparklineInput(e.target.value)}
-              className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-colors"
+              className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-ring/50 focus:border-ring transition-colors"
             />
             <p className="text-xs text-muted-foreground/50 mt-1.5">{ts('appConfig.sparklineHint')}</p>
           </div>
@@ -134,7 +134,7 @@ export function AppConfigCard() {
               max="40"
               value={bucketInput}
               onChange={e => setBucketInput(e.target.value)}
-              className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-colors"
+              className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-ring/50 focus:border-ring transition-colors"
             />
             <p className="text-xs text-muted-foreground/50 mt-1.5">{ts('appConfig.bucketsHint')}</p>
           </div>
@@ -151,7 +151,7 @@ export function AppConfigCard() {
                 max="20"
                 value={simplifyInput}
                 onChange={e => setSimplifyInput(e.target.value)}
-                className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-colors"
+                className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-ring/50 focus:border-ring transition-colors"
               />
               <span className="text-xs text-muted-foreground whitespace-nowrap">{ts('units.m')}</span>
             </div>
@@ -170,7 +170,7 @@ export function AppConfigCard() {
                 max="100"
                 value={wearPctInput}
                 onChange={e => setWearPctInput(e.target.value)}
-                className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-colors"
+                className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-ring/50 focus:border-ring transition-colors"
               />
               <span className="text-xs text-muted-foreground whitespace-nowrap">{ts('units.percent')}</span>
             </div>
@@ -189,7 +189,7 @@ export function AppConfigCard() {
                 max="1000"
                 value={chainMaintenanceKmInput}
                 onChange={e => setChainMaintenanceKmInput(e.target.value)}
-                className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-colors"
+                className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-ring/50 focus:border-ring transition-colors"
               />
               <span className="text-xs text-muted-foreground whitespace-nowrap">{ts('units.km')}</span>
             </div>
@@ -201,7 +201,7 @@ export function AppConfigCard() {
           <button
             onClick={saveConfig}
             disabled={configSaving}
-            className="rounded-md px-5 py-2 text-sm font-medium bg-orange-500 hover:bg-orange-600 disabled:opacity-50 transition-colors text-white cursor-pointer"
+            className="rounded-md px-5 py-2 text-sm font-medium bg-brand hover:bg-brand-hover disabled:opacity-50 transition-colors text-brand-foreground cursor-pointer"
           >
             {configSaving ? ts('common.saving') : t('actions.save')}
           </button>
