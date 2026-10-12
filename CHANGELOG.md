@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.3.0 – 2026-10-12
+
+- Demo mode: explore WattLoom with generated sample data, no Strava export needed (toggle in settings)
+- Re-importing a Strava ZIP no longer duplicates the track data of activities that were already imported
+- Refreshed brand/accent color
+
 ## v1.2.0 – 2026-10-01
 
 - "What changed?" on the progress tab: compares the last 30/90/365 days with the same days last year or the days before (volume, speed, HR, efficiency, fitness, best efforts) and highlights notable changes
