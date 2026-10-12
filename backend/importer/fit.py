@@ -12,6 +12,8 @@ from typing import Any
 
 import fitparse
 
+from backend.importer import clear_track_data
+
 # FIT-Ungültig-Marker für sint32 (Koordinatenfelder)
 _FIT_INVALID_SINT32 = 0x7FFFFFFF
 
@@ -264,6 +266,8 @@ def import_fit(conn: sqlite3.Connection, activity_id: int, data: bytes, *, compr
             ))
 
     with conn:
+        # Alten Track derselben Aktivität entfernen → idempotenter Re-Import (siehe clear_track_data)
+        clear_track_data(conn, activity_id)
         if points:
             conn.executemany("""
                 INSERT INTO track_points

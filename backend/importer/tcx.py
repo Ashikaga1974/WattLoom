@@ -8,6 +8,8 @@ import math
 import sqlite3
 from lxml import etree
 
+from backend.importer import clear_track_data
+
 
 # ---------------------------------------------------------------------------
 # Geräteerkennung
@@ -141,6 +143,8 @@ def import_tcx(conn: sqlite3.Connection, activity_id: int, data: bytes, *, compr
             ))
 
     with conn:
+        # Alten Track derselben Aktivität entfernen → idempotenter Re-Import (siehe clear_track_data)
+        clear_track_data(conn, activity_id)
         if points:
             conn.executemany("""
                 INSERT INTO track_points

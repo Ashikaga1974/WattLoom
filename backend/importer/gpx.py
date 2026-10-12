@@ -8,6 +8,7 @@ import sqlite3
 from datetime import datetime
 from lxml import etree
 
+from backend.importer import clear_track_data
 from backend.utils import haversine_m, smooth_speeds
 
 # ---------------------------------------------------------------------------
@@ -131,6 +132,8 @@ def import_gpx(conn: sqlite3.Connection, activity_id: int, data: bytes, *, compr
     points = _parse_trackpoints(root)
 
     with conn:
+        # Alten Track derselben Aktivität entfernen → idempotenter Re-Import (siehe clear_track_data)
+        clear_track_data(conn, activity_id)
         if points:
             conn.executemany("""
                 INSERT INTO track_points
